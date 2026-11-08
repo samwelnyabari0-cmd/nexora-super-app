@@ -15,6 +15,7 @@ export default defineConfig({
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL ?? ""),
       "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.SUPABASE_PUBLISHABLE_KEY ?? ""),
       "import.meta.env.VITE_GOOGLE_MAPS_API_KEY": JSON.stringify(env.GOOGLE_MAPS_API_KEY ?? ""),
+      "import.meta.env.VITE_SUPABASE_REDIRECT_URL": JSON.stringify(env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? ""),
       "import.meta.env.VITE_HAS_PAYSTACK": JSON.stringify(Boolean(env.UDC_PAYSTACK_2_API_KEY)),
       "import.meta.env.VITE_HAS_CLOUDFLARE": JSON.stringify(Boolean(env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_STREAM_TOKEN)),
       "import.meta.env.VITE_HAS_AI": JSON.stringify(Boolean(env.VERCEL_OIDC_TOKEN || env.AI_GATEWAY_API_KEY)),

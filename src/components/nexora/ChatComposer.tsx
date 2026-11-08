@@ -363,7 +363,7 @@ export function ChatComposer({
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        Session-only demo · attachments stay on this device · no real delivery
+        Sign in to enable real delivery · attachments require an authenticated account
       </p>
     </form>
   );

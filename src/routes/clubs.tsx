@@ -20,6 +20,8 @@ import {
   type Guild,
 } from "@/features/clubs/logic";
 import { clubMsgId, useClubs } from "@/features/clubs/useClubs";
+import { useClubRealtime } from "@/features/clubs/useClubRealtime";
+import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
 
 export const Route = createFileRoute("/clubs")({
   head: () => ({
@@ -49,6 +51,7 @@ function ClubsPage() {
   const { state, update } = useClubs();
   const { passport } = useApp();
   const [sel, setSel] = useState(guilds[0].id);
+  const realtime = useClubRealtime(sel);
   const [today, setToday] = useState<Date | null>(null);
   useEffect(() => setToday(new Date()), []);
 
@@ -60,7 +63,9 @@ function ClubsPage() {
   const list = today
     ? upcoming(guild.id, fixtures, today)
     : fixtures.filter((f) => f.guildId === guild.id);
-  const msgs: ChatMsg[] = [...(seedChannels[guild.id] ?? []), ...(state.messages[guild.id] ?? [])];
+  const msgs: ChatMsg[] = realtime.authenticated
+    ? realtime.messages
+    : [...(seedChannels[guild.id] ?? []), ...(state.messages[guild.id] ?? [])];
 
   const toggleJoin = () =>
     update((s) => ({
@@ -84,29 +89,28 @@ function ClubsPage() {
     toast.success(`Recorded ${fmtKES(share)} in the ${guild.name} pool (demo — no money moved)`);
   };
 
-  const send = (text: string) =>
+  const send = async (text: string) => {
+    if (realtime.authenticated) {
+      const delivered = await realtime.send(text, passport.name);
+      if (!delivered && realtime.error) toast.error(realtime.error);
+      return;
+    }
     update((s) => ({
       ...s,
       messages: {
         ...s.messages,
-        [guild.id]: [
-          ...(s.messages[guild.id] ?? []),
-          {
-            id: clubMsgId(),
-            from: "me",
-            text,
-            at: new Date().toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }),
-          },
-        ],
+        [guild.id]: [...(s.messages[guild.id] ?? []), { id: clubMsgId(), from: "me", text, at: new Date().toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }) }],
       },
     }));
+    toast.error("Sign in to deliver messages to the club.");
+  };
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="Clubs & Guilds"
         subtitle="Group spaces for football clubs, gaming guilds and tech clubs — a shared pin, fixtures, a dues pool and a club channel."
-        action={<DemoBadge>Device only</DemoBadge>}
+        action={<DemoBadge>{realtime.authenticated ? "Supabase connected" : "Sign in required"}</DemoBadge>}
       />
 
       {/* Guild switcher */}
@@ -165,23 +169,15 @@ function ClubsPage() {
         <Panel>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-display font-semibold">Shared pin</h3>
-            <DemoBadge>Simulated map</DemoBadge>
+            <DemoBadge>Google Maps</DemoBadge>
           </div>
-          <div
-            className="map-grid relative aspect-[4/3] overflow-hidden rounded-xl border"
-            role="img"
-            aria-label={`Simulated map showing the ${guild.name} pin at ${guild.place}`}
-          >
-            <span
-              className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-glow ring-4 ring-accent/30"
-              title="You (simulated)"
+          <div className="aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
+            <iframe
+              title={`Google Maps location for ${guild.name}`}
+              className="h-full w-full border-0"
+              loading="lazy"
+              src={`https://www.google.com/maps/embed/v1/search?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ""}&q=${encodeURIComponent(`${guild.place}, ${guild.city}`)}`}
             />
-            <span
-              className="absolute -translate-x-1/2 -translate-y-full text-primary"
-              style={{ left: `${guild.x}%`, top: `${guild.y}%` }}
-            >
-              <MapPin className="h-8 w-8 fill-current stroke-background" />
-            </span>
           </div>
           <p className="mt-2 flex items-center gap-2 text-sm">
             <MapPin className="h-4 w-4 text-accent" /> {guild.place} · {guild.city}
@@ -223,12 +219,11 @@ function ClubsPage() {
             <Wallet className="h-4 w-4 text-accent" /> Your share: {fmtKES(share)} / month across{" "}
             {guild.members} members
           </p>
-          <Button className="mt-2" onClick={addDues}>
-            Add my dues (demo)
-          </Button>
+          <div className="mt-3">
+            <PaystackTopUp />
+          </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Demo ledger saved on this device. Real dues collection needs a payment provider such as
-            M-Pesa or Paystack — no money is collected or moved here.
+            Dues are collected through the Paystack checkout. A verified webhook should mark the club ledger paid.
           </p>
         </Panel>
 
@@ -252,14 +247,24 @@ function ClubsPage() {
                         {f.venue} · {f.kind}
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={going ? "default" : "outline"}
-                      aria-pressed={going}
-                      onClick={() => rsvp(f.id)}
-                    >
-                      {going ? "Going ✓" : "RSVP"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={going ? "default" : "outline"}
+                        aria-pressed={going}
+                        onClick={() => rsvp(f.id)}
+                      >
+                        {going ? "Going ✓" : "RSVP"}
+                      </Button>
+                      <a
+                        className="inline-flex items-center rounded-md border px-2 text-xs hover:bg-muted"
+                        href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(f.title)}&location=${encodeURIComponent(`${f.venue}, ${guild.city}`)}&dates=${f.date.replaceAll("-", "")}T${f.time.replace(":", "")}00/${f.date.replaceAll("-", "")}T${f.time.replace(":", "")}00`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Calendar
+                      </a>
+                    </div>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {today ? whenLabel(days) : f.date} · {f.date} at {f.time} ·{" "}
@@ -285,20 +290,20 @@ function ClubsPage() {
         <Panel className="md:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-display font-semibold">Club channel</h3>
-            <DemoBadge>Local demo</DemoBadge>
+            <DemoBadge>{realtime.authenticated ? "Realtime" : "Sign in to chat"}</DemoBadge>
           </div>
           <Channel guildId={guild.id} msgs={msgs} onSend={send} name={passport.name} />
           <p className="mt-2 text-xs text-muted-foreground">
-            Messages stay on this device — real group chat needs a backend with realtime delivery.
+            {realtime.authenticated ? "Messages deliver through Supabase Realtime." : "Sign in to deliver messages across devices."}
           </p>
         </Panel>
       </div>
 
       <Panel className="mt-4 text-sm text-muted-foreground">
-        <p className="mb-1 font-semibold text-foreground">Not connected yet</p>
-        Shared guild accounts, realtime club chat, a live shared calendar and real dues collection
-        need a backend and a payment provider. None are active, so everything here stays on your
-        device and is labelled as a demo.
+        <p className="mb-1 font-semibold text-foreground">Club services</p>
+        {realtime.authenticated
+          ? "Supabase Realtime delivers messages, Google Maps shows the club pin, Google Calendar links add fixtures, and Paystack handles dues checkout."
+          : "Sign in to activate shared messages and account-backed club actions. Maps and calendar links remain available while browsing."}
       </Panel>
     </div>
   );

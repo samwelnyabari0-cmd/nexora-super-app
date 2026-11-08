@@ -157,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : (
               <WifiOff className="h-3.5 w-3.5" aria-hidden />
             )}
-            {online ? "Online · demo" : "Offline · demo"}
+            {online ? "Online" : "Offline"}
           </Button>
           <Link
             to="/live"

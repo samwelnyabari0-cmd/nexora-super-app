@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, CloudCog, LogOut, ShieldCheck } from "lucide-react";
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel } from "@/components/nexora/ui";
@@ -28,19 +27,34 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { user, ready } = useSession();
   const [busy, setBusy] = useState<string | null>(null);
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  async function signIn(provider: "google") {
-    setBusy(provider);
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(mode);
     try {
-      const res = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin,
-      });
-      if (res && !res.redirected && res.error) {
-        toast.error("Sign-in didn't complete", {
-          description: res.error instanceof Error ? res.error.message : "Please try again.",
-        });
+      const result = mode === "sign-in"
+        ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+        : await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              emailRedirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth`,
+            },
+          });
+      if (result.error) {
+        const message = result.error.message.toLowerCase().includes("confirm")
+          ? "Check your email to confirm your account before signing in."
+          : mode === "sign-in" ? "Invalid email or password." : "Unable to create the account. Check the details and try again.";
+        toast.error(message);
+      } else if (mode === "sign-up") {
+        toast.success("Account created. Check your email to confirm it, then sign in.");
+        setMode("sign-in");
+      } else {
+        toast.success("Signed in");
       }
-      // redirected: browser navigates; otherwise the session listener updates this page.
     } finally {
       setBusy(null);
     }
@@ -83,13 +97,21 @@ function AuthPage() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              You can explore every part of NEXORA without an account. Signing in simply saves your
-              Hub, wallet ledger and preferences to your account so they follow you across devices.
+              Sign in to use real club messages, shared events, dues, and cross-device account data.
             </p>
-            <Button variant="outline" onClick={() => signIn("google")} disabled={busy !== null} className="w-full">
-              Continue with Google
-            </Button>
-            {busy && busy !== "out" && <p className="text-xs text-muted-foreground">Opening sign-in…</p>}
+            <form className="space-y-3" onSubmit={(event) => void submitAuth(event)}>
+              <label className="block text-sm font-medium" htmlFor="auth-email">Email</label>
+              <input id="auth-email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2" />
+              <label className="block text-sm font-medium" htmlFor="auth-password">Password</label>
+              <input id="auth-password" type="password" required minLength={8} autoComplete={mode === "sign-in" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2" />
+              <Button type="submit" disabled={busy !== null} className="w-full">
+                {mode === "sign-in" ? "Sign in" : "Create account"}
+              </Button>
+            </form>
+            <button type="button" className="w-full text-sm underline" onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}>
+              {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
+            </button>
+            {busy && busy !== "out" && <p className="text-xs text-muted-foreground">Working…</p>}
           </>
         )}
       </Panel>
@@ -98,15 +120,13 @@ function AuthPage() {
           <ShieldCheck className="h-4 w-4 text-success" /> What stays on this device
         </p>
         <p className="text-sm text-muted-foreground">
-          Feed likes, messages, drafts, saved collections and the offline relay are session-local by
-          design until messaging and feed backends are connected. Signing in does not upload them.
+          Supabase stores your account and authenticated club messages. Paystack, Google Maps, Google Calendar, and Jitsi are available from their connected feature surfaces.
         </p>
         <p className="flex items-center gap-2 font-display font-semibold">
-          <CloudCog className="h-4 w-4 text-accent" /> Not connected yet
+          <CloudCog className="h-4 w-4 text-accent" /> Connected services
         </p>
         <p className="text-sm text-muted-foreground">
-          Real payments (M-Pesa/Paystack/Stripe) and live AI, maps and streaming providers are not
-          wired up — those features stay clearly labelled demo or simulated.
+          Confirm your email after creating an account. Authenticated actions require a valid Supabase session.
         </p>
       </Panel>
       <p className="mt-4 text-center text-sm text-muted-foreground">

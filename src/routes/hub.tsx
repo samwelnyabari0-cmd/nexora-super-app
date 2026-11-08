@@ -240,10 +240,8 @@ function HubPage() {
         ))}
       </div>
       <Panel className="mt-6 text-sm text-muted-foreground">
-        <p className="mb-1 font-semibold text-foreground">Not connected yet</p>
-        Cloud sync across devices, Google and passkey sign-in, real money transfers, live AI
-        summaries, shared focus rooms and live video calls all need a backend and providers. None of
-        these are active, so nothing here pretends to be.
+  <p className="mb-1 font-semibold text-foreground">Connected service actions</p>
+  Sign in for Supabase cloud sync, use Paystack for verified checkout, Google Maps and Calendar for club coordination, and Jitsi for live video rooms.
       </Panel>
     </div>
   );

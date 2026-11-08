@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel, Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
-import { CallScreen } from "@/components/nexora/CallScreen";
 
 const peerConfig = {
   iceServers: [
@@ -74,7 +73,7 @@ function CallsPage() {
     <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Calls"
-        subtitle="1:1 voice and video calls with people you've added — they must accept before any audio or video connects."
+        subtitle="Start a real encrypted browser video room with camera, microphone, and screen sharing."
       />
       {user ? (
         <SignedInCalls userId={user.id} inviteCode={invite} />
@@ -90,9 +89,6 @@ function CallsPage() {
         </Panel>
       )}
       <JitsiRoom />
-      <Panel className="mt-4">
-        <CallScreen />
-      </Panel>
     </div>
   );
 }
