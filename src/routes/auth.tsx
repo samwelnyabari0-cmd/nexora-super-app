@@ -71,10 +71,12 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: authRedirectUrl(),
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) toast.error("Google sign-in is unavailable right now. Try email and password instead.");
+    } catch {
+      toast.error("Google sign-in could not start. Please try again.");
     } finally {
       setBusy(null);
     }

@@ -27,7 +27,7 @@ import { Avatar } from "./ui";
 import { SceneToAction } from "./SceneToAction";
 
 export function PostCard({ post }: { post: Post }) {
-  const { liked, saved, toggleLike, toggleSave, share, repost, deletePost, addComment, passport } =
+  const { liked, saved, reposted, toggleLike, toggleSave, share, repost, deletePost, addComment, passport } =
     useApp();
   const c =
     post.creatorId === "me"
@@ -140,7 +140,7 @@ export function PostCard({ post }: { post: Post }) {
       <Action label="Share" onClick={() => share(post.id)} count={post.shares}>
         <Share2 className="h-5 w-5" />
       </Action>
-      <Action label="Repost" onClick={() => repost(post.id)} count={post.shares}>
+      <Action label={reposted.has(post.id) ? "Already reposted" : "Repost"} onClick={() => repost(post.id)} count={post.shares} active={reposted.has(post.id)} disabled={reposted.has(post.id)}>
         <Repeat2 className="h-5 w-5" />
       </Action>
       <button
@@ -355,16 +355,19 @@ function Action({
   onClick,
   count,
   active,
+  disabled,
 }: {
   children: React.ReactNode;
   label: string;
   onClick: () => void;
   count: number;
   active?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       aria-pressed={active}
       className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"

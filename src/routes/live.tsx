@@ -67,6 +67,7 @@ function LivePage() {
   const stream = seedLive.find((s) => s.id === watching) ?? seedLive[0];
   const [tips, setTips] = useLocal<Tip[]>("nx.tips", []);
   const [tipAmt, setTipAmt] = useState("100");
+  const [pollChoice, setPollChoice] = useState<number | null>(null);
   const [poll, setPoll] = useState<Poll>({
     question: "Which spot next?",
     options: [
@@ -221,7 +222,8 @@ function LivePage() {
               key={o.label}
               variant="outline"
               className="w-full justify-between"
-              onClick={() => setPoll(vote(poll, i))}
+              onClick={() => { if (pollChoice === null) { setPollChoice(i); setPoll(vote(poll, i)); } }}
+              disabled={pollChoice !== null}
             >
               {o.label}
               <span>{o.votes}</span>
