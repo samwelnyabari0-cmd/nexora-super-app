@@ -6,6 +6,7 @@ import {
   Play,
   Send,
   Share2,
+  Repeat2,
   Zap,
   MapPin,
 } from "lucide-react";
@@ -23,7 +24,7 @@ import { Avatar } from "./ui";
 import { SceneToAction } from "./SceneToAction";
 
 export function PostCard({ post }: { post: Post }) {
-  const { liked, saved, toggleLike, toggleSave, share, addComment, passport } = useApp();
+  const { liked, saved, toggleLike, toggleSave, share, repost, addComment, passport } = useApp();
   const c =
     post.creatorId === "me"
       ? { name: passport.name, handle: passport.handle, hue: 295, verified: false }
@@ -92,6 +93,9 @@ export function PostCard({ post }: { post: Post }) {
       </Action>
       <Action label="Share" onClick={() => share(post.id)} count={post.shares}>
         <Share2 className="h-5 w-5" />
+      </Action>
+      <Action label="Repost" onClick={() => repost(post.id)} count={post.shares}>
+        <Repeat2 className="h-5 w-5" />
       </Action>
       <button
         onClick={() => toggleSave(post.id)}

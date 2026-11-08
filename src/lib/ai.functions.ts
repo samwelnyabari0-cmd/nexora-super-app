@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const MODEL = "openai/gpt-oss-20b" as const;
+const MODEL = "openai/gpt-5-mini" as const;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
