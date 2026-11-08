@@ -124,9 +124,14 @@ function Settings() {
           ))}
         </ul>
       </section>
-      <Button asChild variant="outline">
-        <Link to="/help">Help center</Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild>
+          <Link to="/subscriptions">View subscription plans</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/help">Help center</Link>
+        </Button>
+      </div>
     </div>
   );
 }
