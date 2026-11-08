@@ -21,7 +21,12 @@ export const createLiveInput = createServerFn({ method: "POST" })
     const payload = (await response.json()) as {
       success?: boolean;
       errors?: Array<{ message?: string }>;
-      result?: { uid?: string; rtmps?: { url?: string; streamKey?: string } };
+      result?: {
+        uid?: string;
+        rtmps?: { url?: string; streamKey?: string };
+        webRTC?: { url?: string };
+        webRTCPlayback?: { url?: string };
+      };
     };
     if (!response.ok || !payload.success || !payload.result?.uid) {
       return { error: payload.errors?.[0]?.message ?? "Could not create the live stream." };
@@ -30,5 +35,7 @@ export const createLiveInput = createServerFn({ method: "POST" })
       uid: payload.result.uid,
       rtmpsUrl: payload.result.rtmps?.url ?? null,
       streamKey: payload.result.rtmps?.streamKey ?? null,
+      whipUrl: payload.result.webRTC?.url ?? null,
+      whepUrl: payload.result.webRTCPlayback?.url ?? null,
     };
   });

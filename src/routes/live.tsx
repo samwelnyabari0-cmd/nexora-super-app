@@ -336,6 +336,8 @@ function GoLive() {
   const [now, setNow] = useState(0);
   const [title, setTitle] = useState("");
   const [streamUid, setStreamUid] = useState<string | null>(null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const whipSession = useRef<{ peer: RTCPeerConnection; url: string } | null>(null);
   useEffect(() => {
     if (!mediaStream) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -352,6 +354,23 @@ function GoLive() {
         return;
       }
       setStreamUid("uid" in liveInput ? liveInput.uid : null);
+      if ("whipUrl" in liveInput && liveInput.whipUrl) {
+        const peer = new RTCPeerConnection();
+        s.getTracks().forEach((track) => peer.addTransceiver(track, { direction: "sendonly" }));
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        const response = await fetch(liveInput.whipUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: offer.sdp,
+        });
+        if (!response.ok) throw new Error(`Cloudflare WHIP failed: ${response.status}`);
+        await peer.setRemoteDescription({ type: "answer", sdp: await response.text() });
+        const location = response.headers.get("Location");
+        if (!location) throw new Error("Cloudflare did not return a WHIP session.");
+        whipSession.current = { peer, url: new URL(location, liveInput.whipUrl).toString() };
+        setPlaybackUrl("whepUrl" in liveInput ? liveInput.whepUrl : null);
+      }
       setMediaStream(s);
       setStart(Date.now());
       setNow(Date.now());
@@ -369,6 +388,12 @@ function GoLive() {
   function end() {
     const secs = Math.round((Date.now() - start) / 1000);
     mediaStream?.getTracks().forEach((t) => t.stop());
+    if (whipSession.current) {
+      void fetch(whipSession.current.url, { method: "DELETE" }).catch(() => undefined);
+      whipSession.current.peer.close();
+      whipSession.current = null;
+    }
+    setPlaybackUrl(null);
     setMediaStream(null);
     bus.emit("live:end", { seconds: secs });
     toast(`Preview ended after ${secs}s`);
@@ -406,6 +431,11 @@ function GoLive() {
       {streamUid && (
         <p className="text-xs text-muted-foreground" role="status">
           Cloudflare Stream input ready · {streamUid}
+        </p>
+      )}
+      {playbackUrl && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Low-latency WebRTC playback is ready for viewers.
         </p>
       )}
       <p className="text-xs text-muted-foreground">
