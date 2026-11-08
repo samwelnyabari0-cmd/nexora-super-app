@@ -26,6 +26,15 @@ export const Route = createFileRoute("/profile")({
 });
 
 const allInterests = ["city", "food", "tech", "music", "dance", "travel", "nature", "creators"];
+const accountTypes = [
+  { value: "personal", label: "Personal / Viewer", description: "Consume, save, follow, DM, upload and tip." },
+  { value: "creator", label: "Creator", description: "Creator Studio, analytics and monetization tools." },
+  { value: "business", label: "Business / Merchant", description: "Ads, storefront, product tags and customer tools." },
+] as const;
+const profileCategories = [
+  ["tech", "Tech & Gaming"], ["sports", "Sports & Health"], ["arts", "Arts & Creative"],
+  ["business", "Business / Sales"], ["music", "Music & Audio"], ["education", "Education & Lifestyle"],
+] as const;
 
 function Profile() {
   const { passport, updatePassport, relay, online, syncRelay, events, posts, saved } = useApp();
@@ -38,6 +47,8 @@ function Profile() {
   const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [socialTab, setSocialTab] = useState<"posts" | "reels" | "collabs" | "saved" | "followers" | "following">("posts");
   const [passportOpen, setPassportOpen] = useState(false);
+  const [accountType, setAccountType] = useState<"personal" | "creator" | "business">(user?.user_metadata?.account_type ?? "personal");
+  const [profileCategory, setProfileCategory] = useState<string>(user?.user_metadata?.profile_category ?? "");
   const [connections, setConnections] = useState<
     Array<{ id: string; display_name: string | null; handle: string | null }>
   >([]);
@@ -148,12 +159,12 @@ function Profile() {
           <div className="grid grid-cols-3 gap-2">
             {(
               [
-                { value: "posts", label: "Posts", Icon: Grid3X3 },
-                { value: "reels", label: "Reels", Icon: Film },
-                { value: "collabs", label: "Collabs", Icon: Users },
                 { value: "followers", label: "Followers", Icon: Users },
                 { value: "following", label: "Following", Icon: UserPlus },
                 { value: "saved", label: "Saved", Icon: Bookmark },
+                { value: "posts", label: "Posts", Icon: Grid3X3 },
+                { value: "reels", label: "Reels", Icon: Film },
+                { value: "collabs", label: "Collabs", Icon: Users },
               ] as const
             ).map(({ value, label, Icon: IconComponent }) => (
               <Button
@@ -229,6 +240,13 @@ function Profile() {
               {passport.reputation}
             </span>
             <span className="text-sm text-muted-foreground">reputation score</span>
+          </div>
+          <div className="space-y-3 rounded-2xl border bg-background/50 p-3">
+            <div><p className="font-semibold">Account type</p><p className="text-xs text-muted-foreground">Choose the tools and profile experience that fit you.</p></div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {accountTypes.map((type) => <button key={type.value} type="button" onClick={() => { setAccountType(type.value); syncProfile({ account_type: type.value }); }} className={`rounded-xl border p-3 text-left transition ${accountType === type.value ? "border-primary bg-primary/10" : "hover:bg-muted"}`}><p className="text-sm font-semibold">{type.label}</p><p className="mt-1 text-xs text-muted-foreground">{type.description}</p></button>)}
+            </div>
+            {(accountType === "creator" || accountType === "business") && <div><p className="mb-2 text-sm font-semibold">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{profileCategories.map(([value, label]) => <button key={value} type="button" onClick={() => { setProfileCategory(value); syncProfile({ profile_category: value }); }} className={`rounded-lg border px-2 py-2 text-xs ${profileCategory === value ? "border-accent bg-accent/10 text-accent" : "hover:bg-muted"}`}>{label}</button>)}</div></div>}
           </div>
           <label className="block space-y-2 text-sm font-semibold">
             Display name
