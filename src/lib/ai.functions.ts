@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const MODEL = "openai/gpt-6-astra" as const;
+const MODEL = "google/gemini-2.5-flash-lite" as const;
 
 type Msg = { role: "user" | "assistant"; content: string };
 

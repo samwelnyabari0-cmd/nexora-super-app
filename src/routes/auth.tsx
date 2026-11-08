@@ -4,7 +4,10 @@ import { toast } from "sonner";
 import { BadgeCheck, LogOut, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-const authRedirectUrl = () => import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`;
+const authRedirectUrl = () => {
+  const configured = import.meta.env.VITE_SUPABASE_REDIRECT_URL;
+  return configured && !configured.includes("placeholder") ? configured : `${window.location.origin}/auth/callback`;
+};
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";

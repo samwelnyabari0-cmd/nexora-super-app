@@ -32,6 +32,7 @@ import {
 } from "@/features/live/logic";
 import { useLocal } from "@/features/live/useLocal";
 import { createLiveInput } from "@/lib/cloudflare.functions";
+import { aiChat } from "@/lib/ai.functions";
 import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
 
 export const Route = createFileRoute("/live")({
@@ -74,7 +75,9 @@ function LivePage() {
     ],
   });
   const [questions, setQuestions] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
+  const [asking, setAsking] = useState(false);
   const [presets, setPresets] = useLocal<Preset[]>("nx.actPresets", []);
   const [checkins, setCheckins] = useState<{ place: string; day: string }[]>([]);
   const [consent, setConsent] = useState(false);
@@ -221,10 +224,22 @@ function LivePage() {
             className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (q.trim()) {
-                setQuestions((x) => [q.trim(), ...x]);
-                setQ("");
+              if (e.nativeEvent.isComposing || e.keyCode === 229 || !q.trim() || asking) return;
+              const question = q.trim();
+              if (!user) {
+                toast.error("Sign in to ask the AI co-host questions.");
+                return;
               }
+              setQuestions((x) => [question, ...x]);
+              setQ("");
+              setAsking(true);
+              void aiChat({ data: { messages: [{ role: "user", content: `Live stream: ${stream.title}. Host: ${stream.creator}. Answer this audience question concisely: ${question}` }] } })
+                .then((result) => {
+                  if (result.error) toast.error(result.error);
+                  else setAnswers((current) => ({ ...current, [question]: result.text }));
+                })
+                .catch(() => toast.error("The AI co-host could not answer right now."))
+                .finally(() => setAsking(false));
             }}
           >
             <input
@@ -238,13 +253,14 @@ function LivePage() {
           </form>
           <ul className="space-y-1 text-sm">
             {questions.map((x, i) => (
-              <li key={i} className="rounded-lg bg-muted px-2 py-1">
-                {x}
+              <li key={`${x}-${i}`} className="space-y-1 rounded-lg bg-muted px-2 py-1">
+                <p>{x}</p>
+                {answers[x] && <p className="text-primary">AI co-host: {answers[x]}</p>}
               </li>
             ))}
           </ul>
           <p className="text-xs text-muted-foreground">
-            AI co-host: not connected. Questions are not answered automatically.
+            {asking ? "AI co-host is answering…" : user ? "AI co-host connected · powered by Gemini Flash Lite" : "Sign in to connect the AI co-host."}
           </p>
         </Panel>
       </div>
