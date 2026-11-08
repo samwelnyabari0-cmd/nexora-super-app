@@ -6,20 +6,6 @@ const FALLBACK_MODEL = "openai/gpt-5-nano" as const;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-function extractText(res: unknown): string {
-  const r = res as {
-    output_text?: string;
-    output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>;
-  };
-  if (typeof r.output_text === "string" && r.output_text) return r.output_text;
-  const parts: string[] = [];
-  for (const item of r.output ?? []) {
-    if (item.type !== "message") continue;
-    for (const c of item.content ?? []) if (c.type === "output_text" && c.text) parts.push(c.text);
-  }
-  return parts.join("\n").trim();
-}
-
 function friendly(e: unknown): string {
   const name = (e as { name?: string })?.name ?? "";
   console.error("[v0] AI request failed", e);
@@ -30,18 +16,28 @@ function friendly(e: unknown): string {
 }
 
 async function run(instructions: string, input: Msg[]) {
-  const { generateResponse } = await import("@lovable.dev/ai-gateway");
-  const payload = {
-    instructions,
-    input: input.map((m) => ({ role: m.role, content: m.content })),
-  };
+  const { generateText, gateway } = await import("ai");
+  const messages = input.map((m) => ({ role: m.role, content: m.content })) as Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
   try {
-    const res = await generateResponse({ model: MODEL, ...payload });
-    return extractText(res);
+    const res = await generateText({
+      model: gateway(MODEL),
+      system: instructions,
+      messages,
+      maxRetries: 1,
+    });
+    return res.text;
   } catch (firstError) {
     console.warn("[v0] AI primary model failed; trying fallback", firstError);
-    const res = await generateResponse({ model: FALLBACK_MODEL, ...payload });
-    return extractText(res);
+    const res = await generateText({
+      model: gateway(FALLBACK_MODEL),
+      system: instructions,
+      messages,
+      maxRetries: 1,
+    });
+    return res.text;
   }
 }
 
