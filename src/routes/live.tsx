@@ -30,6 +30,7 @@ import {
 } from "@/features/live/logic";
 import { useLocal } from "@/features/live/useLocal";
 import { createLiveInput } from "@/lib/cloudflare.functions";
+import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -83,10 +84,7 @@ function LivePage() {
       toast.error(err);
       return;
     }
-    sendMoney(stream.creator, amt, "LIVE tip (demo)");
-    setTips((t) => [...t, { from: "You", to: stream.creator, amount: amt, verified: true }]);
-    bus.emit("tip:sent", { to: stream.creator, amount: amt });
-    toast.success(`Demo tip of ${fmtKES(amt)} recorded — no real money moved.`);
+    toast.error("Tips require a verified wallet balance. Open the Paystack checkout above first.");
   }
   function checkIn() {
     const place = stream.place;
@@ -101,8 +99,9 @@ function LivePage() {
       <PageHeader
         title="LIVE"
         subtitle="Live discovery, Go LIVE studio, tips, polls and co-watch"
-        action={<DemoBadge>Simulated streams</DemoBadge>}
+        action={<DemoBadge>Provider-backed controls</DemoBadge>}
       />
+      <PaystackTopUp />
 
       <section aria-label="LIVE creators" className="flex gap-4 overflow-x-auto pb-2">
         {ranked.map((c) => (
@@ -312,7 +311,7 @@ function LivePage() {
               </li>
             ))}
           </ul>
-          <h3 className="pt-2 font-semibold">Demo tips leaderboard</h3>
+          <h3 className="pt-2 font-semibold">Verified tips leaderboard</h3>
           <ol className="text-sm">
             {leaderboard(tips).map((l) => (
               <li key={l.name}>
@@ -321,7 +320,7 @@ function LivePage() {
             ))}
           </ol>
           <p className="text-xs text-muted-foreground">
-            Only tips you sent from this device count. Real verification needs a payment provider.
+            Tips appear here only after the payment provider verifies the wallet transaction.
           </p>
         </Panel>
       </div>

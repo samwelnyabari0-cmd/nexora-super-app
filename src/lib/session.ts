@@ -16,6 +16,8 @@ function notify() {
 async function init() {
   if (started) return;
   started = true;
+  cached = { user: null, ready: true };
+  notify();
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),

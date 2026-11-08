@@ -39,11 +39,11 @@ export const Route = createFileRoute("/platform")({
 
 const services = [
   ["App & pages", "Running", "Live on the edge"],
-  ["Accounts & cloud sync", "Not connected", "Needs Lovable Cloud"],
-  ["Live broadcasting", "Not connected", "Needs a streaming provider"],
-  ["Payments & tips", "Not connected", "Needs a licensed payment provider"],
-  ["AI co-host & assistant", "Not connected", "Needs AI enabled"],
-  ["Live maps", "Not connected", "Needs a maps provider"],
+  ["Accounts & cloud sync", import.meta.env.VITE_HAS_SUPABASE ? "Connected" : "Not connected", import.meta.env.VITE_HAS_SUPABASE ? "Supabase" : "Needs Supabase variables"],
+  ["Live broadcasting", import.meta.env.VITE_HAS_CLOUDFLARE ? "Connected" : "Not connected", import.meta.env.VITE_HAS_CLOUDFLARE ? "Cloudflare Stream" : "Needs Stream credentials"],
+  ["Payments & tips", import.meta.env.VITE_HAS_PAYSTACK ? "Connected" : "Not connected", import.meta.env.VITE_HAS_PAYSTACK ? "Paystack server checkout" : "Needs Paystack credentials"],
+  ["AI co-host & assistant", import.meta.env.VITE_HAS_AI ? "Connected" : "Not connected", import.meta.env.VITE_HAS_AI ? "Vercel AI Gateway" : "Needs AI gateway"],
+  ["Live maps", import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? "Connected" : "Fallback", import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? "Google Maps + Places" : "Google embed fallback"],
 ] as const;
 
 const roadmap: [string, string][] = [

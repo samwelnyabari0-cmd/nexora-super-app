@@ -753,7 +753,7 @@ function Calls() {
   };
   return (
     <>
-      <Title badge="Not connected">Video calls</Title>
+      <Title badge="Jitsi available">Video calls</Title>
       {stream ? (
         <video
           ref={video}
@@ -780,13 +780,13 @@ function Calls() {
             <Video className="h-4 w-4" /> Test camera & mic
           </Button>
         )}
-        <Button disabled title="Requires a calling provider">
-          Start call
-        </Button>
+              <Button asChild>
+                <a href="/calls">Start call</a>
+              </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Opens the live call room. Use the Jitsi group room for reliable browser calling.
+              </p>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Live calls need a calling provider. No call is ever placed.
-      </p>
     </>
   );
 }
