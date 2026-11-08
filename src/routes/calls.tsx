@@ -8,6 +8,19 @@ import { PageHeader, Panel, Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { CallScreen } from "@/components/nexora/CallScreen";
 
+const peerConfig = {
+  iceServers: [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    ...(import.meta.env.VITE_TURN_URL
+      ? [{
+          urls: import.meta.env.VITE_TURN_URL,
+          username: import.meta.env.VITE_TURN_USERNAME,
+          credential: import.meta.env.VITE_TURN_CREDENTIAL,
+        }]
+      : []),
+  ],
+};
+
 export const Route = createFileRoute("/calls")({
   validateSearch: (s: Record<string, unknown>) => ({
     invite: typeof s.invite === "string" ? s.invite.slice(0, 32) : undefined,
@@ -380,7 +393,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
       stream.current = s;
       attach(s);
       const { default: Peer } = await import("peerjs");
-      const p = new Peer();
+      const p = new Peer({ config: peerConfig });
       peer.current = p;
       p.on("call", (call) => {
         call.answer(s);
@@ -406,7 +419,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
         stream.current = s;
         attach(s);
         const { default: Peer } = await import("peerjs");
-        const p = new Peer();
+        const p = new Peer({ config: peerConfig });
         peer.current = p;
         p.on("open", () => {
           const call = p.call(invite.callee_peer_id!, s);
