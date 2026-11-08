@@ -5,10 +5,10 @@ export type ProviderStatus = { id: string; domain: string; label: string; mode: 
 
 export const providers: ProviderStatus[] = [
   { id: "ai", domain: "AI", label: "Demo assistant (scripted)", mode: "demo" },
-  { id: "maps", domain: "Maps", label: "Simulated map & places", mode: "demo" },
-  { id: "stream", domain: "Watch", label: "Demo catalogue", mode: "demo" },
-  { id: "wallet", domain: "Wallet", label: "Mock ledger — no real money", mode: "demo" },
-  { id: "msg", domain: "Messages", label: "Local-only chat", mode: "demo" },
+  { id: "maps", domain: "Maps", label: "Google Maps and Places", mode: "live" },
+  { id: "stream", domain: "Watch", label: "Cloudflare Stream live inputs", mode: "live" },
+  { id: "wallet", domain: "Wallet", label: "Paystack checkout", mode: "live" },
+  { id: "msg", domain: "Messages", label: "Supabase realtime", mode: "live" },
 ];
 
 export interface AIProvider {
