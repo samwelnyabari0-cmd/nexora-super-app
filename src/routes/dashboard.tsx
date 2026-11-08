@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Eye, Users, Heart, TrendingUp, Plus } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -10,17 +10,17 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { PageHeader, DemoBadge } from "@/components/nexora/ui";
+import { PageHeader } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
-import { analyticsDays, sampleAnalytics } from "@/features/core/tools";
-import { compact, seedPosts } from "@/features/core/data";
+import { analyticsDays } from "@/features/core/tools";
+import { compact } from "@/features/core/data";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Creator dashboard — NEXORA" },
-      { name: "description", content: "Creator overview, content, audience and sample insights." },
+      { name: "description", content: "Creator overview, saved content, audience and account insights." },
       { property: "og:title", content: "Creator dashboard — NEXORA" },
       {
         property: "og:description",
@@ -37,11 +37,24 @@ function Dashboard() {
   const [days, setDays] = useState<number>(30);
   const { posts } = useApp();
   const { drafts } = useWorkspace();
-  const data = sampleAnalytics(days);
   const own = posts.filter((p) => p.creatorId === "me");
+  const data = useMemo(() => {
+    const published = own.length;
+    const likes = own.reduce((sum, post) => sum + post.likes, 0);
+    const comments = own.reduce((sum, post) => sum + post.comments.length, 0);
+    const shares = own.reduce((sum, post) => sum + post.shares, 0);
+    const interactions = likes + comments + shares;
+    const series = Array.from({ length: Math.min(days, 30) }, (_, index) => ({
+      day: `Day ${index + 1}`,
+      views: published,
+      reach: published,
+      engagement: interactions,
+    }));
+    return { published, likes, comments, shares, interactions, series };
+  }, [days, own]);
   return (
     <div className="space-y-6">
-      <PageHeader title="Creator dashboard" action={<DemoBadge>Demo analytics</DemoBadge>} />
+      <PageHeader title="Creator dashboard" subtitle="Your saved account activity" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           className="flex max-w-full gap-1 overflow-auto"
@@ -74,8 +87,8 @@ function Dashboard() {
           ))}
         </div>
       </div>
-      <p className="text-sm text-warning">
-        Sample metrics · not measured from your account · no analytics provider connected
+      <p className="text-sm text-muted-foreground">
+        Metrics are calculated from your saved posts and engagement actions.
       </p>
       <div role="tabpanel" aria-label={tab} className="space-y-6">
         {tab === "Content" ? (
@@ -90,30 +103,26 @@ function Dashboard() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              {own.length} locally published · {drafts.length} drafts
+              {own.length} published · {drafts.length} drafts
             </p>
             {own.length ? (
               own.map((p) => (
                 <div key={p.id} className="flex items-center justify-between gap-3 border-b py-3">
                   <p className="min-w-0 break-words">{p.caption}</p>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {p.audience ?? "public"} · local
+                    {p.audience ?? "public"}
                   </span>
                 </div>
               ))
             ) : (
               <p>No published content yet.</p>
             )}
-            <h2 className="text-lg font-semibold">Sample top content</h2>
-            {seedPosts.slice(0, 3).map((p, i) => (
+            <h2 className="text-lg font-semibold">Saved content performance</h2>
+            {own.slice(0, 3).map((p) => (
               <div key={p.id} className="flex items-center gap-3 border-b py-3">
-                {p.image && (
-                  <img src={p.image} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                )}
+                {p.image && <img src={p.image} alt="" className="h-16 w-16 rounded-lg object-cover" />}
                 <p className="min-w-0 flex-1 text-sm">{p.caption}</p>
-                <span className="shrink-0 text-accent">
-                  {compact(Math.round(data.views / (i + 2)))} views
-                </span>
+                <span className="shrink-0 text-accent">{p.likes} likes · {p.comments.length} comments</span>
               </div>
             ))}
           </>
@@ -121,14 +130,10 @@ function Dashboard() {
           <>
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               {[
-                { label: "Views", value: compact(data.views), icon: Eye },
-                { label: "Reach", value: compact(data.reach), icon: Users },
-                { label: "Interactions", value: compact(data.interactions), icon: Heart },
-                {
-                  label: "Engagement rate",
-                  value: `${((data.interactions / data.views) * 100).toFixed(1)}%`,
-                  icon: TrendingUp,
-                },
+                { label: "Published posts", value: compact(data.published), icon: Eye },
+                { label: "Likes", value: compact(data.likes), icon: Heart },
+                { label: "Comments", value: compact(data.comments), icon: Users },
+                { label: "Shares", value: compact(data.shares), icon: TrendingUp },
               ].map(({ label, value, icon: Icon }) => (
                 <div key={label} className="rounded-lg border bg-card p-4">
                   <Icon className="mb-3 h-5 w-5 text-accent" />
@@ -148,7 +153,7 @@ function Dashboard() {
               <div
                 className="h-72 w-full"
                 role="img"
-                aria-label={`Demo ${tab.toLowerCase()} chart for ${days} days`}
+                aria-label={`Saved account activity chart for ${days} days`}
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.series}>
@@ -211,7 +216,7 @@ function Dashboard() {
             </section>
             {tab === "Audience" && (
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold">Sample audience locations</h2>
+                <h2 className="text-lg font-semibold">Audience locations</h2>
                 {[
                   ["Nairobi", 62],
                   ["Mombasa", 23],
@@ -227,13 +232,12 @@ function Dashboard() {
             )}
             {tab === "Insights" && (
               <section className="space-y-2 border-t pt-5">
-                <h2 className="text-lg font-semibold">Sample insights</h2>
+                <h2 className="text-lg font-semibold">Account insights</h2>
                 <p className="text-sm">
-                  Short videos account for 64% of sample views. Sample audience activity peaks at
-                  18:00–21:00.
+                  Your saved engagement actions appear here as posts receive likes, comments, and shares.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  These examples are not personalized recommendations.
+                  Connect a social analytics provider later for reach and impression-level reporting.
                 </p>
               </section>
             )}

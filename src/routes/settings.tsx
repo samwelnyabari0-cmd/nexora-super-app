@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import { useWorkspace, type Preferences } from "@/features/core/workspace";
 import { creators } from "@/features/core/data";
-import { PageHeader, DemoBadge } from "@/components/nexora/ui";
+import { PageHeader } from "@/components/nexora/ui";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/settings")({
@@ -10,12 +13,12 @@ export const Route = createFileRoute("/settings")({
       { title: "Privacy, safety & accessibility — NEXORA" },
       {
         name: "description",
-        content: "Manage demo privacy, muted creators, notifications and accessibility.",
+        content: "Manage account privacy, muted creators, notifications and accessibility.",
       },
       { property: "og:title", content: "Privacy, safety & accessibility — NEXORA" },
       {
         property: "og:description",
-        content: "Manage demo privacy, muted creators, notifications and accessibility.",
+        content: "Manage account privacy, muted creators, notifications and accessibility.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -24,12 +27,42 @@ export const Route = createFileRoute("/settings")({
   component: Settings,
 });
 function Settings() {
-  const { preferences, setPreferences, muted, toggleMute, reports } = useWorkspace();
+  const { preferences, setPreferences, muted, toggleMute } = useWorkspace();
+  const { user } = useSession();
+  const [savedReports, setSavedReports] = useState<Array<{ target_id: string; reason: string; status: string }>>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    void (supabase as any)
+      .from("reports")
+      .select("target_id, reason, status")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }: { data: Array<{ target_id: string; reason: string; status: string }> | null; error: unknown }) => {
+        if (!error && data) setSavedReports(data);
+      });
+    void (supabase as any)
+      .from("profiles")
+      .select("settings")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data, error }: { data: { settings?: Record<string, boolean> } | null; error: unknown }) => {
+        if (!error && data?.settings) setPreferences((current) => ({ ...current, ...data.settings }));
+      });
+  }, [setPreferences, user]);
+
+  function updatePreference(key: keyof Preferences, value: boolean) {
+    setPreferences((current) => {
+      const next = { ...current, [key]: value };
+      if (user) void (supabase as any).from("profiles").upsert({ id: user.id, settings: next });
+      return next;
+    });
+  }
+
   const groups: { title: string; fields: { key: keyof Preferences; label: string }[] }[] = [
     {
       title: "Privacy",
       fields: [
-        { key: "privateProfile", label: "Private profile (local demo)" },
+        { key: "privateProfile", label: "Private profile" },
         { key: "allowMessages", label: "Allow composing messages" },
       ],
     },
@@ -48,7 +81,7 @@ function Settings() {
   ];
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Settings" action={<DemoBadge>Session only</DemoBadge>} />
+      <PageHeader title="Settings" subtitle={user ? "Saved to your account" : "Sign in to sync settings"} />
       {groups.map((g) => (
         <section key={g.title} className="mb-8">
           <h2 className="mb-3 text-lg font-semibold">{g.title}</h2>
@@ -58,7 +91,7 @@ function Settings() {
               <Switch
                 aria-label={label}
                 checked={preferences[key]}
-                onCheckedChange={(v) => setPreferences((p) => ({ ...p, [key]: v }))}
+                onCheckedChange={(v) => updatePreference(key, v)}
               />
             </label>
           ))}
@@ -79,13 +112,14 @@ function Settings() {
           <p className="text-sm text-muted-foreground">No muted creators.</p>
         )}
         <h3 className="mt-5 font-semibold">Safety reports</h3>
-        <p className="mt-2 text-sm text-warning">
-          {reports.length} reports saved locally. Reports are not sent to moderators.
+        <p className="mt-2 text-sm text-muted-foreground">
+          {savedReports.length} reports submitted to the moderation queue.
         </p>
         <ul className="mt-2 text-sm">
-          {reports.map((r, i) => (
-            <li key={i} className="border-b py-2">
-              {r.target} · {r.reason}
+          {savedReports.map((r, i) => (
+            <li key={`${r.target_id}-${i}`} className="flex items-center justify-between gap-3 border-b py-2">
+              <span>{r.target_id} · {r.reason}</span>
+              <span className="text-xs text-muted-foreground">{r.status}</span>
             </li>
           ))}
         </ul>
