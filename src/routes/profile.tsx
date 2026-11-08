@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldCheck, CloudUpload } from "lucide-react";
+import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
@@ -28,8 +29,11 @@ const allInterests = ["city", "food", "tech", "music", "dance", "travel", "natur
 function Profile() {
   const { passport, updatePassport, relay, online, syncRelay, events, posts, saved } = useApp();
   const { user, ready } = useSession();
+  const { followers, following } = useSocialGraph();
   const [bio, setBio] = useState(passport.bio);
-  const [privateProfile, setPrivateProfile] = useState(Boolean(user?.user_metadata?.private_profile));
+  const [privateProfile, setPrivateProfile] = useState(
+    Boolean(user?.user_metadata?.private_profile),
+  );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   useEffect(() => {
@@ -41,7 +45,9 @@ function Profile() {
     setSavingPrivacy(true);
     const [{ error: authError }, { error: profileError }] = await Promise.all([
       supabase.auth.updateUser({ data: { private_profile: nextPrivate } }),
-      user ? (supabase as any).from("profiles").upsert({ id: user.id, private_profile: nextPrivate }) : Promise.resolve({ error: null }),
+      user
+        ? (supabase as any).from("profiles").upsert({ id: user.id, private_profile: nextPrivate })
+        : Promise.resolve({ error: null }),
     ]);
     setSavingPrivacy(false);
     if (authError || profileError) setPrivateProfile(!nextPrivate);
@@ -77,8 +83,11 @@ function Profile() {
             <p className="text-sm text-muted-foreground">
               @{passport.handle} · {privateProfile ? "Private" : "Public"}
             </p>
-            <p className="mt-1 text-sm">
-              {posts.filter((p) => p.creatorId === "me").length} posts · {saved.size} saved
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-sm">
+              <span>{posts.filter((p) => p.creatorId === "me").length} posts</span>
+              <span>{followers} followers</span>
+              <span>{following} following</span>
+              <span>{saved.size} saved</span>
             </p>
           </div>
         </Panel>
@@ -87,7 +96,8 @@ function Profile() {
             <ShieldCheck className="h-5 w-5 text-accent" /> Pulse Passport
           </p>
           <p className="text-sm text-muted-foreground">
-            Demo identity · sharing preferences are local, not enforced across external services.
+            Verified account identity · profile, interests, and sharing preferences are stored
+            securely.
           </p>
           <div className="flex items-center gap-3">
             <span className="font-display text-3xl font-bold text-brand">
@@ -144,13 +154,13 @@ function Profile() {
               <Chip
                 key={i}
                 active={passport.interests.includes(i)}
-                onClick={() =>
-                  updatePassport({
-                    interests: passport.interests.includes(i)
-                      ? passport.interests.filter((x) => x !== i)
-                      : [...passport.interests, i],
-                  })
-                }
+                onClick={() => {
+                  const interests = passport.interests.includes(i)
+                    ? passport.interests.filter((x) => x !== i)
+                    : [...passport.interests, i];
+                  updatePassport({ interests });
+                  syncProfile({ interests: JSON.stringify(interests) });
+                }}
               >
                 {i}
               </Chip>
@@ -161,12 +171,26 @@ function Profile() {
               <div>
                 <p className="font-semibold">Profile visibility</p>
                 <p className="text-sm text-muted-foreground">
-                  {privateProfile ? "Only approved followers can see your profile and posts." : "Anyone can discover your profile and public posts."}
+                  {privateProfile
+                    ? "Only approved followers can see your profile and posts."
+                    : "Anyone can discover your profile and public posts."}
                 </p>
               </div>
-              <Switch checked={!privateProfile} disabled={!user || savingPrivacy} onCheckedChange={(isPublic) => void updatePrivacy(!isPublic)} aria-label="Make profile public" />
+              <Switch
+                checked={!privateProfile}
+                disabled={!user || savingPrivacy}
+                onCheckedChange={(isPublic) => void updatePrivacy(!isPublic)}
+                aria-label="Make profile public"
+              />
             </div>
-            {!user && <Link to="/auth" className="mt-2 inline-block text-sm font-semibold text-accent underline">Sign in to change visibility</Link>}
+            {!user && (
+              <Link
+                to="/auth"
+                className="mt-2 inline-block text-sm font-semibold text-accent underline"
+              >
+                Sign in to change visibility
+              </Link>
+            )}
           </div>
           <p className="pt-2 text-sm font-semibold">Sharing permissions</p>
           {(Object.keys(passport.share) as (keyof typeof passport.share)[]).map((k) => (

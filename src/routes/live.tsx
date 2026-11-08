@@ -88,9 +88,20 @@ function LivePage() {
       .from("venue_checkins")
       .select("venue, checked_in_at")
       .order("checked_in_at", { ascending: false })
-      .then(({ data, error }: { data: Array<{ venue: string; checked_in_at: string }> | null; error: unknown }) => {
-        if (!error && data) setCheckins(data.map((row) => ({ place: row.venue, day: row.checked_in_at.slice(0, 10) })));
-      });
+      .then(
+        ({
+          data,
+          error,
+        }: {
+          data: Array<{ venue: string; checked_in_at: string }> | null;
+          error: unknown;
+        }) => {
+          if (!error && data)
+            setCheckins(
+              data.map((row) => ({ place: row.venue, day: row.checked_in_at.slice(0, 10) })),
+            );
+        },
+      );
   }, [user]);
 
   function tip() {
@@ -233,7 +244,16 @@ function LivePage() {
               setQuestions((x) => [question, ...x]);
               setQ("");
               setAsking(true);
-              void aiChat({ data: { messages: [{ role: "user", content: `Live stream: ${stream.title}. Host: ${stream.creator}. Answer this audience question concisely: ${question}` }] } })
+              void aiChat({
+                data: {
+                  messages: [
+                    {
+                      role: "user",
+                      content: `Live stream: ${stream.title}. Host: ${stream.creator}. Answer this audience question concisely: ${question}`,
+                    },
+                  ],
+                },
+              })
                 .then((result) => {
                   if (result.error) toast.error(result.error);
                   else setAnswers((current) => ({ ...current, [question]: result.text }));
@@ -260,7 +280,11 @@ function LivePage() {
             ))}
           </ul>
           <p className="text-xs text-muted-foreground">
-            {asking ? "AI co-host is answering…" : user ? "AI co-host connected · powered by Gemini Flash Lite" : "Sign in to connect the AI co-host."}
+            {asking
+              ? "AI co-host is answering…"
+              : user
+                ? "AI co-host connected · powered by Vercel AI Gateway"
+                : "Sign in to connect the AI co-host."}
           </p>
         </Panel>
       </div>
