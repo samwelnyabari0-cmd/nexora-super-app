@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { BadgeCheck, CloudCog, LogOut, ShieldCheck } from "lucide-react";
+import { BadgeCheck, LogOut, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel } from "@/components/nexora/ui";
@@ -60,6 +60,21 @@ function AuthPage() {
     }
   }
 
+  async function signInWithGoogle() {
+    setBusy("google");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth`,
+        },
+      });
+      if (error) toast.error("Google sign-in is unavailable right now. Try email and password instead.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function signOut() {
     setBusy("out");
     try {
@@ -104,10 +119,18 @@ function AuthPage() {
               <input id="auth-email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2" />
               <label className="block text-sm font-medium" htmlFor="auth-password">Password</label>
               <input id="auth-password" type="password" required minLength={8} autoComplete={mode === "sign-in" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2" />
-              <Button type="submit" disabled={busy !== null} className="w-full">
+                <Button type="submit" disabled={busy !== null} className="w-full">
                 {mode === "sign-in" ? "Sign in" : "Create account"}
               </Button>
             </form>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void signInWithGoogle()} className="w-full">
+              Continue with Google
+            </Button>
             <button type="button" className="w-full text-sm underline" onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}>
               {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
             </button>
@@ -117,16 +140,10 @@ function AuthPage() {
       </Panel>
       <Panel className="mt-4 space-y-2">
         <p className="flex items-center gap-2 font-display font-semibold">
-          <ShieldCheck className="h-4 w-4 text-success" /> What stays on this device
+          <ShieldCheck className="h-4 w-4 text-success" /> Your account, your control
         </p>
         <p className="text-sm text-muted-foreground">
-          Supabase stores your account and authenticated club messages. Paystack, Google Maps, Google Calendar, and Jitsi are available from their connected feature surfaces.
-        </p>
-        <p className="flex items-center gap-2 font-display font-semibold">
-          <CloudCog className="h-4 w-4 text-accent" /> Connected services
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Confirm your email after creating an account. Authenticated actions require a valid Supabase session.
+          Your profile, posts and privacy choices follow your account across devices. You can switch your profile between public and private at any time.
         </p>
       </Panel>
       <p className="mt-4 text-center text-sm text-muted-foreground">
