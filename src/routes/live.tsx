@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { PageHeader, DemoBadge, Panel, Avatar, Chip } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { creators, fmtKES } from "@/features/core/data";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import {
   seedLive,
@@ -58,6 +60,7 @@ const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
 
 function LivePage() {
   const { balance, sendMoney } = useApp();
+  const { user } = useSession();
   const ranked = useMemo(() => prioritizeLive(creators, seedLive), []);
   const [watching, setWatching] = useState(seedLive[0].id);
   const stream = seedLive.find((s) => s.id === watching) ?? seedLive[0];
@@ -73,9 +76,19 @@ function LivePage() {
   const [questions, setQuestions] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [presets, setPresets] = useLocal<Preset[]>("nx.actPresets", []);
-  const [checkins, setCheckins] = useLocal<{ place: string; day: string }[]>("nx.checkins", []);
-  const [consent, setConsent] = useLocal("nx.checkinConsent", false);
+  const [checkins, setCheckins] = useState<{ place: string; day: string }[]>([]);
+  const [consent, setConsent] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
+  useEffect(() => {
+    if (!user) return;
+    void (supabase as any)
+      .from("venue_checkins")
+      .select("venue, checked_in_at")
+      .order("checked_in_at", { ascending: false })
+      .then(({ data, error }: { data: Array<{ venue: string; checked_in_at: string }> | null; error: unknown }) => {
+        if (!error && data) setCheckins(data.map((row) => ({ place: row.venue, day: row.checked_in_at.slice(0, 10) })));
+      });
+  }, [user]);
 
   function tip() {
     const amt = Number(tipAmt);
@@ -86,12 +99,25 @@ function LivePage() {
     }
     toast.error("Tips require a verified wallet balance. Open the Paystack checkout above first.");
   }
-  function checkIn() {
+  async function checkIn() {
     const place = stream.place;
     if (!consent || !place) return;
-    setCheckins((c) => [...c, { place, day: today }]);
+    if (!user) {
+      toast.error("Sign in to save check-ins to your Pulse Passport.");
+      return;
+    }
+    const { error } = await (supabase as any).from("venue_checkins").insert({
+      user_id: user.id,
+      venue: place,
+      source: "live",
+    });
+    if (error) {
+      toast.error("Check-in could not be saved.");
+      return;
+    }
+    setCheckins((c) => [{ place, day: today }, ...c]);
     bus.emit("checkin:made", { place });
-    toast.success(`Checked in at ${stream.place} (saved on this device)`);
+    toast.success(`Checked in at ${stream.place}`);
   }
 
   return (
@@ -230,27 +256,20 @@ function LivePage() {
             <MapPin className="h-4 w-4" />
             Live map
           </h2>
-          <div className="map-grid relative h-48 rounded-2xl border">
-            {seedLive.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setWatching(s.id)}
-                style={{ left: `${s.x}%`, top: `${s.y}%` }}
-                aria-label={`${s.creator} LIVE`}
-                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground"
-              >
-                LIVE
-              </button>
-            ))}
-          </div>
-          <DemoBadge>Simulated map — positions are illustrative</DemoBadge>
+          <iframe
+            title="Live Google map"
+            src={`https://www.google.com/maps?q=${encodeURIComponent(stream.place || "Nairobi, Kenya")}&output=embed`}
+            className="h-48 w-full rounded-2xl border"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
             />
-            I agree to save venue check-ins to my Pulse Passport on this device
+            I agree to save venue check-ins to my Pulse Passport
           </label>
           <Button disabled={!consent || !stream.place} onClick={checkIn}>
             <ShieldCheck className="h-4 w-4" />

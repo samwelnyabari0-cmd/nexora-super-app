@@ -10,10 +10,13 @@ import {
   MapPin,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { compact, creatorById, type Post } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./ui";
@@ -26,6 +29,7 @@ export function PostCard({ post }: { post: Post }) {
       ? { name: passport.name, handle: passport.handle, hue: 295, verified: false }
       : creatorById(post.creatorId);
   const { following, toggleFollow, muted, toggleMute, report } = useWorkspace();
+  const { user } = useSession();
   const [safety, setSafety] = useState(false);
   const [reason, setReason] = useState("Spam");
   const isLiked = liked.has(post.id);
@@ -256,15 +260,30 @@ export function PostCard({ post }: { post: Post }) {
           </label>
           <Button
             variant="destructive"
-            onClick={() => {
+            onClick={async () => {
+              if (!user) {
+                setSafety(false);
+                toast.error("Sign in to submit a report to moderators.");
+                return;
+              }
+              const { error } = await (supabase as any).from("reports").insert({
+                reporter_id: user.id,
+                target_id: post.id,
+                reason,
+              });
+              if (error) {
+                toast.error("Report could not be submitted.");
+                return;
+              }
               report(post.id, reason);
               setSafety(false);
+              toast.success("Report submitted to moderators.");
             }}
           >
-            Save local report
+            Submit report
           </Button>
           <p className="text-xs text-muted-foreground">
-            Reports are not submitted to moderators in this demo.
+            Reports are sent securely to the moderation queue.
           </p>
         </DialogContent>
       </Dialog>
