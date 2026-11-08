@@ -102,12 +102,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (supabase as any).from("message_threads").select("id, conversation_key, body, metadata, created_at").order("created_at", { ascending: true }),
       ]);
       if (savedPosts?.length) {
-        setPosts((current) => [
-          ...savedPosts.map((row) => ({
+        const hydratedPosts = await Promise.all(savedPosts.map(async (row) => {
+          let image: string | undefined;
+          if (row.media_url) {
+            const { data } = await supabase.storage.from("post-media").createSignedUrl(row.media_url, 3600);
+            image = data?.signedUrl;
+          }
+          return {
             id: row.id,
             creatorId: "me",
             caption: row.caption,
-            image: row.media_url ?? undefined,
+            image,
             mediaType: row.media_type ?? undefined,
             audience: row.audience,
             tags: row.tags ?? [],
@@ -117,7 +122,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             comments: [],
             shares: 0,
             createdAt: new Date(row.created_at).toLocaleDateString(),
-          } as Post)),
+          } as Post;
+        }));
+        setPosts((current) => [
+          ...hydratedPosts,
           ...current.filter((post) => !savedPosts.some((row) => row.id === post.id)),
         ]);
       }

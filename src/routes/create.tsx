@@ -41,6 +41,7 @@ function Create() {
     preferences.privateProfile ? "private" : "public",
   );
   const [media, setMedia] = useState<string>();
+  const [mediaFile, setMediaFile] = useState<Blob>();
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("original");
@@ -68,6 +69,7 @@ function Create() {
     setCaption("");
     setTags("creators");
     setMedia(undefined);
+    setMediaFile(undefined);
     setMediaType(undefined);
     setFilter("original");
     setFormat("landscape");
@@ -112,6 +114,7 @@ function Create() {
               setMedia(url);
               setMediaType(type);
               setError("");
+              void fetch(url).then((response) => response.blob()).then(setMediaFile).catch(() => setError("Captured media could not be prepared for upload."));
             }}
             onError={setError}
           />
@@ -160,6 +163,7 @@ function Create() {
               }
               setError("");
               setMedia(URL.createObjectURL(f));
+              setMediaFile(f);
               setMediaType(f.type);
             }}
           />
@@ -212,10 +216,23 @@ function Create() {
               void nav({ to: "/auth" });
               return;
             }
+            let mediaPath: string | null = null;
+            if (mediaFile) {
+              const extension = mediaType?.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+              mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+              const { error: uploadError } = await supabase.storage.from("post-media").upload(mediaPath, mediaFile, {
+                contentType: mediaType,
+                upsert: false,
+              });
+              if (uploadError) {
+                setError("Media upload failed. Please try again.");
+                return;
+              }
+            }
             const { error: publishError } = await (supabase as any).from("posts").insert({
               author_id: user.id,
               caption: caption.trim(),
-              media_url: media?.startsWith("http") ? media : null,
+              media_url: mediaPath,
               media_type: mediaType ?? null,
               audience,
               tags: tagList,
@@ -292,7 +309,7 @@ function Create() {
             Save draft
           </Button>
           <p className="text-xs text-muted-foreground">
-Drafts remain on this device until published. Published captions and profile visibility are saved to your account. Media uploads require storage setup before they can be shared across devices.
+Drafts remain on this device until published. Published captions, media, tags, and visibility are saved to your account.
           </p>
         </form>
       </div>
