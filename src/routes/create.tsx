@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Upload, Save, Trash2, Image, Film, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
 import { fileError } from "@/features/core/tools";
-import { PageHeader, DemoBadge } from "@/components/nexora/ui";
+import { PageHeader } from "@/components/nexora/ui";
 import { StudioCapture } from "@/components/nexora/StudioCapture";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,7 @@ export const Route = createFileRoute("/create")({
 });
 function Create() {
   const { createPost, online, relay } = useApp();
+  const { user } = useSession();
   const { drafts, saveDraft, removeDraft, notify, preferences } = useWorkspace();
   const nav = useNavigate();
   const [id, setId] = useState("");
@@ -38,6 +41,7 @@ function Create() {
     preferences.privateProfile ? "private" : "public",
   );
   const [media, setMedia] = useState<string>();
+  const [mediaFile, setMediaFile] = useState<Blob>();
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("original");
@@ -65,6 +69,7 @@ function Create() {
     setCaption("");
     setTags("creators");
     setMedia(undefined);
+    setMediaFile(undefined);
     setMediaType(undefined);
     setFilter("original");
     setFormat("landscape");
@@ -72,7 +77,7 @@ function Create() {
   };
   return (
     <div className="space-y-6">
-      <PageHeader title="Creator Studio Plus" action={<DemoBadge>Local publishing</DemoBadge>} />
+      <PageHeader title="Creator Studio Plus" subtitle={user ? "Publish to your account" : "Sign in to publish"} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <div
@@ -109,6 +114,7 @@ function Create() {
               setMedia(url);
               setMediaType(type);
               setError("");
+              void fetch(url).then((response) => response.blob()).then(setMediaFile).catch(() => setError("Captured media could not be prepared for upload."));
             }}
             onError={setError}
           />
@@ -157,6 +163,7 @@ function Create() {
               }
               setError("");
               setMedia(URL.createObjectURL(f));
+              setMediaFile(f);
               setMediaType(f.type);
             }}
           />
@@ -201,14 +208,40 @@ function Create() {
         </div>
         <form
           className="space-y-4"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
-            let key = id;
-            if (!online) {
-              key = id || crypto.randomUUID();
-              saveDraft(draft(key));
+            if (!user) {
+              notify("Sign in required", "Create an account before publishing to your profile.");
+              void nav({ to: "/auth" });
+              return;
             }
+            let mediaPath: string | null = null;
+            if (mediaFile) {
+              const extension = mediaType?.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+              mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+              const { error: uploadError } = await supabase.storage.from("post-media").upload(mediaPath, mediaFile, {
+                contentType: mediaType,
+                upsert: false,
+              });
+              if (uploadError) {
+                setError("Media upload failed. Please try again.");
+                return;
+              }
+            }
+            const { error: publishError } = await (supabase as any).from("posts").insert({
+              author_id: user.id,
+              caption: caption.trim(),
+              media_url: mediaPath,
+              media_type: mediaType ?? null,
+              audience,
+              tags: tagList,
+            });
+            if (publishError) {
+              setError("Your post could not be published. Please try again.");
+              return;
+            }
+            const key = id || crypto.randomUUID();
             createPost(
               {
                 caption: caption.trim(),
@@ -220,12 +253,9 @@ function Create() {
                 kind: mediaType?.startsWith("video/") ? "video" : "post",
                 tags: tagList,
               },
-              key || undefined,
+              key,
             );
-            notify(
-              online ? "Post published locally" : "Post queued",
-              "Session-only post. No public publishing service connected.",
-            );
+            notify("Post published", "Your post is saved to your account.");
             void nav({ to: "/" });
           }}
         >
@@ -257,12 +287,12 @@ function Create() {
               onChange={(e) => setAudience(e.target.value === "private" ? "private" : "public")}
               className="w-full rounded-lg border bg-card p-2"
             >
-              <option value="public">Public (local demo)</option>
-              <option value="private">Only me (local demo)</option>
+              <option value="public">Public</option>
+              <option value="private">Only me</option>
             </select>
           </label>
           <Button className="w-full bg-brand" disabled={!caption.trim() || queued}>
-            {queued ? "Already queued" : online ? "Publish locally" : "Queue in Offline Relay"}
+            {queued ? "Already queued" : user ? "Publish" : "Sign in to publish"}
           </Button>
           <Button
             type="button"
@@ -279,8 +309,7 @@ function Create() {
             Save draft
           </Button>
           <p className="text-xs text-muted-foreground">
-            Drafts and posts reset on refresh. Media stays on this device. Filters and framing apply
-            in NEXORA, not to the source file.
+Drafts remain on this device until published. Published captions, media, tags, and visibility are saved to your account.
           </p>
         </form>
       </div>

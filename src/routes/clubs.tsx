@@ -110,7 +110,6 @@ function ClubsPage() {
       <PageHeader
         title="Clubs & Guilds"
         subtitle="Group spaces for football clubs, gaming guilds and tech clubs — a shared pin, fixtures, a dues pool and a club channel."
-        action={<DemoBadge>{realtime.authenticated ? "Supabase connected" : "Sign in required"}</DemoBadge>}
       />
 
       {/* Guild switcher */}
@@ -169,14 +168,14 @@ function ClubsPage() {
         <Panel>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-display font-semibold">Shared pin</h3>
-            <DemoBadge>Google Maps</DemoBadge>
+
           </div>
           <div className="aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
             <iframe
               title={`Google Maps location for ${guild.name}`}
               className="h-full w-full border-0"
               loading="lazy"
-              src={`https://www.google.com/maps/embed/v1/search?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ""}&q=${encodeURIComponent(`${guild.place}, ${guild.city}`)}`}
+              src={`https://www.google.com/maps?q=${encodeURIComponent(`${guild.place}, ${guild.city}`)}&output=embed`}
             />
           </div>
           <p className="mt-2 flex items-center gap-2 text-sm">
@@ -187,9 +186,7 @@ function ClubsPage() {
               Open Maps
             </Link>
           </Button>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pin preview only — live maps aren't connected.
-          </p>
+
         </Panel>
 
         {/* Group wallet pool */}
@@ -231,7 +228,6 @@ function ClubsPage() {
         <Panel className="md:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-display font-semibold">Fixtures & events</h3>
-            <DemoBadge>Device calendar</DemoBadge>
           </div>
           <ul className="grid gap-2 md:grid-cols-2">
             {list.map((f) => {
@@ -299,12 +295,6 @@ function ClubsPage() {
         </Panel>
       </div>
 
-      <Panel className="mt-4 text-sm text-muted-foreground">
-        <p className="mb-1 font-semibold text-foreground">Club services</p>
-        {realtime.authenticated
-          ? "Supabase Realtime delivers messages, Google Maps shows the club pin, Google Calendar links add fixtures, and Paystack handles dues checkout."
-          : "Sign in to activate shared messages and account-backed club actions. Maps and calendar links remain available while browsing."}
-      </Panel>
     </div>
   );
 }
