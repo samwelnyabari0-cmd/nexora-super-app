@@ -1,0 +1,17 @@
+# NEXORA readiness
+- [x] Calls: contacts, invite link/code, opt-in directory, consent-gated 1:1 PeerJS voice/video, Jitsi rooms.
+- [x] Clubs + Calls in navigation.
+- [ ] Verify production after publish.
+- [ ] Stripe subscriptions — blocked: no Stripe connection in workspace; built-in payments unavailable for Kenya.
+- [ ] Push notifications (Firebase) — blocked: no Firebase connection.
+- [ ] Link Google Maps / Slack / Cloudflare connections and build features on them.
+- [x] AI Studio: companion chat, summarizer, creator copilot, voice-note transcriber (OpenAI).
+- [ ] Live football/gaming data — blocked: needs a sports data provider.
+- [x] Paystack test-mode wallet top-up wired to Wallet page.
+- [ ] Wire Google Maps into Maps page (real place search) — next step.
+- [ ] Cloudflare: linked; no app feature needs it yet (hosting already on Cloudflare).
+- [ ] Protect Paystack test top-ups from appearing as spendable demo balance; show confirmed test charges as ledger-only.
+- [ ] Add private permanent media storage and contact-authorized cross-device direct messages with Realtime.
+- [ ] Check and wire Firebase web push only if web app/VAPID configuration is present; otherwise surface setup status.
+- [ ] Check Cloudflare Stream and TURN API access; guard any billable stream provisioning behind explicit in-app confirmation.
+- [ ] Verify checks and publish this integration update if all pass.
