@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3 } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +42,9 @@ function Profile() {
   const [connections, setConnections] = useState<
     Array<{ id: string; display_name: string | null; handle: string | null }>
   >([]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user || (socialTab !== "followers" && socialTab !== "following")) return;
@@ -88,6 +91,22 @@ function Profile() {
   }
   const [name, setName] = useState(passport.name);
   const [handle, setHandle] = useState(passport.handle);
+
+  async function uploadAvatar(file: File) {
+    if (!user) return;
+    setAvatarUploading(true);
+    const path = `${user.id}/avatar-${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
+    const { error } = await supabase.storage.from("post-media").upload(path, file, { upsert: false, contentType: file.type });
+    if (!error) {
+      const { data } = supabase.storage.from("post-media").getPublicUrl(path);
+      setAvatarUrl(data.publicUrl);
+      await Promise.all([
+        supabase.auth.updateUser({ data: { avatar_url: data.publicUrl } }),
+        (supabase as any).from("profiles").upsert({ id: user.id, avatar_url: data.publicUrl }),
+      ]);
+    }
+    setAvatarUploading(false);
+  }
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
@@ -103,7 +122,11 @@ function Profile() {
           ))}
         </div>
         <Panel className="flex items-center gap-4">
-          <Avatar name={passport.name} size={72} ring />
+          <button type="button" className="group relative shrink-0" onClick={() => avatarInput.current?.click()} aria-label="Upload profile picture">
+            {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[72px] w-[72px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={72} ring />}
+            <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+          </button>
+          <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
           <div>
             <p className="font-display text-xl font-bold">{passport.name}</p>
             <p className="text-sm text-muted-foreground">

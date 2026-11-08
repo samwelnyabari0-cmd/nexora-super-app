@@ -37,12 +37,24 @@ export function PostCard({ post }: { post: Post }) {
   const { user } = useSession();
   const [safety, setSafety] = useState(false);
   const [reason, setReason] = useState("Spam");
+  const mediaSources = (() => {
+    if (!post.image) return [];
+    try {
+      const parsed = JSON.parse(post.image);
+      return Array.isArray(parsed) ? parsed : [post.image];
+    } catch {
+      return [post.image];
+    }
+  })();
+  const mediaSource = mediaSources[0];
   const isLiked = liked.has(post.id);
   const isSaved = saved.has(post.id);
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [scene, setScene] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editedCaption, setEditedCaption] = useState(post.caption);
 
   const header = (
     <div className="flex items-center gap-3">
@@ -72,23 +84,20 @@ export function PostCard({ post }: { post: Post }) {
         </p>
       </div>
       {post.creatorId === "me" ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive"
-          aria-label={`Delete ${post.kind === "video" ? "video" : "post"}`}
-          onClick={() => {
-            if (
-              window.confirm(
-                `Delete this ${post.kind === "video" ? "video" : "post"}? This cannot be undone.`,
-              )
-            ) {
-              void deletePost(post.id);
-            }
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit post">Edit</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            aria-label={`Delete ${post.kind === "video" ? "video" : "post"}`}
+            onClick={() => {
+              if (window.confirm(`Delete this ${post.kind === "video" ? "video" : "post"}? This cannot be undone.`)) void deletePost(post.id);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ) : (
         <Button
           variant="ghost"
@@ -148,9 +157,9 @@ export function PostCard({ post }: { post: Post }) {
   return (
     <article className="overflow-hidden rounded-3xl border bg-card">
       <div className="p-4 pb-3">{header}</div>
-      {post.image && post.mediaType?.startsWith("video/") ? (
+      {mediaSource && post.mediaType?.startsWith("video/") ? (
         <video
-          src={post.image}
+          src={mediaSource}
           controls
           playsInline
           className={cn(
@@ -161,7 +170,7 @@ export function PostCard({ post }: { post: Post }) {
         />
       ) : post.image && post.creatorId === "me" ? (
         <img
-          src={post.image}
+          src={mediaSource}
           alt={post.caption}
           className={cn(
             "w-full object-cover",
@@ -180,7 +189,7 @@ export function PostCard({ post }: { post: Post }) {
           aria-label={playing ? "Pause preview" : "Play preview"}
         >
           <img
-            src={post.image}
+            src={mediaSource}
             alt={post.caption}
             loading="lazy"
             className={cn(
@@ -271,7 +280,14 @@ export function PostCard({ post }: { post: Post }) {
           </div>
         )}
       </div>
-      <Dialog open={safety} onOpenChange={setSafety}>
+      <Dialog open={editing} onOpenChange={setEditing}>
+    <DialogContent>
+      <DialogTitle>Edit {post.kind === "short" ? "reel" : post.kind}</DialogTitle>
+      <textarea className="min-h-28 w-full rounded-xl border bg-background p-3" value={editedCaption} onChange={(event) => setEditedCaption(event.target.value)} aria-label="Edit caption" />
+      <Button onClick={async () => { if (!user || !editedCaption.trim()) return; const { error } = await (supabase as any).from("posts").update({ caption: editedCaption.trim() }).eq("id", post.id).eq("author_id", user.id); if (error) toast.error("Could not save changes"); else { toast.success("Post updated"); setEditing(false); window.location.reload(); } }}>Save changes</Button>
+    </DialogContent>
+  </Dialog>
+  <Dialog open={safety} onOpenChange={setSafety}>
         <DialogContent>
           <DialogTitle>{c.name}</DialogTitle>
           <Button variant="outline" onClick={() => toggleFollow(post.creatorId)}>
