@@ -7,7 +7,7 @@
 import { loadEnv } from "vite";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-const env = loadEnv("development", process.cwd(), "");
+const env = { ...process.env, ...loadEnv("development", process.cwd(), "") };
 
 export default defineConfig({
   vite: {
