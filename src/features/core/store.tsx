@@ -61,6 +61,7 @@ type Ctx = State & {
   addComment(id: string, text: string): void;
   share(id: string): void;
   repost(id: string): void;
+  deletePost(id: string): Promise<boolean>;
   createPost(
     p: Omit<Post, "id" | "likes" | "comments" | "shares" | "createdAt" | "creatorId">,
     draftId?: string,
@@ -151,7 +152,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (savedMessages?.length) {
         setConversations((current) =>
           current.map((conversation) => {
-            const rows = savedMessages.filter((row: any) => row.conversation_key === conversation.id);
+            const rows = savedMessages.filter(
+              (row: any) => row.conversation_key === conversation.id,
+            );
             if (!rows.length) return conversation;
             return {
               ...conversation,
@@ -247,6 +250,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
         toast.success("Reposted to your followers");
         emit("post.repost", id);
+      },
+      deletePost: async (id) => {
+        if (!user) {
+          toast.error("Sign in to delete this post.");
+          return false;
+        }
+        const { error } = await (supabase as any)
+          .from("posts")
+          .delete()
+          .eq("id", id)
+          .eq("author_id", user.id);
+        if (error) {
+          toast.error("Could not delete the post.");
+          return false;
+        }
+        setPosts((current) => current.filter((post) => post.id !== id));
+        emit("post.delete", id);
+        toast.success("Post deleted");
+        return true;
       },
       createPost: (p, draftId) => {
         const post: Post = {

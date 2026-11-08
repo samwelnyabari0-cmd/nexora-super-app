@@ -11,6 +11,7 @@ import {
   Clapperboard,
   Zap,
   MapPin,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,7 +27,8 @@ import { Avatar } from "./ui";
 import { SceneToAction } from "./SceneToAction";
 
 export function PostCard({ post }: { post: Post }) {
-  const { liked, saved, toggleLike, toggleSave, share, repost, addComment, passport } = useApp();
+  const { liked, saved, toggleLike, toggleSave, share, repost, deletePost, addComment, passport } =
+    useApp();
   const c =
     post.creatorId === "me"
       ? { name: passport.name, handle: passport.handle, hue: 295, verified: false }
@@ -69,7 +71,25 @@ export function PostCard({ post }: { post: Post }) {
           </span>
         </p>
       </div>
-      {post.creatorId !== "me" && (
+      {post.creatorId === "me" ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          aria-label={`Delete ${post.kind === "video" ? "video" : "post"}`}
+          onClick={() => {
+            if (
+              window.confirm(
+                `Delete this ${post.kind === "video" ? "video" : "post"}? This cannot be undone.`,
+              )
+            ) {
+              void deletePost(post.id);
+            }
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ) : (
         <Button
           variant="ghost"
           size="sm"
