@@ -38,9 +38,9 @@ async function init() {
 export function useSession(): SessionState {
   const [, force] = useState(0);
   useEffect(() => {
-    void init();
     const fn = () => force((n) => n + 1);
     subs.add(fn);
+    void init();
     return () => {
       subs.delete(fn);
     };
