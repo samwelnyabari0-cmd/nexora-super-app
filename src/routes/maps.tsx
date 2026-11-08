@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { MapPin, Search, Star, TriangleAlert } from "lucide-react";
 import { places, type Place } from "@/features/core/data";
-import { simulatedPlaceSearch } from "@/features/core/providers";
+import { searchPlaces } from "@/lib/maps.functions";
 import { DemoBadge, EmptyState, PageHeader } from "@/components/nexora/ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/maps")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "Discover — NEXORA Maps" },
-      { name: "description", content: "Simulated nearby discovery map." },
+      { name: "description", content: "Discover nearby places with Google Maps." },
       { property: "og:title", content: "Discover — NEXORA Maps" },
       { property: "og:description", content: "Find places nearby (simulated)." },
     ],
@@ -34,9 +34,14 @@ function Maps() {
   const mapQuery = encodeURIComponent(q.trim() || "Nairobi, Kenya");
   const run = (s: string) => {
     setState("loading");
-    simulatedPlaceSearch(places, s)
+    searchPlaces({ data: { query: s.trim() || "Nairobi, Kenya" } })
       .then((r) => {
-        setRes(r);
+        if (r.error || !r.places.length) {
+          setRes(r.error ? [] : places);
+          setState(r.error ? "error" : "idle");
+          return;
+        }
+        setRes(r.places);
         setState("idle");
       })
       .catch(() => setState("error"));
@@ -113,7 +118,7 @@ function Maps() {
             <EmptyState
               icon={<TriangleAlert className="h-6 w-6" />}
               title="Search failed"
-              body="Simulated network error."
+              body="Google Places could not return results. Check your search and try again."
               action={
                 <button
                   onClick={() => {
