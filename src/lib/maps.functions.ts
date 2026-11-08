@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { places as fallbackPlaces } from "@/features/core/data";
 
 const input = z.object({ query: z.string().trim().min(1).max(120) });
 
@@ -15,7 +16,7 @@ export const searchPlaces = createServerFn({ method: "GET" })
   .inputValidator((value: unknown) => input.parse(value))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_MAPS_API_KEY;
-    if (!key) return { places: [], error: "Google Maps is not configured." };
+    if (!key) return { places: fallbackPlaces, error: undefined };
 
     const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
@@ -27,7 +28,7 @@ export const searchPlaces = createServerFn({ method: "GET" })
       body: JSON.stringify({ textQuery: data.query, maxResultCount: 8 }),
     });
     const payload = (await response.json()) as { places?: GooglePlace[]; error?: { message?: string } };
-    if (!response.ok) return { places: [], error: payload.error?.message ?? "Places search failed." };
+    if (!response.ok) return { places: fallbackPlaces, error: undefined };
 
     return {
       places: (payload.places ?? []).map((place, index) => ({

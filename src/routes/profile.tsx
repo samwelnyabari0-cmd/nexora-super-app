@@ -39,13 +39,20 @@ function Profile() {
   async function updatePrivacy(nextPrivate: boolean) {
     setPrivateProfile(nextPrivate);
     setSavingPrivacy(true);
-    const { error } = await supabase.auth.updateUser({ data: { private_profile: nextPrivate } });
+    const [{ error: authError }, { error: profileError }] = await Promise.all([
+      supabase.auth.updateUser({ data: { private_profile: nextPrivate } }),
+      user ? (supabase as any).from("profiles").upsert({ id: user.id, private_profile: nextPrivate }) : Promise.resolve({ error: null }),
+    ]);
     setSavingPrivacy(false);
-    if (error) setPrivateProfile(!nextPrivate);
+    if (authError || profileError) setPrivateProfile(!nextPrivate);
   }
 
   function syncProfile(data: Record<string, string>) {
-    if (user) void supabase.auth.updateUser({ data });
+    if (!user) return;
+    void Promise.all([
+      supabase.auth.updateUser({ data }),
+      (supabase as any).from("profiles").upsert({ id: user.id, ...data }),
+    ]);
   }
   const [name, setName] = useState(passport.name);
   const [handle, setHandle] = useState(passport.handle);

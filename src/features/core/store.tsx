@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { validMessage, type Attachment } from "./tools";
 import { useWorkspace } from "./workspace";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import {
   seedConversations,
   seedPosts,
@@ -73,6 +75,7 @@ const now = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { notify, preferences, removeDraft } = useWorkspace();
+  const { user } = useSession();
   const [posts, setPosts] = useState(seedPosts);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set(["p4"]));
@@ -90,6 +93,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     interests: ["city", "food", "tech", "music"],
     share: { interests: true, location: false, reputation: true, activity: false },
   });
+
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      const [{ data: savedPosts }, { data: savedMessages }] = await Promise.all([
+        (supabase as any).from("posts").select("id, author_id, caption, media_url, media_type, audience, tags, created_at").order("created_at", { ascending: false }),
+        (supabase as any).from("message_threads").select("id, conversation_key, body, metadata, created_at").order("created_at", { ascending: true }),
+      ]);
+      if (savedPosts?.length) {
+        setPosts((current) => [
+          ...savedPosts.map((row) => ({
+            id: row.id,
+            creatorId: "me",
+            caption: row.caption,
+            image: row.media_url ?? undefined,
+            mediaType: row.media_type ?? undefined,
+            audience: row.audience,
+            tags: row.tags ?? [],
+            filter: "original",
+            format: "landscape",
+            likes: 0,
+            comments: [],
+            shares: 0,
+            createdAt: new Date(row.created_at).toLocaleDateString(),
+          } as Post)),
+          ...current.filter((post) => !savedPosts.some((row) => row.id === post.id)),
+        ]);
+      }
+      if (savedMessages?.length) {
+        setConversations((current) => current.map((conversation) => {
+          const rows = savedMessages.filter((row) => row.conversation_key === conversation.id);
+          if (!rows.length) return conversation;
+          return {
+            ...conversation,
+            messages: rows.map((row) => ({
+              id: row.id,
+              from: "me" as const,
+              text: row.body,
+              attachments: row.metadata?.attachments ?? [],
+              replyTo: row.metadata?.replyTo,
+              at: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              status: "sent" as const,
+            })),
+          };
+        }));
+      }
+    })();
+  }, [user]);
 
   const emit = useCallback((type: string, detail: string) => {
     setEvents((e) => [{ id: uid(), type, detail, at: Date.now() }, ...e].slice(0, 30));
@@ -248,6 +299,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             },
           ]);
           return;
+        }
+        if (user) {
+          void (supabase as any).from("message_threads").insert({
+            conversation_key: convId,
+            sender_id: user.id,
+            body: text.trim(),
+            metadata: { attachments, replyTo },
+          }).then(({ error }: { error: unknown }) => {
+            if (error) toast.error("Message could not be saved to your account.");
+          });
         }
         emit("message.send", convId);
         setTimeout(() => {

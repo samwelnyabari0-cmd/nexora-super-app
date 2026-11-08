@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Upload, Save, Trash2, Image, Film, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
 import { fileError } from "@/features/core/tools";
-import { PageHeader, DemoBadge } from "@/components/nexora/ui";
+import { PageHeader } from "@/components/nexora/ui";
 import { StudioCapture } from "@/components/nexora/StudioCapture";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,7 @@ export const Route = createFileRoute("/create")({
 });
 function Create() {
   const { createPost, online, relay } = useApp();
+  const { user } = useSession();
   const { drafts, saveDraft, removeDraft, notify, preferences } = useWorkspace();
   const nav = useNavigate();
   const [id, setId] = useState("");
@@ -72,7 +75,7 @@ function Create() {
   };
   return (
     <div className="space-y-6">
-      <PageHeader title="Creator Studio Plus" action={<DemoBadge>Local publishing</DemoBadge>} />
+      <PageHeader title="Creator Studio Plus" subtitle={user ? "Publish to your account" : "Sign in to publish"} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <div
@@ -201,14 +204,27 @@ function Create() {
         </div>
         <form
           className="space-y-4"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
-            let key = id;
-            if (!online) {
-              key = id || crypto.randomUUID();
-              saveDraft(draft(key));
+            if (!user) {
+              notify("Sign in required", "Create an account before publishing to your profile.");
+              void nav({ to: "/auth" });
+              return;
             }
+            const { error: publishError } = await (supabase as any).from("posts").insert({
+              author_id: user.id,
+              caption: caption.trim(),
+              media_url: media?.startsWith("http") ? media : null,
+              media_type: mediaType ?? null,
+              audience,
+              tags: tagList,
+            });
+            if (publishError) {
+              setError("Your post could not be published. Please try again.");
+              return;
+            }
+            const key = id || crypto.randomUUID();
             createPost(
               {
                 caption: caption.trim(),
@@ -220,12 +236,9 @@ function Create() {
                 kind: mediaType?.startsWith("video/") ? "video" : "post",
                 tags: tagList,
               },
-              key || undefined,
+              key,
             );
-            notify(
-              online ? "Post published locally" : "Post queued",
-              "Session-only post. No public publishing service connected.",
-            );
+            notify("Post published", "Your post is saved to your account.");
             void nav({ to: "/" });
           }}
         >
@@ -257,12 +270,12 @@ function Create() {
               onChange={(e) => setAudience(e.target.value === "private" ? "private" : "public")}
               className="w-full rounded-lg border bg-card p-2"
             >
-              <option value="public">Public (local demo)</option>
-              <option value="private">Only me (local demo)</option>
+              <option value="public">Public</option>
+              <option value="private">Only me</option>
             </select>
           </label>
           <Button className="w-full bg-brand" disabled={!caption.trim() || queued}>
-            {queued ? "Already queued" : online ? "Publish locally" : "Queue in Offline Relay"}
+            {queued ? "Already queued" : user ? "Publish" : "Sign in to publish"}
           </Button>
           <Button
             type="button"
@@ -279,8 +292,7 @@ function Create() {
             Save draft
           </Button>
           <p className="text-xs text-muted-foreground">
-            Drafts and posts reset on refresh. Media stays on this device. Filters and framing apply
-            in NEXORA, not to the source file.
+Drafts remain on this device until published. Published captions and profile visibility are saved to your account. Media uploads require storage setup before they can be shared across devices.
           </p>
         </form>
       </div>

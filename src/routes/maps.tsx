@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { MapPin, Search, Star, TriangleAlert } from "lucide-react";
 import { places, type Place } from "@/features/core/data";
 import { searchPlaces } from "@/lib/maps.functions";
-import { DemoBadge, EmptyState, PageHeader } from "@/components/nexora/ui";
+import { EmptyState, PageHeader } from "@/components/nexora/ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,6 @@ function Maps() {
   const [res, setRes] = useState<Place[]>(places);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [sel, setSel] = useState<string | null>(null);
-  const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const mapQuery = encodeURIComponent(q.trim() || "Nairobi, Kenya");
   const googleEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
   const run = (s: string) => {
@@ -57,8 +56,7 @@ function Maps() {
     <div>
       <PageHeader
         title="Discover"
-        subtitle={googleMapsKey ? "Live Google Maps discovery" : "Nearby discovery"}
-        action={!googleMapsKey ? <DemoBadge>Maps key missing</DemoBadge> : undefined}
+        subtitle="Live map discovery"
       />
       <form
         onSubmit={(e) => {

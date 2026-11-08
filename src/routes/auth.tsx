@@ -3,6 +3,8 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, LogOut, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+const authRedirectUrl = () => import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth`;
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
@@ -41,7 +43,7 @@ function AuthPage() {
             email: email.trim(),
             password,
             options: {
-              emailRedirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth`,
+              emailRedirectTo: authRedirectUrl(),
             },
           });
       if (result.error) {
@@ -66,7 +68,7 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth`,
+          redirectTo: authRedirectUrl(),
         },
       });
       if (error) toast.error("Google sign-in is unavailable right now. Try email and password instead.");

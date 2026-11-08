@@ -15,7 +15,7 @@ import {
 import { creators, creatorById, type Message } from "@/features/core/data";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
-import { Avatar, DemoBadge, PageHeader } from "@/components/nexora/ui";
+import { Avatar, PageHeader } from "@/components/nexora/ui";
 import { ChatComposer, AttachmentPreview } from "@/components/nexora/ChatComposer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -27,13 +27,13 @@ export const Route = createFileRoute("/messages")({
       {
         name: "description",
         content:
-          "Local demo chat with video, file and voice attachments, replies and conversation search.",
+          "Account chat with video, file and voice attachments, replies and conversation search.",
       },
       { property: "og:title", content: "Messages — NEXORA" },
       {
         property: "og:description",
         content:
-          "Local demo chat with video, file and voice attachments, replies and conversation search.",
+          "Account chat with video, file and voice attachments, replies and conversation search.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -75,7 +75,7 @@ function Messages() {
         title="Messages"
         action={
           <div className="flex items-center gap-2">
-            <DemoBadge>Local only</DemoBadge>
+            
             <Button
               size="icon"
               variant="outline"
@@ -192,7 +192,7 @@ function Messages() {
                   {m.status === "queued" ? (
                     <>
                       <Clock className="h-3 w-3" />
-                      Queued locally
+                      Waiting for connection
                     </>
                   ) : m.status === "sending" ? (
                     <>
@@ -204,7 +204,7 @@ function Messages() {
                   ) : m.from === "me" ? (
                     <>
                       <Check className="h-3 w-3" />
-                      Saved locally
+                      Saved to account
                     </>
                   ) : null}
                 </span>
@@ -238,8 +238,8 @@ function Messages() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-inherit"
-                        aria-label="Delete message locally"
-                        title="Delete locally"
+                        aria-label="Delete message"
+                        title="Delete message"
                         onClick={() => deleteMessage(active, m.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -260,7 +260,7 @@ function Messages() {
       </div>
       <Dialog open={newChat} onOpenChange={setNewChat}>
         <DialogContent>
-          <DialogTitle>New local conversation</DialogTitle>
+          <DialogTitle>New conversation</DialogTitle>
           {creators.map((c) => (
             <Button
               key={c.id}
@@ -287,7 +287,7 @@ function Messages() {
         }}
       >
         <DialogContent>
-          <DialogTitle>Edit local message</DialogTitle>
+          <DialogTitle>Edit message</DialogTitle>
           <textarea
             aria-label="Edit message text"
             value={edit}
