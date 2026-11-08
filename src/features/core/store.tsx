@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { validMessage, type Attachment } from "./tools";
 import { useWorkspace } from "./workspace";
 import { toast } from "sonner";
@@ -52,6 +60,7 @@ type Ctx = State & {
   toggleSave(id: string): void;
   addComment(id: string, text: string): void;
   share(id: string): void;
+  repost(id: string): void;
   createPost(
     p: Omit<Post, "id" | "likes" | "comments" | "shares" | "createdAt" | "creatorId">,
     draftId?: string,
@@ -98,54 +107,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     void (async () => {
       const [{ data: savedPosts }, { data: savedMessages }] = await Promise.all([
-        (supabase as any).from("posts").select("id, author_id, caption, media_url, media_type, audience, tags, created_at").order("created_at", { ascending: false }),
-        (supabase as any).from("message_threads").select("id, conversation_key, body, metadata, created_at").order("created_at", { ascending: true }),
+        (supabase as any)
+          .from("posts")
+          .select("id, author_id, caption, media_url, media_type, audience, tags, created_at")
+          .order("created_at", { ascending: false }),
+        (supabase as any)
+          .from("message_threads")
+          .select("id, conversation_key, body, metadata, created_at")
+          .order("created_at", { ascending: true }),
       ]);
       if (savedPosts?.length) {
-        const hydratedPosts = await Promise.all(savedPosts.map(async (row) => {
-          let image: string | undefined;
-          if (row.media_url) {
-            const { data } = await supabase.storage.from("post-media").createSignedUrl(row.media_url, 3600);
-            image = data?.signedUrl;
-          }
-          return {
-            id: row.id,
-            creatorId: "me",
-            caption: row.caption,
-            image,
-            mediaType: row.media_type ?? undefined,
-            audience: row.audience,
-            tags: row.tags ?? [],
-            filter: "original",
-            format: "landscape",
-            likes: 0,
-            comments: [],
-            shares: 0,
-            createdAt: new Date(row.created_at).toLocaleDateString(),
-          } as Post;
-        }));
+        const hydratedPosts = await Promise.all(
+          savedPosts.map(async (row: any) => {
+            let image: string | undefined;
+            if (row.media_url) {
+              const { data } = await supabase.storage
+                .from("post-media")
+                .createSignedUrl(row.media_url, 3600);
+              image = data?.signedUrl;
+            }
+            return {
+              id: row.id,
+              creatorId: "me",
+              caption: row.caption,
+              image,
+              mediaType: row.media_type ?? undefined,
+              audience: row.audience,
+              tags: row.tags ?? [],
+              filter: "original",
+              format: "landscape",
+              likes: 0,
+              comments: [],
+              shares: 0,
+              createdAt: new Date(row.created_at).toLocaleDateString(),
+            } as unknown as Post;
+          }),
+        );
         setPosts((current) => [
           ...hydratedPosts,
-          ...current.filter((post) => !savedPosts.some((row) => row.id === post.id)),
+          ...current.filter((post) => !savedPosts.some((row: any) => row.id === post.id)),
         ]);
       }
       if (savedMessages?.length) {
-        setConversations((current) => current.map((conversation) => {
-          const rows = savedMessages.filter((row) => row.conversation_key === conversation.id);
-          if (!rows.length) return conversation;
-          return {
-            ...conversation,
-            messages: rows.map((row) => ({
-              id: row.id,
-              from: "me" as const,
-              text: row.body,
-              attachments: row.metadata?.attachments ?? [],
-              replyTo: row.metadata?.replyTo,
-              at: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-              status: "sent" as const,
-            })),
-          };
-        }));
+        setConversations((current) =>
+          current.map((conversation) => {
+            const rows = savedMessages.filter((row: any) => row.conversation_key === conversation.id);
+            if (!rows.length) return conversation;
+            return {
+              ...conversation,
+              messages: rows.map((row: any) => ({
+                id: row.id,
+                from: "me" as const,
+                text: row.body,
+                attachments: row.metadata?.attachments ?? [],
+                replyTo: row.metadata?.replyTo,
+                at: new Date(row.created_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                status: "sent" as const,
+              })),
+            };
+          }),
+        );
       }
     })();
   }, [user]);
@@ -195,6 +219,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       share: (id) => {
         setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
+        if (user)
+          void (supabase as any)
+            .from("post_interactions")
+            .upsert(
+              { post_id: id, actor_id: user.id, kind: "share" },
+              { onConflict: "post_id,actor_id,kind" },
+            );
         const url = typeof window !== "undefined" ? `${window.location.origin}/?post=${id}` : "";
         if (!navigator.clipboard) {
           toast.error("Clipboard unavailable. Copy the page address from your browser.");
@@ -204,6 +235,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .writeText(url)
           .then(() => toast.success("Link copied to clipboard"))
           .catch(() => toast.error("Could not copy link. Check clipboard permissions."));
+      },
+      repost: (id) => {
+        if (user)
+          void (supabase as any)
+            .from("post_interactions")
+            .upsert(
+              { post_id: id, actor_id: user.id, kind: "share" },
+              { onConflict: "post_id,actor_id,kind" },
+            );
+        setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
+        toast.success("Reposted to your followers");
+        emit("post.repost", id);
       },
       createPost: (p, draftId) => {
         const post: Post = {
@@ -309,14 +352,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (user) {
-          void (supabase as any).from("message_threads").insert({
-            conversation_key: convId,
-            sender_id: user.id,
-            body: text.trim(),
-            metadata: { attachments, replyTo },
-          }).then(({ error }: { error: unknown }) => {
-            if (error) toast.error("Message could not be saved to your account.");
-          });
+          void (supabase as any)
+            .from("message_threads")
+            .insert({
+              conversation_key: convId,
+              sender_id: user.id,
+              body: text.trim(),
+              metadata: { attachments, replyTo },
+            })
+            .then(({ error }: { error: unknown }) => {
+              if (error) toast.error("Message could not be saved to your account.");
+            });
         }
         emit("message.send", convId);
         setTimeout(() => {

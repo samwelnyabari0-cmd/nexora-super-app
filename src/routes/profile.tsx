@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ShieldCheck, CloudUpload } from "lucide-react";
+import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3 } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
 import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { Switch } from "@/components/ui/switch";
+import { PostCard } from "@/components/nexora/PostCard";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -35,6 +36,31 @@ function Profile() {
     Boolean(user?.user_metadata?.private_profile),
   );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [socialTab, setSocialTab] = useState<"posts" | "saved" | "followers" | "following">(
+    "posts",
+  );
+  const [connections, setConnections] = useState<
+    Array<{ id: string; display_name: string | null; handle: string | null }>
+  >([]);
+
+  useEffect(() => {
+    if (!user || (socialTab !== "followers" && socialTab !== "following")) return;
+    void (async () => {
+      const column = socialTab === "followers" ? "follower_id" : "following_id";
+      const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
+      const { data: rows } = await (supabase as any)
+        .from("follows")
+        .select(`${column}`)
+        .eq(relationColumn, user.id);
+      const ids = (rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean);
+      if (!ids.length) return setConnections([]);
+      const { data: profiles } = await (supabase as any)
+        .from("profiles")
+        .select("id, display_name, handle")
+        .in("id", ids);
+      setConnections(profiles ?? []);
+    })();
+  }, [socialTab, user]);
 
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
@@ -90,6 +116,75 @@ function Profile() {
               <span>{saved.size} saved</span>
             </p>
           </div>
+        </Panel>
+        <Panel className="space-y-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(
+              [
+                { value: "posts", label: "Posts", Icon: Grid3X3 },
+                { value: "saved", label: "Saved", Icon: Bookmark },
+                { value: "followers", label: "Followers", Icon: Users },
+                { value: "following", label: "Following", Icon: UserPlus },
+              ] as const
+            ).map(({ value, label, Icon: IconComponent }) => (
+              <Button
+                key={value}
+                variant={socialTab === value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSocialTab(value as typeof socialTab)}
+              >
+                <IconComponent className="h-4 w-4" /> {label}
+              </Button>
+            ))}
+          </div>
+          {socialTab === "posts" && (
+            <div className="space-y-4">
+              {posts
+                .filter((post) => post.creatorId === "me")
+                .map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              {!posts.some((post) => post.creatorId === "me") && (
+                <p className="text-sm text-muted-foreground">Your posts will appear here.</p>
+              )}
+            </div>
+          )}
+          {socialTab === "saved" && (
+            <div className="space-y-4">
+              {posts
+                .filter((post) => saved.has(post.id))
+                .map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+              {!posts.some((post) => saved.has(post.id)) && (
+                <p className="text-sm text-muted-foreground">Saved posts are private to you.</p>
+              )}
+            </div>
+          )}
+          {(socialTab === "followers" || socialTab === "following") && (
+            <div className="space-y-2">
+              {connections.map((connection) => (
+                <div key={connection.id} className="flex items-center gap-3 rounded-xl border p-3">
+                  <Avatar
+                    name={connection.display_name ?? connection.handle ?? "NEXORA user"}
+                    size={40}
+                  />
+                  <div className="min-w-0">
+                    <p className="font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      @{connection.handle ?? connection.id.slice(0, 8)}
+                    </p>
+                  </div>
+                  <Button className="ml-auto" variant="outline" size="sm">
+                    View
+                  </Button>
+                </div>
+              ))}
+              {!connections.length && (
+                <p className="text-sm text-muted-foreground">No {socialTab} yet.</p>
+              )}
+            </div>
+          )}
         </Panel>
         <Panel className="space-y-3">
           <p className="flex items-center gap-2 font-display font-semibold">
