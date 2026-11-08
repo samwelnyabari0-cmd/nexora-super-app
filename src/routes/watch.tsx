@@ -23,10 +23,13 @@ function Watch() {
   const [g, setG] = useState("All");
   const genres = ["All", ...new Set(catalog.map((c) => c.genre))];
   const hero = catalog[0];
-  const list = catalog.filter((c) => g === "All" || c.genre === g);
+  const hasLiveStream = Boolean(import.meta.env.VITE_CLOUDFLARE_STREAM_UID);
+  const list = catalog.filter(
+    (c) => (g === "All" || c.genre === g) && (!c.live || hasLiveStream),
+  );
   return (
     <div>
-      <PageHeader title="Watch" action={<DemoBadge>Demo catalogue</DemoBadge>} />
+      <PageHeader title="Watch" action={<DemoBadge>Stream assets pending</DemoBadge>} />
       <div className="relative mb-6 aspect-[16/9] overflow-hidden rounded-3xl md:aspect-[21/9]">
         <img src={hero.image} alt="" className="h-full w-full object-cover" />
         <div className="bg-scrim absolute inset-0" />
@@ -34,7 +37,7 @@ function Watch() {
           <p className="text-xs uppercase tracking-widest text-accent">Featured</p>
           <h2 className="text-3xl font-bold md:text-5xl">{hero.title}</h2>
           <button
-            onClick={() => toast("Playback is simulated in this demo")}
+            onClick={() => toast.error("This title has no playable Stream asset yet.")}
             className="mt-3 flex items-center gap-2 rounded-full bg-foreground px-5 py-2 font-semibold text-background"
           >
             <Play className="h-4 w-4 fill-current" /> Play
@@ -52,7 +55,7 @@ function Watch() {
         {list.map((t) => (
           <button
             key={t.id}
-            onClick={() => toast(`"${t.title}" — playback simulated`)}
+            onClick={() => toast.error(`"${t.title}" has no playable Stream asset yet.`)}
             className="group text-left"
           >
             <div className="relative aspect-video overflow-hidden rounded-2xl">

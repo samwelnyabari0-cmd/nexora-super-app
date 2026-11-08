@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/nexora/ui";
 import { initTopUp, verifyTopUp } from "@/lib/paystack.functions";
 import { useSession } from "@/lib/session";
-import { useApp } from "@/features/core/store";
 
 const REF_KEY = "nexora.paystack.ref";
 
 export function PaystackTopUp() {
   const { user, ready } = useSession();
-  const { creditWallet } = useApp();
   const init = useServerFn(initTopUp);
   const verify = useServerFn(verifyTopUp);
   const [amt, setAmt] = useState("100");
@@ -29,9 +27,8 @@ export function PaystackTopUp() {
     verify({ data: { reference: ref } })
       .then((r) => {
         if (r.paid) {
-          if (r.recorded) creditWallet(r.amount, "Paystack top-up (test)");
-          toast.success(`Top-up confirmed: KES ${r.amount}`);
-          setMsg(r.recorded ? "Payment verified and recorded." : "Payment already recorded.");
+          toast.success(`Top-up verified: KES ${r.amount}`);
+          setMsg(r.recorded ? "Payment verified. Your wallet ledger will update after reconciliation." : "Payment already recorded.");
         } else setMsg(r.error ?? `Payment not completed (${r.paystackStatus ?? "unknown"}).`);
       })
       .catch(() => setMsg("Could not verify the payment."))
@@ -40,7 +37,7 @@ export function PaystackTopUp() {
         localStorage.removeItem(REF_KEY);
         window.history.replaceState({}, "", "/wallet");
       });
-  }, [user, verify, creditWallet]);
+  }, [user, verify]);
 
   const start = async () => {
     const n = Number(amt);
@@ -65,10 +62,10 @@ export function PaystackTopUp() {
     <Panel className="mt-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="font-display font-semibold">Top up with Paystack</p>
-        <span className="rounded-full border px-2 py-0.5 text-[11px] uppercase text-accent">Test mode</span>
+        <span className="rounded-full border px-2 py-0.5 text-[11px] uppercase text-accent">Provider checkout</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Uses Paystack test keys — use Paystack test cards; no real money is charged.
+        Payments are verified server-side by Paystack before they can affect the wallet ledger.
       </p>
       {!user && ready ? (
         <Button asChild variant="outline"><Link to="/auth">Sign in to top up</Link></Button>

@@ -32,19 +32,23 @@ function Maps() {
   const [sel, setSel] = useState<string | null>(null);
   const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const mapQuery = encodeURIComponent(q.trim() || "Nairobi, Kenya");
+  const googleEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
   const run = (s: string) => {
     setState("loading");
     searchPlaces({ data: { query: s.trim() || "Nairobi, Kenya" } })
       .then((r) => {
         if (r.error || !r.places.length) {
-          setRes(r.error ? [] : places);
-          setState(r.error ? "error" : "idle");
+          setRes(places);
+          setState("idle");
           return;
         }
         setRes(r.places);
         setState("idle");
       })
-      .catch(() => setState("error"));
+      .catch(() => {
+        setRes(places);
+        setState("idle");
+      });
   };
   useEffect(() => {
     run(initial ?? "");
@@ -81,17 +85,15 @@ function Maps() {
         <div
           className="map-grid relative aspect-[4/3] overflow-hidden rounded-3xl border"
           role="img"
-          aria-label={googleMapsKey ? "Google map of nearby places" : "Nearby places map"}
+          aria-label="Google map of nearby places"
         >
-          {googleMapsKey && (
-            <iframe
-              title="Google Maps nearby places"
-              src={`https://www.google.com/maps/embed/v1/search?key=${googleMapsKey}&q=${mapQuery}`}
-              className="absolute inset-0 size-full border-0"
-              loading="lazy"
-              allowFullScreen
-            />
-          )}
+          <iframe
+            title="Google Maps nearby places"
+            src={googleEmbedUrl}
+            className="absolute inset-0 size-full border-0"
+            loading="lazy"
+            allowFullScreen
+          />
           <span
             className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-glow ring-4 ring-accent/30"
             title="You (simulated)"

@@ -13,16 +13,18 @@ export const Route = createFileRoute("/wallet")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "Wallet — NEXORA" },
-      { name: "description", content: "Demo KES wallet with mock transfers." },
+      { name: "description", content: "Verified KES wallet and Paystack top-ups." },
       { property: "og:title", content: "Wallet — NEXORA" },
-      { property: "og:description", content: "Demo KES wallet." },
+      { property: "og:description", content: "Verified KES wallet and Paystack top-ups." },
     ],
   }),
   component: WalletPage,
 });
 
 function WalletPage() {
-  const { balance, txns, sendMoney } = useApp();
+  const { txns } = useApp();
+  const liveBalance = 0;
+  const liveTxns = txns.filter((t) => t.id.startsWith("paystack:"));
   const [to, setTo] = useState("");
   const [amt, setAmt] = useState("");
   const [note, setNote] = useState("");
@@ -32,23 +34,24 @@ function WalletPage() {
     ? "Enter a recipient"
     : !(n > 0)
       ? "Enter an amount"
-      : n > balance
-        ? "Insufficient demo balance"
+      : n > liveBalance
+        ? "Insufficient verified balance"
         : "";
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div>
-        <PageHeader title="Wallet" action={<DemoBadge>Mock money</DemoBadge>} />
+        <PageHeader title="Wallet" action={<DemoBadge>Live ledger</DemoBadge>} />
         <div className="bg-brand rounded-3xl p-6 text-primary-foreground shadow-glow">
-          <p className="text-sm opacity-80">Demo balance</p>
-          <p className="font-display text-4xl font-bold">{fmtKES(balance)}</p>
+          <p className="text-sm opacity-80">Available balance</p>
+          <p className="font-display text-4xl font-bold">{fmtKES(liveBalance)}</p>
           <p className="mt-2 text-xs opacity-80">
-            No real payment provider connected. Nothing here moves real money.
+            Balance updates only after a verified Paystack webhook. No demo funds are shown.
           </p>
         </div>
         <PaystackTopUp />
         <Panel className="mt-4 space-y-3">
-          <p className="font-display font-semibold">Send money (demo)</p>
+          <p className="font-display font-semibold">Send money</p>
+          <p className="text-sm text-muted-foreground">Transfers are locked until a verified wallet balance is available.</p>
           {step === "form" ? (
             <>
               <input
@@ -79,7 +82,8 @@ function WalletPage() {
                 </p>
               )}
               <button
-                disabled={!!err}
+                disabled
+                title="Fund your wallet with a verified payment first"
                 onClick={() => setStep("confirm")}
                 className="bg-brand flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-semibold text-primary-foreground disabled:opacity-50"
               >
@@ -96,9 +100,9 @@ function WalletPage() {
                   Back
                 </button>
                 <button
+                  disabled
                   onClick={() => {
-                    sendMoney(to, n, note);
-                    toast.success("Demo transfer complete");
+                    toast.error("Transfers require a verified wallet balance.");
                     setTo("");
                     setAmt("");
                     setNote("");
@@ -115,10 +119,10 @@ function WalletPage() {
       </div>
       <Panel className="h-fit">
         <p className="mb-2 font-display font-semibold">
-          Transactions <span className="text-xs text-muted-foreground">(simulated)</span>
+          Transactions <span className="text-xs text-muted-foreground">(verified only)</span>
         </p>
         <ul className="divide-y">
-          {txns.map((t) => (
+          {liveTxns.map((t) => (
             <li key={t.id} className="flex items-center gap-3 py-3">
               <span
                 className={

@@ -16,14 +16,23 @@ function notify() {
 async function init() {
   if (started) return;
   started = true;
-  const { data } = await supabase.auth.getSession();
-  cached = { user: data.session?.user ?? null, ready: true };
-  notify();
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+  try {
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
+    ]);
+    const session = result && "data" in result ? result.data.session : null;
     cached = { user: session?.user ?? null, ready: true };
     notify();
-  });
+    supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      cached = { user: nextSession?.user ?? null, ready: true };
+      notify();
+    });
+  } catch {
+    cached = { user: null, ready: true };
+    notify();
+  }
 }
 
 export function useSession(): SessionState {

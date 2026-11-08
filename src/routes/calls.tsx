@@ -425,7 +425,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
           const call = p.call(invite.callee_peer_id!, s);
           call.on("stream", (r) => attach(s, r));
         });
-        p.on("error", () => setErr("Connection failed. Try again."));
+        p.on("error", () => setErr("Call signalling failed. Check your network or configure TURN."));
       } catch {
         setErr("Permission to use your microphone/camera was denied.");
         void setStatus("ended");
