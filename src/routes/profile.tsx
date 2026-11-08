@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3 } from "lucide-react";
+import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -36,9 +36,8 @@ function Profile() {
     Boolean(user?.user_metadata?.private_profile),
   );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
-  const [socialTab, setSocialTab] = useState<"posts" | "saved" | "followers" | "following">(
-    "posts",
-  );
+  const [socialTab, setSocialTab] = useState<"posts" | "reels" | "collabs" | "saved" | "followers" | "following">("posts");
+  const [passportOpen, setPassportOpen] = useState(false);
   const [connections, setConnections] = useState<
     Array<{ id: string; display_name: string | null; handle: string | null }>
   >([]);
@@ -122,10 +121,10 @@ function Profile() {
           ))}
         </div>
         <Panel className="flex items-center gap-4">
-          <button type="button" className="group relative shrink-0" onClick={() => avatarInput.current?.click()} aria-label="Upload profile picture">
+          <div className="group relative shrink-0">
             {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[72px] w-[72px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={72} ring />}
             <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
-          </button>
+          </div>
           <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
           <div>
             <p className="font-display text-xl font-bold">{passport.name}</p>
@@ -140,14 +139,21 @@ function Profile() {
             </p>
           </div>
         </Panel>
+        <Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
+          <ShieldCheck className="h-5 w-5 text-accent" />
+          <span className="font-display font-semibold">Pulse Passport</span>
+          <span className="ml-auto text-xs text-muted-foreground">{passportOpen ? "Hide features" : "Identity, profile & sharing"}</span>
+        </Button>
         <Panel className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2">
             {(
               [
                 { value: "posts", label: "Posts", Icon: Grid3X3 },
-                { value: "saved", label: "Saved", Icon: Bookmark },
+                { value: "reels", label: "Reels", Icon: Film },
+                { value: "collabs", label: "Collabs", Icon: Users },
                 { value: "followers", label: "Followers", Icon: Users },
                 { value: "following", label: "Following", Icon: UserPlus },
+                { value: "saved", label: "Saved", Icon: Bookmark },
               ] as const
             ).map(({ value, label, Icon: IconComponent }) => (
               <Button
@@ -160,16 +166,10 @@ function Profile() {
               </Button>
             ))}
           </div>
-          {socialTab === "posts" && (
-            <div className="space-y-4">
-              {posts
-                .filter((post) => post.creatorId === "me")
-                .map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              {!posts.some((post) => post.creatorId === "me") && (
-                <p className="text-sm text-muted-foreground">Your posts will appear here.</p>
-              )}
+          {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs") && (
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              {posts.filter((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))).map((post) => <PostCard key={post.id} post={post} />)}
+              {!posts.some((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))) && <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">Your {socialTab} will appear here.</p>}
             </div>
           )}
           {socialTab === "saved" && (
@@ -209,7 +209,14 @@ function Profile() {
             </div>
           )}
         </Panel>
-        <Panel className="space-y-3">
+        {passportOpen && <Panel className="space-y-3">
+          <div className="flex items-center gap-3 rounded-2xl border bg-background/50 p-3">
+            <button type="button" className="group relative shrink-0" onClick={() => avatarInput.current?.click()} aria-label="Change profile picture">
+              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={56} ring />}
+              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[9px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+            </button>
+            <div><p className="font-semibold">Profile photo</p><p className="text-xs text-muted-foreground">Upload or change your Pulse Passport photo.</p></div>
+          </div>
           <p className="flex items-center gap-2 font-display font-semibold">
             <ShieldCheck className="h-5 w-5 text-accent" /> Pulse Passport
           </p>
@@ -323,7 +330,7 @@ function Profile() {
               />
             </label>
           ))}
-        </Panel>
+        </Panel>}
       </div>
       <div className="space-y-4">
         <Panel className="space-y-2">
