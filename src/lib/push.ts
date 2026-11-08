@@ -4,6 +4,8 @@ function base64ToBytes(value: string) {
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 }
 
+import { savePushSubscription } from "@/lib/push.functions";
+
 export async function enablePushNotifications(): Promise<PushSubscription> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     throw new Error("Push notifications are not supported in this browser.");
@@ -13,8 +15,11 @@ export async function enablePushNotifications(): Promise<PushSubscription> {
   const registration = await navigator.serviceWorker.register("/sw.js");
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("Notification permission was not granted.");
-  return registration.pushManager.subscribe({
+  const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: base64ToBytes(vapidKey),
   });
+  const result = await savePushSubscription({ data: subscription.toJSON() });
+  if (result.error) throw new Error(result.error);
+  return subscription;
 }
