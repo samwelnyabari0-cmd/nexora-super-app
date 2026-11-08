@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const MODEL = "openai/gpt-5-mini" as const;
+const FALLBACK_MODEL = "openai/gpt-5-nano" as const;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -30,12 +31,18 @@ function friendly(e: unknown): string {
 
 async function run(instructions: string, input: Msg[]) {
   const { generateResponse } = await import("@lovable.dev/ai-gateway");
-  const res = await generateResponse({
-    model: MODEL,
+  const payload = {
     instructions,
     input: input.map((m) => ({ role: m.role, content: m.content })),
-  });
-  return extractText(res);
+  };
+  try {
+    const res = await generateResponse({ model: MODEL, ...payload });
+    return extractText(res);
+  } catch (firstError) {
+    console.warn("[v0] AI primary model failed; trying fallback", firstError);
+    const res = await generateResponse({ model: FALLBACK_MODEL, ...payload });
+    return extractText(res);
+  }
 }
 
 const COMPANION = `You are NEXORA's AI companion inside a Kenyan super-app (feeds, messages, maps, wallet, live, clubs, hub tools).

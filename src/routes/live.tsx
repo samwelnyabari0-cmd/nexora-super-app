@@ -283,7 +283,7 @@ function LivePage() {
             {asking
               ? "AI co-host is answering…"
               : user
-                ? "AI co-host connected · powered by Vercel AI Gateway"
+                ? "AI co-host ready · OpenAI via Vercel AI Gateway"
                 : "Sign in to connect the AI co-host."}
           </p>
         </Panel>

@@ -7,6 +7,8 @@ import {
   Send,
   Share2,
   Repeat2,
+  Film,
+  Clapperboard,
   Zap,
   MapPin,
 } from "lucide-react";
@@ -48,8 +50,23 @@ export function PostCard({ post }: { post: Post }) {
           {c.name}
           {c.verified && <BadgeCheck className="h-4 w-4 text-accent" aria-label="Verified" />}
         </p>
-        <p className="text-xs text-muted-foreground">
-          @{c.handle} · {post.createdAt}
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          {post.kind === "short" ? (
+            <Clapperboard className="h-3.5 w-3.5 text-accent" aria-label="Reel" />
+          ) : post.kind === "video" || post.mediaType?.startsWith("video/") ? (
+            <Film className="h-3.5 w-3.5 text-accent" aria-label="Video" />
+          ) : null}
+          <span>
+            {post.kind === "short"
+              ? "Reel"
+              : post.kind === "video" || post.mediaType?.startsWith("video/")
+                ? "Video"
+                : "Post"}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>
+            @{c.handle} · {post.createdAt}
+          </span>
         </p>
       </div>
       {post.creatorId !== "me" && (
