@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { Upload, Save, Trash2, Image, Film, FileText } from "lucide-react";
+import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
@@ -45,7 +45,7 @@ function Create() {
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("original");
-  const [format, setFormat] = useState("landscape");
+  const [format, setFormat] = useState("square");
   const input = useRef<HTMLInputElement>(null);
   const tagList = tags
     .split(",")
@@ -118,6 +118,25 @@ function Create() {
             }}
             onError={setError}
           />
+          <div className="mb-2 flex items-center justify-between rounded-2xl border bg-card/80 p-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Open Pulse Passport"
+                title="Pulse Passport"
+                onClick={() => void nav({ to: "/profile" })}
+              >
+                <ShieldCheck className="h-5 w-5 text-accent" />
+              </Button>
+              <div className="leading-tight">
+                <p className="text-xs font-semibold">Pulse Passport</p>
+                <p className="text-[11px] text-muted-foreground">Identity & sharing</p>
+              </div>
+            </div>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Sparkles className="h-3.5 w-3.5 text-accent" /> Creator post</span>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => input.current?.click()}>
               <Upload />
@@ -188,7 +207,10 @@ function Create() {
                 </Button>
               ))}
             </div>
-            <h2 className="text-sm font-semibold">Frame</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Frame</h2>
+              <span className="text-xs text-muted-foreground">Square is optimized for feed</span>
+            </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Media frame">
               {["landscape", "portrait", "square"].map((f) => (
                 <Button
