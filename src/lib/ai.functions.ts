@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const MODEL = "google/gemini-2.5-flash-lite" as const;
+const MODEL = "openai/gpt-oss-20b" as const;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 function extractText(res: unknown): string {
-  const r = res as { output_text?: string; output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> };
+  const r = res as {
+    output_text?: string;
+    output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>;
+  };
   if (typeof r.output_text === "string" && r.output_text) return r.output_text;
   const parts: string[] = [];
   for (const item of r.output ?? []) {
@@ -18,8 +21,9 @@ function extractText(res: unknown): string {
 
 function friendly(e: unknown): string {
   const name = (e as { name?: string })?.name ?? "";
-  console.error("AI error", e);
-  if (name.includes("RateLimit")) return "AI is busy right now. Please wait a moment and try again.";
+  console.error("[v0] AI request failed", e);
+  if (name.includes("RateLimit"))
+    return "AI is busy right now. Please wait a moment and try again.";
   if (name.includes("PaymentRequired")) return "AI credits are used up for this workspace.";
   return "AI request failed. Please try again.";
 }
@@ -64,13 +68,18 @@ export const aiTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { task: keyof typeof TASKS; text: string }) => {
     if (!(d?.task in TASKS)) throw new Error("Unknown task");
-    const text = String(d.text ?? "").trim().slice(0, 20000);
+    const text = String(d.text ?? "")
+      .trim()
+      .slice(0, 20000);
     if (!text) throw new Error("Nothing to process");
     return { task: d.task, text };
   })
   .handler(async ({ data }) => {
     try {
-      return { text: await run(TASKS[data.task], [{ role: "user", content: data.text }]), error: null as string | null };
+      return {
+        text: await run(TASKS[data.task], [{ role: "user", content: data.text }]),
+        error: null as string | null,
+      };
     } catch (e) {
       return { text: "", error: friendly(e) };
     }
@@ -89,9 +98,12 @@ export const aiTranscribe = createServerFn({ method: "POST" })
     try {
       const { transcribeAudio } = await import("@lovable.dev/ai-gateway");
       const blob = data.file as Blob;
-      const file = blob instanceof File ? blob : new File([blob], "voice.webm", { type: blob.type || "audio/webm" });
+      const file =
+        blob instanceof File
+          ? blob
+          : new File([blob], "voice.webm", { type: blob.type || "audio/webm" });
       const res = await transcribeAudio({ model: "openai/gpt-transcribe", file });
-      const transcript = typeof res === "string" ? res : (res as { text?: string }).text ?? "";
+      const transcript = typeof res === "string" ? res : ((res as { text?: string }).text ?? "");
       if (!transcript.trim()) return { transcript: "", summary: "", error: "No speech detected." };
       const summary = await run(TASKS.summarize, [{ role: "user", content: transcript }]);
       return { transcript, summary, error: null as string | null };

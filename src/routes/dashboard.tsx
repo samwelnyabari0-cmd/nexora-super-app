@@ -16,11 +16,15 @@ import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
 import { analyticsDays } from "@/features/core/tools";
 import { compact } from "@/features/core/data";
+import { useSocialGraph } from "@/features/social/useSocialGraph";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Creator dashboard — NEXORA" },
-      { name: "description", content: "Creator overview, saved content, audience and account insights." },
+      {
+        name: "description",
+        content: "Creator overview, saved content, audience and account insights.",
+      },
       { property: "og:title", content: "Creator dashboard — NEXORA" },
       {
         property: "og:description",
@@ -37,6 +41,7 @@ function Dashboard() {
   const [days, setDays] = useState<number>(30);
   const { posts } = useApp();
   const { drafts } = useWorkspace();
+  const { followers, following } = useSocialGraph();
   const own = posts.filter((p) => p.creatorId === "me");
   const data = useMemo(() => {
     const published = own.length;
@@ -120,15 +125,29 @@ function Dashboard() {
             <h2 className="text-lg font-semibold">Saved content performance</h2>
             {own.slice(0, 3).map((p) => (
               <div key={p.id} className="flex items-center gap-3 border-b py-3">
-                {p.image && <img src={p.image} alt="" className="h-16 w-16 rounded-lg object-cover" />}
+                {p.image && (
+                  <img src={p.image} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                )}
                 <p className="min-w-0 flex-1 text-sm">{p.caption}</p>
-                <span className="shrink-0 text-accent">{p.likes} likes · {p.comments.length} comments</span>
+                <span className="shrink-0 text-accent">
+                  {p.likes} likes · {p.comments.length} comments
+                </span>
               </div>
             ))}
           </>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              {[
+                { label: "Followers", value: compact(followers), icon: Users },
+                { label: "Following", value: compact(following), icon: Users },
+              ].map(({ label, value, icon: Icon }) => (
+                <div key={label} className="rounded-lg border bg-card p-4">
+                  <Icon className="mb-3 h-5 w-5 text-accent" />
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-2xl font-semibold">{value}</p>
+                </div>
+              ))}
               {[
                 { label: "Published posts", value: compact(data.published), icon: Eye },
                 { label: "Likes", value: compact(data.likes), icon: Heart },
@@ -234,10 +253,12 @@ function Dashboard() {
               <section className="space-y-2 border-t pt-5">
                 <h2 className="text-lg font-semibold">Account insights</h2>
                 <p className="text-sm">
-                  Your saved engagement actions appear here as posts receive likes, comments, and shares.
+                  Your saved engagement actions appear here as posts receive likes, comments, and
+                  shares.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Connect a social analytics provider later for reach and impression-level reporting.
+                  Connect a social analytics provider later for reach and impression-level
+                  reporting.
                 </p>
               </section>
             )}

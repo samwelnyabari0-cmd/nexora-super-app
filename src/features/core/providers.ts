@@ -4,7 +4,7 @@
 export type ProviderStatus = { id: string; domain: string; label: string; mode: "demo" | "live" };
 
 export const providers: ProviderStatus[] = [
-  { id: "ai", domain: "AI", label: "Demo assistant (scripted)", mode: "demo" },
+  { id: "ai", domain: "AI", label: "Vercel AI Gateway", mode: "live" },
   { id: "maps", domain: "Maps", label: "Google Maps and Places", mode: "live" },
   { id: "stream", domain: "Watch", label: "Cloudflare Stream live inputs", mode: "live" },
   { id: "wallet", domain: "Wallet", label: "Paystack checkout", mode: "live" },
