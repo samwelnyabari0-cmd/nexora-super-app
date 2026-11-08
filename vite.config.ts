@@ -11,7 +11,7 @@ export default defineConfig({
     define: {
       "import.meta.env.VITE_GOOGLE_MAPS_API_KEY": JSON.stringify(process.env.GOOGLE_MAPS_API_KEY ?? ""),
       "import.meta.env.VITE_VAPID_PUBLIC_KEY": JSON.stringify(process.env.VAPID_PUBLIC_KEY ?? ""),
-      "import.meta.env.VITE_FIREBASE_API_KEY": JSON.stringify(process.env.FIREBASE_API_KEY ?? "BPt6cBmIxiQrFdzf5bVFhHhurDnMOKdU1kDSF7zCbb3Qs7X1b98iyqWJ0J1W7w4iXLlMlHrYlmKqG2GP_6okxxs"),
+      "import.meta.env.VITE_FIREBASE_API_KEY": JSON.stringify(process.env.FIREBASE_API_KEY ?? process.env.apiKey ?? ""),
       "import.meta.env.VITE_FIREBASE_AUTH_DOMAIN": JSON.stringify(process.env.FIREBASE_AUTH_DOMAIN ?? "nexora-59c4e.firebaseapp.com"),
       "import.meta.env.VITE_FIREBASE_PROJECT_ID": JSON.stringify(process.env.FIREBASE_PROJECT_ID ?? "nexora-59c4e"),
       "import.meta.env.VITE_FIREBASE_STORAGE_BUCKET": JSON.stringify(process.env.FIREBASE_STORAGE_BUCKET ?? "nexora-59c4e.firebasestorage.app"),
