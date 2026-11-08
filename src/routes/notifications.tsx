@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bell, CheckCheck } from "lucide-react";
 import { useWorkspace } from "@/features/core/workspace";
+import { enablePushNotifications } from "@/lib/push";
+import { toast } from "sonner";
 import { PageHeader, DemoBadge } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/notifications")({
@@ -21,10 +23,26 @@ function Notifications() {
   return (
     <div>
       <PageHeader title="Notifications" action={<DemoBadge>Local activity</DemoBadge>} />
-      <Button variant="outline" onClick={() => markRead()} disabled={!notices.some((n) => !n.read)}>
-        <CheckCheck />
-        Mark all read
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => markRead()} disabled={!notices.some((n) => !n.read)}>
+          <CheckCheck />
+          Mark all read
+        </Button>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            try {
+              await enablePushNotifications();
+              toast.success("Push notifications enabled on this device.");
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not enable notifications.");
+            }
+          }}
+        >
+          <Bell />
+          Enable push notifications
+        </Button>
+      </div>
       <ul className="mt-4">
         {notices.map((n) => (
           <li key={n.id} className="border-b py-4">

@@ -1,27 +1,22 @@
-// Real Paystack payments via the Lovable connector gateway (custom connector
-// udc_paystack_2). All calls run server-side; credentials never reach the browser.
+// Paystack calls stay server-side; the secret never reaches the browser.
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/udc_paystack_2";
+const PAYSTACK_URL = "https://api.paystack.co";
 
 function gatewayHeaders() {
-  const lovableKey = process.env["LOVABLE_API_KEY"];
   const paystackKey = process.env["UDC_PAYSTACK_2_API_KEY"];
-  if (!lovableKey || !paystackKey) {
-    throw new Error("Paystack is not linked to this project yet. Connect it in Connectors.");
-  }
+  if (!paystackKey) throw new Error("Paystack is not configured.");
   return {
-    Authorization: `Bearer ${lovableKey}`,
-    "X-Connection-Api-Key": paystackKey,
+    Authorization: `Bearer ${paystackKey}`,
     "Content-Type": "application/json",
   };
 }
 
 async function paystack(path: string, init?: RequestInit) {
-  const res = await fetch(`${GATEWAY_URL}${path}`, {
+  const res = await fetch(`${PAYSTACK_URL}${path}`, {
     ...init,
     headers: { ...gatewayHeaders(), ...init?.headers },
   });

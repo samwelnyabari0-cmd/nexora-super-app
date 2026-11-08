@@ -30,6 +30,8 @@ function Maps() {
   const [res, setRes] = useState<Place[]>(places);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [sel, setSel] = useState<string | null>(null);
+  const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const mapQuery = encodeURIComponent(q.trim() || "Nairobi, Kenya");
   const run = (s: string) => {
     setState("loading");
     simulatedPlaceSearch(places, s)
@@ -46,8 +48,8 @@ function Maps() {
     <div>
       <PageHeader
         title="Discover"
-        subtitle="Simulated map — not live location data"
-        action={<DemoBadge>Simulated</DemoBadge>}
+        subtitle={googleMapsKey ? "Live Google Maps discovery" : "Nearby discovery"}
+        action={!googleMapsKey ? <DemoBadge>Maps key missing</DemoBadge> : undefined}
       />
       <form
         onSubmit={(e) => {
@@ -74,8 +76,17 @@ function Maps() {
         <div
           className="map-grid relative aspect-[4/3] overflow-hidden rounded-3xl border"
           role="img"
-          aria-label="Simulated map of nearby places"
+          aria-label={googleMapsKey ? "Google map of nearby places" : "Nearby places map"}
         >
+          {googleMapsKey && (
+            <iframe
+              title="Google Maps nearby places"
+              src={`https://www.google.com/maps/embed/v1/search?key=${googleMapsKey}&q=${mapQuery}`}
+              className="absolute inset-0 size-full border-0"
+              loading="lazy"
+              allowFullScreen
+            />
+          )}
           <span
             className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-glow ring-4 ring-accent/30"
             title="You (simulated)"

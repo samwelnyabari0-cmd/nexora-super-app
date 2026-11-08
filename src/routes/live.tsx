@@ -29,6 +29,7 @@ import {
   streak,
 } from "@/features/live/logic";
 import { useLocal } from "@/features/live/useLocal";
+import { createLiveInput } from "@/lib/cloudflare.functions";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -334,6 +335,7 @@ function GoLive() {
   const [start, setStart] = useState(0);
   const [now, setNow] = useState(0);
   const [title, setTitle] = useState("");
+  const [streamUid, setStreamUid] = useState<string | null>(null);
   useEffect(() => {
     if (!mediaStream) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -343,6 +345,13 @@ function GoLive() {
   async function go() {
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const liveInput = await createLiveInput({ data: { title: title || "Untitled" } });
+      if ("error" in liveInput && liveInput.error) {
+        s.getTracks().forEach((track) => track.stop());
+        toast.error(liveInput.error);
+        return;
+      }
+      setStreamUid("uid" in liveInput ? liveInput.uid : null);
       setMediaStream(s);
       setStart(Date.now());
       setNow(Date.now());
@@ -394,9 +403,14 @@ function GoLive() {
       ) : (
         <Button onClick={go}>Start camera preview</Button>
       )}
+      {streamUid && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Cloudflare Stream input ready · {streamUid}
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
-        Your camera preview is real and stays on this device. Broadcasting to viewers needs a
-        streaming provider, which isn't connected.
+        Camera and microphone access is local. Cloudflare Stream provisions the live input for an
+        encoder or broadcast client.
       </p>
     </Panel>
   );
