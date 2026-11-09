@@ -13,7 +13,7 @@ type GooglePlace = {
 };
 
 export const searchPlaces = createServerFn({ method: "GET" })
-  .inputValidator((value: unknown) => input.parse(value))
+  .validator((value: unknown) => input.parse(value))
   .handler(async ({ data }) => {
     const key = process.env.GOOGLE_MAPS_API_KEY;
     if (!key) return { places: fallbackPlaces, error: undefined };

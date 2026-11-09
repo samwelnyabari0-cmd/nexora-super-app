@@ -13,7 +13,7 @@ function getStripe() {
 
 export const startSubscriptionCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ tier: z.enum(["pro", "studio"]) }).parse(input))
+  .validator((input: unknown) => z.object({ tier: z.enum(["pro", "studio"]) }).parse(input))
   .handler(async ({ data, context }) => {
     const product = getSubscriptionProduct(data.tier);
     if (!product) return { error: "That subscription is not available." };

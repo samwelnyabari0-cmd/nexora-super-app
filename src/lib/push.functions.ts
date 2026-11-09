@@ -29,7 +29,7 @@ async function ensureTable() {
 }
 
 export const savePushSubscription = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) => subscriptionSchema.parse(value))
+  .validator((value: unknown) => subscriptionSchema.parse(value))
   .handler(async ({ data }) => {
     if (!process.env.POSTGRES_URL && !process.env.POSTGRES_PRISMA_URL) {
       return { error: "Push persistence is not configured." };
@@ -48,7 +48,7 @@ export const savePushSubscription = createServerFn({ method: "POST" })
   });
 
 export const sendPushNotification = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) => z.object({ endpoint: z.string().url(), title: z.string().min(1).max(120), body: z.string().min(1).max(500) }).parse(value))
+  .validator((value: unknown) => z.object({ endpoint: z.string().url(), title: z.string().min(1).max(120), body: z.string().min(1).max(500) }).parse(value))
   .handler(async ({ data }) => {
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
