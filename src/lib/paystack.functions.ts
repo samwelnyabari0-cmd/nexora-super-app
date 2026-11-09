@@ -70,6 +70,61 @@ export const initTopUp = createServerFn({ method: "POST" })
     }
   });
 
+export type MerchantPaymentKind = "store_order" | "boosted_campaign";
+
+export const onboardMerchantAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    businessName: z.string().trim().min(2).max(255),
+    settlementBank: z.string().trim().min(2).max(30),
+    accountNumber: z.string().trim().min(4).max(50),
+    platformFeePercentage: z.number().min(2).max(5).default(3),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    try {
+      const existing = await context.supabase.from("merchant_accounts").select("id").eq("business_id", context.userId).maybeSingle();
+      if (existing.error) throw new Error(existing.error.message);
+      const payload = await paystack("/subaccount", { method: "POST", body: JSON.stringify({ business_name: data.businessName, settlement_bank: data.settlementBank, account_number: data.accountNumber, percentage_charge: data.platformFeePercentage }) });
+      const subaccountCode = (payload.data as { subaccount_code?: string } | undefined)?.subaccount_code;
+      if (!subaccountCode) throw new Error("Paystack did not return a subaccount code.");
+      const mutation = existing.data
+        ? context.supabase.from("merchant_accounts").update({ business_name: data.businessName, paystack_subaccount_code: subaccountCode, platform_fee_percentage: data.platformFeePercentage, is_verified: true }).eq("business_id", context.userId)
+        : context.supabase.from("merchant_accounts").insert({ business_id: context.userId, business_name: data.businessName, paystack_subaccount_code: subaccountCode, platform_fee_percentage: data.platformFeePercentage, is_verified: true });
+      const { error } = await mutation;
+      if (error) throw new Error(error.message);
+      return { success: true, subaccountCode };
+    } catch (error) {
+      console.error("[Paystack] merchant onboarding failed", error);
+      return { success: false, error: error instanceof Error ? error.message : "Could not connect merchant payouts." };
+    }
+  });
+
+export const initializeStoreCheckout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    businessId: z.string().uuid(),
+    orderReference: z.string().regex(/^nx-order-[a-z0-9-]+$/),
+    amount: z.number().min(10).max(10_000_000),
+    customerEmail: z.string().email(),
+    kind: z.enum(["store_order", "boosted_campaign"]).default("store_order"),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    try {
+      const { data: merchant, error } = await context.supabase.from("merchant_accounts").select("paystack_subaccount_code, platform_fee_percentage, is_verified").eq("business_id", data.businessId).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!merchant?.is_verified || !merchant.paystack_subaccount_code) return { success: false, error: "This business has not completed merchant onboarding." };
+      const commission = Number(merchant.platform_fee_percentage ?? 3);
+      const total = Math.round(data.amount * 100);
+      const payload = await paystack("/transaction/initialize", { method: "POST", body: JSON.stringify({ email: data.customerEmail, amount: total, currency: "KES", reference: data.orderReference, subaccount: merchant.paystack_subaccount_code, transaction_charge: Math.round(total * commission / 100), metadata: { buyer_id: context.userId, business_id: data.businessId, kind: data.kind, commission_percentage: commission } }) });
+      const authorizationUrl = (payload.data as { authorization_url?: string } | undefined)?.authorization_url;
+      if (!authorizationUrl) throw new Error("Paystack did not return a checkout URL.");
+      return { success: true, authorizationUrl };
+    } catch (error) {
+      console.error("[Paystack] store checkout failed", error);
+      return { success: false, error: error instanceof Error ? error.message : "Could not start store checkout." };
+    }
+  });
+
 export type CreatorPaymentKind = "tip" | "subscription" | "paywall" | "gift";
 
 export const initCreatorPayment = createServerFn({ method: "POST" })
