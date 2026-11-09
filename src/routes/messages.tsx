@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   X,
+  Package,
 } from "lucide-react";
 import { creators, creatorById, type Message } from "@/features/core/data";
 import { useApp } from "@/features/core/store";
@@ -52,6 +53,7 @@ function Messages() {
   const [reply, setReply] = useState<Message>();
   const [editing, setEditing] = useState<Message>();
   const [edit, setEdit] = useState("");
+  const [showOrderTools, setShowOrderTools] = useState(false);
   const log = useRef<HTMLDivElement>(null);
   const conv = conversations.find((c) => c.id === active);
   useEffect(() => {
@@ -129,6 +131,16 @@ function Messages() {
             <Button
               size="icon"
               variant="ghost"
+              aria-label="Open order and business tools"
+              title="Order and business tools"
+              aria-pressed={showOrderTools}
+              onClick={() => setShowOrderTools(true)}
+            >
+              <Package />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
               aria-label={muted.includes(who.id) ? "Unmute conversation" : "Mute conversation"}
               title="Mute conversation"
               aria-pressed={muted.includes(who.id)}
@@ -137,7 +149,6 @@ function Messages() {
               <VolumeX />
             </Button>
           </div>
-          <InternationalOrderChat />
           <label className="flex items-center gap-2 border-b px-3 py-2 text-sm">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
@@ -158,6 +169,12 @@ function Messages() {
               </Button>
             )}
           </label>
+          <Dialog open={showOrderTools} onOpenChange={setShowOrderTools}>
+            <DialogContent className="max-h-[90dvh] overflow-y-auto p-0">
+              <DialogTitle className="sr-only">Order and business tools</DialogTitle>
+              <InternationalOrderChat />
+            </DialogContent>
+          </Dialog>
           <div
             ref={log}
             className="flex-1 space-y-3 overflow-y-auto p-4"
