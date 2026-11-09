@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
 import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { ProfileBadges } from "@/components/nexora/ProfileBadges";
+import { CreatorStudio } from "@/components/nexora/CreatorStudio";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
 
@@ -266,6 +267,7 @@ function Profile() {
             </div>
             {(accountType === "creator" || accountType === "business") && <div><p className="mb-2 text-sm font-semibold">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{profileCategories.map(([value, label]) => <button key={value} type="button" onClick={() => { setProfileCategory(value); syncProfile({ profile_category: value }); }} className={`rounded-lg border px-2 py-2 text-xs ${profileCategory === value ? "border-accent bg-accent/10 text-accent" : "hover:bg-muted"}`}>{label}</button>)}</div></div>}
           </div>
+          {accountType === "creator" && <CreatorStudio />}
           <label className="block space-y-2 text-sm font-semibold">
             Display name
             <input
