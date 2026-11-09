@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film } from "lucide-react";
+import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil, Laptop } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -131,24 +131,22 @@ function Profile() {
             </Button>
           ))}
         </div>
-        <Panel className="flex items-center gap-4">
-          <div className="group relative shrink-0">
-            {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[72px] w-[72px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={72} ring />}
-            <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+        <Panel className="space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="group relative shrink-0">
+              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
+              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+            </div>
+            <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
+              <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{followers.toLocaleString()} Followers · {following.toLocaleString()} Following · <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span></p>
+            </div>
           </div>
-          <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
-          <div>
-            <p className="font-display text-xl font-bold">{passport.name}</p>
-            <p className="text-sm text-muted-foreground">
-              @{passport.handle} · {privateProfile ? "Private" : "Public"}
-            </p>
-            <p className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-              <span>{posts.filter((p) => p.creatorId === "me").length} posts</span>
-              <span>{followers} followers</span>
-              <span>{following} following</span>
-              <span>{saved.size} saved</span>
-            </p>
-          </div>
+          <div className="flex flex-wrap gap-2"><Chip><ShieldCheck className="h-3.5 w-3.5" /> {accountTypes.find((type) => type.value === accountType)?.label ?? "Creator Account"}</Chip><Chip><Laptop className="h-3.5 w-3.5" /> {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}</Chip></div>
+          <p className="text-sm">Building Nexora Super-App Ecosystem | Dev & Creator</p>
+          <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button size="sm" variant="outline" onClick={() => void navigator.clipboard?.writeText(window.location.href)}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
         <Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
           <ShieldCheck className="h-5 w-5 text-accent" />
