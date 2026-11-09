@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil } from "lucide-react";
+import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil, Zap } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -12,6 +12,7 @@ import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { CreatorStudio } from "@/components/nexora/CreatorStudio";
 import { BusinessSuite } from "@/components/nexora/BusinessSuite";
+import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
 
@@ -167,6 +168,12 @@ function Profile() {
             industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
             isVerified
           />
+          {accountType === "creator" && user?.id && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+              <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-amber-300" /> Support this creator</p>
+              <CreatorPaymentActions creatorId={user.id} />
+            </div>
+          )}
           <p className="text-sm">Building Nexora Super-App Ecosystem | Dev & Creator</p>
           <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
