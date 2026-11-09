@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
-import { fileError } from "@/features/core/tools";
+
 import { PageHeader } from "@/components/nexora/ui";
 import { StudioCapture } from "@/components/nexora/StudioCapture";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { accountTierFromUser, UPLOAD_POLICY, validateUpload } from "@/lib/upload-policy";
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -48,6 +49,8 @@ function Create() {
   const [format, setFormat] = useState("square");
   const [music, setMusic] = useState("none");
   const input = useRef<HTMLInputElement>(null);
+  const uploadTier = accountTierFromUser(user);
+  const uploadLimits = UPLOAD_POLICY[uploadTier];
   const tagList = tags
     .split(",")
     .map((t) => t.trim().replace(/^#/, ""))
@@ -173,17 +176,37 @@ function Create() {
               e.target.value = "";
               const f = files[0];
               if (!f) return;
-              const problem = fileError(f);
+              const problem = validateUpload(f, uploadTier);
               if (problem) {
                 setError(problem);
                 return;
               }
-              if (!f.type.startsWith("image/") && !f.type.startsWith("video/")) {
-                setError("Choose an image or video.");
+              const url = URL.createObjectURL(f);
+              if (f.type.startsWith("video/")) {
+                const probe = document.createElement("video");
+                probe.preload = "metadata";
+                probe.onloadedmetadata = () => {
+                  const durationProblem = validateUpload(f, uploadTier, probe.duration);
+                  URL.revokeObjectURL(probe.src);
+                  if (durationProblem) {
+                    URL.revokeObjectURL(url);
+                    setError(durationProblem);
+                    return;
+                  }
+                  setError("");
+                  setMedia(url);
+                  setMediaFiles(files);
+                  setMediaType(f.type);
+                };
+                probe.onerror = () => {
+                  URL.revokeObjectURL(url);
+                  setError("Video duration could not be checked. Choose another file.");
+                };
+                probe.src = url;
                 return;
               }
               setError("");
-              setMedia(URL.createObjectURL(f));
+              setMedia(url);
               setMediaFiles(files);
               setMediaType(f.type);
             }}
@@ -193,6 +216,9 @@ function Create() {
               {error}
             </p>
           )}
+          <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+            {uploadTier.replaceAll("_", " ")} plan: {uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Shorts, {uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, {uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Max file size: {uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.
+          </p>
           <section className="space-y-3">
             <h2 className="text-sm font-semibold">Color treatment</h2>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Media filter">
