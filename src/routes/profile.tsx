@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil, Laptop, Store, Palette, Dumbbell, Music2, BookOpen, BriefcaseBusiness } from "lucide-react";
+import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
-import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
+import { Avatar, PageHeader, Panel } from "@/components/nexora/ui";
+import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
 
@@ -144,14 +145,11 @@ function Profile() {
               <p className="mt-2 text-sm text-muted-foreground">{followers.toLocaleString()} Followers · {following.toLocaleString()} Following · <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span></p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${accountType === "creator" ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white" : accountType === "business" ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-300"}`}>
-              {accountType === "business" ? <Store className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />} {accountTypes.find((type) => type.value === accountType)?.label ?? "Personal / Viewer"}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-300">
-              {profileCategory === "sports" ? <Dumbbell className="h-3.5 w-3.5" /> : profileCategory === "arts" ? <Palette className="h-3.5 w-3.5" /> : profileCategory === "music" ? <Music2 className="h-3.5 w-3.5" /> : profileCategory === "education" ? <BookOpen className="h-3.5 w-3.5" /> : profileCategory === "business" ? <BriefcaseBusiness className="h-3.5 w-3.5" /> : <Laptop className="h-3.5 w-3.5" />} {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
-            </span>
-          </div>
+          <ProfileBadges
+            accountType={accountType}
+            industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
+            isVerified
+          />
           <p className="text-sm">Building Nexora Super-App Ecosystem | Dev & Creator</p>
           <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button size="sm" variant="outline" onClick={() => void navigator.clipboard?.writeText(window.location.href)}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
