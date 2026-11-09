@@ -107,6 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    setConversations(user ? [] : seedConversations);
     if (!user) return;
     void (async () => {
       const [{ data: savedPosts }, { data: savedMessages }] = await Promise.all([
@@ -117,6 +118,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (supabase as any)
           .from("message_threads")
           .select("id, conversation_key, body, metadata, created_at")
+          .eq("sender_id", user.id)
           .order("created_at", { ascending: true }),
       ]);
       if (savedPosts?.length) {
@@ -152,29 +154,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ]);
       }
       if (savedMessages?.length) {
-        setConversations((current) =>
-          current.map((conversation) => {
-            const rows = savedMessages.filter(
-              (row: any) => row.conversation_key === conversation.id,
-            );
-            if (!rows.length) return conversation;
-            return {
-              ...conversation,
-              messages: rows.map((row: any) => ({
-                id: row.id,
-                from: "me" as const,
-                text: row.body,
-                attachments: row.metadata?.attachments ?? [],
-                replyTo: row.metadata?.replyTo,
-                at: new Date(row.created_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                status: "sent" as const,
-              })),
-            };
-          }),
-        );
+        const grouped = savedMessages.reduce((groups: Record<string, any[]>, row: any) => {
+          (groups[row.conversation_key] ??= []).push(row);
+          return groups;
+        }, {});
+        setConversations(Object.entries(grouped).map(([id, rows]) => ({
+          id,
+          creatorId: id,
+          ownerId: user.id,
+          unread: 0,
+          messages: rows.map((row: any) => ({
+            id: row.id,
+            from: "me" as const,
+            text: row.body,
+            attachments: row.metadata?.attachments ?? [],
+            replyTo: row.metadata?.replyTo,
+            at: new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            status: "sent" as const,
+          })),
+        })));
       }
     })();
   }, [user]);
@@ -312,7 +310,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const existing = conversations.find((c) => c.creatorId === creatorId);
         if (existing) return existing.id;
         const id = uid();
-        setConversations((cs) => [...cs, { id, creatorId, unread: 0, messages: [] }]);
+        setConversations((cs) => [...cs, { id, creatorId, ownerId: user?.id, unread: 0, messages: [] }]);
         return id;
       },
       editMessage: (convId, messageId, text) => {
@@ -388,7 +386,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               conversation_key: convId,
               sender_id: user.id,
               body: text.trim(),
-              metadata: { attachments, replyTo },
+              metadata: { attachments, replyTo, owner_id: user.id },
             })
             .then(({ error }: { error: unknown }) => {
               if (error) toast.error("Message could not be saved to your account.");
