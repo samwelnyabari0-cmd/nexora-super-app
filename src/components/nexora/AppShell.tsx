@@ -24,6 +24,7 @@ import {
   Server,
   Phone,
   Trophy,
+  GraduationCap,
 } from "lucide-react";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ const nav = [
   { to: "/hub", label: "Hub", icon: LayoutGrid },
   { to: "/calls", label: "Calls", icon: Phone },
   { to: "/clubs", label: "Clubs", icon: Trophy },
+  { to: "/learn", label: "Academy", icon: GraduationCap },
   { to: "/live", label: "LIVE", icon: Radio },
   { to: "/platform", label: "Platform", icon: Server },
   { to: "/dashboard", label: "Creator dashboard", icon: BarChart3 },
