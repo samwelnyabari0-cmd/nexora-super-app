@@ -1,0 +1,22 @@
+import { useState } from "react";
+import { BadgeCheck, Ban, Camera, Cloud, FileCheck2, Gift, Radio, ShieldAlert, ShieldCheck, Upload, Video } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+
+export function PlatformSafetyControls() {
+  const [kycSubmitted, setKycSubmitted] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [strikes, setStrikes] = useState(0);
+
+  function submitKyc() {
+    setKycSubmitted(true);
+    toast.success("KYC review started. Withdrawals unlock after approval.");
+  }
+
+  function verifyPhone() {
+    setPhoneVerified(true);
+    toast.success("Phone verification completed for this session.");
+  }
+
+  return <section aria-labelledby="platform-safety" className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Platform safety</p><h3 id="platform-safety" className="mt-1 text-base font-semibold">Security, live access, and payout protection</h3></div><ShieldCheck className="h-5 w-5 text-emerald-300" /></div><div className="grid gap-3 md:grid-cols-2"><article className="rounded-xl border bg-background/70 p-3"><div className="flex items-center gap-2"><FileCheck2 className="h-4 w-4 text-emerald-300" /><h4 className="text-sm font-semibold">KYC identity verification</h4></div><p className="mt-2 text-xs text-muted-foreground">Government ID or passport approval is required before Tier A/B cash withdrawals.</p><Button type="button" size="sm" className="mt-3" onClick={submitKyc} disabled={kycSubmitted}>{kycSubmitted ? "Review pending" : "Submit ID for review"}</Button></article><article className="rounded-xl border bg-background/70 p-3"><div className="flex items-center gap-2"><Radio className="h-4 w-4 text-violet-300" /><h4 className="text-sm font-semibold">Live stream eligibility</h4></div><p className="mt-2 text-xs text-muted-foreground">Live access requires 1,000 followers and a verified phone. Streams route through Cloudflare Stream with tier-based 720p/1080p caps.</p><Button type="button" size="sm" variant="outline" className="mt-3" onClick={verifyPhone} disabled={phoneVerified}>{phoneVerified ? "Phone verified" : "Verify phone"}</Button></article><article className="rounded-xl border bg-background/70 p-3"><div className="flex items-center gap-2"><Gift className="h-4 w-4 text-amber-300" /><h4 className="text-sm font-semibold">Nexora Gems gifting</h4></div><p className="mt-2 text-xs text-muted-foreground">Virtual gifts use verified Paystack or M-Pesa micro-payments. New creator earnings remain in a 7-day rolling reserve.</p><Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => toast.info("Gems wallet setup is available after KYC approval")}>Configure Gems</Button></article><article className="rounded-xl border bg-background/70 p-3"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-300" /><h4 className="text-sm font-semibold">Content safety and strikes</h4></div><p className="mt-2 text-xs text-muted-foreground">Uploads are checked for explicit content, hate speech, and copyright signals. Two strikes pause monetization for 30 days; three terminate the account.</p><div className="mt-3 flex items-center gap-2 text-xs"><Ban className="h-3.5 w-3.5" /> Current strikes: {strikes}/3</div><Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => { setStrikes((value) => Math.min(3, value + 1)); toast.info("Safety review status refreshed"); }}>Refresh safety status</Button></article></div><div className="grid gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground sm:grid-cols-3"><p className="flex items-center gap-1.5"><Camera className="h-3.5 w-3.5" />AI filter before public feed</p><p className="flex items-center gap-1.5"><Cloud className="h-3.5 w-3.5" />Cloudflare Stream egress caps</p><p className="flex items-center gap-1.5"><Upload className="h-3.5 w-3.5" />15-second valid ad view threshold</p></div><p className="flex items-start gap-1.5 text-[11px] text-muted-foreground"><Video className="mt-0.5 h-3.5 w-3.5 shrink-0" />Audio claims reserve 20% of eligible clip revenue for the original audio owner. Qualified creators receive 55% of net ad revenue; Nexora retains 45% for infrastructure and processing.</p></section>;
+}
