@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
-import { startSubscriptionCheckout } from "@/lib/stripe.functions";
+import { initSubscriptionPayment } from "@/lib/paystack.functions";
 import { SUBSCRIPTION_PRODUCTS } from "@/lib/products";
 
 export const Route = createFileRoute("/subscriptions")({
@@ -28,13 +28,13 @@ function Subscriptions() {
       return;
     }
     setLoading(tier);
-    const result = await startSubscriptionCheckout({ data: { tier } });
+    const result = await initSubscriptionPayment({ data: { tier } });
     setLoading(null);
-    if (result.error) {
+    if ("error" in result) {
       toast.error(result.error);
       return;
     }
-    if (result.url) window.location.assign(result.url);
+    if (result.authorizationUrl) window.location.assign(result.authorizationUrl);
   }
 
   return (
@@ -63,7 +63,7 @@ function Subscriptions() {
           />
         ))}
       </div>
-      <p className="text-center text-xs text-muted-foreground">Subscriptions are processed securely by Stripe. Prices are shown in USD; local payment options can be added separately.</p>
+      <p className="text-center text-xs text-muted-foreground">Subscriptions are processed securely by Paystack in KES, supporting cards, M-Pesa, and local payment methods.</p>
     </div>
   );
 }
