@@ -36,6 +36,28 @@ async function paystack(path: string, init?: RequestInit) {
 
 export type TopUpInit = { authorizationUrl: string; reference: string };
 
+const SUBSCRIPTION_KES: Record<"pro" | "studio", number> = { pro: 1299, studio: 3249 };
+
+export const initSubscriptionPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ tier: z.enum(["pro", "studio"]) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const claims = context.claims as Record<string, unknown> | undefined;
+    const email = typeof claims?.email === "string" ? claims.email : null;
+    if (!email) return { error: "A verified email is required for subscriptions." };
+    const origin = getRequestHeader("origin") ?? "https://nexora-super-app.lovable.app";
+    const reference = `nx-sub-${data.tier}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      const body = await paystack("/transaction/initialize", { method: "POST", body: JSON.stringify({ email, amount: SUBSCRIPTION_KES[data.tier] * 100, currency: "KES", reference, callback_url: `${origin}/subscriptions?paystack=return`, metadata: { user_id: context.userId, tier: data.tier, app: "nexora", kind: "subscription" } }) });
+      const d = body.data as { authorization_url?: string; reference?: string };
+      if (!d?.authorization_url) throw new Error("Paystack did not return a payment link.");
+      return { authorizationUrl: d.authorization_url, reference: d.reference ?? reference };
+    } catch (error) {
+      console.error("[Paystack] subscription initialize failed", error);
+      return { error: error instanceof Error ? error.message : "Could not start the subscription payment." };
+    }
+  });
+
 export const initTopUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

@@ -24,7 +24,7 @@ const CURRENCIES = ["USD", "EUR", "GBP", "KES", "NGN", "ZAR"] as const;
 const FX_TO_USD: Record<(typeof CURRENCIES)[number], number> = { USD: 1, EUR: 1.09, GBP: 1.27, KES: 0.0077, NGN: 0.00062, ZAR: 0.055 };
 const SYMBOLS: Record<(typeof CURRENCIES)[number], string> = { USD: "$", EUR: "€", GBP: "£", KES: "KSh", NGN: "₦", ZAR: "R" };
 const formatCurrency = (amount: number, currency: (typeof CURRENCIES)[number]) => `${SYMBOLS[currency]} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const gatewayFor = (currency: (typeof CURRENCIES)[number]) => ["KES", "NGN", "ZAR"].includes(currency) ? "Paystack / Mobile Money" : "Stripe / Card";
+const gatewayFor = (currency: (typeof CURRENCIES)[number]) => ["KES", "NGN", "ZAR"].includes(currency) ? "Paystack / Mobile Money" : "Coming soon — Stripe / international cards";
 
 function WalletPage() {
   const { txns } = useApp();
@@ -59,7 +59,7 @@ function WalletPage() {
             Balance updates only after a verified Paystack webhook. No demo funds are shown.
           </p>
         </div>
-        <PaystackTopUp />
+        {["KES", "NGN", "ZAR"].includes(currency) ? <PaystackTopUp /> : <Panel className="border-dashed"><p className="text-sm font-semibold">International card top-ups are coming soon</p><p className="mt-1 text-xs text-muted-foreground">Paystack is active for supported African currencies. Stripe and other international gateways will be added later.</p></Panel>}
         <Panel className="mt-4 space-y-3">
           <p className="font-display font-semibold">Send money</p>
           <p className="text-sm text-muted-foreground">Transfers are locked until a verified wallet balance is available.</p>
