@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Send } from "lucide-react";
-import { fmtKES } from "@/features/core/data";
+import { ArrowDownLeft, ArrowUpRight, Send, Globe } from "lucide-react";
 import { useApp } from "@/features/core/store";
 import { DemoBadge, PageHeader, Panel } from "@/components/nexora/ui";
 import { toast } from "sonner";
@@ -21,8 +20,15 @@ export const Route = createFileRoute("/wallet")({
   component: WalletPage,
 });
 
+const CURRENCIES = ["USD", "EUR", "GBP", "KES", "NGN", "ZAR"] as const;
+const FX_TO_USD: Record<(typeof CURRENCIES)[number], number> = { USD: 1, EUR: 1.09, GBP: 1.27, KES: 0.0077, NGN: 0.00062, ZAR: 0.055 };
+const SYMBOLS: Record<(typeof CURRENCIES)[number], string> = { USD: "$", EUR: "€", GBP: "£", KES: "KSh", NGN: "₦", ZAR: "R" };
+const formatCurrency = (amount: number, currency: (typeof CURRENCIES)[number]) => `${SYMBOLS[currency]} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const gatewayFor = (currency: (typeof CURRENCIES)[number]) => ["KES", "NGN", "ZAR"].includes(currency) ? "Paystack / Mobile Money" : "Stripe / Card";
+
 function WalletPage() {
   const { txns } = useApp();
+  const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>("USD");
   const liveBalance = 0;
   const liveTxns = txns.filter((t) => t.id.startsWith("paystack:"));
   const [to, setTo] = useState("");
@@ -41,9 +47,14 @@ function WalletPage() {
     <div className="grid gap-6 lg:grid-cols-2">
       <div>
         <PageHeader title="Wallet" action={<DemoBadge>Live ledger</DemoBadge>} />
+        <Panel className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm font-semibold"><Globe className="h-4 w-4 text-cyan-400" /> Currency</label><select aria-label="Wallet currency" value={currency} onChange={(event) => setCurrency(event.target.value as (typeof CURRENCIES)[number])} className="rounded-xl border bg-background px-3 py-2 text-sm">{CURRENCIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{CURRENCIES.map((item) => <button type="button" key={item} onClick={() => setCurrency(item)} className={`rounded-xl border p-3 text-left transition-colors hover:bg-muted ${currency === item ? "border-primary bg-primary/10" : ""}`}><p className="text-xs text-muted-foreground">{item} balance</p><p className="mt-1 font-semibold">{formatCurrency(item === currency ? liveBalance : liveBalance * FX_TO_USD[currency] / FX_TO_USD[item], item)}</p></button>)}</div>
+          <p className="text-xs text-muted-foreground">Gateway: {gatewayFor(currency)} · FX conversion fee estimate: 1.5%–2% shown before settlement.</p>
+        </Panel>
         <div className="bg-brand rounded-3xl p-6 text-primary-foreground shadow-glow">
           <p className="text-sm opacity-80">Available balance</p>
-          <p className="font-display text-4xl font-bold">{fmtKES(liveBalance)}</p>
+          <p className="font-display text-4xl font-bold">{formatCurrency(liveBalance, currency)}</p>
           <p className="mt-2 text-xs opacity-80">
             Balance updates only after a verified Paystack webhook. No demo funds are shown.
           </p>
@@ -62,11 +73,11 @@ function WalletPage() {
                 className="w-full rounded-xl border bg-background px-3 py-2.5"
               />
               <input
-                aria-label="Amount in KES"
+                aria-label={`Amount in ${currency}`}
                 inputMode="decimal"
                 value={amt}
                 onChange={(e) => setAmt(e.target.value.replace(/[^\d.]/g, ""))}
-                placeholder="Amount (KES)"
+                placeholder={`Amount (${currency})`}
                 className="w-full rounded-xl border bg-background px-3 py-2.5"
               />
               <input
@@ -93,7 +104,7 @@ function WalletPage() {
           ) : (
             <>
               <p>
-                Send <b>{fmtKES(n)}</b> to <b>{to}</b>?
+                Send <b>{formatCurrency(n, currency)}</b> to <b>{to}</b>?
               </p>
               <div className="flex gap-2">
                 <button onClick={() => setStep("form")} className="flex-1 rounded-xl border py-2.5">
@@ -147,7 +158,7 @@ function WalletPage() {
                 }
               >
                 {t.kind === "in" ? "+" : "−"}
-                {fmtKES(t.amount)}
+                {formatCurrency(t.amount, currency)}
               </p>
             </li>
           ))}
