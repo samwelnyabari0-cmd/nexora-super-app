@@ -19,6 +19,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as HubRouteImport } from './routes/hub'
+import { Route as LearnRouteImport } from './routes/learn'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as MessagesRouteImport } from './routes/messages'
@@ -80,6 +81,11 @@ const HelpRoute = HelpRouteImport.update({
 const HubRoute = HubRouteImport.update({
   id: '/hub',
   path: '/hub',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/explore': typeof ExploreRoute
   '/help': typeof HelpRoute
   '/hub': typeof HubRoute
+  '/learn': typeof LearnRoute
   '/live': typeof LiveRoute
   '/maps': typeof MapsRoute
   '/messages': typeof MessagesRoute
@@ -178,6 +185,7 @@ export interface FileRoutesByTo {
   '/explore': typeof ExploreRoute
   '/help': typeof HelpRoute
   '/hub': typeof HubRoute
+  '/learn': typeof LearnRoute
   '/live': typeof LiveRoute
   '/maps': typeof MapsRoute
   '/messages': typeof MessagesRoute
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/help': typeof HelpRoute
   '/hub': typeof HubRoute
+  '/learn': typeof LearnRoute
   '/live': typeof LiveRoute
   '/maps': typeof MapsRoute
   '/messages': typeof MessagesRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
     | '/explore'
     | '/help'
     | '/hub'
+    | '/learn'
     | '/live'
     | '/maps'
     | '/messages'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/explore'
     | '/help'
     | '/hub'
+    | '/learn'
     | '/live'
     | '/maps'
     | '/messages'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/explore'
     | '/help'
     | '/hub'
+    | '/learn'
     | '/live'
     | '/maps'
     | '/messages'
@@ -302,6 +314,7 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   HelpRoute: typeof HelpRoute
   HubRoute: typeof HubRoute
+  LearnRoute: typeof LearnRoute
   LiveRoute: typeof LiveRoute
   MapsRoute: typeof MapsRoute
   MessagesRoute: typeof MessagesRoute
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/hub'
       fullPath: '/hub'
       preLoaderRoute: typeof HubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -495,6 +515,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   HelpRoute: HelpRoute,
   HubRoute: HubRoute,
+  LearnRoute: LearnRoute,
   LiveRoute: LiveRoute,
   MapsRoute: MapsRoute,
   MessagesRoute: MessagesRoute,
