@@ -17,6 +17,7 @@ import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
 import { Avatar, PageHeader } from "@/components/nexora/ui";
 import { ChatComposer, AttachmentPreview } from "@/components/nexora/ChatComposer";
+import { InternationalOrderChat } from "@/components/nexora/InternationalOrderChat";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -136,6 +137,7 @@ function Messages() {
               <VolumeX />
             </Button>
           </div>
+          <InternationalOrderChat />
           <label className="flex items-center gap-2 border-b px-3 py-2 text-sm">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
