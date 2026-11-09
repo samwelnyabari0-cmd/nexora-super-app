@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil, Zap } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -8,6 +9,10 @@ import { useApp } from "@/features/core/store";
 import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
 import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
+import { ProfileBadges } from "@/components/nexora/ProfileBadges";
+import { CreatorStudio } from "@/components/nexora/CreatorStudio";
+import { BusinessSuite } from "@/components/nexora/BusinessSuite";
+import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
 
@@ -26,6 +31,15 @@ export const Route = createFileRoute("/profile")({
 });
 
 const allInterests = ["city", "food", "tech", "music", "dance", "travel", "nature", "creators"];
+const accountTypes = [
+  { value: "personal", label: "Personal / Viewer", description: "Consume, save, follow, DM, upload and tip." },
+  { value: "creator", label: "Creator", description: "Creator Studio, analytics and monetization tools." },
+  { value: "business", label: "Business / Merchant", description: "Ads, storefront, product tags and customer tools." },
+] as const;
+const profileCategories = [
+  ["tech", "Tech & Gaming"], ["sports", "Sports & Health"], ["arts", "Arts & Creative"],
+  ["business", "Business / Sales"], ["music", "Music & Audio"], ["education", "Education & Lifestyle"],
+] as const;
 
 function Profile() {
   const { passport, updatePassport, relay, online, syncRelay, events, posts, saved } = useApp();
@@ -36,12 +50,16 @@ function Profile() {
     Boolean(user?.user_metadata?.private_profile),
   );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
-  const [socialTab, setSocialTab] = useState<"posts" | "saved" | "followers" | "following">(
-    "posts",
-  );
+  const [socialTab, setSocialTab] = useState<"posts" | "reels" | "collabs" | "saved" | "followers" | "following">("posts");
+  const [passportOpen, setPassportOpen] = useState(false);
+  const [accountType, setAccountType] = useState<"personal" | "creator" | "business">(user?.user_metadata?.account_type ?? "personal");
+  const [profileCategory, setProfileCategory] = useState<string>(user?.user_metadata?.profile_category ?? "");
   const [connections, setConnections] = useState<
     Array<{ id: string; display_name: string | null; handle: string | null }>
   >([]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user || (socialTab !== "followers" && socialTab !== "following")) return;
@@ -88,6 +106,36 @@ function Profile() {
   }
   const [name, setName] = useState(passport.name);
   const [handle, setHandle] = useState(passport.handle);
+
+  async function uploadAvatar(file: File) {
+    if (!user) return;
+    setAvatarUploading(true);
+    const path = `${user.id}/avatar-${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
+    const { error } = await supabase.storage.from("post-media").upload(path, file, { upsert: false, contentType: file.type });
+    if (!error) {
+      const { data } = supabase.storage.from("post-media").getPublicUrl(path);
+      setAvatarUrl(data.publicUrl);
+      await Promise.all([
+        supabase.auth.updateUser({ data: { avatar_url: data.publicUrl } }),
+        (supabase as any).from("profiles").upsert({ id: user.id, avatar_url: data.publicUrl }),
+      ]);
+    }
+    setAvatarUploading(false);
+  }
+
+  async function shareProfile() {
+    const shareData = { title: `${passport.name} on NEXORA`, text: `View @${passport.handle} on NEXORA`, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Profile link copied");
+      }
+    } catch (error) {
+      if ((error as DOMException).name !== "AbortError") toast.error("Unable to share this profile");
+    }
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
@@ -102,29 +150,48 @@ function Profile() {
             </Button>
           ))}
         </div>
-        <Panel className="flex items-center gap-4">
-          <Avatar name={passport.name} size={72} ring />
-          <div>
-            <p className="font-display text-xl font-bold">{passport.name}</p>
-            <p className="text-sm text-muted-foreground">
-              @{passport.handle} · {privateProfile ? "Private" : "Public"}
-            </p>
-            <p className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-              <span>{posts.filter((p) => p.creatorId === "me").length} posts</span>
-              <span>{followers} followers</span>
-              <span>{following} following</span>
-              <span>{saved.size} saved</span>
-            </p>
-          </div>
-        </Panel>
         <Panel className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="flex items-start gap-4">
+            <div className="group relative shrink-0">
+              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
+              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+            </div>
+            <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
+              <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{followers.toLocaleString()} Followers · {following.toLocaleString()} Following · <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span></p>
+            </div>
+          </div>
+          <ProfileBadges
+            accountType={accountType}
+            industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
+            isVerified
+          />
+          {accountType === "creator" && user?.id && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+              <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-amber-300" /> Support this creator</p>
+              <CreatorPaymentActions creatorId={user.id} />
+            </div>
+          )}
+          <p className="text-sm">Building Nexora Super-App Ecosystem | Dev & Creator</p>
+          <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
+        </Panel>
+        <div id="pulse-passport"><Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
+          <ShieldCheck className="h-5 w-5 text-accent" />
+          <span className="font-display font-semibold">Pulse Passport</span>
+          <span className="ml-auto text-xs text-muted-foreground">{passportOpen ? "Hide features" : "Identity, profile & sharing"}</span>
+        </Button>
+        <Panel className="space-y-4">
+          <div className="grid grid-cols-3 gap-2">
             {(
               [
-                { value: "posts", label: "Posts", Icon: Grid3X3 },
-                { value: "saved", label: "Saved", Icon: Bookmark },
                 { value: "followers", label: "Followers", Icon: Users },
                 { value: "following", label: "Following", Icon: UserPlus },
+                { value: "saved", label: "Saved", Icon: Bookmark },
+                { value: "posts", label: "Posts", Icon: Grid3X3 },
+                { value: "reels", label: "Reels", Icon: Film },
+                { value: "collabs", label: "Collabs", Icon: Users },
               ] as const
             ).map(({ value, label, Icon: IconComponent }) => (
               <Button
@@ -137,16 +204,10 @@ function Profile() {
               </Button>
             ))}
           </div>
-          {socialTab === "posts" && (
-            <div className="space-y-4">
-              {posts
-                .filter((post) => post.creatorId === "me")
-                .map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              {!posts.some((post) => post.creatorId === "me") && (
-                <p className="text-sm text-muted-foreground">Your posts will appear here.</p>
-              )}
+          {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs") && (
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              {posts.filter((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))).map((post) => <ProfileMediaTile key={post.id} post={post} />)}
+              {!posts.some((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))) && <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">Your {socialTab} will appear here.</p>}
             </div>
           )}
           {socialTab === "saved" && (
@@ -186,7 +247,14 @@ function Profile() {
             </div>
           )}
         </Panel>
-        <Panel className="space-y-3">
+        {passportOpen && <Panel className="space-y-3">
+          <div className="flex items-center gap-3 rounded-2xl border bg-background/50 p-3">
+            <button type="button" className="group relative shrink-0" onClick={() => avatarInput.current?.click()} aria-label="Change profile picture">
+              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={56} ring />}
+              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[9px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+            </button>
+            <div><p className="font-semibold">Profile photo</p><p className="text-xs text-muted-foreground">Upload or change your Pulse Passport photo.</p></div>
+          </div>
           <p className="flex items-center gap-2 font-display font-semibold">
             <ShieldCheck className="h-5 w-5 text-accent" /> Pulse Passport
           </p>
@@ -200,6 +268,15 @@ function Profile() {
             </span>
             <span className="text-sm text-muted-foreground">reputation score</span>
           </div>
+          <div className="space-y-3 rounded-2xl border bg-background/50 p-3">
+            <div><p className="font-semibold">Account type</p><p className="text-xs text-muted-foreground">Choose the tools and profile experience that fit you.</p></div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {accountTypes.map((type) => <button key={type.value} type="button" onClick={() => { setAccountType(type.value); syncProfile({ account_type: type.value }); }} className={`rounded-xl border p-3 text-left transition ${accountType === type.value ? "border-primary bg-primary/10" : "hover:bg-muted"}`}><p className="text-sm font-semibold">{type.label}</p><p className="mt-1 text-xs text-muted-foreground">{type.description}</p></button>)}
+            </div>
+            {(accountType === "creator" || accountType === "business") && <div><p className="mb-2 text-sm font-semibold">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{profileCategories.map(([value, label]) => <button key={value} type="button" onClick={() => { setProfileCategory(value); syncProfile({ profile_category: value }); }} className={`rounded-lg border px-2 py-2 text-xs ${profileCategory === value ? "border-accent bg-accent/10 text-accent" : "hover:bg-muted"}`}>{label}</button>)}</div></div>}
+          </div>
+          {accountType === "creator" && <CreatorStudio />}
+          {accountType === "business" && <BusinessSuite />}
           <label className="block space-y-2 text-sm font-semibold">
             Display name
             <input
@@ -300,7 +377,8 @@ function Profile() {
               />
             </label>
           ))}
-        </Panel>
+        </Panel>}
+        </div>
       </div>
       <div className="space-y-4">
         <Panel className="space-y-2">
@@ -342,5 +420,19 @@ function Profile() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+function ProfileMediaTile({ post }: { post: Post }) {
+  const isVideo = post.kind === "short" || post.mediaType?.startsWith("video/");
+  return (
+    <article className="group relative aspect-square overflow-hidden bg-muted">
+      {post.image ? <img src={post.image} alt={post.caption || "NEXORA post"} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/50 via-accent/30 to-muted p-3 text-center text-xs font-semibold">{post.caption || "NEXORA post"}</div>}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
+      <div className="absolute inset-x-2 bottom-2 flex items-center justify-between text-[11px] font-semibold text-white">
+        <span className="truncate">{post.caption || "NEXORA"}</span>
+        {isVideo && <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-black">Reel</span>}
+      </div>
+    </article>
   );
 }

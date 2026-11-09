@@ -46,6 +46,7 @@ type State = {
   posts: Post[];
   liked: Set<string>;
   saved: Set<string>;
+  reposted: Set<string>;
   conversations: Conversation[];
   balance: number;
   txns: Txn[];
@@ -89,6 +90,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState(seedPosts);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set(["p4"]));
+  const [reposted, setReposted] = useState<Set<string>>(new Set());
   const [conversations, setConversations] = useState(seedConversations);
   const [balance, setBalance] = useState(24680.5);
   const [txns, setTxns] = useState(seedTxns);
@@ -194,6 +196,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       posts,
       liked,
       saved,
+      reposted,
       conversations,
       balance,
       txns,
@@ -240,6 +243,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .catch(() => toast.error("Could not copy link. Check clipboard permissions."));
       },
       repost: (id) => {
+        if (reposted.has(id)) {
+          toast("You already reposted this video.");
+          return;
+        }
+        setReposted((current) => new Set(current).add(id));
         if (user)
           void (supabase as any)
             .from("post_interactions")
@@ -465,6 +473,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       posts,
       liked,
       saved,
+      reposted,
       conversations,
       balance,
       txns,

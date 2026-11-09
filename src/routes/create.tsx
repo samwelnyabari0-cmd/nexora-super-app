@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { Upload, Save, Trash2, Image, Film, FileText } from "lucide-react";
+import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles, Music2, LockKeyhole } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
@@ -41,11 +41,12 @@ function Create() {
     preferences.privateProfile ? "private" : "public",
   );
   const [media, setMedia] = useState<string>();
-  const [mediaFile, setMediaFile] = useState<Blob>();
+  const [mediaFiles, setMediaFiles] = useState<Blob[]>([]);
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("original");
-  const [format, setFormat] = useState("landscape");
+  const [format, setFormat] = useState("square");
+  const [music, setMusic] = useState("none");
   const input = useRef<HTMLInputElement>(null);
   const tagList = tags
     .split(",")
@@ -69,7 +70,7 @@ function Create() {
     setCaption("");
     setTags("creators");
     setMedia(undefined);
-    setMediaFile(undefined);
+    setMediaFiles([]);
     setMediaType(undefined);
     setFilter("original");
     setFormat("landscape");
@@ -118,6 +119,25 @@ function Create() {
             }}
             onError={setError}
           />
+          <div className="mb-2 flex items-center justify-between rounded-2xl border bg-card/80 p-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Open Pulse Passport"
+                title="Pulse Passport"
+                onClick={() => void nav({ to: "/profile" })}
+              >
+                <ShieldCheck className="h-5 w-5 text-accent" />
+              </Button>
+              <div className="leading-tight">
+                <p className="text-xs font-semibold">Pulse Passport</p>
+                <p className="text-[11px] text-muted-foreground">Identity & sharing</p>
+              </div>
+            </div>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Sparkles className="h-3.5 w-3.5 text-accent" /> Creator post</span>
+          </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => input.current?.click()}>
               <Upload />
@@ -145,12 +165,13 @@ function Create() {
           <input
             ref={input}
             type="file"
-            accept="image/*,video/*"
+            accept="image/*,video/*" multiple
             aria-label="Upload media"
             className="sr-only"
             onChange={(e) => {
-              const f = e.target.files?.[0];
+              const files = Array.from(e.target.files ?? []);
               e.target.value = "";
+              const f = files[0];
               if (!f) return;
               const problem = fileError(f);
               if (problem) {
@@ -163,7 +184,7 @@ function Create() {
               }
               setError("");
               setMedia(URL.createObjectURL(f));
-              setMediaFile(f);
+              setMediaFiles(files);
               setMediaType(f.type);
             }}
           />
@@ -188,7 +209,19 @@ function Create() {
                 </Button>
               ))}
             </div>
-            <h2 className="text-sm font-semibold">Frame</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold"><Music2 className="mr-1 inline h-4 w-4" />Music</h2>
+              <span className="text-xs text-muted-foreground">Free audio included</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant={music === "none" ? "default" : "outline"} onClick={() => setMusic("none")}>Original audio</Button>
+              <Button size="sm" variant={music === "pulse" ? "default" : "outline"} onClick={() => setMusic("pulse")}>Pulse free beat</Button>
+              <Button size="sm" variant="outline" disabled title="Upgrade to unlock licensed music"><LockKeyhole className="h-3.5 w-3.5" /> Pro music</Button>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Frame</h2>
+              <span className="text-xs text-muted-foreground">Square is optimized for feed</span>
+            </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Media frame">
               {["landscape", "portrait", "square"].map((f) => (
                 <Button
@@ -217,17 +250,20 @@ function Create() {
               return;
             }
             let mediaPath: string | null = null;
-            if (mediaFile) {
-              const extension = mediaType?.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
-              mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-              const { error: uploadError } = await supabase.storage.from("post-media").upload(mediaPath, mediaFile, {
-                contentType: mediaType,
-                upsert: false,
-              });
-              if (uploadError) {
-                setError("Media upload failed. Please try again.");
-                return;
+            if (mediaFiles.length) {
+              const uploadedPaths: string[] = [];
+              for (const file of mediaFiles) {
+                const extension = file.type.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+                const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
+                const { error: uploadError } = await supabase.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
+                if (uploadError) {
+                  setError("Media upload failed. Please try again.");
+                  return;
+                }
+                const { data: publicData } = supabase.storage.from("post-media").getPublicUrl(path);
+                uploadedPaths.push(publicData.publicUrl);
               }
+              mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
             const { error: publishError } = await (supabase as any).from("posts").insert({
               author_id: user.id,
