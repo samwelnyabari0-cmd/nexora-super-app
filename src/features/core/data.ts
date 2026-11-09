@@ -127,7 +127,7 @@ export type Message = {
   replyTo?: string;
   edited?: boolean;
 };
-export type Conversation = { id: string; creatorId: string; messages: Message[]; unread: number };
+export type Conversation = { id: string; creatorId: string; messages: Message[]; unread: number; ownerId?: string };
 
 export const seedConversations: Conversation[] = [
   {
