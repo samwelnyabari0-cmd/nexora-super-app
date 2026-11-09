@@ -179,7 +179,7 @@ function Profile() {
           </div>
           {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs") && (
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-              {posts.filter((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))).map((post) => <PostCard key={post.id} post={post} />)}
+              {posts.filter((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))).map((post) => <ProfileMediaTile key={post.id} post={post} />)}
               {!posts.some((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))) && <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">Your {socialTab} will appear here.</p>}
             </div>
           )}
@@ -390,5 +390,19 @@ function Profile() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+function ProfileMediaTile({ post }: { post: Post }) {
+  const isVideo = post.kind === "short" || post.mediaType?.startsWith("video/");
+  return (
+    <article className="group relative aspect-square overflow-hidden bg-muted">
+      {post.image ? <img src={post.image} alt={post.caption || "NEXORA post"} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/50 via-accent/30 to-muted p-3 text-center text-xs font-semibold">{post.caption || "NEXORA post"}</div>}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
+      <div className="absolute inset-x-2 bottom-2 flex items-center justify-between text-[11px] font-semibold text-white">
+        <span className="truncate">{post.caption || "NEXORA"}</span>
+        {isVideo && <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-black">Reel</span>}
+      </div>
+    </article>
   );
 }
