@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +8,7 @@ import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
 import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
-import { Avatar, PageHeader, Panel } from "@/components/nexora/ui";
+import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
@@ -118,6 +119,20 @@ function Profile() {
     }
     setAvatarUploading(false);
   }
+
+  async function shareProfile() {
+    const shareData = { title: `${passport.name} on NEXORA`, text: `View @${passport.handle} on NEXORA`, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Profile link copied");
+      }
+    } catch (error) {
+      if ((error as DOMException).name !== "AbortError") toast.error("Unable to share this profile");
+    }
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
@@ -151,9 +166,9 @@ function Profile() {
             isVerified
           />
           <p className="text-sm">Building Nexora Super-App Ecosystem | Dev & Creator</p>
-          <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button size="sm" variant="outline" onClick={() => void navigator.clipboard?.writeText(window.location.href)}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
+          <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
-        <Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
+        <div id="pulse-passport"><Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
           <ShieldCheck className="h-5 w-5 text-accent" />
           <span className="font-display font-semibold">Pulse Passport</span>
           <span className="ml-auto text-xs text-muted-foreground">{passportOpen ? "Hide features" : "Identity, profile & sharing"}</span>
@@ -352,6 +367,7 @@ function Profile() {
             </label>
           ))}
         </Panel>}
+        </div>
       </div>
       <div className="space-y-4">
         <Panel className="space-y-2">
