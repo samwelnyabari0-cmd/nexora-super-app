@@ -46,7 +46,7 @@ Be concise, warm and practical. Use markdown. Never claim to perform payments, s
 
 export const aiChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { messages: Msg[] }) => {
+  .validator((d: { messages: Msg[] }) => {
     const messages = (d?.messages ?? [])
       .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
       .slice(-30)
@@ -69,7 +69,7 @@ const TASKS = {
 
 export const aiTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { task: keyof typeof TASKS; text: string }) => {
+  .validator((d: { task: keyof typeof TASKS; text: string }) => {
     if (!(d?.task in TASKS)) throw new Error("Unknown task");
     const text = String(d.text ?? "")
       .trim()
@@ -90,7 +90,7 @@ export const aiTask = createServerFn({ method: "POST" })
 
 export const aiTranscribe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: FormData) => {
+  .validator((d: FormData) => {
     if (!(d instanceof FormData)) throw new Error("Expected form data");
     const f = d.get("file");
     if (!(f instanceof Blob) || f.size === 0) throw new Error("No audio");

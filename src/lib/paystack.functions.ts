@@ -40,7 +40,7 @@ const SUBSCRIPTION_KES: Record<"pro" | "studio", number> = { pro: 1299, studio: 
 
 export const initSubscriptionPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ tier: z.enum(["pro", "studio"]) }).parse(input))
+  .validator((input: unknown) => z.object({ tier: z.enum(["pro", "studio"]) }).parse(input))
   .handler(async ({ data, context }) => {
     const claims = context.claims as Record<string, unknown> | undefined;
     const email = typeof claims?.email === "string" ? claims.email : null;
@@ -60,7 +60,7 @@ export const initSubscriptionPayment = createServerFn({ method: "POST" })
 
 export const initTopUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ amount: z.number().min(10).max(1_000_000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -96,7 +96,7 @@ export type MerchantPaymentKind = "store_order" | "boosted_campaign";
 
 export const onboardMerchantAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     businessName: z.string().trim().min(2).max(255),
     settlementBank: z.string().trim().min(2).max(30),
     accountNumber: z.string().trim().min(4).max(50),
@@ -123,7 +123,7 @@ export const onboardMerchantAccount = createServerFn({ method: "POST" })
 
 export const initializeStoreCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     businessId: z.string().uuid(),
     orderReference: z.string().regex(/^nx-order-[a-z0-9-]+$/),
     amount: z.number().min(10).max(10_000_000),
@@ -151,7 +151,7 @@ export type CreatorPaymentKind = "tip" | "subscription" | "paywall" | "gift";
 
 export const initCreatorPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     amount: z.number().min(10).max(1_000_000),
     creatorId: z.string().uuid(),
     kind: z.enum(["tip", "subscription", "paywall", "gift"]),
@@ -180,7 +180,7 @@ export const initCreatorPayment = createServerFn({ method: "POST" })
 
 export const verifyCreatorPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ reference: z.string().min(3).max(140) }).parse(input))
+  .validator((input: unknown) => z.object({ reference: z.string().min(3).max(140) }).parse(input))
   .handler(async ({ data, context }) => {
     try {
       const body = await paystack(`/transaction/verify/${encodeURIComponent(data.reference)}`);
@@ -209,7 +209,7 @@ export type TopUpVerify =
 
 export const verifyTopUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ reference: z.string().min(3).max(140) }).parse(input),
   )
   .handler(async ({ data, context }) => {

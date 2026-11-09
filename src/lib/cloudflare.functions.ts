@@ -4,7 +4,7 @@ import { z } from "zod";
 const input = z.object({ title: z.string().trim().min(1).max(120) });
 
 export const createLiveInput = createServerFn({ method: "POST" })
-  .inputValidator((value: unknown) => input.parse(value))
+  .validator((value: unknown) => input.parse(value))
   .handler(async ({ data }) => {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     const token = process.env.CLOUDFLARE_STREAM_TOKEN;
