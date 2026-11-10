@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, Camera, FileCheck2, Gift, Radio, ShieldCheck, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { currentUser } from "@/lib/session";
 
 const categories = ["Tech & Gaming", "Sports & Health", "Arts & Creative", "Business / Sales", "Music & Audio", "Education & Lifestyle"];
 type Side = "front" | "back";
@@ -31,9 +33,20 @@ export function PlatformSafetyControls() {
     if (!files.front) { toast.error("Add the front of your document before submitting."); return; }
     setIsUploading(true);
     try {
-      const body = new FormData(); body.append("docType", docType); body.append("category", selectedCategory); body.append("front", files.front); if (files.back) body.append("back", files.back);
-      const response = await fetch("/api/kyc/upload", { method: "POST", body });
-      if (!response.ok) throw new Error("Secure upload could not be completed.");
+      const user = currentUser();
+      if (!user) throw new Error("Sign in before submitting identity documents.");
+      const prefix = `${user.id}/${crypto.randomUUID()}`;
+      const frontPath = `${prefix}-front.${files.front.name.split(".").pop() ?? "jpg"}`;
+      const { error: frontError } = await supabase.storage.from("kyc-documents").upload(frontPath, files.front, { contentType: files.front.type, upsert: false });
+      if (frontError) throw frontError;
+      let backPath: string | null = null;
+      if (files.back) {
+        backPath = `${prefix}-back.${files.back.name.split(".").pop() ?? "jpg"}`;
+        const { error: backError } = await supabase.storage.from("kyc-documents").upload(backPath, files.back, { contentType: files.back.type, upsert: false });
+        if (backError) throw backError;
+      }
+      const { error: recordError } = await (supabase as any).from("kyc_verifications").insert({ user_id: user.id, document_type: docType, category: selectedCategory, front_path: frontPath, back_path: backPath, status: "pending" });
+      if (recordError) throw recordError;
       setKycStatus("pending"); setIsModalOpen(false); toast.success("KYC documents uploaded securely for review.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Upload failed. Please try again."); }
     finally { setIsUploading(false); }
