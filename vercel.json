@@ -1,5 +1,8 @@
 {
   "buildCommand": "bun run build",
-  "installCommand": "bun install --frozen-lockfile",
+  "installCommand": "bun install",
   "outputDirectory": ".vercel/output"
 }
+
+  
+
