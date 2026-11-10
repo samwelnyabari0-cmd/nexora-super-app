@@ -32,6 +32,7 @@ import { Route as SubscriptionsRouteImport } from './routes/subscriptions'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as WatchRouteImport } from './routes/watch'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as CreatorAcademyRouteImport } from './routes/creator.academy'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -148,6 +149,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
+const CreatorAcademyRoute = CreatorAcademyRouteImport.update({
+  id: '/creator/academy',
+  path: '/creator/academy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof WalletRoute
   '/watch': typeof WatchRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/creator/academy': typeof CreatorAcademyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/wallet': typeof WalletRoute
   '/watch': typeof WatchRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/creator/academy': typeof CreatorAcademyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/wallet': typeof WalletRoute
   '/watch': typeof WatchRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/creator/academy': typeof CreatorAcademyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/watch'
     | '/auth/callback'
+    | '/creator/academy'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/watch'
     | '/auth/callback'
+    | '/creator/academy'
   id:
     | '__root__'
     | '/'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/watch'
     | '/auth/callback'
+    | '/creator/academy'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -326,6 +338,7 @@ export interface RootRouteChildren {
   SubscriptionsRoute: typeof SubscriptionsRoute
   WalletRoute: typeof WalletRoute
   WatchRoute: typeof WatchRoute
+  CreatorAcademyRoute: typeof CreatorAcademyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -491,6 +504,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/creator/academy': {
+      id: '/creator/academy'
+      path: '/creator/academy'
+      fullPath: '/creator/academy'
+      preLoaderRoute: typeof CreatorAcademyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -527,6 +547,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubscriptionsRoute: SubscriptionsRoute,
   WalletRoute: WalletRoute,
   WatchRoute: WatchRoute,
+  CreatorAcademyRoute: CreatorAcademyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
