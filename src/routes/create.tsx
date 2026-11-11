@@ -304,8 +304,7 @@ const previewFilter =
                   {f}
                 </Button>
               ))}
-            </div>
-         </div>
+                        </div>
         </div>
         <form
           className="space-y-4"
