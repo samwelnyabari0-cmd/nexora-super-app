@@ -1,4 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { ChevronRight, LogOut, ShieldCheck, Wallet, CreditCard } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -29,6 +31,15 @@ export const Route = createFileRoute("/settings")({
 function Settings() {
   const { preferences, setPreferences, muted, toggleMute } = useWorkspace();
   const { user } = useSession();
+  const navigate = useNavigate();
+  const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
+  const shownName = meta.display_name ?? meta.full_name ?? user?.email?.split("@")[0] ?? "Nexora user";
+
+  async function logOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) return toast.error("Could not log out. Please try again.");
+    void navigate({ to: "/auth" });
+  }
   const [savedReports, setSavedReports] = useState<Array<{ target_id: string; reason: string; status: string }>>([]);
 
   useEffect(() => {
@@ -82,6 +93,41 @@ function Settings() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Settings" subtitle={user ? "Saved to your account" : "Sign in to sync settings"} />
+      {user ? (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">
+              {shownName[0]?.toUpperCase()}
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{shownName}</p>
+              <p className="text-xs text-muted-foreground">{meta.handle ? `@${meta.handle}` : user.email}</p>
+            </div>
+          </div>
+          <Button asChild variant="outline"><Link to="/account">Edit</Link></Button>
+        </div>
+      ) : (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border p-4">
+          <div>
+            <p className="text-sm font-semibold">Sign in to sync settings</p>
+            <p className="text-xs text-muted-foreground">Wallet, preferences and profile</p>
+          </div>
+          <Button asChild><Link to="/auth">Sign in</Link></Button>
+        </div>
+      )}
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold">Account & payments</h2>
+        {[
+          { to: "/account", label: "Account & security", icon: ShieldCheck },
+          { to: "/wallet", label: "Wallet & payouts", icon: Wallet },
+          { to: "/subscriptions", label: "Subscriptions", icon: CreditCard },
+        ].map(({ to, label, icon: Icon }) => (
+          <Link key={to} to={to} className="flex items-center justify-between border-b py-4">
+            <span className="flex items-center gap-3 text-sm"><Icon size={18} /> {label}</span>
+            <ChevronRight size={16} className="text-muted-foreground" />
+          </Link>
+        ))}
+      </section>
       {groups.map((g) => (
         <section key={g.title} className="mb-8">
           <h2 className="mb-3 text-lg font-semibold">{g.title}</h2>
@@ -132,6 +178,11 @@ function Settings() {
           <Link to="/help">Help center</Link>
         </Button>
       </div>
+      {user && (
+        <Button variant="outline" className="mt-8 w-full text-destructive" onClick={() => void logOut()}>
+          <LogOut size={16} className="mr-2" /> Log out
+        </Button>
+      )}
     </div>
   );
-}
+                   }
