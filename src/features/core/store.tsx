@@ -13,6 +13,12 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import {
+  addCommentToPost,
+  likePost,
+  sharePost,
+  unlikePost,
+} from "@/lib/social-activity";
+import {
   seedConversations,
   seedPosts,
   seedTxns,
@@ -112,8 +118,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const [{ data: savedPosts }, { data: savedMessages }] = await Promise.all([
         (supabase as any)
-          .from("posts")
-          .select("id, author_id, caption, media_url, media_type, audience, tags, created_at")
+          .from("user_media_posts")
+          .select(
+            "id, user_id, caption, media_url, media_type, audience, tags, created_at, like_count, share_count, comment_count, view_count",
+          )
           .order("created_at", { ascending: false }),
         (supabase as any)
           .from("message_threads")
@@ -125,25 +133,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const hydratedPosts = await Promise.all(
           savedPosts.map(async (row: any) => {
             let image: string | undefined;
-            if (row.media_url) {
-              const { data } = await supabase.storage
-                .from("post-media")
-                .createSignedUrl(row.media_url, 3600);
-              image = data?.signedUrl;
+            const media = row.media_url ?? undefined;
+            if (media) {
+              if (/^https?:\/\//i.test(media)) {
+                image = media;
+              } else {
+                const { data } = await supabase.storage.from("post-media").createSignedUrl(media, 3600);
+                image = data?.signedUrl ?? undefined;
+              }
             }
             return {
               id: row.id,
-              creatorId: "me",
-              caption: row.caption,
+              creatorId: row.user_id === user.id ? "me" : (row.user_id ?? "me"),
+              caption: row.caption ?? "",
               image,
               mediaType: row.media_type ?? undefined,
-              audience: row.audience,
+              audience: row.audience ?? "public",
               tags: row.tags ?? [],
               filter: "original",
               format: "landscape",
-              likes: 0,
+              likes: Number(row.like_count ?? 0),
               comments: [],
-              shares: 0,
+              shares: Number(row.share_count ?? 0),
               createdAt: new Date(row.created_at).toLocaleDateString(),
             } as unknown as Post;
           }),
@@ -204,55 +215,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
       events,
       emit,
       toggleLike: (id) => {
+        const isCurrentlyLiked = liked.has(id);
         toggle(setLiked, id);
         emit("post.like", id);
+        if (!user) return;
+        void (isCurrentlyLiked ? unlikePost(id) : likePost(id)).catch(() => {
+          toggle(setLiked, id);
+          toast.error("Could not update like state.");
+        });
       },
       toggleSave: (id) => {
         toggle(setSaved, id);
         toast(saved.has(id) ? "Removed bookmark" : "Bookmarked");
       },
-      addComment: (id, text) => {
+      addComment: async (id, text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
         setPosts((ps) =>
           ps.map((p) =>
             p.id === id
-              ? { ...p, comments: [...p.comments, { id: uid(), author: passport.handle, text }] }
+              ? { ...p, comments: [...p.comments, { id: uid(), author: passport.handle, text: trimmed }] }
               : p,
           ),
         );
         emit("post.comment", id);
+        if (!user) return;
+        try {
+          await addCommentToPost(id, trimmed);
+        } catch {
+          toast.error("Comment could not be saved.");
+        }
       },
-      share: (id) => {
+      share: async (id) => {
         setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
-        if (user)
-          void (supabase as any)
-            .from("post_interactions")
-            .upsert(
-              { post_id: id, actor_id: user.id, kind: "share" },
-              { onConflict: "post_id,actor_id,kind" },
-            );
+        if (user) {
+          try {
+            await sharePost(id);
+          } catch {
+            toast.error("Share count could not be updated.");
+          }
+        }
         const url = typeof window !== "undefined" ? `${window.location.origin}/?post=${id}` : "";
         if (!navigator.clipboard) {
           toast.error("Clipboard unavailable. Copy the page address from your browser.");
           return;
         }
-        navigator.clipboard
-          .writeText(url)
-          .then(() => toast.success("Link copied to clipboard"))
-          .catch(() => toast.error("Could not copy link. Check clipboard permissions."));
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.success("Link copied to clipboard");
+        } catch {
+          toast.error("Could not copy link. Check clipboard permissions.");
+        }
       },
-      repost: (id) => {
+      repost: async (id) => {
         if (reposted.has(id)) {
           toast("You already reposted this video.");
           return;
         }
         setReposted((current) => new Set(current).add(id));
-        if (user)
-          void (supabase as any)
-            .from("post_interactions")
-            .upsert(
-              { post_id: id, actor_id: user.id, kind: "share" },
-              { onConflict: "post_id,actor_id,kind" },
-            );
+        if (user) {
+          try {
+            await sharePost(id);
+          } catch {
+            toast.error("Repost count could not be updated.");
+          }
+        }
         setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
         toast.success("Reposted to your followers");
         emit("post.repost", id);
@@ -263,10 +290,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return false;
         }
         const { error } = await (supabase as any)
-          .from("posts")
+          .from("user_media_posts")
           .delete()
           .eq("id", id)
-          .eq("author_id", user.id);
+          .eq("user_id", user.id);
         if (error) {
           toast.error("Could not delete the post.");
           return false;
@@ -483,6 +510,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       preferences.allowMessages,
       notify,
       removeDraft,
+      user,
     ],
   );
 
