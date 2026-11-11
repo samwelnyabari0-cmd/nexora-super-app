@@ -8,6 +8,7 @@ import { useWorkspace } from "@/features/core/workspace";
 
 import { PageHeader } from "@/components/nexora/ui";
 import { StudioCapture } from "@/components/nexora/StudioCapture";
+import { CoverPicker } from "@/components/nexora/CoverPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { accountTierFromUser, UPLOAD_POLICY, validateUpload } from "@/lib/upload-policy";
@@ -48,6 +49,7 @@ function Create() {
   const [filter, setFilter] = useState("original");
   const [format, setFormat] = useState("square");
   const [music, setMusic] = useState("none");
+  const [cover, setCover] = useState<Blob | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const uploadTier = accountTierFromUser(user);
   const uploadLimits = UPLOAD_POLICY[uploadTier];
@@ -75,6 +77,7 @@ function Create() {
     setMedia(undefined);
     setMediaFiles([]);
     setMediaType(undefined);
+    setCover(null);
     setFilter("original");
     setFormat("landscape");
     setError("");
@@ -122,6 +125,9 @@ function Create() {
             }}
             onError={setError}
           />
+          {media && mediaType?.startsWith("video/") && (
+            <CoverPicker videoSrc={media} onCoverChange={(c) => setCover(c?.blob ?? null)} />
+          )}
           <div className="mb-2 flex items-center justify-between rounded-2xl border bg-card/80 p-2 shadow-sm">
             <div className="flex items-center gap-2">
               <Button
@@ -416,4 +422,4 @@ Drafts remain on this device until published. Published captions, media, tags, a
       </section>
     </div>
   );
-}
+    }
