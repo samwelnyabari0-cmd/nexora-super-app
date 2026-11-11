@@ -1,5 +1,4 @@
-import TierGatedCreatorStudio from "@/components/nexora/TierGatedCreatorStudio";
-import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
+import TierGatedCreatorStudio from "@/components/nexora/src/components/nexora/src/components/nexora/TierGatedCreatorStudio";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles, Music2, LockKeyhole } from "lucide-react";
@@ -10,7 +9,7 @@ import { useWorkspace } from "@/features/core/workspace";
 
 import { PageHeader } from "@/components/nexora/ui";
 import { StudioCapture } from "@/components/nexora/StudioCapture";
-import { CoverPicker } from "@/components/nexora/src/components/nexora/src/components/nexora/CoverPicker";
+import { CoverPicker } from "@/components/nexora/CoverPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { accountTierFromUser, UPLOAD_POLICY, validateUpload } from "@/lib/upload-policy";
@@ -286,26 +285,6 @@ const previewFilter =
             </div>
           </section>
         </div>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Frame</h2>
-              <span className="text-xs text-muted-foreground">Square is optimized for feed</span>
-            </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Media frame">
-              {["landscape", "portrait", "square"].map((f) => (
-                <Button
-                  key={f}
-                  size="sm"
-                  variant={format === f ? "default" : "outline"}
-                  aria-pressed={format === f}
-                  className="capitalize"
-                  onClick={() => setFormat(f)}
-                >
-                  <Film />
-                  {f}
-                </Button>
-              ))}
-                        </div>
-        </div>
         <form
           className="space-y-4"
           onSubmit={async (e) => {
@@ -329,6 +308,12 @@ const previewFilter =
                 }
                 const { data: publicData } = supabase.storage.from("post-media").getPublicUrl(path);
                 uploadedPaths.push(publicData.publicUrl);
+                // Optional cover: saved beside the video as "<same-name>-cover.jpg" so the feed can find it.
+                if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
+                  await supabase.storage
+                    .from("post-media")
+                    .upload(path.replace(/\.[^./]+$/, "-cover.jpg"), cover, { contentType: "image/jpeg", upsert: false });
+                }
               }
               mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
@@ -457,4 +442,4 @@ Drafts remain on this device until published. Published captions, media, tags, a
       </section>
     </div>
   );
-    }
+         }
