@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Phone, PhoneCall, PhoneOff, Video, Copy, Search, UserPlus, Check, X } from "lucide-react";
+import { Phone, PhoneCall, PhoneOff, Video, Copy, Search,
+  UserPlus, Check, X, Crown, Sparkles, ShieldCheck
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -68,31 +70,166 @@ function mediaFor(kind: "audio" | "video") {
 function CallsPage() {
   const { user, ready } = useSession();
   const { invite } = Route.useSearch();
-  if (!ready) return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
+
+  const rawTier = user?.user_metadata?.subscription_tier;
+  const hasSyncedPlan =
+    rawTier === "free" || rawTier === "pro" || rawTier === "studio";
+
+  const userPlan = hasSyncedPlan ? rawTier : "free";
+
+  const planLabel =
+    userPlan === "studio" ? "Studio" :
+    userPlan === "pro" ? "Pro" : "Free";
+
+  if (!ready) {
+    return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
+  }
+
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl space-y-5 pb-8">
       <PageHeader
         title="Calls"
-        subtitle="Start a real encrypted browser video room with camera, microphone, and screen sharing."
+        subtitle="Private voice and video calls with your NEXORA contacts."
       />
+
+      {/* Premium Calls Header */}
+      <section className="overflow-hidden rounded-3xl border border-indigo-400/20 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 p-5 text-white shadow-xl sm:p-7">
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div className="max-w-xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-indigo-100">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              PRIVATE NEXORA CALLS
+            </div>
+
+            <h2 className="text-2xl font-bold sm:text-3xl">
+              Your people. One tap away.
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-indigo-100/75">
+              Call accepted contacts, answer incoming calls,
+              or start a group room. Your camera and microphone
+              are requested when you start or accept a call.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200">
+              Account plan
+            </p>
+
+            <div className="mt-2 flex items-center gap-2 text-xl font-bold">
+              {userPlan === "studio"
+                ? <Sparkles className="h-5 w-5 text-cyan-300" />
+                : <Crown className="h-5 w-5 text-amber-300" />}
+
+              {user ? (hasSyncedPlan ? planLabel : "Not synced") : "Sign in"}
+            </div>
+
+            <p className="mt-1 text-xs text-indigo-100/70">
+              Calling is included on every plan.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Subscription plan indicators */}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className={`rounded-2xl border p-4 ${
+          userPlan === "free" && hasSyncedPlan
+            ? "border-cyan-400/50 bg-cyan-400/[0.07]"
+            : "border-border bg-card"
+        }`}>
+          <p className="font-semibold">Free</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Direct audio calls, video calls, contacts and group rooms.
+          </p>
+          <p className="mt-3 text-[11px] font-semibold text-emerald-500">
+            Calling included
+          </p>
+          {hasSyncedPlan && userPlan === "free" && (
+            <span className="mt-2 inline-block text-[10px] font-bold text-cyan-500">
+              CURRENT PLAN
+            </span>
+          )}
+        </div>
+
+        <div className={`rounded-2xl border p-4 ${
+          userPlan === "pro"
+            ? "border-indigo-400/50 bg-indigo-400/[0.07]"
+            : "border-border bg-card"
+        }`}>
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">Pro</p>
+            <Crown className="h-4 w-4 text-indigo-500" />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Ad-free viewing, background play, expanded uploads
+            and Pro creator tools.
+          </p>
+          {hasSyncedPlan && userPlan === "pro" ? (
+            <p className="mt-3 text-[10px] font-bold text-indigo-500">
+              CURRENT PLAN
+            </p>
+          ) : (
+            <Link to="/subscriptions"
+              className="mt-3 inline-block text-[11px] font-semibold text-indigo-500 hover:underline">
+              Explore Pro →
+            </Link>
+          )}
+        </div>
+
+        <div className={`rounded-2xl border p-4 ${
+          userPlan === "studio"
+            ? "border-cyan-400/50 bg-cyan-400/[0.07]"
+            : "border-border bg-card"
+        }`}>
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">Studio</p>
+            <Sparkles className="h-4 w-4 text-cyan-500" />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Advanced creator tools, deeper analytics and
+            professional publishing features.
+          </p>
+          {hasSyncedPlan && userPlan === "studio" ? (
+            <p className="mt-3 text-[10px] font-bold text-cyan-500">
+              CURRENT PLAN
+            </p>
+          ) : (
+            <Link to="/subscriptions"
+              className="mt-3 inline-block text-[11px] font-semibold text-cyan-600 hover:underline">
+              Explore Studio →
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {!hasSyncedPlan && user && (
+        <p className="text-xs text-muted-foreground">
+          Your subscription status has not been synchronized yet.
+          Your existing calling features remain available.
+        </p>
+      )}
+
+      {/* Existing working calling system — preserved */}
       {user ? (
         <SignedInCalls userId={user.id} inviteCode={invite} />
       ) : (
         <Panel className="mb-4">
           <p className="text-sm">
-            Sign in to call your contacts. Calls only work between accounts that have accepted each
-            other.
+            Sign in to call your contacts. Calls only work between
+            accounts that have accepted each other.
           </p>
           <Button asChild className="mt-3">
             <Link to="/auth">Sign in to make calls</Link>
           </Button>
         </Panel>
       )}
+
       <JitsiRoom />
     </div>
   );
-}
-
+          }
 function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: string }) {
   const [me, setMe] = useState<{ invite_code: string | null; discoverable: boolean } | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
