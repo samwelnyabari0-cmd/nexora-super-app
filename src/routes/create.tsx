@@ -119,11 +119,14 @@ function Create() {
           </div>
           <StudioCapture
             onCapture={(url, type) => {
-              setMedia(url);
-              setMediaType(type);
-              setError("");
-              void fetch(url).then((response) => response.blob()).then(setMediaFile).catch(() => setError("Captured media could not be prepared for upload."));
-            }}
+  setMedia(url);
+  setMediaType(type);
+  setError("");
+  void fetch(url)
+    .then((response) => response.blob())
+    .then((blob) => setMediaFiles([blob]))
+    .catch(() => setError("Captured media could not be prepared for upload."));
+}}
             onError={setError}
           />
           {media && mediaType?.startsWith("video/") && (
