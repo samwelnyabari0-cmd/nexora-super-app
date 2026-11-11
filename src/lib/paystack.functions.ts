@@ -36,7 +36,33 @@ async function paystack(path: string, init?: RequestInit) {
 
 export type TopUpInit = { authorizationUrl: string; reference: string };
 
-const SUBSCRIPTION_KES: Record<"pro" | "studio", number> = { pro: 1299, studio: 3249 };
+const SUBSCRIPTION_USD_CENTS: Record<"pro" | "studio", number> = {
+  pro: 999,
+  studio: 2499,
+};
+
+async function getUsdToKesRate(): Promise<number> {
+  const response = await fetch(
+    "https://open.er-api.com/v6/latest/USD"
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not retrieve USD/KES exchange rate.");
+  }
+
+  const payload = await response.json() as {
+    result?: string;
+    rates?: { KES?: number };
+  };
+
+  const rate = Number(payload.rates?.KES);
+
+  if (payload.result !== "success" || !Number.isFinite(rate) || rate <= 0) {
+    throw new Error("USD/KES exchange rate unavailable.");
+  }
+
+  return rate;
+}
 
 export const initSubscriptionPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
