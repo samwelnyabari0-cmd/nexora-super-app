@@ -285,8 +285,7 @@ const previewFilter =
               ))}
             </div>
           </section>
-          
-            </div>
+        </div>
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Frame</h2>
               <span className="text-xs text-muted-foreground">Square is optimized for feed</span>
