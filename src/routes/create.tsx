@@ -250,16 +250,42 @@ const previewFilter =
           <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
             {uploadTier.replaceAll("_", " ")} plan: {uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Shorts, {uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, {uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Max file size: {uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.
           </p>
+          
           <TierGatedCreatorStudio
-  userPlan={userPlan}
-  selectedFilter={filter}
-  onFilterChange={setFilter}
-  filterIntensity={filterIntensity}
-  onFilterIntensityChange={setFilterIntensity}
-  music={music}
-  onMusicChange={setMusic}
-  onNavigateToSubscriptions={() => void nav({ to: "/subscriptions" })}
-/>
+            userPlan={userPlan}
+            selectedFilter={filter}
+            onFilterChange={setFilter}
+            filterIntensity={filterIntensity}
+            onFilterIntensityChange={setFilterIntensity}
+            music={music}
+            onMusicChange={setMusic}
+            onNavigateToSubscriptions={() => void nav({ to: "/subscriptions" })}
+          />
+          <section className="space-y-3 rounded-xl border p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Frame</h2>
+              <span className="text-xs text-muted-foreground">
+                Square is optimized for feed
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Media frame">
+              {["landscape", "portrait", "square"].map((f) => (
+                <Button
+                  key={f}
+                  type="button"
+                  size="sm"
+                  variant={format === f ? "default" : "outline"}
+                  aria-pressed={format === f}
+                  className="capitalize"
+                  onClick={() => setFormat(f)}
+                >
+                  <Film />
+                  {f}
+                </Button>
+              ))}
+            </div>
+          </section>
+          
             </div>
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Frame</h2>
