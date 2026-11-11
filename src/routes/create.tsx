@@ -9,7 +9,7 @@ import { useWorkspace } from "@/features/core/workspace";
 
 import { PageHeader } from "@/components/nexora/ui";
 import { StudioCapture } from "@/components/nexora/StudioCapture";
-import { CoverPicker } from "@/components/nexora/CoverPicker";
+import { CoverPicker } from "@/components/nexora/src/components/nexora/src/components/nexora/CoverPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { accountTierFromUser, UPLOAD_POLICY, validateUpload } from "@/lib/upload-policy";
