@@ -305,7 +305,7 @@ const previewFilter =
                 </Button>
               ))}
             </div>
-          </section>
+         </div>
         </div>
         <form
           className="space-y-4"
