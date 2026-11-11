@@ -1,3 +1,4 @@
+import TierGatedCreatorStudio from "@/components/nexora/TierGatedCreatorStudio";
 import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
@@ -48,11 +49,23 @@ function Create() {
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("original");
+  const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
   const [music, setMusic] = useState("none");
   const [cover, setCover] = useState<Blob | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const uploadTier = accountTierFromUser(user);
+  const uploadTier = accountTierFromUser(user);const rawPlan = String(
+  user?.user_metadata?.subscription_tier ??
+  user?.user_metadata?.plan ??
+  user?.user_metadata?.account_tier ??
+  user?.user_metadata?.account_type ??
+  "free"
+).toLowerCase();
+
+const userPlan =
+  rawPlan.includes("studio") ? "studio" :
+  rawPlan.includes("pro") ? "pro" :
+  "free";
   const uploadLimits = UPLOAD_POLICY[uploadTier];
   const tagList = tags
     .split(",")
@@ -83,6 +96,14 @@ function Create() {
     setFormat("landscape");
     setError("");
   };
+  const intensity = filterIntensity / 100;
+
+const previewFilter =
+  filter === "original" ? "none" :
+  filter === "vivid" ? `saturate(${0.5 + intensity * 1.5})` :
+  filter === "mono" ? `grayscale(${intensity})` :
+  filter === "cinema" ? `contrast(${0.9 + intensity * 0.4}) saturate(${0.8 + intensity * 0.4})` :
+  `brightness(${0.9 + intensity * 0.15}) saturate(${0.85 + intensity * 0.3})`;
   return (
     <div className="space-y-6">
       <PageHeader title="Creator Studio Plus" subtitle={user ? "Publish to your account" : "Sign in to publish"} />
@@ -229,30 +250,16 @@ function Create() {
           <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
             {uploadTier.replaceAll("_", " ")} plan: {uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Shorts, {uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, {uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Max file size: {uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.
           </p>
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold">Color treatment</h2>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Media filter">
-              {["original", "vivid", "mono", "cinema", "soft"].map((f) => (
-                <Button
-                  key={f}
-                  size="sm"
-                  variant={filter === f ? "default" : "outline"}
-                  aria-pressed={filter === f}
-                  className="capitalize"
-                  onClick={() => setFilter(f)}
-                >
-                  {f}
-                </Button>
-              ))}
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold"><Music2 className="mr-1 inline h-4 w-4" />Music</h2>
-              <span className="text-xs text-muted-foreground">Free audio included</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={music === "none" ? "default" : "outline"} onClick={() => setMusic("none")}>Original audio</Button>
-              <Button size="sm" variant={music === "pulse" ? "default" : "outline"} onClick={() => setMusic("pulse")}>Pulse free beat</Button>
-              <Button size="sm" variant="outline" disabled title="Upgrade to unlock licensed music"><LockKeyhole className="h-3.5 w-3.5" /> Pro music</Button>
+          <TierGatedCreatorStudio
+  userPlan={userPlan}
+  selectedFilter={filter}
+  onFilterChange={setFilter}
+  filterIntensity={filterIntensity}
+  onFilterIntensityChange={setFilterIntensity}
+  music={music}
+  onMusicChange={setMusic}
+  onNavigateToSubscriptions={() => void nav({ to: "/subscriptions" })}
+/>
             </div>
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Frame</h2>
