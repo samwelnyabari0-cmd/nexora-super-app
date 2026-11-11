@@ -74,7 +74,30 @@ export const initSubscriptionPayment = createServerFn({ method: "POST" })
     const origin = getRequestHeader("origin") ?? "https://nexora-super-app.lovable.app";
     const reference = `nx-sub-${data.tier}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     try {
-      const body = await paystack("/transaction/initialize", { method: "POST", body: JSON.stringify({ email, amount: SUBSCRIPTION_KES[data.tier] * 100, currency: "KES", reference, callback_url: `${origin}/subscriptions?paystack=return`, metadata: { user_id: context.userId, tier: data.tier, app: "nexora", kind: "subscription" } }) });
+      const exchangeRate = await getUsdToKesRate();
+      const amountKobo = Math.round(
+        (SUBSCRIPTION_USD_CENTS[data.tier] / 100) * exchangeRate * 100
+      );
+
+      const body = await paystack("/transaction/initialize", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          amount: amountKobo,
+          currency: "KES",
+          reference,
+          callback_url: `${origin}/subscriptions?paystack=return`,
+          metadata: {
+            user_id: context.userId,
+            tier: data.tier,
+            app: "nexora",
+            kind: "subscription",
+            amount_usd_cents: SUBSCRIPTION_USD_CENTS[data.tier],
+            usd_to_kes_rate: exchangeRate,
+            expected_amount_kobo: amountKobo,
+          },
+        }),
+      });
       const d = body.data as { authorization_url?: string; reference?: string };
       if (!d?.authorization_url) throw new Error("Paystack did not return a payment link.");
       return { authorizationUrl: d.authorization_url, reference: d.reference ?? reference };
