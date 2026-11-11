@@ -2,16 +2,22 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // Free AI via Groq (OpenAI-compatible API). Add GROQ_API_KEY in Vercel -> Settings -> Environment Variables.
+// Optional: set GROQ_MODEL to force one specific model. Otherwise the best available model is picked automatically.
 const GROQ_URL = "https://api.groq.com/openai/v1";
-const MODEL = "llama-3.3-70b-versatile";
-const FALLBACK_MODEL = "llama-3.1-8b-instant";
-const STT_MODEL = "whisper-large-v3-turbo";
+const CHAT_PREFERENCE = [
+  "openai/gpt-oss-120b",
+  "llama-3.3-70b-versatile",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3-32b",
+  "llama-3.1-8b-instant",
+];
+const STT_PREFERENCE = ["whisper-large-v3-turbo", "whisper-large-v3"];
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 class AiError extends Error {
   constructor(
-    public kind: "missing_key" | "rate_limit" | "auth" | "failed",
+    public kind: "missing_key" | "rate_limit" | "auth" | "no_model" | "failed",
     message: string,
   ) {
     super(message);
@@ -24,6 +30,7 @@ function friendly(e: unknown): string {
     if (e.kind === "missing_key") return "AI is not set up yet. Add GROQ_API_KEY in your Vercel settings.";
     if (e.kind === "rate_limit") return "AI is busy right now. Please wait a moment and try again.";
     if (e.kind === "auth") return "The AI key was rejected. Check GROQ_API_KEY in your Vercel settings.";
+    if (e.kind === "no_model") return "No AI model is available for this key right now.";
   }
   return "AI request failed. Please try again.";
 }
@@ -43,7 +50,32 @@ async function groqFetch(path: string, init: RequestInit): Promise<Response> {
   const body = await res.text().catch(() => "");
   if (res.status === 429) throw new AiError("rate_limit", body);
   if (res.status === 401 || res.status === 403) throw new AiError("auth", body);
+  if (res.status === 404 || /model_not_found|decommissioned/i.test(body)) throw new AiError("no_model", body);
   throw new AiError("failed", `${res.status} ${body}`);
+}
+
+let modelCache: { at: number; ids: string[] } | null = null;
+
+/** Asks Groq which models this key can use right now (cached for 10 minutes). */
+async function availableModels(): Promise<string[]> {
+  if (modelCache && Date.now() - modelCache.at < 10 * 60 * 1000) return modelCache.ids;
+  const res = await groqFetch("/models", { method: "GET" });
+  const json = (await res.json()) as { data?: Array<{ id: string; active?: boolean }> };
+  const ids = (json.data ?? []).filter((m) => m.active !== false).map((m) => m.id);
+  modelCache = { at: Date.now(), ids };
+  return ids;
+}
+
+async function chatCandidates(): Promise<string[]> {
+  const ids = await availableModels();
+  const usable = ids.filter((id) => !/whisper|tts|guard|safeguard|orpheus|embed|compound/i.test(id));
+  const override = process.env["GROQ_MODEL"];
+  const ordered = [
+    ...(override ? [override] : []),
+    ...CHAT_PREFERENCE.filter((id) => usable.includes(id)),
+    ...usable,
+  ];
+  return [...new Set(ordered)].slice(0, 4);
 }
 
 async function chat(model: string, instructions: string, input: Msg[]): Promise<string> {
@@ -53,7 +85,7 @@ async function chat(model: string, instructions: string, input: Msg[]): Promise<
     body: JSON.stringify({
       model,
       temperature: 0.6,
-      max_tokens: 1200,
+      max_tokens: 2000,
       messages: [{ role: "system", content: instructions }, ...input],
     }),
   });
@@ -64,16 +96,20 @@ async function chat(model: string, instructions: string, input: Msg[]): Promise<
 }
 
 async function run(instructions: string, input: Msg[]) {
-  try {
-    return await chat(MODEL, instructions, input);
-  } catch (firstError) {
-    // Do not retry when the key is missing or rejected; only fall back for busy/other errors.
-    if (firstError instanceof AiError && (firstError.kind === "missing_key" || firstError.kind === "auth")) {
-      throw firstError;
+  const models = await chatCandidates();
+  if (!models.length) throw new AiError("no_model", "No chat models available");
+  let lastError: unknown;
+  for (const model of models) {
+    try {
+      return await chat(model, instructions, input);
+    } catch (e) {
+      lastError = e;
+      // A missing or rejected key will fail on every model, so stop right away.
+      if (e instanceof AiError && (e.kind === "missing_key" || e.kind === "auth")) throw e;
+      console.warn(`AI model ${model} failed; trying the next one`, e);
     }
-    console.warn("AI primary model failed; trying fallback", firstError);
-    return await chat(FALLBACK_MODEL, instructions, input);
   }
+  throw lastError;
 }
 
 const COMPANION = `You are NEXORA's AI companion inside a Kenyan super-app (feeds, messages, maps, wallet, live, clubs, hub tools).
@@ -141,7 +177,10 @@ export const aiTranscribe = createServerFn({ method: "POST" })
           : new File([blob], "voice.webm", { type: blob.type || "audio/webm" });
       const form = new FormData();
       form.append("file", file);
-      form.append("model", STT_MODEL);
+      const ids = await availableModels();
+      const sttModel = STT_PREFERENCE.find((id) => ids.includes(id)) ?? ids.find((id) => /whisper/i.test(id));
+      if (!sttModel) throw new AiError("no_model", "No speech model available");
+      form.append("model", sttModel);
       const res = await groqFetch("/audio/transcriptions", { method: "POST", body: form });
       const transcript = ((await res.json()) as { text?: string }).text ?? "";
       if (!transcript.trim()) return { transcript: "", summary: "", error: "No speech detected." };
