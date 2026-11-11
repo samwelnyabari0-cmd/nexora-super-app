@@ -27,6 +27,7 @@ type ProfileRecord = {
   avatar_url: string | null;
   settings?: Record<string, unknown> | null;
 };
+
 type ProfilePost = {
   id: string;
   author_id: string;
@@ -42,6 +43,7 @@ type ProfilePost = {
   shares: number;
   views: number | null;
 };
+
 type Tab = "posts" | "reels" | "videos" | "collabs" | "reposts";
 type SocialTab = "followers" | "following";
 
@@ -73,10 +75,15 @@ function PublicProfile() {
   const [tab, setTab] = useState<Tab>("posts");
   const [socialTab, setSocialTab] = useState<SocialTab | null>(null);
   const [selectedPost, setSelectedPost] = useState<ProfilePost | null>(null);
-  const [connections, setConnections] = useState<Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>>([]);
+  const [showCreatorInsights, setShowCreatorInsights] = useState(false);
+  const [connections, setConnections] = useState<
+    Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>
+  >([]);
 
   const owner = Boolean(user && profile && user.id === profile.id);
-  const privateProfile = Boolean(profile?.settings?.privateProfile === true || profile?.settings?.private_profile === true);
+  const privateProfile = Boolean(
+    profile?.settings?.privateProfile === true || profile?.settings?.private_profile === true,
+  );
   const graph = useSocialGraph(profile?.id);
 
   useEffect(() => {
@@ -92,6 +99,7 @@ function PublicProfile() {
         .select("id, display_name, handle, avatar_url, settings")
         .ilike("handle", handle)
         .maybeSingle();
+
       if (cancelled) return;
       if (profileError || !row) {
         setError("This profile could not be found or is not available.");
@@ -102,7 +110,10 @@ function PublicProfile() {
       const found = row as ProfileRecord;
       setProfile(found);
       const isOwner = user?.id === found.id;
-      const isPrivate = found.settings?.privateProfile === true || found.settings?.private_profile === true;
+      const isPrivate =
+        found.settings?.privateProfile === true || found.settings?.private_profile === true;
+
+      // Don't request private posts or media for non-owners. Database RLS remains authoritative.
       if (isPrivate && !isOwner) {
         setLoading(false);
         return;
@@ -114,6 +125,7 @@ function PublicProfile() {
         .eq("author_id", found.id)
         .order("created_at", { ascending: false })
         .limit(60);
+
       if (cancelled) return;
       if (postsError) {
         setError("Posts are temporarily unavailable.");
@@ -121,10 +133,12 @@ function PublicProfile() {
         return;
       }
 
-      const visibleRows = (rows ?? []).filter((post: ProfilePost) => isOwner || post.audience !== "private");
+      const visibleRows = (rows ?? []).filter(
+        (post: ProfilePost) => isOwner || post.audience !== "private",
+      );
       const postIds = visibleRows.map((post: ProfilePost) => post.id);
-
       let interactionRows: Array<{ post_id: string; kind: string }> = [];
+
       if (postIds.length) {
         const { data } = await (supabase as any)
           .from("post_interactions")
@@ -137,12 +151,16 @@ function PublicProfile() {
         visibleRows.map(async (post: ProfilePost) => {
           let mediaSrc: string | undefined;
           if (post.media_url) {
-            if (/^https?:\/\//i.test(post.media_url)) mediaSrc = post.media_url;
-            else {
-              const { data } = await supabase.storage.from("post-media").createSignedUrl(post.media_url, 900);
+            if (/^https?:\/\//i.test(post.media_url)) {
+              mediaSrc = post.media_url;
+            } else {
+              const { data } = await supabase.storage
+                .from("post-media")
+                .createSignedUrl(post.media_url, 900);
               mediaSrc = data?.signedUrl ?? undefined;
             }
           }
+
           const events = interactionRows.filter((event) => event.post_id === post.id);
           return {
             ...post,
@@ -161,7 +179,9 @@ function PublicProfile() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [handle, user?.id]);
 
   useEffect(() => {
@@ -180,10 +200,12 @@ function PublicProfile() {
         .eq(relationColumn, profile.id)
         .limit(100);
       const ids = (rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean);
+
       if (!ids.length) {
         if (!cancelled) setConnections([]);
         return;
       }
+
       const { data } = await (supabase as any)
         .from("profiles")
         .select("id, display_name, handle, avatar_url")
@@ -191,7 +213,9 @@ function PublicProfile() {
       if (!cancelled) setConnections(data ?? []);
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.id, socialTab, owner]);
 
   const visiblePosts = useMemo(() => {
@@ -200,47 +224,76 @@ function PublicProfile() {
       isVideo(post) && post.tags?.some((tag) => ["reel", "short"].includes(tag.toLowerCase()));
 
     switch (tab) {
-      case "posts": return posts.filter((post) => !isVideo(post));
-      case "reels": return posts.filter(isReel);
-      case "videos": return posts.filter((post) => isVideo(post) && !isReel(post));
-      case "collabs": return posts.filter((post) => post.tags?.some((tag) => tag.toLowerCase() === "collab"));
-      case "reposts": return [];
-      default: return posts;
+      case "posts":
+        return posts.filter((post) => !isVideo(post));
+      case "reels":
+        return posts.filter(isReel);
+      case "videos":
+        return posts.filter((post) => isVideo(post) && !isReel(post));
+      case "collabs":
+        return posts.filter((post) => post.tags?.some((tag) => tag.toLowerCase() === "collab"));
+      case "reposts":
+        return [];
+      default:
+        return posts;
     }
   }, [posts, tab]);
 
-  if (loading) return <div className="mx-auto max-w-3xl p-4 text-sm text-muted-foreground" role="status">Loading Pulse Passport…</div>;
-  if (error || !profile) return <div className="mx-auto max-w-3xl p-4"><Button asChild variant="ghost"><Link to="/profile"><ArrowLeft className="mr-2 h-4 w-4" /> Back to profile</Link></Button><p className="mt-6 text-sm text-muted-foreground">{error || "Profile unavailable."}</p></div>;
+  const totalLikes = posts.reduce((total, post) => total + post.likes, 0);
+  const totalShares = posts.reduce((total, post) => total + post.shares, 0);
+  const totalCollabs = posts.filter((post) => post.tags?.some((tag) => tag.toLowerCase() === "collab")).length;
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl p-4 text-sm text-muted-foreground" role="status">
+        Loading Pulse Passport…
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="mx-auto max-w-3xl p-4">
+        <Button asChild variant="ghost">
+          <Link to="/profile"><ArrowLeft className="mr-2 h-4 w-4" /> Back to profile</Link>
+        </Button>
+        <p className="mt-6 text-sm text-muted-foreground">{error || "Profile unavailable."}</p>
+      </div>
+    );
+  }
 
   const displayName = profile.display_name || profile.handle || "NEXORA member";
-  const setSocial = (value: SocialTab) => setSocialTab((current) => (current === value ? null : value));
+  const setSocial = (value: SocialTab) =>
+    setSocialTab((current) => (current === value ? null : value));
 
-  const shareProfile = async () => {
+  async function shareProfile() {
     const url = window.location.href;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: `${displayName} on NEXORA`, url });
-      } else if (navigator.clipboard) {
+      if (navigator.share) await navigator.share({ title: `${displayName} on NEXORA`, url });
+      else if (navigator.clipboard) {
         await navigator.clipboard.writeText(url);
         toast.success("Profile link copied");
       }
     } catch (reason) {
-      if ((reason as DOMException).name !== "AbortError") toast.error("Unable to share this profile.");
+      if ((reason as DOMException).name !== "AbortError") {
+        toast.error("Unable to share this profile.");
+      }
     }
-  };
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl space-y-3 bg-slate-950 pb-20 text-slate-100" aria-label={`${displayName}'s profile`}>
+      {/* Compact social profile header */}
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-2 backdrop-blur">
         <Link to="/" className="font-display text-sm font-bold tracking-wider">NEXORA</Link>
-        <span className="text-[11px] text-muted-foreground">{owner ? "Your Pulse Passport" : "Public profile"}</span>
+        <span className="text-[11px] text-slate-400">{owner ? "Your Pulse Passport" : "Public profile"}</span>
         <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="outline"><Link to="/notifications" aria-label="Notifications">🔔</Link></Button>
           <Button asChild size="sm" variant="outline"><Link to="/live">(( LIVE ))</Link></Button>
         </div>
       </header>
 
-      <section className="space-y-3 p-4">
+      <section className="space-y-3 border-b border-slate-800 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             {profile.avatar_url ? (
@@ -270,17 +323,16 @@ function PublicProfile() {
         </div>
       </section>
 
+      {/* Pulse Passport compact stats */}
       <section className="mx-4 rounded-2xl border border-slate-800 bg-slate-900 p-3" aria-label="Pulse Passport stats">
         <h2 className="mb-3 text-xs font-semibold">🛡️ Pulse Passport <span className="font-normal text-slate-400">• Identity, profile &amp; sharing</span></h2>
         <div className="flex items-center justify-around text-center">
           <button type="button" className="min-w-0 flex-1" onClick={() => setSocial("followers")} aria-pressed={socialTab === "followers"}>
-            <b className="block text-sm">{compactCount(graph.followers)}</b>
-            <span className="text-[10px] text-slate-400">Followers</span>
+            <b className="block text-sm">{compactCount(graph.followers)}</b><span className="text-[10px] text-slate-400">Followers</span>
           </button>
           <span className="h-8 border-r border-slate-800" />
           <button type="button" className="min-w-0 flex-1" onClick={() => setSocial("following")} aria-pressed={socialTab === "following"}>
-            <b className="block text-sm">{compactCount(graph.following)}</b>
-            <span className="text-[10px] text-slate-400">Following</span>
+            <b className="block text-sm">{compactCount(graph.following)}</b><span className="text-[10px] text-slate-400">Following</span>
           </button>
           <span className="h-8 border-r border-slate-800" />
           {owner ? (
@@ -300,25 +352,32 @@ function PublicProfile() {
                 <ul className="space-y-2">
                   {connections.map((person) => (
                     <li key={person.id} className="flex items-center gap-2 text-sm">
-                      {person.avatar_url ? (
-                        <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-                      ) : (
-                        <Avatar name={person.display_name ?? person.handle ?? "Member"} size={32} />
-                      )}
-                      <span>{person.display_name ?? "NEXORA member"}</span>
-                      <span className="text-xs text-slate-400">@{person.handle}</span>
+                      {person.avatar_url ? <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Avatar name={person.display_name ?? person.handle ?? "Member"} size={32} />}
+                      <span>{person.display_name ?? "NEXORA member"}</span><span className="text-xs text-slate-400">@{person.handle}</span>
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="text-xs text-slate-400">No {socialTab} to show yet.</p>
-              )
-            ) : (
-              <p className="text-xs text-slate-400">Follower lists are visible to the owner only.</p>
-            )}
+              ) : <p className="text-xs text-slate-400">No {socialTab} to show yet.</p>
+            ) : <p className="text-xs text-slate-400">Follower lists are visible to the owner only.</p>}
           </div>
         )}
       </section>
+
+      {owner && (
+        <section className="mx-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3" aria-label="Creator dashboard analytics">
+          <div className="mb-2 flex items-center justify-between">
+            <div><h2 className="text-xs font-semibold">Creator dashboard</h2><p className="text-[10px] text-slate-400">Engagement from recorded interactions</p></div>
+            <Button size="sm" variant="outline" onClick={() => setShowCreatorInsights(true)}>Insights</Button>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5 text-center">
+            <SummaryMetric label="Posts" value={posts.length} />
+            <SummaryMetric label="Followers" value={graph.followers} />
+            <SummaryMetric label="Likes" value={totalLikes} />
+            <SummaryMetric label="Shares" value={totalShares} />
+          </div>
+          <p className="mt-2 text-center text-[10px] text-slate-500">Views and comments are not tracked in the current data source.</p>
+        </section>
+      )}
 
       {privateProfile && !owner ? (
         <section className="mx-4 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
@@ -328,19 +387,12 @@ function PublicProfile() {
         </section>
       ) : (
         <>
+          {/* Instagram-style compact horizontal content tabs and dense grid */}
           <nav className="flex gap-1.5 overflow-x-auto border-b border-slate-800 bg-slate-900/40 px-4 py-2" aria-label="Profile content tabs">
             {contentTabs.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => { setTab(id); setSocialTab(null); }}
-                aria-pressed={tab === id}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  tab === id ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
+              <button key={id} type="button" onClick={() => { setTab(id); setSocialTab(null); }} aria-pressed={tab === id}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${tab === id ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200"}`}>
+                <Icon className="h-3.5 w-3.5" />{label}
               </button>
             ))}
           </nav>
@@ -350,22 +402,13 @@ function PublicProfile() {
           ) : (
             <section aria-label={`${tab} grid`} className="grid grid-cols-3 gap-0.5 bg-slate-900 p-0.5">
               {visiblePosts.map((post) => (
-                <button
-                  key={post.id}
-                  type="button"
-                  onClick={() => setSelectedPost(post)}
-                  aria-label={`Open ${post.caption || "profile media"}`}
-                  className="group relative aspect-[3/4] overflow-hidden bg-slate-900 text-left"
-                >
+                <button key={post.id} type="button" onClick={() => setSelectedPost(post)} aria-label={`Open ${post.caption || "profile media"}`}
+                  className="group relative aspect-[3/4] overflow-hidden bg-slate-900 text-left">
                   {post.mediaSrc ? (
                     post.media_type?.startsWith("video/") ? (
                       <video src={post.mediaSrc} className="h-full w-full object-cover transition-transform group-hover:scale-105" muted playsInline />
-                    ) : (
-                      <img src={post.mediaSrc} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                    )
-                  ) : (
-                    <div className="flex h-full items-center justify-center p-2 text-center text-xs">{post.caption || "Text post"}</div>
-                  )}
+                    ) : <img src={post.mediaSrc} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                  ) : <div className="flex h-full items-center justify-center p-2 text-center text-xs">{post.caption || "Text post"}</div>}
                   {post.media_type?.startsWith("video/") && <Video className="absolute right-2 top-2 h-4 w-4 text-white drop-shadow" />}
                   <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent p-1.5 text-[10px] text-slate-100">
                     <span><Heart className="mr-0.5 inline h-3 w-3 text-pink-400" />{compactCount(post.likes)}</span>
@@ -374,25 +417,16 @@ function PublicProfile() {
                   </div>
                 </button>
               ))}
-              {!visiblePosts.length && (
-                <div className="col-span-3 p-8 text-center text-sm text-slate-400">
-                  {tab === "collabs" ? "No public collaborations yet." : "No posts to show in this tab yet."}
-                </div>
-              )}
+              {!visiblePosts.length && <div className="col-span-3 p-8 text-center text-sm text-slate-400">{tab === "collabs" ? "No public collaborations yet." : "No posts to show in this tab yet."}</div>}
             </section>
           )}
         </>
       )}
 
+      {/* Analytics drawer uses actual recorded values only; no fabricated views or comments. */}
       {selectedPost && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedPost(null)}>
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="post-viewer-title"
-            className="w-full max-w-sm space-y-4 rounded-t-2xl border border-slate-800 bg-slate-900 p-4 sm:rounded-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+          <section role="dialog" aria-modal="true" aria-labelledby="post-viewer-title" className="w-full max-w-sm space-y-4 rounded-t-2xl border border-slate-800 bg-slate-900 p-4 sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <h2 id="post-viewer-title" className="text-xs font-bold uppercase tracking-wider text-indigo-400">{owner ? "Content Analytics & Insights" : "Post"}</h2>
               <button type="button" onClick={() => setSelectedPost(null)} className="text-sm text-slate-400" aria-label="Close viewer">✕</button>
@@ -405,14 +439,46 @@ function PublicProfile() {
               <Metric label="Comments" value={selectedPost.comments} />
               <Metric label="Shares" value={selectedPost.shares} />
             </div>
-            {(selectedPost.views === null || selectedPost.comments === null) && <p className="text-center text-[10px] text-slate-400">Views and comments are not recorded in the current data source.</p>}
+            {(selectedPost.views === null || selectedPost.comments === null) && <p className="text-center text-[10px] text-slate-400">Views and comments are not tracked in the current data source.</p>}
             <Button type="button" onClick={() => setSelectedPost(null)} className="w-full bg-indigo-600">Close Insights</Button>
+          </section>
+        </div>
+      )}
+
+      {showCreatorInsights && owner && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4" role="presentation" onClick={() => setShowCreatorInsights(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="creator-insights-title" className="w-full max-w-md space-y-4 rounded-t-2xl border border-slate-800 bg-slate-900 p-4 sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div><h2 id="creator-insights-title" className="text-sm font-bold">Creator dashboard</h2><p className="text-[10px] text-slate-400">Summary from available account data</p></div>
+              <button type="button" onClick={() => setShowCreatorInsights(false)} aria-label="Close dashboard" className="text-slate-400">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Metric label="Published posts" value={posts.length} />
+              <Metric label="Followers" value={graph.followers} />
+              <Metric label="Following" value={graph.following} />
+              <Metric label="Collabs" value={totalCollabs} />
+              <Metric label="Recorded likes" value={totalLikes} />
+              <Metric label="Recorded shares" value={totalShares} />
+              <Metric label="Views" value={null} />
+              <Metric label="Comments" value={null} />
+            </div>
+            <p className="text-center text-[10px] text-slate-400">Analytics are limited to data currently recorded by NEXORA; unavailable values are shown as —.</p>
+            <Button type="button" onClick={() => setShowCreatorInsights(false)} className="w-full bg-indigo-600">Close Dashboard</Button>
           </section>
         </div>
       )}
 
       <footer className="mx-4 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-400">☁️ Offline Relay: Queue empty</footer>
     </main>
+  );
+}
+
+function SummaryMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950 p-2">
+      <span className="block text-[9px] text-slate-400">{label}</span>
+      <span className="text-xs font-bold">{compactCount(value)}</span>
+    </div>
   );
 }
 
