@@ -284,6 +284,10 @@ if (bookmarkError) {
     toast.error("Sign in to bookmark posts.");
     return;
   }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+  toast.error("This sample post cannot be bookmarked yet.");
+  return;
+  }
 
   const wasSaved = saved.has(id);
   toggle(setSaved, id);
