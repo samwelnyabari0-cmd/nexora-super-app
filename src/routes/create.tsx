@@ -333,7 +333,9 @@ const previewFilter =
 
             if (publishError || !savedPost?.id) {
               console.error("Post publishing failed:", publishError);
-              setError("Your post could not be published. Please try again.");
+              setError(
+  publishError?.message ?? "Post was not saved: no post ID returned.",
+);
               return;
             }
 
