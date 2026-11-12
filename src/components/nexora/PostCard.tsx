@@ -124,7 +124,7 @@ export function PostCard({ post }: { post: Post }) {
         label={isLiked ? "Unlike" : "Like"}
         onClick={() => toggleLike(post.id)}
         active={isLiked}
-        count={post.likes + (isLiked ? 1 : 0)}
+        count={post.likes}
       >
         <Heart
           className={cn("h-5 w-5", isLiked && "animate-pop fill-destructive text-destructive")}
