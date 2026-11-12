@@ -70,9 +70,11 @@ type Ctx = State & {
   repost(id: string): void;
   deletePost(id: string): Promise<boolean>;
   createPost(
+     createPost(
     p: Omit<Post, "id" | "likes" | "comments" | "shares" | "createdAt" | "creatorId">,
     draftId?: string,
-  ): void;
+    persistedId?: string,
+  ): void; 
   sendMessage(convId: string, text: string, attachments?: Attachment[], replyTo?: string): void;
   startConversation(creatorId: string): string;
   editMessage(convId: string, messageId: string, text: string): void;
@@ -303,10 +305,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast.success("Post deleted");
         return true;
       },
-      createPost: (p, draftId) => {
+            createPost: (p, draftId, persistedId) => {
         const post: Post = {
           ...p,
-          id: uid(),
+             id: persistedId ?? uid(),
           creatorId: "me",
           likes: 0,
           comments: [],
