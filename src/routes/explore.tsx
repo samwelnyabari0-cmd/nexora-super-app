@@ -98,29 +98,26 @@ function Explore() {
     {people.length > 0 ? (
       <div className="grid gap-3 sm:grid-cols-2">
         {people.map((person) => (
-          <div
-            key={person.id}
-            className="flex items-center gap-3 rounded-lg border bg-card p-3"
-          >
-            <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">
-                {person.display_name ?? "NEXORA User"}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                @{person.handle}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <p className="text-sm text-muted-foreground">
-        No discoverable accounts found. Check the spelling or try another name.
+        
+{people.map((person) => (
+  <Link
+    key={person.id}
+    to="/profile/$handle"
+    params={{ handle: person.handle ?? "" }}
+    className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
+  >
+    <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
+    <div className="min-w-0 flex-1">
+      <p className="truncate font-semibold">
+        {person.display_name ?? "NEXORA User"}
       </p>
-    )}
-  </section>
-)}
+      <p className="truncate text-xs text-muted-foreground">
+        @{person.handle}
+      </p>
+    </div>
+  </Link>
+))}
+        
         {show("Places") && locations.length > 0 && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
