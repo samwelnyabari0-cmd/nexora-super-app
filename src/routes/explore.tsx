@@ -57,9 +57,7 @@ function Explore() {
   return () => window.clearTimeout(timer);
 }, [query, q]);
   const r = posts.filter((p) => canDiscover(p, muted) && matchesPost(p, q));
-  const people = creators.filter(
-    (c) => !muted.includes(c.id) && `${c.name} ${c.handle}`.toLowerCase().includes(query),
-  );
+  
   const locations = places.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query));
   const titles = catalog.filter((t) => `${t.title} ${t.genre}`.toLowerCase().includes(query));
   const show = (type: string) => tab === "All" || tab === type;
