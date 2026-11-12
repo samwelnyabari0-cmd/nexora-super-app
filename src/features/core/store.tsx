@@ -122,8 +122,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const [
         { data: savedPosts },
         { data: savedMessages },
-        { data: myLikedPostIds },
-       { data: savedComments },
+                { data: myLikedPostIds },
+        myRepostedPostIds,
+        { data: savedComments },
         ] = await Promise.all([
         (supabase as any)
           .from("user_media_posts")
@@ -137,7 +138,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .eq("sender_id", user.id)
           .order("created_at", { ascending: true }),
                 supabase.rpc("get_my_liked_user_media_posts"),
-        (supabase as any)
+                getMyRepostedPostIds().catch(() => []),
+              (supabase as any)
           .from("user_media_post_comments")
           .select("id, post_id, user_id, text, created_at")
           .order("created_at", { ascending: true }),
