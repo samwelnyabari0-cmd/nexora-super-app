@@ -98,7 +98,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useSession();
   const [posts, setPosts] = useState(seedPosts);
   const [liked, setLiked] = useState<Set<string>>(new Set());
-  const [saved, setSaved] = useState<Set<string>>(new Set(["p4"]));
+  const [saved, setSaved] = useState<Set<string>>(new Set());
   const [reposted, setReposted] = useState<Set<string>>(new Set());
   const [conversations, setConversations] = useState(seedConversations);
   const [balance, setBalance] = useState(24680.5);
@@ -151,6 +151,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       );
             setReposted(new Set(myRepostedPostIds ?? []));
+      const { data: myBookmarks, error: bookmarkError } = await (supabase as any)
+  .from("user_media_post_bookmarks")
+  .select("post_id")
+  .eq("user_id", user.id);
+
+if (bookmarkError) {
+  console.error("Could not load bookmarks:", bookmarkError.message);
+} else {
+  setSaved(new Set((myBookmarks ?? []).map((item: any) => item.post_id)));
+}
       if (savedPosts?.length) {
         const hydratedPosts = await Promise.all(
           savedPosts.map(async (row: any) => {
