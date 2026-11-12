@@ -128,7 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (supabase as any)
           .from("user_media_posts")
           .select(
-            "id, user_id, caption, media_url, media_type, audience, tags, created_at, like_count, share_count, comment_count, view_count",
+            "id, user_id, caption, media_url, media_type, audience, tags, created_at, like_count, share_count, repost_count, comment_count, view_count",
           )
           .order("created_at", { ascending: false }),
         (supabase as any)
