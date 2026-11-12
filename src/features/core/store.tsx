@@ -122,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const [
         { data: savedPosts },
         { data: savedMessages },
-                { data: myLikedPostIds },
+        { data: myLikedPostIds },
         myRepostedPostIds,
         { data: savedComments },
         ] = await Promise.all([
@@ -182,7 +182,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   author: comment.user_id === user.id ? passport.handle : "member",
                   text: comment.text,
                 })),
-              shares: Number(row.share_count ?? 0),
+                            shares: Number(row.share_count ?? 0),
+              reposts: Number(row.repost_count ?? 0),
               createdAt: new Date(row.created_at).toLocaleDateString(),
             } as unknown as Post;
           }),
