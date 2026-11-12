@@ -230,25 +230,7 @@ function Profile() {
   socialTab === "saved") && (
   <ProfileMediaExperience tab={socialTab} />
 )}
-          
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-              {posts.filter((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))).map((post) => <ProfileMediaTile key={post.id} post={post} />)}
-              {!posts.some((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))) && <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">Your {socialTab} will appear here.</p>}
-            </div>
-          )}
-          {socialTab === "saved" && (
-            <div className="space-y-4">
-              {posts
-                .filter((post) => saved.has(post.id))
-                .map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              {!posts.some((post) => saved.has(post.id)) && (
-                <p className="text-sm text-muted-foreground">Saved posts are private to you.</p>
-              )}
-            </div>
-          )}
-          {(socialTab === "followers" || socialTab === "following") && (
+     {(socialTab === "followers" || socialTab === "following") && (
             <div className="space-y-2">
               {connections.map((connection) => (
                 <div key={connection.id} className="flex items-center gap-3 rounded-xl border p-3">
