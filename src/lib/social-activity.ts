@@ -48,12 +48,31 @@ export async function addCommentToPost(postId: string, text: string) {
   return data;
 }
 
-export async function sharePost(postId: string) {
-  const { error } = await supabase.rpc("increment_user_media_post_shares", {
-    target_post_id: postId,
-  });
+export async function sharePost(postId: string): Promise<number> {
+  const { data, error } = await supabase.rpc(
+    "increment_user_media_post_shares",
+    { target_post_id: postId },
+  );
 
-  if (error && !ignoreDbError(error)) {
-    console.error("increment_user_media_post_shares failed:", error.message);
-  }
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function repostPost(postId: string): Promise<number> {
+  const { data, error } = await supabase.rpc(
+    "repost_user_media_post",
+    { target_post_id: postId },
+  );
+
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function getMyRepostedPostIds(): Promise<string[]> {
+  const { data, error } = await supabase.rpc(
+    "get_my_reposted_user_media_posts",
+  );
+
+  if (error) throw error;
+  return (data ?? []) as string[];
 }
