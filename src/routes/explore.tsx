@@ -30,6 +30,9 @@ function Explore() {
   const { following, toggleFollow, muted } = useWorkspace();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("All");
+  const [people, setPeople] = useState<
+  { id: string; display_name: string | null; handle: string | null }[]
+>([]);
   const query = q.trim().toLowerCase();
   const r = posts.filter((p) => canDiscover(p, muted) && matchesPost(p, q));
   const people = creators.filter(
