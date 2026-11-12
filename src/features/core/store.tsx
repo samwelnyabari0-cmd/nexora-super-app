@@ -205,7 +205,12 @@ if (bookmarkError) {
                 .filter((comment: any) => comment.post_id === row.id)
                 .map((comment: any) => ({
   id: comment.id,
-  author: comment.user_id === user.id ? passport.handle : "member",
+  author:
+  comment.user_id === user.id
+    ? passport.handle
+    : commentProfileById.get(comment.user_id)?.handle ??
+      commentProfileById.get(comment.user_id)?.display_name ??
+      "member",
   text: comment.text,
   createdAt: comment.created_at,
 })),
