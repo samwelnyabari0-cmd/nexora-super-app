@@ -1,6 +1,6 @@
 // Pure helpers for the Hub mini-apps. No network, no AI.
 export type ModuleId =
-  "tasks" | "notes" | "budget" | "deals" | "tools" | "focus" | "workflow" | "calls";
+  "tasks" | "notes" | "budget" | "deals" | "tools" | "focus" | "workflow";
 export const allModules: { id: ModuleId; label: string }[] = [
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
@@ -9,7 +9,6 @@ export const allModules: { id: ModuleId; label: string }[] = [
   { id: "tools", label: "Quick tools" },
   { id: "focus", label: "Focus timer" },
   { id: "workflow", label: "Micro-Split workflows" },
-  { id: "calls", label: "Video calls" },
 ];
 
 /** Split an amount in KES cents fairly; leftover cents go to the first people. */
