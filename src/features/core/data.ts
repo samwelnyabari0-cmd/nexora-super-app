@@ -17,9 +17,10 @@ export type Post = {
   audience?: "public" | "private";
   caption: string;
   tags: string[];
-  likes: number;
+    likes: number;
   comments: { id: string; author: string; text: string }[];
   shares: number;
+  reposts?: number;
   duration?: string;
   place?: string;
   createdAt: string;
