@@ -173,7 +173,7 @@ export function PostCard({ post }: { post: Post }) {
           src={mediaSource}
           alt={post.caption}
           className={cn(
-            "w-full object-cover",
+  "block w-full aspect-[4/5] object-cover bg-muted",
             `media-${post.filter || "original"}`,
             `format-${post.format || "landscape"}`,
           )}
