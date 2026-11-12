@@ -246,10 +246,17 @@ export function PostCard({ post }: { post: Post }) {
               </p>
             )}
             {post.comments.map((k) => (
-              <p key={k.id} className="text-sm">
-                <span className="font-semibold">@{k.author}</span> {k.text}
-              </p>
-            ))}
+  <div key={k.id} className="space-y-0.5">
+    <p className="text-sm">
+      <span className="font-semibold">@{k.author}</span> {k.text}
+    </p>
+    {k.createdAt && (
+      <p className="text-xs text-muted-foreground">
+        {new Date(k.createdAt).toLocaleString()}
+      </p>
+    )}
+  </div>
+))}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
