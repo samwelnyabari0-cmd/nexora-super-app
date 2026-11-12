@@ -151,6 +151,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       );
             setReposted(new Set(myRepostedPostIds ?? []));
+      const commentUserIds = [
+  ...new Set((savedComments ?? []).map((comment: any) => comment.user_id)),
+];
+
+const { data: commentProfiles, error: commentProfilesError } = await (supabase as any)
+  .from("profiles")
+  .select("id, display_name, handle")
+  .in("id", commentUserIds);
+
+if (commentProfilesError) {
+  console.error("Could not load comment profiles:", commentProfilesError.message);
+}
+
+const commentProfileById = new Map(
+  (commentProfiles ?? []).map((profile: any) => [profile.id, profile]),
+);
       const { data: myBookmarks, error: bookmarkError } = await (supabase as any)
   .from("user_media_post_bookmarks")
   .select("post_id")
