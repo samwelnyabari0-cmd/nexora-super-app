@@ -226,15 +226,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
       relay,
       events,
       emit,
-      toggleLike: (id) => {
+            toggleLike: (id) => {
         const isCurrentlyLiked = liked.has(id);
         toggle(setLiked, id);
         emit("post.like", id);
+
         if (!user) return;
-        void (isCurrentlyLiked ? unlikePost(id) : likePost(id)).catch(() => {
-          toggle(setLiked, id);
-          toast.error("Could not update like state.");
-        });
+
+        void (async () => {
+          try {
+            const updatedCount = await (
+              isCurrentlyLiked ? unlikePost(id) : likePost(id)
+            );
+
+            setPosts((currentPosts) =>
+              currentPosts.map((post) =>
+                post.id === id
+                  ? { ...post, likes: updatedCount }
+                  : post,
+              ),
+            );
+          } catch (error) {
+            toggle(setLiked, id);
+            toast.error("Could not update like state.");
+          }
+        })();
       },
       toggleSave: (id) => {
         toggle(setSaved, id);
