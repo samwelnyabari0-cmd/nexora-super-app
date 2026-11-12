@@ -267,22 +267,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toggle(setSaved, id);
         toast(saved.has(id) ? "Removed bookmark" : "Bookmarked");
       },
-      addComment: async (id, text) => {
+            addComment: async (id, text) => {
         const trimmed = text.trim();
         if (!trimmed) return;
-        setPosts((ps) =>
-          ps.map((p) =>
-            p.id === id
-              ? { ...p, comments: [...p.comments, { id: uid(), author: passport.handle, text: trimmed }] }
-              : p,
-          ),
-        );
-        emit("post.comment", id);
-        if (!user) return;
+        if (!user) {
+          toast.error("Sign in to comment.");
+          return;
+        }
+
         try {
-          await addCommentToPost(id, trimmed);
-        } catch {
-          toast.error("Comment could not be saved.");
+          const savedCommentId = await addCommentToPost(id, trimmed);
+
+          if (!savedCommentId) {
+            throw new Error("Comment was not saved.");
+          }
+
+          setPosts((ps) =>
+            ps.map((p) =>
+              p.id === id
+                ? {
+                    ...p,
+                    comments: [
+                      ...p.comments,
+                      {
+                        id: String(savedCommentId),
+                        author: passport.handle,
+                        text: trimmed,
+                      },
+                    ],
+                  }
+                : p,
+            ),
+          );
+
+          emit("post.comment", id);
+        } catch (error) {
+          toast.error("Comment could not be saved. Please try again.");
         }
       },
       share: async (id) => {
