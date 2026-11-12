@@ -119,7 +119,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setConversations(user ? [] : seedConversations);
     if (!user) return;
     void (async () => {
-            const [
+            const { data: ownProfile, error: ownProfileError } = await (supabase as any)
+  .from("profiles")
+  .select("display_name, handle, bio, interests, settings")
+  .eq("id", user.id)
+  .maybeSingle();
+
+if (ownProfileError) {
+  console.error("Could not load your profile:", ownProfileError.message);
+}
+
+if (ownProfile) {
+  const emailName = user.email?.split("@")[0] ?? "";
+
+  setPassport((current) => ({
+    ...current,
+    name:
+      ownProfile.display_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      emailName ||
+      "NEXORA User",
+    handle:
+      ownProfile.handle ||
+      user.user_metadata?.handle ||
+      emailName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
+      user.id.slice(0, 8),
+    bio: ownProfile.bio || "",
+    interests: ownProfile.interests ?? current.interests,
+    share: ownProfile.settings?.share ?? current.share,
+  }));
+}
+      const [
         { data: savedPosts },
         { data: savedMessages },
         { data: myLikedPostIds },
