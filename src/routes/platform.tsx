@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Server, Gauge, Calculator, Download, Trash2, Rocket, Activity } from "lucide-react";
+import { Server, Gauge, Calculator, Download, Trash2, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, DemoBadge, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import {
   sponsoredPinCost,
   subscriptionEstimate,
   exportBundle,
-  type NexoraEvents,
 } from "@/features/live/logic";
 import { useLocal } from "@/features/live/useLocal";
 
@@ -23,12 +22,12 @@ export const Route = createFileRoute("/platform")({
       {
         name: "description",
         content:
-          "Service status, low-bandwidth mode, event log, earnings calculators, data export and the NEXORA roadmap.",
+          "Service status, low-bandwidth mode, earnings calculators and data export.",
       },
       { property: "og:title", content: "NEXORA Platform" },
       {
         property: "og:description",
-        content: "Honest service status, data controls, estimates and roadmap.",
+        content: "Service status, data controls and earnings estimates.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,33 +36,22 @@ export const Route = createFileRoute("/platform")({
   component: PlatformPage,
 });
 
+// Customer-facing status only: no vendor names or setup hints are shown to users.
+const ready = (ok: unknown) => (ok ? "Ready" : "Limited");
 const services = [
-  ["App & pages", "Running", "Live on the edge"],
-  ["Accounts & cloud sync", import.meta.env.VITE_HAS_SUPABASE ? "Connected" : "Not connected", import.meta.env.VITE_HAS_SUPABASE ? "Supabase" : "Needs Supabase variables"],
-  ["Live broadcasting", import.meta.env.VITE_HAS_CLOUDFLARE ? "Connected" : "Not connected", import.meta.env.VITE_HAS_CLOUDFLARE ? "Cloudflare Stream" : "Needs Stream credentials"],
-  ["Payments & tips", import.meta.env.VITE_HAS_PAYSTACK ? "Connected" : "Not connected", import.meta.env.VITE_HAS_PAYSTACK ? "Paystack server checkout" : "Needs Paystack credentials"],
-  ["AI co-host & assistant", import.meta.env.VITE_HAS_AI ? "Connected" : "Not connected", import.meta.env.VITE_HAS_AI ? "Vercel AI Gateway" : "Needs AI gateway"],
-  ["Live maps", import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? "Connected" : "Fallback", import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? "Google Maps + Places" : "Google embed fallback"],
+  ["App & pages", "Running", "Online"],
+  ["Accounts & sync", ready(import.meta.env.VITE_HAS_SUPABASE), ""],
+  ["Live broadcasting", ready(import.meta.env.VITE_HAS_CLOUDFLARE), ""],
+  ["Payments & tips", ready(import.meta.env.VITE_HAS_PAYSTACK), ""],
+  ["AI co-host & assistant", ready(import.meta.env.VITE_HAS_AI), ""],
+  ["Live maps", ready(import.meta.env.VITE_GOOGLE_MAPS_API_KEY), ""],
 ] as const;
-
-const roadmap: [string, string][] = [
-  ["Creator tools & commerce", "Concept"],
-  ["Hardware & wearables", "Concept"],
-  ["Desktop app", "Concept"],
-  ["Offline mesh network", "Concept (Offline Relay works locally)"],
-  ["Developer portal & APIs", "Concept"],
-  ["Academy, ambassadors, creator fund, awards", "Concept"],
-  ["Attention & focus tools", "Partly live (Hub focus timer)"],
-  ["Behavioral nudges", "Concept"],
-  ["End-to-end encryption", "Not implemented"],
-];
 
 const field = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
 
 function PlatformPage() {
   const [low, setLow] = useLocal("nx.lowBandwidth", false);
   const [onboarded, setOnboarded] = useLocal("nx.onboarded", false);
-  const [log, setLog] = useState<string[]>([]);
   const [fee, setFee] = useState(10);
   const [subs, setSubs] = useState(200);
   const [price, setPrice] = useState(150);
@@ -76,25 +64,6 @@ function PlatformPage() {
     document.documentElement.classList.toggle("low-bandwidth", low);
     bus.emit("bandwidth:change", { low });
   }, [low]);
-  useEffect(() => {
-    const keys: (keyof NexoraEvents)[] = [
-      "live:start",
-      "live:end",
-      "tip:sent",
-      "checkin:made",
-      "act:preset",
-      "bandwidth:change",
-    ];
-    const offs = keys.map((k) =>
-      bus.on(k, (p) =>
-        setLog((l) =>
-          [`${new Date().toLocaleTimeString()} ${k} ${JSON.stringify(p)}`, ...l].slice(0, 30),
-        ),
-      ),
-    );
-    return () => offs.forEach((o) => o());
-  }, []);
-
   const sub = subscriptionEstimate(subs, price, fee);
   function exportData() {
     const data: Record<string, unknown> = {};
@@ -119,7 +88,7 @@ function PlatformPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Platform" subtitle="Status, data controls, estimates and roadmap" />
+      <PageHeader title="Platform" subtitle="Status, data controls and earnings estimates" />
       {!onboarded && (
         <Panel className="space-y-2 border-primary/40">
           <h2 className="flex items-center gap-2 font-semibold">
@@ -146,8 +115,8 @@ function PlatformPage() {
             {services.map(([n, s, d]) => (
               <li key={n} className="flex justify-between gap-2">
                 <span>{n}</span>
-                <span className={s === "Running" ? "text-success" : "text-muted-foreground"}>
-                  {s} · {d}
+                <span className={s === "Running" || s === "Ready" ? "text-success" : "text-muted-foreground"}>
+                  {d ? `${s} · ${d}` : s}
                 </span>
               </li>
             ))}
@@ -253,34 +222,6 @@ function PlatformPage() {
           </div>
         </div>
       </Panel>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Panel className="space-y-2">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <Activity className="h-4 w-4" />
-            Event log (this session)
-          </h2>
-          {log.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Go LIVE, tip or check in to see events.</p>
-          ) : (
-            <ul className="max-h-48 overflow-y-auto font-mono text-xs">
-              {log.map((l, i) => (
-                <li key={i}>{l}</li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-        <Panel className="space-y-2">
-          <h2 className="font-semibold">Roadmap</h2>
-          <ul className="space-y-1 text-sm">
-            {roadmap.map(([n, s]) => (
-              <li key={n} className="flex justify-between gap-2">
-                <span>{n}</span>
-                <span className="text-muted-foreground">{s}</span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
     </div>
   );
-}
+                                  }
