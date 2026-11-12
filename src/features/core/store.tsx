@@ -214,7 +214,7 @@ if (bookmarkError) {
   text: comment.text,
   createdAt: comment.created_at,
 })),
-                            shares: Number(row.share_count ?? 0),
+                  shares: Number(row.share_count ?? 0),
               reposts: Number(row.repost_count ?? 0),
               createdAt: new Date(row.created_at).toLocaleDateString(),
             } as unknown as Post;
@@ -376,7 +376,9 @@ if (bookmarkError) {
 
           emit("post.comment", id);
         } catch (error) {
-          toast.error("Comment could not be saved. Please try again.");
+  console.error("Comment save error:", error);
+  const message = (error as any)?.message ?? String(error);
+  toast.error(`Comment error: ${message}`);
         }
       },
             share: async (id) => {
