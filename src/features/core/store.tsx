@@ -14,7 +14,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import {
   addCommentToPost,
+  getMyRepostedPostIds,
   likePost,
+  repostPost,
   sharePost,
   unlikePost,
 } from "@/lib/social-activity";
