@@ -553,5 +553,184 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
         stream.current = s;
         attach(s);
         const { default: Peer } = await import("peerjs");
-        const p = new Peer({ config: peerConfig });
+        const p = new Peer({ config: peerConfig });       
+        peer.current = p;
+        p.on("open", () => {
+          const call = p.call(invite.callee_peer_id!, s);
+          call.on("stream", (r) => attach(s, r));
+        });
+        p.on("error", () => setErr("Call signalling failed. Check your network or configure TURN."));
+      } catch {
+        setErr("Permission to use your microphone/camera was denied.");
+        void setStatus("ended");
+      }
+    })();
+  }, [isCaller, invite.status, invite.callee_peer_id, invite.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hangUp = () => {
+    cleanup();
+    void setStatus(isCaller && invite.status === "ringing" ? "cancelled" : "ended");
+  };
+  const decline = () => void setStatus("declined");
+
+  return (
+    <Panel className="border-accent">
+      <div className="text-center">
+        <Avatar name={label(other)} size={64} ring />
+        <p className="mt-2 font-display text-lg font-semibold">{label(other)}</p>
+        <p className="text-sm text-muted-foreground">
+          {invite.kind === "video" ? "Video" : "Voice"} call ·{" "}
+          {invite.status === "ringing"
+            ? isCaller
+              ? "Ringing… waiting for them to accept"
+              : "Incoming call"
+            : connected
+              ? "Connected"
+              : "Connecting…"}
+        </p>
+        {err && (
+          <p role="alert" className="mt-1 text-sm text-destructive">
+            {err}
+          </p>
+        )}
+      </div>
+      <div
+        className={
+          invite.kind === "video" && invite.status === "accepted"
+            ? "mt-3 grid gap-2 sm:grid-cols-2"
+            : "hidden"
+        }
+      >
+        <video
+          ref={remote}
+          autoPlay
+          playsInline
+          className="aspect-video w-full rounded-xl bg-muted"
+        />
+        <video
+          ref={local}
+          autoPlay
+          muted
+          playsInline
+          className="aspect-video w-full rounded-xl bg-muted"
+        />
+      </div>
+      <div className="mt-4 flex justify-center gap-2">
+        {!isCaller && invite.status === "ringing" ? (
+          <>
+            <Button variant="destructive" onClick={decline}>
+              <PhoneOff className="h-4 w-4" /> Decline
+            </Button>
+            <Button onClick={() => void accept()}>
+              <PhoneCall className="h-4 w-4" /> Accept
+            </Button>
+          </>
+        ) : (
+          <Button variant="destructive" onClick={hangUp}>
+            <PhoneOff className="h-4 w-4" /> Hang up
+          </Button>
+        )}
+      </div>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        Peer-to-peer via the public PeerJS signalling service. Some strict networks may block direct
+        connections.
+      </p>
+    </Panel>
+  );
+}
+
+function CameraCheck() {
+  const video = useRef<HTMLVideoElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (video.current) video.current.srcObject = stream;
+  }, [stream]);
+  useEffect(() => () => stream?.getTracks().forEach((t) => t.stop()), [stream]);
+  const test = async () => {
+    setErr("");
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("unsupported");
+      setStream(await navigator.mediaDevices.getUserMedia({ video: true, audio: true }));
+    } catch (e) {
+      setErr(
+        e instanceof DOMException && e.name === "NotAllowedError"
+          ? "Camera/mic permission denied. Allow it in your browser settings."
+          : "Camera or microphone unavailable.",
+      );
+    }
+  };
+  return (
+    <Panel className="mt-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-semibold">Check camera & mic</h2>
+        {stream ? (
+          <Button variant="outline" size="sm" onClick={() => setStream(null)}>
+            Stop preview
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={test}>
+            <Video className="h-4 w-4" /> Test camera & mic
+          </Button>
+        )}
+      </div>
+      {stream ? (
+        <video
+          ref={video}
+          autoPlay
+          muted
+          playsInline
+          className="mt-3 aspect-video w-full rounded-xl bg-muted"
+        />
+      ) : (
+        <p className="mt-1 text-sm text-muted-foreground">Check your camera and mic before a call.</p>
+      )}
+      {err && (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {err}
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+
+function JitsiRoom() {
+  const [room, setRoom] = useState<string | null>(null);
+  return (
+    <Panel className="mt-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-semibold">Group room (Jitsi Meet)</h2>
+        {room ? (
+          <Button variant="destructive" size="sm" onClick={() => setRoom(null)}>
+            <PhoneOff className="h-4 w-4" /> Leave
+          </Button>
+        ) : (
+          <Button size="sm" onClick={() => setRoom(`nexora-${crypto.randomUUID().slice(0, 12)}`)}>
+            <Video className="h-4 w-4" /> Start room
+          </Button>
+        )}
+      </div>
+      {room ? (
+        <>
+          <iframe
+            title="Jitsi room"
+            src={`https://meet.jit.si/${room}`}
+            allow="camera; microphone; display-capture; fullscreen"
+            className="mt-3 aspect-video w-full rounded-xl border"
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Share link: https://meet.jit.si/{room} — mic, camera and screen share are controlled
+            inside the room. Hosted by the public Jitsi service, which may ask you to sign in to
+            start.
+          </p>
+        </>
+      ) : (
+        <p className="mt-1 text-sm text-muted-foreground">
+          Opens a private room with a random name on meet.jit.si.
+        </p>
+      )}
+    </Panel>
+  );
+      }
         
