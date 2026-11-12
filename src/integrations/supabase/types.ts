@@ -13,7 +13,34 @@ export type Database = {
     PostgrestVersion: "14.18"
   }
   public: {
-    Tables: {
+    Tables: {      
+      ai_studio_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          prompt: string;
+          mode: string;
+          result_preview: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          prompt: string;
+          mode?: string;
+          result_preview?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          prompt?: string;
+          mode?: string;
+          result_preview?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       call_invites: {
         Row: {
           callee: string
