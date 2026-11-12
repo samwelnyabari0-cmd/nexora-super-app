@@ -316,9 +316,19 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
     void load();
   };
   const toggleDiscoverable = async () => {
-    await supabase.from("profiles").update({ discoverable: !me?.discoverable }).eq("id", userId);
-    void load();
-  };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ discoverable: !me?.discoverable })
+    .eq("id", userId);
+
+  if (error) {
+    toast.error("Could not update discovery: " + error.message);
+    return;
+  }
+
+  toast.success("Discovery setting updated");
+  void load();
+};
   const startCall = async (callee: string, kind: "audio" | "video") => {
     const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
     if (error) toast.error("You can only call accepted contacts.");
