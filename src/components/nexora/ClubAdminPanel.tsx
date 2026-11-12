@@ -209,7 +209,15 @@ export function ClubAdminPanel({ clubId }: Props) {
           <p className="text-sm text-muted-foreground">
             Membership, roles and club access
           </p>
-        </div>
+          <div className="rounded-lg border border-yellow-500/40 p-3 text-xs">
+  <p>DEBUG — Club ID: {clubId}</p>
+  <p>DEBUG — App User ID: {user?.id ?? "No user"}</p>
+  <p>DEBUG — App Email: {user?.email ?? "No email"}</p>
+  <p>DEBUG — Membership rows: {members.length}</p>
+  <p>DEBUG — Loading: {String(loading)}</p>
+  <p>DEBUG — Query error: {error ?? "None"}
+  </p> 
+          </div>
 
         <span className="rounded-full border px-3 py-1 text-xs font-semibold">
           {isCreator
