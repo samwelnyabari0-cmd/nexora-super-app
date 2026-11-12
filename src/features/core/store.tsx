@@ -117,7 +117,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setConversations(user ? [] : seedConversations);
     if (!user) return;
     void (async () => {
-      const [{ data: savedPosts }, { data: savedMessages }] = await Promise.all([
+            const [
+        { data: savedPosts },
+        { data: savedMessages },
+        { data: myLikedPostIds },
+      ] = await Promise.all([
         (supabase as any)
           .from("user_media_posts")
           .select(
@@ -129,7 +133,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .select("id, conversation_key, body, metadata, created_at")
           .eq("sender_id", user.id)
           .order("created_at", { ascending: true }),
+        supabase.rpc("get_my_liked_user_media_posts"),
       ]);
+
+      setLiked(
+        new Set(
+          (myLikedPostIds ?? []).map((id: string) => id),
+        ),
+      );
       if (savedPosts?.length) {
         const hydratedPosts = await Promise.all(
           savedPosts.map(async (row: any) => {
