@@ -1,7 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ShieldCheck, CloudUpload, Users, UserPlus, Bookmark, Grid3X3, Film, CheckCircle2, Share2, Pencil, Zap } from "lucide-react";
+ import {
+  ShieldCheck,
+  CloudUpload,
+  Users,
+  UserPlus,
+  Bookmark,
+  Grid3X3,
+  Film,
+  CheckCircle2,
+  Share2,
+  Pencil,
+  Zap,
+  Eye,
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Trash2,
+  X,
+  Play,
+} from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -15,7 +34,7 @@ import { BusinessSuite } from "@/components/nexora/BusinessSuite";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
-
+import type { Post } from "@/features/core/data";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
@@ -204,7 +223,14 @@ function Profile() {
               </Button>
             ))}
           </div>
-          {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs") && (
+          
+{(socialTab === "posts" ||
+  socialTab === "reels" ||
+  socialTab === "collabs" ||
+  socialTab === "saved") && (
+  <ProfileMediaExperience tab={socialTab} />
+)}
+          
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               {posts.filter((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))).map((post) => <ProfileMediaTile key={post.id} post={post} />)}
               {!posts.some((post) => post.creatorId === "me" && (socialTab === "posts" || (socialTab === "reels" && post.kind === "short") || (socialTab === "collabs" && post.kind === "collab"))) && <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">Your {socialTab} will appear here.</p>}
@@ -423,16 +449,377 @@ function Profile() {
   );
 }
 
-function ProfileMediaTile({ post }: { post: Post }) {
-  const isVideo = post.kind === "short" || post.mediaType?.startsWith("video/");
+
+type ProfileMediaTab = "posts" | "reels" | "collabs" | "saved";
+
+function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
+  const {
+    posts,
+    saved,
+    liked,
+    reposted,
+    toggleSave,
+    toggleLike,
+    repost,
+    share,
+    deletePost,
+  } = useApp();
+
+  const { user } = useSession();
+
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+
+  const activeItems = posts.filter((post) => {
+    if (tab === "saved") return saved.has(post.id);
+    if (post.creatorId !== "me") return false;
+
+    if (tab === "reels") return post.kind === "short";
+
+    if (tab === "collabs") {
+      return (
+        post.tags?.some((tag) => tag.toLowerCase() === "collab") ||
+        (post.kind as string) === "collab"
+      );
+    }
+
+    return post.kind !== "short" &&
+      !(post.tags ?? []).some((tag) => tag.toLowerCase() === "collab");
+  });
+
+  const selectedPost =
+    viewerIndex === null ? null : activeItems[viewerIndex] ?? null;
+
+  useEffect(() => {
+    if (viewerIndex === null) return;
+
+    const target = feedRef.current?.children[viewerIndex];
+
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({ behavior: "instant", block: "start" });
+    }
+  }, [viewerIndex]);
+
+  async function confirmAction() {
+    const target = activeItems.find((post) => post.id === confirmId);
+
+    if (!target) {
+      setConfirmId(null);
+      return;
+    }
+
+    if (tab === "saved") {
+      toggleSave(target.id);
+      setConfirmId(null);
+      return;
+    }
+
+    if (!user || target.creatorId !== "me") {
+      toast.error("You can only delete your own content.");
+      setConfirmId(null);
+      return;
+    }
+
+    const success = await deletePost(target.id);
+
+    if (!success) return;
+
+    setConfirmId(null);
+
+    if (activeItems.length <= 1) {
+      setViewerIndex(null);
+    } else if (viewerIndex !== null) {
+      setViewerIndex(Math.min(viewerIndex, activeItems.length - 2));
+    }
+
+    toast.success("Content deleted.");
+  }
+
   return (
-    <article className="group relative aspect-square overflow-hidden bg-muted">
-      {post.image ? <img src={post.image} alt={post.caption || "NEXORA post"} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/50 via-accent/30 to-muted p-3 text-center text-xs font-semibold">{post.caption || "NEXORA post"}</div>}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
-      <div className="absolute inset-x-2 bottom-2 flex items-center justify-between text-[11px] font-semibold text-white">
-        <span className="truncate">{post.caption || "NEXORA"}</span>
-        {isVideo && <span className="rounded-md bg-white/90 px-1.5 py-0.5 text-black">Reel</span>}
+    <>
+      {/* Fixed-height profile media grid */}
+      <div className="relative h-[320px] overflow-y-auto rounded-2xl pr-1">
+        {activeItems.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
+            <Grid3X3 className="mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-semibold">
+              No {tab} yet
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Your {tab} will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 pb-5">
+            {activeItems.map((post, index) => {
+              const isVideo =
+                post.kind === "short" ||
+                post.kind === "video" ||
+                post.mediaType?.startsWith("video/");
+
+              return (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => setViewerIndex(index)}
+                  className="group relative aspect-square overflow-hidden rounded-xl border bg-muted text-left"
+                  aria-label={`Open ${post.caption || "profile content"}`}
+                >
+                  {post.image ? (
+                    isVideo ? (
+                      <video
+                        src={post.image}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                    ) : (
+                      <img
+                        src={post.image}
+                        alt={post.caption || "NEXORA post"}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition group-hover:scale-105"
+                      />
+                    )
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/40 to-muted p-2 text-center text-xs">
+                      {post.caption || "NEXORA post"}
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/80 via-transparent to-transparent p-2">
+                    <div className="flex justify-end">
+                      {isVideo && (
+                        <span className="rounded-full bg-black/60 p-1 text-white">
+                          <Play className="h-3 w-3" fill="white" />
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-semibold text-white">
+                      <span className="flex items-center gap-1">
+                        <Heart className="h-3 w-3" />
+                        {post.likes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="h-3 w-3" />
+                        {post.comments.length}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </article>
+
+      {/* Full-screen vertical feed viewer */}
+      {viewerIndex !== null && selectedPost && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
+          <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent p-4">
+            <span className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold uppercase">
+              {tab} · Swipe up or down
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setViewerIndex(null)}
+              aria-label="Close viewer"
+              className="rounded-full border border-white/20 bg-black/50 p-2"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div
+            ref={feedRef}
+            className="h-full flex-1 snap-y snap-mandatory overflow-y-auto"
+          >
+            {activeItems.map((post) => {
+              const isVideo =
+                post.kind === "short" ||
+                post.kind === "video" ||
+                post.mediaType?.startsWith("video/");
+
+              return (
+                <article
+                  key={post.id}
+                  className="relative flex h-[100svh] min-h-[100svh] snap-start snap-always items-center justify-center bg-black"
+                >
+                  {post.image ? (
+                    isVideo ? (
+                      <video
+                        src={post.image}
+                        controls
+                        playsInline
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <img
+                        src={post.image}
+                        alt={post.caption || "NEXORA content"}
+                        className="h-full w-full object-contain"
+                      />
+                    )
+                  ) : (
+                    <div className="max-w-sm p-8 text-center text-lg">
+                      {post.caption}
+                    </div>
+                  )}
+
+                  {/* Engagement actions */}
+                  <div className="absolute bottom-28 right-3 z-20 flex flex-col items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleLike(post.id)}
+                      className="flex flex-col items-center gap-1"
+                      aria-label="Like post"
+                    >
+                      <span className="rounded-full bg-black/60 p-3">
+                        <Heart
+                          className={`h-5 w-5 ${
+                            liked.has(post.id) ? "fill-pink-500 text-pink-500" : ""
+                          }`}
+                        />
+                      </span>
+                      <span className="text-xs">{post.likes}</span>
+                    </button>
+
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="rounded-full bg-black/60 p-3">
+                        <MessageCircle className="h-5 w-5" />
+                      </span>
+                      <span className="text-xs">{post.comments.length}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => repost(post.id)}
+                      className="flex flex-col items-center gap-1"
+                      aria-label="Repost"
+                    >
+                      <span className="rounded-full bg-black/60 p-3">
+                        <Repeat2
+                          className={`h-5 w-5 ${
+                            reposted.has(post.id) ? "text-emerald-400" : ""
+                          }`}
+                        />
+                      </span>
+                      <span className="text-xs">{post.shares}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void share(post.id)}
+                      className="rounded-full bg-black/60 p-3"
+                      aria-label="Share post"
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </button>
+
+                    <div className="flex flex-col items-center gap-1 text-xs text-slate-300">
+                      <Eye className="h-5 w-5" />
+                      —
+                    </div>
+
+                    {tab === "saved" ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(post.id)}
+                        className="flex flex-col items-center gap-1 text-amber-300"
+                      >
+                        <Bookmark className="h-5 w-5" />
+                        <span className="text-[10px]">Unsave</span>
+                      </button>
+                    ) : user && post.creatorId === "me" ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(post.id)}
+                        className="flex flex-col items-center gap-1 text-red-400"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                        <span className="text-[10px]">Delete</span>
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {/* Caption */}
+                  <div className="absolute bottom-0 left-0 right-16 z-10 space-y-2 bg-gradient-to-t from-black/95 to-transparent p-4 pb-8">
+                    <p className="text-xs font-semibold">
+                      @{user?.user_metadata?.handle ?? "NEXORA creator"}
+                    </p>
+
+                    <p className="whitespace-pre-wrap text-sm">
+                      {post.caption}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      {post.tags.map((tag) => (
+                        <span key={tag} className="text-xs text-cyan-300">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <p className="text-[10px] text-slate-400">
+                      {post.createdAt}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Delete / unsave confirmation */}
+      {confirmId && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-700 bg-slate-900 p-5 text-white">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">
+                {tab === "saved" ? "Remove saved item?" : "Delete your content?"}
+              </h3>
+
+              <button
+                type="button"
+                onClick={() => setConfirmId(null)}
+                aria-label="Cancel"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-300">
+              {tab === "saved"
+                ? "This removes the item from your Saved collection."
+                : "This permanently deletes your own published content."}
+            </p>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setConfirmId(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => void confirmAction()}
+              >
+                {tab === "saved" ? "Unsave" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
-}
+        }
+        
