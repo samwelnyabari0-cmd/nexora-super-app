@@ -156,9 +156,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 ];
 
 const { data: commentProfiles, error: commentProfilesError } = await (supabase as any)
-  .from("profiles")
-  .select("id, display_name, handle")
-  .in("id", commentUserIds);
+  .rpc("get_public_comment_profiles", {
+    target_user_ids: commentUserIds,
+  });
 
 if (commentProfilesError) {
   console.error("Could not load comment profiles:", commentProfilesError.message);
