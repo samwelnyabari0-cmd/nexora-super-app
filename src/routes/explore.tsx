@@ -34,6 +34,28 @@ function Explore() {
   { id: string; display_name: string | null; handle: string | null }[]
 >([]);
   const query = q.trim().toLowerCase();
+  useEffect(() => {
+  if (query.length < 2) {
+    setPeople([]);
+    return;
+  }
+
+  const timer = window.setTimeout(async () => {
+    const { data, error } = await supabase.rpc("search_directory", {
+      q: q.trim(),
+    });
+
+    if (error) {
+      console.error("Directory search failed:", error.message);
+      setPeople([]);
+      return;
+    }
+
+    setPeople(data ?? []);
+  }, 300);
+
+  return () => window.clearTimeout(timer);
+}, [query, q]);
   const r = posts.filter((p) => canDiscover(p, muted) && matchesPost(p, q));
   const people = creators.filter(
     (c) => !muted.includes(c.id) && `${c.name} ${c.handle}`.toLowerCase().includes(query),
