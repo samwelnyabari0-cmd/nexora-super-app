@@ -125,7 +125,11 @@ function Profile() {
   }
   const [name, setName] = useState(passport.name);
   const [handle, setHandle] = useState(passport.handle);
-
+useEffect(() => {
+  setName(passport.name);
+  setHandle(passport.handle);
+  setBio(passport.bio);
+}, [passport.name, passport.handle, passport.bio]);
   async function uploadAvatar(file: File) {
     if (!user) return;
     setAvatarUploading(true);
