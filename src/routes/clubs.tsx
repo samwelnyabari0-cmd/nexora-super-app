@@ -1,3 +1,4 @@
+import { ClubAdminPanel } from "@/components/nexora/ClubAdminPanel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { MapPin, MessagesSquare, Send, Trophy, Users, Wallet } from "lucide-react";
@@ -162,7 +163,7 @@ function ClubsPage() {
           Membership saves on this device only — shared accounts are not connected yet.
         </p>
       </Panel>
-
+<ClubAdminPanel clubId={guild.id} />
       <div className="grid gap-4 md:grid-cols-2">
         {/* Shared pin */}
         <Panel>
