@@ -150,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           (myLikedPostIds ?? []).map((id: string) => id),
         ),
       );
+            setReposted(new Set(myRepostedPostIds ?? []));
       if (savedPosts?.length) {
         const hydratedPosts = await Promise.all(
           savedPosts.map(async (row: any) => {
