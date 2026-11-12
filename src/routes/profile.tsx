@@ -197,7 +197,9 @@ useEffect(() => {
               <CreatorPaymentActions creatorId={user.id} />
             </div>
           )}
-          <p className="text-sm">Building Nexora Super-App Ecosystem | Dev & Creator</p>
+           {passport.bio && (
+  <p className="text-sm">{passport.bio}</p>
+)}
           <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
         <div id="pulse-passport"><Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
