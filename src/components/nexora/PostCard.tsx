@@ -140,7 +140,7 @@ export function PostCard({ post }: { post: Post }) {
       <Action label="Share" onClick={() => share(post.id)} count={post.shares}>
         <Share2 className="h-5 w-5" />
       </Action>
-      <Action label={reposted.has(post.id) ? "Already reposted" : "Repost"} onClick={() => repost(post.id)} count={post.shares} active={reposted.has(post.id)} disabled={reposted.has(post.id)}>
+      <Action label={reposted.has(post.id) ? "Already reposted" : "Repost"} onClick={() => repost(post.id)} count={post.reposts ?? 0} active={reposted.has(post.id)} disabled={reposted.has(post.id)}>
         <Repeat2 className="h-5 w-5" />
       </Action>
       <button
