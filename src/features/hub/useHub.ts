@@ -103,7 +103,7 @@ export function useHub() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) setSaved({ ...empty, ...JSON.parse(raw) });
+            if (raw) setSaved(sanitizeHub(JSON.parse(raw)) ?? empty);
     } catch {
       /* corrupt cache ignored */
     }
