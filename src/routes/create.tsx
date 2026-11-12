@@ -317,23 +317,32 @@ const previewFilter =
               }
               mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
-            const { error: publishError } = await (supabase as any).from("posts").insert({
-              author_id: user.id,
-              caption: caption.trim(),
-              media_url: mediaPath,
-              media_type: mediaType ?? null,
-              audience,
-              tags: tagList,
-            });
-            if (publishError) {
+                        const { data: savedPost, error: publishError } = await (supabase as any)
+              .from("user_media_posts")
+              .insert({
+                user_id: user.id,
+                caption: caption.trim(),
+                media_url: mediaPath,
+                media_type: mediaType ?? null,
+                thumbnail_url: null,
+                audience,
+                tags: tagList,
+              })
+              .select("id")
+              .single();
+
+            if (publishError || !savedPost?.id) {
+              console.error("Post publishing failed:", publishError);
               setError("Your post could not be published. Please try again.");
               return;
             }
+
             const key = id || crypto.randomUUID();
+
             createPost(
               {
                 caption: caption.trim(),
-                image: media,
+                image: mediaPath ?? undefined,
                 mediaType,
                 audience,
                 filter,
@@ -342,9 +351,12 @@ const previewFilter =
                 tags: tagList,
               },
               key,
+              savedPost.id,
             );
+
             notify("Post published", "Your post is saved to your account.");
             void nav({ to: "/" });
+            
           }}
         >
           <label className="block space-y-2 text-sm font-semibold">
