@@ -12,7 +12,7 @@ import {
   Share2,
   Users,
   Video,
-} from "lucide-react";
+ } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
