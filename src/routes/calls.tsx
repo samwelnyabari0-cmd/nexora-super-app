@@ -71,12 +71,11 @@ function CallsPage() {
   const { user, ready } = useSession();
   const { invite } = Route.useSearch();
 
-  const rawTier = user?.user_metadata?.subscription_tier;
-  const hasSyncedPlan =
-    rawTier === "free" || rawTier === "pro" || rawTier === "studio";
+    const rawTier = user?.user_metadata?.subscription_tier;
+  // Everyone is on Free until a paid plan is recorded on the account.
+  const hasSyncedPlan = true;
 
-  const userPlan = hasSyncedPlan ? rawTier : "free";
-
+  const userPlan = rawTier === "pro" || rawTier === "studio" ? rawTier : "free";
   const planLabel =
     userPlan === "studio" ? "Studio" :
     userPlan === "pro" ? "Pro" : "Free";
