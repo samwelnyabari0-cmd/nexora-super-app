@@ -22,14 +22,21 @@ export const Route = createFileRoute("/watch")({
 function Watch() {
   const [g, setG] = useState("All");
   const genres = ["All", ...new Set(catalog.map((c) => c.genre))];
-  const hero = catalog[0];
+  // A title is playable once it has a streamUrl. The badge disappears when every on-demand title has one.
+  const titles = catalog as Array<(typeof catalog)[number] & { streamUrl?: string }>;
+  const assetsReady = titles.filter((c) => !c.live).every((c) => Boolean(c.streamUrl));
+  const play = (t: (typeof titles)[number]) =>
+    t.streamUrl
+      ? window.open(t.streamUrl, "_blank", "noopener,noreferrer")
+      : toast.error(`"${t.title}" has no playable Stream asset yet.`);
+  const hero = titles[0];
   const hasLiveStream = Boolean(import.meta.env.VITE_CLOUDFLARE_STREAM_UID);
-  const list = catalog.filter(
+  const list = titles.filter(
     (c) => (g === "All" || c.genre === g) && (!c.live || hasLiveStream),
   );
   return (
     <div>
-      <PageHeader title="Watch" action={<DemoBadge>Stream assets pending</DemoBadge>} />
+      <PageHeader title="Watch" action={assetsReady ? undefined : <DemoBadge>Stream assets pending</DemoBadge>} />
       <div className="relative mb-6 aspect-[16/9] overflow-hidden rounded-3xl md:aspect-[21/9]">
         <img src={hero.image} alt="" className="h-full w-full object-cover" />
         <div className="bg-scrim absolute inset-0" />
@@ -37,7 +44,7 @@ function Watch() {
           <p className="text-xs uppercase tracking-widest text-accent">Featured</p>
           <h2 className="text-3xl font-bold md:text-5xl">{hero.title}</h2>
           <button
-            onClick={() => toast.error("This title has no playable Stream asset yet.")}
+            onClick={() => play(hero)}
             className="mt-3 flex items-center gap-2 rounded-full bg-foreground px-5 py-2 font-semibold text-background"
           >
             <Play className="h-4 w-4 fill-current" /> Play
@@ -55,7 +62,7 @@ function Watch() {
         {list.map((t) => (
           <button
             key={t.id}
-            onClick={() => toast.error(`"${t.title}" has no playable Stream asset yet.`)}
+            onClick={() => play(t)}
             className="group text-left"
           >
             <div className="relative aspect-video overflow-hidden rounded-2xl">
@@ -85,4 +92,4 @@ function Watch() {
       </div>
     </div>
   );
-}
+    }
