@@ -92,30 +92,35 @@ function Explore() {
         ))}
       </div>
       <div className="space-y-7" aria-live="polite">
-        {show("Creators") && people.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Creators</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {people.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 rounded-lg border bg-card p-3">
-                  <Avatar name={c.name} hue={c.hue} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{c.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">@{c.handle}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={following.includes(c.id) ? "outline" : "default"}
-                    aria-pressed={following.includes(c.id)}
-                    onClick={() => toggleFollow(c.id)}
-                  >
-                    {following.includes(c.id) ? "Following" : "Follow"}
-                  </Button>
-                </div>
-              ))}
+        {show("Creators") && query.length >= 2 && (
+  <section>
+    <h2 className="mb-3 text-lg font-semibold">People</h2>
+    {people.length > 0 ? (
+      <div className="grid gap-3 sm:grid-cols-2">
+        {people.map((person) => (
+          <div
+            key={person.id}
+            className="flex items-center gap-3 rounded-lg border bg-card p-3"
+          >
+            <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">
+                {person.display_name ?? "NEXORA User"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                @{person.handle}
+              </p>
             </div>
-          </section>
-        )}
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p className="text-sm text-muted-foreground">
+        No discoverable accounts found. Check the spelling or try another name.
+      </p>
+    )}
+  </section>
+)}
         {show("Places") && locations.length > 0 && (
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
