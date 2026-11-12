@@ -279,10 +279,39 @@ if (bookmarkError) {
           }
         })();
       },
-      toggleSave: (id) => {
-        toggle(setSaved, id);
-        toast(saved.has(id) ? "Removed bookmark" : "Bookmarked");
-      },
+      toggleSave: async (id) => {
+  if (!user) {
+    toast.error("Sign in to bookmark posts.");
+    return;
+  }
+
+  const wasSaved = saved.has(id);
+  toggle(setSaved, id);
+
+  try {
+    if (wasSaved) {
+      const { error } = await (supabase as any)
+        .from("user_media_post_bookmarks")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("post_id", id);
+
+      if (error) throw error;
+      toast("Removed bookmark");
+    } else {
+      const { error } = await (supabase as any)
+        .from("user_media_post_bookmarks")
+        .insert({ user_id: user.id, post_id: id });
+
+      if (error) throw error;
+      toast("Bookmarked");
+    }
+  } catch (error) {
+    toggle(setSaved, id);
+    console.error("Bookmark error:", error);
+    toast.error("Bookmark could not be saved. Please try again.");
+  }
+},
             addComment: async (id, text) => {
         const trimmed = text.trim();
         if (!trimmed) return;
