@@ -217,7 +217,8 @@ export function ClubAdminPanel({ clubId }: Props) {
   <p>DEBUG — Loading: {String(loading)}</p>
   <p>DEBUG — Query error: {error ?? "None"}
   </p> 
-          </div>
+          </div>          
+        </div>
 
         <span className="rounded-full border px-3 py-1 text-xs font-semibold">
           {isCreator
