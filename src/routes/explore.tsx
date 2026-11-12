@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Search, SearchX } from "lucide-react";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
-import { creators, places, catalog } from "@/features/core/data";
+import { places, catalog } from "@/features/core/data";
 import { matchesPost, canDiscover } from "@/features/core/tools";
 import { PostCard } from "@/components/nexora/PostCard";
 import { Avatar, DemoBadge, EmptyState, PageHeader } from "@/components/nexora/ui";
