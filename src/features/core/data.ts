@@ -18,7 +18,12 @@ export type Post = {
   caption: string;
   tags: string[];
     likes: number;
-  comments: { id: string; author: string; text: string }[];
+  comments: {
+  id: string;
+  author: string;
+  text: string;
+  createdAt?: string;
+}[];
   shares: number;
   reposts?: number;
   duration?: string;
