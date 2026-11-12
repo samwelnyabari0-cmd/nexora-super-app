@@ -311,43 +311,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
           toast.error("Comment could not be saved. Please try again.");
         }
       },
-      share: async (id) => {
-        setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
-        if (user) {
-          try {
-            await sharePost(id);
-          } catch {
-            toast.error("Share count could not be updated.");
-          }
-        }
-        const url = typeof window !== "undefined" ? `${window.location.origin}/?post=${id}` : "";
+            share: async (id) => {
+        const url =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/?post=${id}`
+            : "";
+
         if (!navigator.clipboard) {
           toast.error("Clipboard unavailable. Copy the page address from your browser.");
           return;
         }
+
         try {
           await navigator.clipboard.writeText(url);
+
+          if (user) {
+            const updatedCount = await sharePost(id);
+            setPosts((ps) =>
+              ps.map((p) =>
+                p.id === id ? { ...p, shares: updatedCount } : p,
+              ),
+            );
+          }
+
           toast.success("Link copied to clipboard");
         } catch {
-          toast.error("Could not copy link. Check clipboard permissions.");
+          toast.error("Share could not be completed. Please try again.");
         }
       },
+
       repost: async (id) => {
-        if (reposted.has(id)) {
-          toast("You already reposted this video.");
+        if (!user) {
+          toast.error("Sign in to repost.");
           return;
         }
-        setReposted((current) => new Set(current).add(id));
-        if (user) {
-          try {
-            await sharePost(id);
-          } catch {
-            toast.error("Repost count could not be updated.");
-          }
+
+        if (reposted.has(id)) {
+          toast("You already reposted this post.");
+          return;
         }
-        setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, shares: p.shares + 1 } : p)));
-        toast.success("Reposted to your followers");
-        emit("post.repost", id);
+
+        try {
+          const updatedCount = await repostPost(id);
+
+          setReposted((current) => new Set(current).add(id));
+          setPosts((ps) =>
+            ps.map((p) =>
+              p.id === id ? { ...p, reposts: updatedCount } : p,
+            ),
+          );
+
+          toast.success("Reposted to your followers");
+          emit("post.repost", id);
+        } catch {
+          toast.error("Repost could not be saved. Please try again.");
+        }
       },
       deletePost: async (id) => {
         if (!user) {
