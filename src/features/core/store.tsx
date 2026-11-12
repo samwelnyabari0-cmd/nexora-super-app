@@ -107,13 +107,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [relay, setRelay] = useState<RelayItem[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [passport, setPassport] = useState<Passport>({
-    name: "Samwel Nyabari",
-    handle: "samwel.nx",
-    bio: "Builder · storyteller · Nairobi",
-    reputation: 82,
-    interests: ["city", "food", "tech", "music"],
-    share: { interests: true, location: false, reputation: true, activity: false },
-  });
+  name: "NEXORA User",
+  handle: "nexorauser",
+  bio: "",
+  reputation: 0,
+  interests: [],
+  share: { interests: false, location: false, reputation: false, activity: false },
+});
 
   useEffect(() => {
     setConversations(user ? [] : seedConversations);
