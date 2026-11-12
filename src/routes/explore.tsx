@@ -27,7 +27,7 @@ export const Route = createFileRoute("/explore")({
 });
 function Explore() {
   const { posts } = useApp();
-  const { following, toggleFollow, muted } = useWorkspace();
+  const { muted } = useWorkspace();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("All");
   const [people, setPeople] = useState<
