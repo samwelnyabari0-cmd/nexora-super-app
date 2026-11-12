@@ -95,10 +95,7 @@ function PublicProfile() {
     void (async () => {
       try {
         const { data: row, error: profileError } = await (supabase as any)
-          .from("profiles")
-          .select("id, display_name, handle, avatar_url, settings")
-          .ilike("handle", handle)
-          .maybeSingle();
+  .rpc("get_public_profile", { p_handle: handle });
         if (cancelled) return;
         if (profileError || !row) {
           setError("This profile could not be found or is not available.");
@@ -106,7 +103,14 @@ function PublicProfile() {
           return;
         }
 
-        const found = row as ProfileRecord;
+        const found = {
+  ...row,
+  avatar_url: null,
+  settings: {
+    ...(row.settings ?? {}),
+    privateProfile: row.private_profile,
+  },
+} as ProfileRecord;
         setProfile(found);
         const isOwner = user?.id === found.id;
         const isPrivate =
