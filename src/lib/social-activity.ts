@@ -16,24 +16,22 @@ export async function incrementPostViews(postId: string) {
   }
 }
 
-export async function likePost(postId: string) {
-  const { error } = await supabase.rpc("like_user_media_post", {
+export async function likePost(postId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("like_user_media_post", {
     target_post_id: postId,
   });
 
-  if (error && !ignoreDbError(error)) {
-    console.error("like_user_media_post failed:", error.message);
-  }
+  if (error) throw error;
+  return Number(data ?? 0);
 }
 
-export async function unlikePost(postId: string) {
-  const { error } = await supabase.rpc("unlike_user_media_post", {
+export async function unlikePost(postId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("unlike_user_media_post", {
     target_post_id: postId,
   });
 
-  if (error && !ignoreDbError(error)) {
-    console.error("unlike_user_media_post failed:", error.message);
-  }
+  if (error) throw error;
+  return Number(data ?? 0);
 }
 
 export async function addCommentToPost(postId: string, text: string) {
