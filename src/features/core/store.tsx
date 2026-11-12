@@ -121,7 +121,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         { data: savedPosts },
         { data: savedMessages },
         { data: myLikedPostIds },
-      ] = await Promise.all([
+       { data: savedComments },
+        ] = await Promise.all([
         (supabase as any)
           .from("user_media_posts")
           .select(
@@ -133,7 +134,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .select("id, conversation_key, body, metadata, created_at")
           .eq("sender_id", user.id)
           .order("created_at", { ascending: true }),
-        supabase.rpc("get_my_liked_user_media_posts"),
+                supabase.rpc("get_my_liked_user_media_posts"),
+        (supabase as any)
+          .from("user_media_post_comments")
+          .select("id, post_id, user_id, text, created_at")
+          .order("created_at", { ascending: true }),
       ]);
 
       setLiked(
@@ -165,7 +170,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
               filter: "original",
               format: "landscape",
               likes: Number(row.like_count ?? 0),
-              comments: [],
+                            comments: (savedComments ?? [])
+                .filter((comment: any) => comment.post_id === row.id)
+                .map((comment: any) => ({
+                  id: comment.id,
+                  author: comment.user_id === user.id ? passport.handle : "member",
+                  text: comment.text,
+                })),
               shares: Number(row.share_count ?? 0),
               createdAt: new Date(row.created_at).toLocaleDateString(),
             } as unknown as Post;
