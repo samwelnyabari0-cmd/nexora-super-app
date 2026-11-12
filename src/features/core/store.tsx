@@ -307,9 +307,11 @@ if (bookmarkError) {
       toast("Bookmarked");
     }
   } catch (error) {
-    toggle(setSaved, id);
-    console.error("Bookmark error:", error);
-    toast.error("Bookmark could not be saved. Please try again.");
+  toggle(setSaved, id);
+  console.error("Bookmark error:", error);
+
+  const message = (error as any)?.message ?? String(error);
+  toast.error(`Bookmark error: ${message}`);
   }
 },
             addComment: async (id, text) => {
