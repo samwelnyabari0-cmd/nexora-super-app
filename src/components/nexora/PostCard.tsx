@@ -284,7 +284,10 @@ export function PostCard({ post }: { post: Post }) {
     <DialogContent>
       <DialogTitle>Edit {post.kind === "short" ? "reel" : post.kind}</DialogTitle>
       <textarea className="min-h-28 w-full rounded-xl border bg-background p-3" value={editedCaption} onChange={(event) => setEditedCaption(event.target.value)} aria-label="Edit caption" />
-      <Button onClick={async () => { if (!user || !editedCaption.trim()) return; const { error } = await (supabase as any).from("posts").update({ caption: editedCaption.trim() }).eq("id", post.id).eq("author_id", user.id); if (error) toast.error("Could not save changes"); else { toast.success("Post updated"); setEditing(false); window.location.reload(); } }}>Save changes</Button>
+      <Button onClick={async () => { if (!user || !editedCaption.trim()) return; const { error } = await (supabase as any).from("user_media_posts")
+.update({ caption: editedCaption.trim() })
+.eq("id", post.id)
+.eq("user_id", user.id); if (error) toast.error("Could not save changes"); else { toast.success("Post updated"); setEditing(false); window.location.reload(); } }}>Save changes</Button>
     </DialogContent>
   </Dialog>
   <Dialog open={safety} onOpenChange={setSafety}>
