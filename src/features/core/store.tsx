@@ -341,11 +341,12 @@ if (bookmarkError) {
                     ...p,
                     comments: [
                       ...p.comments,
-                      {
-                        id: String(savedCommentId),
-                        author: passport.handle,
-                        text: trimmed,
-                      },
+{
+  id: String(savedCommentId),
+  author: passport.handle,
+  text: trimmed,
+  createdAt: new Date().toISOString(),
+},
                     ],
                   }
                 : p,
