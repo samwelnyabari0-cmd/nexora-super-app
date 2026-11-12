@@ -1,3 +1,4 @@
+import { AIStudioHistory } from "@/components/nexora/AIStudioHistory";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -228,34 +229,62 @@ function Result({ text }: { text: string }) {
   );
 }
 
+
 function TaskTool({ task }: { task: "summarize" | "caption" }) {
   const run = useServerFn(aiTask);
+  const session = useSession();
+
   const [text, setText] = useState("");
   const [out, setOut] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [historyDraft, setHistoryDraft] = useState<{
+    prompt: string;
+    mode: "summarize" | "caption";
+    resultPreview?: string;
+    savedAt: number;
+  } | null>(null);
+
   const go = async () => {
+    if (!text.trim() || busy) return;
+
     setBusy(true);
     setError("");
     setOut("");
+
     try {
-      const r = await run({ data: { task, text } });
-      if (r.error) setError(r.error);
-      else setOut(r.text);
+      const promptUsed = text.trim();
+      const r = await run({ data: { task, text: promptUsed } });
+
+      if (r.error) {
+        setError(r.error);
+      } else {
+        setOut(r.text);
+        setHistoryDraft({
+          prompt: promptUsed,
+          mode: task,
+          resultPreview: r.text,
+          savedAt: Date.now(),
+        });
+      }
     } catch {
       setError("AI request failed. Please try again.");
     } finally {
       setBusy(false);
     }
   };
+
   const onFile = async (f?: File) => {
     if (!f) return;
+
     if (f.size > 500_000) {
       toast.error("File too large — paste up to ~500 KB of text.");
       return;
     }
+
     setText(await f.text());
   };
+
   return (
     <div>
       <label htmlFor="task-in" className="mb-2 block text-sm font-medium">
@@ -263,6 +292,7 @@ function TaskTool({ task }: { task: "summarize" | "caption" }) {
           ? "Paste notes, an article or a document"
           : "Describe your video or post idea"}
       </label>
+
       <textarea
         id="task-in"
         value={text}
@@ -275,6 +305,7 @@ function TaskTool({ task }: { task: "summarize" | "caption" }) {
         }
         className="w-full rounded-2xl border bg-card p-3 text-sm"
       />
+
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button
           disabled={busy || !text.trim()}
@@ -284,6 +315,7 @@ function TaskTool({ task }: { task: "summarize" | "caption" }) {
           {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
           {task === "summarize" ? "Summarize" : "Generate captions"}
         </Button>
+
         {task === "summarize" && (
           <label className="cursor-pointer text-sm text-accent underline">
             Upload .txt / .md
@@ -296,15 +328,29 @@ function TaskTool({ task }: { task: "summarize" | "caption" }) {
           </label>
         )}
       </div>
+
       {error && (
         <p role="alert" className="mt-3 text-sm text-destructive">
           {error}
         </p>
       )}
+
       {out && <Result text={out} />}
+
+      <AIStudioHistory
+        userId={session.user?.id}
+        mode={task}
+        draft={historyDraft}
+        onReuse={(prompt) => {
+          setText(prompt);
+          setOut("");
+          setError("");
+        }}
+      />
     </div>
   );
-}
+          }
+
 
 function Voice() {
   const run = useServerFn(aiTranscribe);
