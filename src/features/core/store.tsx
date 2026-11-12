@@ -188,10 +188,11 @@ if (bookmarkError) {
                             comments: (savedComments ?? [])
                 .filter((comment: any) => comment.post_id === row.id)
                 .map((comment: any) => ({
-                  id: comment.id,
-                  author: comment.user_id === user.id ? passport.handle : "member",
-                  text: comment.text,
-                })),
+  id: comment.id,
+  author: comment.user_id === user.id ? passport.handle : "member",
+  text: comment.text,
+  createdAt: comment.created_at,
+})),
                             shares: Number(row.share_count ?? 0),
               reposts: Number(row.repost_count ?? 0),
               createdAt: new Date(row.created_at).toLocaleDateString(),
