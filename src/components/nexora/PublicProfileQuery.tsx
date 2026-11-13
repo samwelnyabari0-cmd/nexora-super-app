@@ -1,7 +1,12 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { MessageCircle, UserPlus, UserCheck } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
+import { useSocialGraph } from "@/features/social/useSocialGraph";
 
 type PublicProfileRecord = {
   id: string;
@@ -10,12 +15,32 @@ type PublicProfileRecord = {
   bio: string | null;
   private_profile: boolean;
   settings: Record<string, unknown> | null;
+  avatar_url: string | null;
+  account_type: string | null;
+  profile_category: string | null;
+};
+
+type PublicPost = {
+  id: string;
+  caption: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  tags: string[] | null;
+  created_at: string;
+  audience: string | null;
 };
 
 export function PublicProfileQuery({ handle }: { handle: string }) {
-  const [profile, setProfile] = useState<PublicProfileRecord | null>(null);
+  const { user } = useSession();
+
+  const [profile, setProfile] =
+    useState<PublicProfileRecord | null>(null);
+
+  const [posts, setPosts] = useState<PublicPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +49,7 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
       setLoading(true);
       setError("");
       setProfile(null);
+      setPosts([]);
 
       const { data, error: fetchError } = await (supabase as any)
         .rpc("get_public_profile", { p_handle: handle });
@@ -55,6 +81,61 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
     };
   }, [handle]);
 
+  const isOwner = Boolean(user && profile && user.id === profile.id);
+  const graph = useSocialGraph(profile?.id);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPosts() {
+      if (!profile || (profile.private_profile && !isOwner)) {
+        setPosts([]);
+        return;
+      }
+
+      setPostsLoading(true);
+
+      const { data, error: postsError } = await (supabase as any)
+        .from("posts")
+        .select("id, caption, media_url, media_type, tags, created_at, audience")
+        .eq("author_id", profile.id)
+        .order("created_at", { ascending: false })
+        .limit(60);
+
+      if (cancelled) return;
+
+      if (postsError) {
+        toast.error("Could not load public posts.");
+        setPosts([]);
+      } else {
+        const visiblePosts = (data ?? []).filter(
+          (post: PublicPost) => isOwner || post.audience !== "private"
+        );
+        setPosts(visiblePosts);
+      }
+
+      setPostsLoading(false);
+    }
+
+    void loadPosts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, isOwner]);
+
+  async function handleFollow() {
+    if (!user || isOwner || followBusy) return;
+
+    setFollowBusy(true);
+
+    try {
+      await graph.toggleFollow();
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="mx-auto max-w-xl p-8 text-center">
@@ -77,41 +158,186 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
     );
   }
 
+  const displayName = profile.display_name || "NEXORA User";
+
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-4">
+    <main className="mx-auto max-w-3xl space-y-5 p-4">
+
       <Link to="/profile" className="text-sm text-primary underline">
         ← Back to profile
       </Link>
 
-      <section className="rounded-2xl border bg-card p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-2xl font-bold">
-            {(profile.display_name || profile.handle)
-              .charAt(0)
-              .toUpperCase()}
-          </div>
+      <section className="rounded-2xl border bg-card p-5 sm:p-6">
 
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold">
-              {profile.display_name || "NEXORA User"}
+        <div className="flex flex-wrap items-start gap-4">
+
+          {profile.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt={displayName}
+              className="h-20 w-20 rounded-full object-cover ring-2 ring-primary"
+            />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15 text-3xl font-bold">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold">
+              {displayName}
             </h1>
+
             <p className="text-sm text-muted-foreground">
               @{profile.handle}
             </p>
+
+            {(profile.account_type === "creator" ||
+              profile.account_type === "business") && (
+              <span className="mt-2 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                {profile.account_type === "creator" ? "Creator" : "Business"}
+                {profile.profile_category
+                  ? ` · ${profile.profile_category}`
+                  : ""}
+              </span>
+            )}
           </div>
+
         </div>
 
-        <div className="mt-5 border-t pt-4">
-          <h2 className="mb-2 font-semibold">About</h2>
-          <p className="whitespace-pre-wrap text-sm">
-            {profile.bio || "No bio added yet."}
-          </p>
-        </div>
-
-        <p className="mt-5 text-xs text-muted-foreground">
-          NEXORA Public Profile
+        <p className="mt-4 whitespace-pre-wrap text-sm">
+          {profile.bio || "No bio added yet."}
         </p>
+
+        <div className="mt-5 flex flex-wrap gap-5 border-t pt-4 text-sm">
+          <span>
+            <strong>{graph.followers.toLocaleString()}</strong> Followers
+          </span>
+
+          <span>
+            <strong>{graph.following.toLocaleString()}</strong> Following
+          </span>
+        </div>
+
+        {!isOwner && (
+          <div className="mt-5 flex flex-wrap gap-2">
+
+            {user ? (
+              <Button
+                onClick={() => void handleFollow()}
+                disabled={followBusy || graph.loading}
+              >
+                {graph.isFollowing ? (
+                  <UserCheck className="mr-2 h-4 w-4" />
+                ) : (
+                  <UserPlus className="mr-2 h-4 w-4" />
+                )}
+
+                {followBusy
+                  ? "Please wait..."
+                  : graph.isFollowing
+                    ? "Following"
+                    : "Follow"}
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link to="/auth">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Sign in to follow
+                </Link>
+              </Button>
+            )}
+
+            <Button variant="outline" asChild>
+              <Link to="/messages">
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Message
+              </Link>
+            </Button>
+
+          </div>
+        )}
+
       </section>
+
+      <section className="space-y-3">
+
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">
+            Public posts & Reels
+          </h2>
+
+          <span className="text-xs text-muted-foreground">
+            {posts.length} posts
+          </span>
+        </div>
+
+        {profile.private_profile && !isOwner ? (
+          <div className="rounded-2xl border p-6 text-center text-sm text-muted-foreground">
+            This account is private.
+          </div>
+        ) : postsLoading ? (
+          <div className="rounded-2xl border p-6 text-center text-sm text-muted-foreground">
+            Loading posts...
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="rounded-2xl border p-6 text-center text-sm text-muted-foreground">
+            No public posts yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+
+            {posts.map((post) => (
+              <article
+                key={post.id}
+                className="overflow-hidden rounded-xl border bg-card"
+              >
+
+                {post.media_url &&
+                (post.media_type || "").startsWith("video/") ? (
+                  <video
+                    src={post.media_url}
+                    controls
+                    playsInline
+                    className="aspect-[4/5] w-full bg-muted object-cover"
+                  />
+                ) : post.media_url ? (
+                  <img
+                    src={post.media_url}
+                    alt={post.caption || "Public post"}
+                    loading="lazy"
+                    className="aspect-[4/5] w-full bg-muted object-cover"
+                  />
+                ) : null}
+
+                <div className="space-y-2 p-3">
+                  <p className="line-clamp-3 text-sm">
+                    {post.caption || ""}
+                  </p>
+
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(post.created_at).toLocaleDateString()}
+                  </p>
+
+                  {!!post.tags?.length && (
+                    <p className="line-clamp-1 text-xs text-accent">
+                      {post.tags.map((tag) => `#${tag}`).join(" ")}
+                    </p>
+                  )}
+                </div>
+
+              </article>
+            ))}
+
+          </div>
+        )}
+
+      </section>
+
+      <p className="pb-4 text-center text-xs text-muted-foreground">
+        NEXORA Public Profile
+      </p>
+
     </main>
   );
-}
+        }
