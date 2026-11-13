@@ -159,7 +159,10 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   }
 
   const displayName = profile.display_name || "NEXORA User";
-console.log("NEXORA PROFILE CHECK:", {
+<p className="text-xs text-red-500">
+  Debug recipient ID: {profile.id || "MISSING"}
+</p>
+  console.log("NEXORA PROFILE CHECK:", {
   id: profile.id,
   handle: profile.handle,
 });
