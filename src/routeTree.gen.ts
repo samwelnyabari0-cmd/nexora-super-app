@@ -120,6 +120,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PublicProfileRoute = PublicProfileRouteImport.update({
+  id: '/profile/$handle',
+  path: '/profile/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SavedRoute = SavedRouteImport.update({
   id: '/saved',
   path: '/saved',
@@ -172,8 +177,9 @@ export interface FileRoutesByFullPath {
   '/maps': typeof MapsRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
-  '/platform': typeof PlatformRoute
+ '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
+'/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
@@ -198,8 +204,9 @@ export interface FileRoutesByTo {
   '/maps': typeof MapsRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
-  '/platform': typeof PlatformRoute
+  '/platform': typeof PlatformRoute  
   '/profile': typeof ProfileRoute
+'/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
@@ -227,6 +234,7 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
+'/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
@@ -238,6 +246,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/profile/$handle'
     | '/'
     | '/ai'
     | '/auth'
@@ -264,6 +273,7 @@ export interface FileRouteTypes {
     | '/creator/academy'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/profile/$handle'
     | '/'
     | '/ai'
     | '/auth'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/creator/academy'
   id:
+    | '/profile/$handle'
     | '__root__'
     | '/'
     | '/ai'
@@ -333,7 +344,8 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   NotificationsRoute: typeof NotificationsRoute
   PlatformRoute: typeof PlatformRoute
-  ProfileRoute: typeof ProfileRoute
+  ProfileRoute: ProfileRoute,
+  PublicProfileRoute: typeof PublicProfileRoute
   SavedRoute: typeof SavedRoute
   SettingsRoute: typeof SettingsRoute
   SubscriptionsRoute: typeof SubscriptionsRoute
@@ -463,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+'/profile/$handle': {
+  id: '/profile/$handle'
+  path: '/profile/$handle'
+  fullPath: '/profile/$handle'
+  preLoaderRoute: typeof PublicProfileRouteImport
+  parentRoute: typeof rootRouteImport
+}
     '/saved': {
       id: '/saved'
       path: '/saved'
@@ -543,6 +562,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   PlatformRoute: PlatformRoute,
   ProfileRoute: ProfileRoute,
+PublicProfileRoute: PublicProfileRoute,
   SavedRoute: SavedRoute,
   SettingsRoute: SettingsRoute,
   SubscriptionsRoute: SubscriptionsRoute,
