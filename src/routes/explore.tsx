@@ -50,8 +50,12 @@ function Explore() {
       setPeople([]);
       return;
     }
-
-    setPeople(data ?? []);
+setPeople(
+  (data ?? []).filter(
+    (person: { handle: string | null }) =>
+      typeof person.handle === "string" && person.handle.trim().length > 0
+  )
+);
   }, 300);
 
   return () => window.clearTimeout(timer);
