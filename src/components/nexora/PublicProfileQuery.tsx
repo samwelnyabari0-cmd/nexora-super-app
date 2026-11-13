@@ -41,7 +41,8 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState("");
   const [followBusy, setFollowBusy] = useState(false);
-
+const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+  const mediaPosts = posts.filter((post) => !!post.media_url);
   useEffect(() => {
     let cancelled = false;
 
@@ -301,15 +302,19 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
 
             {posts.map((post) => (
               <article
-                key={post.id}
-                className="overflow-hidden rounded-xl border bg-card"
-              >
+  key={post.id}
+  onClick={() => {
+    const index = mediaPosts.findIndex((item) => item.id === post.id);
+    if (index !== -1) setActiveMediaIndex(index);
+  }}
+  className="cursor-pointer overflow-hidden rounded-xl border bg-card"
+>
 
                 {post.media_url &&
                 (post.media_type || "").startsWith("video/") ? (
                   <video
                     src={post.media_url}
-                    controls
+                    
                     playsInline
                     className="aspect-[4/5] w-full bg-muted object-cover"
                   />
@@ -345,7 +350,80 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
         )}
 
       </section>
+{activeMediaIndex !== null && mediaPosts[activeMediaIndex] && (
+  <div
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-3"
+    onClick={() => setActiveMediaIndex(null)}
+  >
+    <button
+      type="button"
+      onClick={() => setActiveMediaIndex(null)}
+      className="absolute right-5 top-5 z-10 rounded-full bg-white/15 px-4 py-2 text-white"
+    >
+      Close ✕
+    </button>
 
+    <button
+      type="button"
+      disabled={activeMediaIndex === 0}
+      onClick={(event) => {
+        event.stopPropagation();
+        setActiveMediaIndex((index) =>
+          index === null ? 0 : Math.max(0, index - 1)
+        );
+      }}
+      className="absolute left-3 z-10 rounded-full bg-white/15 px-4 py-3 text-white disabled:opacity-30"
+    >
+      ←
+    </button>
+
+    <div
+      className="flex max-h-[85vh] max-w-5xl flex-col items-center gap-3"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {(mediaPosts[activeMediaIndex].media_type || "").startsWith("video/") ? (
+        <video
+          key={mediaPosts[activeMediaIndex].id}
+          src={mediaPosts[activeMediaIndex].media_url}
+          controls
+          autoPlay
+          playsInline
+          className="max-h-[75vh] max-w-full rounded-lg"
+        />
+      ) : (
+        <img
+          src={mediaPosts[activeMediaIndex].media_url}
+          alt={mediaPosts[activeMediaIndex].caption || "Public post"}
+          className="max-h-[75vh] max-w-full rounded-lg object-contain"
+        />
+      )}
+
+      <p className="max-w-xl text-center text-sm text-white">
+        {mediaPosts[activeMediaIndex].caption || ""}
+      </p>
+
+      <p className="text-xs text-white/60">
+        {activeMediaIndex + 1} / {mediaPosts.length}
+      </p>
+    </div>
+
+    <button
+      type="button"
+      disabled={activeMediaIndex === mediaPosts.length - 1}
+      onClick={(event) => {
+        event.stopPropagation();
+        setActiveMediaIndex((index) =>
+          index === null
+            ? 0
+            : Math.min(mediaPosts.length - 1, index + 1)
+        );
+      }}
+      className="absolute right-3 z-10 rounded-full bg-white/15 px-4 py-3 text-white disabled:opacity-30"
+    >
+      →
+    </button>
+  </div>
+)}
       <p className="pb-4 text-center text-xs text-muted-foreground">
         NEXORA Public Profile
       </p>
