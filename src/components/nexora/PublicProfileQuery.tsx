@@ -249,11 +249,17 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
             )}
 
             <Button variant="outline" asChild>
-              <Link to="/messages">
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Message
-              </Link>
-            </Button>
+  <Link
+    to="/messages"
+    search={{
+      recipient: profile.id,
+      returnTo: `/profile?handle=${encodeURIComponent(profile.handle)}`,
+    }}
+  >
+    <MessageCircle className="mr-2 h-4 w-4" />
+    Message
+  </Link>
+</Button>
 
           </div>
         )}
