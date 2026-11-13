@@ -23,6 +23,15 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/messages")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    recipient:
+      typeof search.recipient === "string" ? search.recipient : "",
+    returnTo:
+      typeof search.returnTo === "string" &&
+      search.returnTo.startsWith("/profile")
+        ? search.returnTo
+        : "/profile",
+  }),
   head: () => ({
     meta: [
       { title: "Messages — NEXORA" },
