@@ -159,7 +159,10 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   }
 
   const displayName = profile.display_name || "NEXORA User";
-
+console.log("NEXORA PROFILE CHECK:", {
+  id: profile.id,
+  handle: profile.handle,
+});
   return (
     <main className="mx-auto max-w-3xl space-y-5 p-4">
 
