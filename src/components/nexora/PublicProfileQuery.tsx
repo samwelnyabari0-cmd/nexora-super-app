@@ -151,9 +151,9 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
         <p className="text-sm text-muted-foreground">
           {error || "This profile could not be found."}
         </p>
-        <Link to="/profile" className="text-primary underline">
-          Return to my profile
-        </Link>
+        <a href="/profile" className="text-primary underline">
+  Return to my profile
+</a>
       </div>
     );
   }
@@ -163,9 +163,9 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   return (
     <main className="mx-auto max-w-3xl space-y-5 p-4">
 
-      <Link to="/profile" className="text-sm text-primary underline">
-        ← Back to profile
-      </Link>
+      <a href="/profile" className="text-sm text-primary underline">
+  ← Back to profile
+</a>
 
       <section className="rounded-2xl border bg-card p-5 sm:p-6">
 
