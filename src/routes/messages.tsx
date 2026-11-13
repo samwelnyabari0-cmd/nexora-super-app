@@ -86,10 +86,10 @@ function Messages() {
             .order("created_at", { ascending: true }),
 
           (supabase as any)
-            .from("profiles")
-            .select("display_name, handle, avatar_url")
-            .eq("id", recipient)
-            .maybeSingle(),
+  .rpc("get_chat_recipient_profile", {
+    p_user_id: recipient,
+  })
+  .maybeSingle(),
         ]);
 
       if (cancelled) return;
