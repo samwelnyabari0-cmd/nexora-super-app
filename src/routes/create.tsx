@@ -12,7 +12,9 @@ import { StudioCapture } from "@/components/nexora/StudioCapture";
 import { CoverPicker } from "@/components/nexora/src/components/nexora/src/components/nexora/CoverPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { accountTierFromUser, UPLOAD_POLICY, validateUpload } from "@/lib/upload-policy";
+import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
+import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
+import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType } from "@/lib/post-types";
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -52,6 +54,9 @@ function Create() {
   const [format, setFormat] = useState("square");
   const [music, setMusic] = useState("none");
   const [cover, setCover] = useState<Blob | null>(null);
+  const [contentType, setContentType] = useState<ContentType>("post");
+  const [note, setNote] = useState("");
+  const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
   const uploadTier = accountTierFromUser(user);const rawPlan = String(
   user?.user_metadata?.subscription_tier ??
@@ -106,6 +111,10 @@ const previewFilter =
   return (
     <div className="space-y-6">
       <PageHeader title="Creator Studio Plus" subtitle={user ? "Publish to your account" : "Sign in to publish"} />
+      <ContentTypePicker
+        value={contentType}
+        onSelect={(t) => (t === "live" ? void nav({ to: "/live" }) : setContentType(t))}
+      />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <div
@@ -122,7 +131,7 @@ const previewFilter =
                   playsInline
                   className={cn("h-full max-h-[65dvh] w-full object-cover", `media-${filter}`)}
                   onError={() =>
-                    setError("Video format unsupported by this browser. Choose another file.")
+                    setNote("This browser cannot preview this video, but it will still upload.")
                   }
                 />
               ) : (
@@ -198,47 +207,23 @@ const previewFilter =
           <input
             ref={input}
             type="file"
-            accept="image/*,video/*" multiple
+            accept={accept} multiple
             aria-label="Upload media"
             className="sr-only"
             onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
+              const picked = Array.from(e.target.files ?? []);
               e.target.value = "";
-              const f = files[0];
-              if (!f) return;
-              const problem = validateUpload(f, uploadTier);
-              if (problem) {
-                setError(problem);
-                return;
-              }
-              const url = URL.createObjectURL(f);
-              if (f.type.startsWith("video/")) {
-                const probe = document.createElement("video");
-                probe.preload = "metadata";
-                probe.onloadedmetadata = () => {
-                  const durationProblem = validateUpload(f, uploadTier, probe.duration);
-                  URL.revokeObjectURL(probe.src);
-                  if (durationProblem) {
-                    URL.revokeObjectURL(url);
-                    setError(durationProblem);
-                    return;
-                  }
-                  setError("");
+              pickMedia(picked, {
+                contentType,
+                tier: uploadTier,
+                setError,
+                setNote,
+                accept: (url, files, type) => {
                   setMedia(url);
                   setMediaFiles(files);
-                  setMediaType(f.type);
-                };
-                probe.onerror = () => {
-                  URL.revokeObjectURL(url);
-                  setError("Video duration could not be checked. Choose another file.");
-                };
-                probe.src = url;
-                return;
-              }
-              setError("");
-              setMedia(url);
-              setMediaFiles(files);
-              setMediaType(f.type);
+                  setMediaType(type);
+                },
+              });
             }}
           />
           {error && (
@@ -246,6 +231,7 @@ const previewFilter =
               {error}
             </p>
           )}
+          {note && !error && <p className="text-sm text-muted-foreground">{note}</p>}
           <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
             {uploadTier.replaceAll("_", " ")} plan: {uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Shorts, {uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, {uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Max file size: {uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.
           </p>
@@ -317,7 +303,8 @@ const previewFilter =
               }
               mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
-                        const { data: savedPost, error: publishError } = await (supabase as any)
+                        const typedTags = [...tagList, typeTag(contentType)];
+            const { data: savedPost, error: publishError } = await (supabase as any)
               .from("user_media_posts")
               .insert({
                 user_id: user.id,
@@ -326,7 +313,7 @@ const previewFilter =
                 media_type: mediaType ?? null,
                 thumbnail_url: null,
                 audience,
-                tags: tagList,
+                tags: typedTags,
               })
               .select("id")
               .single();
@@ -349,8 +336,8 @@ const previewFilter =
                 audience,
                 filter,
                 format,
-                kind: mediaType?.startsWith("video/") ? "video" : "post",
-                tags: tagList,
+                kind: kindFor(contentType, !!mediaType?.startsWith("video/")),
+                tags: typedTags,
               },
               key,
               savedPost.id,
@@ -456,4 +443,4 @@ Drafts remain on this device until published. Published captions, media, tags, a
       </section>
     </div>
   );
-         }
+    }
