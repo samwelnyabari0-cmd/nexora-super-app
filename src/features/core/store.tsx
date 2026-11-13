@@ -473,14 +473,22 @@ if (bookmarkError) {
           toast.error("Sign in to delete this post.");
           return false;
         }
-        const { error } = await (supabase as any)
-          .from("user_media_posts")
-          .delete()
-          .eq("id", id)
-          .eq("user_id", user.id);
-        if (error) {
-          toast.error("Could not delete the post.");
-          return false;
+                const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        if (isDbId) {
+          const { data, error } = await (supabase as any)
+            .from("user_media_posts")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", user.id)
+            .select("id");
+          if (error) {
+            toast.error(`Could not delete the post: ${error.message}`);
+            return false;
+          }
+          if (!data?.length) {
+            toast.error("Could not delete: this post was not found on your account.");
+            return false;
+          }
         }
         setPosts((current) => current.filter((post) => post.id !== id));
         emit("post.delete", id);
