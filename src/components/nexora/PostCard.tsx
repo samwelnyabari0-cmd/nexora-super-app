@@ -25,9 +25,12 @@ import { useApp } from "@/features/core/store";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./ui";
 import { SceneToAction } from "./SceneToAction";
+import { ShareSheet } from "./ShareSheet";
+import { sharePost } from "@/lib/social-activity";
+import { typeFromTags, visibleTags } from "@/lib/post-types";
 
 export function PostCard({ post }: { post: Post }) {
-  const { liked, saved, reposted, toggleLike, toggleSave, share, repost, deletePost, addComment, passport } =
+  const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
     useApp();
   const c =
     post.creatorId === "me"
@@ -55,6 +58,46 @@ export function PostCard({ post }: { post: Post }) {
   const [playing, setPlaying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedCaption, setEditedCaption] = useState(post.caption);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareBump, setShareBump] = useState(0);
+  const isDbPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id);
+  const contentType = typeFromTags(post.tags ?? []);
+  const typeLabel =
+    contentType === "ad"
+      ? "Sponsored"
+      : contentType === "story"
+        ? "Story"
+        : contentType === "carousel"
+          ? "Carousel"
+          : post.kind === "short"
+            ? "Reel"
+            : post.kind === "video" || post.mediaType?.startsWith("video/")
+              ? "Video"
+              : "Post";
+
+  // Count a share only once per person per post, so tapping Share again does not inflate it.
+  const countShare = async () => {
+    if (!user || !isDbPost) return;
+    const key = `nx.shared.${user.id}`;
+    let done: string[] = [];
+    try {
+      done = JSON.parse(localStorage.getItem(key) ?? "[]");
+    } catch {
+      done = [];
+    }
+    if (done.includes(post.id)) return;
+    try {
+      localStorage.setItem(key, JSON.stringify([...done, post.id].slice(-500)));
+    } catch {
+      /* storage unavailable: still count this one */
+    }
+    try {
+      await sharePost(post.id);
+      setShareBump(1);
+    } catch {
+      toast.error("The share count could not be updated.");
+    }
+  };
 
   const header = (
     <div className="flex items-center gap-3">
@@ -70,13 +113,7 @@ export function PostCard({ post }: { post: Post }) {
           ) : post.kind === "video" || post.mediaType?.startsWith("video/") ? (
             <Film className="h-3.5 w-3.5 text-accent" aria-label="Video" />
           ) : null}
-          <span>
-            {post.kind === "short"
-              ? "Reel"
-              : post.kind === "video" || post.mediaType?.startsWith("video/")
-                ? "Video"
-                : "Post"}
-          </span>
+          <span>{typeLabel}</span>
           <span aria-hidden="true">·</span>
           <span>
             @{c.handle} · {post.createdAt}
@@ -137,7 +174,7 @@ export function PostCard({ post }: { post: Post }) {
       >
         <MessageCircle className="h-5 w-5" />
       </Action>
-      <Action label="Share" onClick={() => share(post.id)} count={post.shares}>
+      <Action label="Share" onClick={() => setShareOpen(true)} count={post.shares + shareBump}>
         <Share2 className="h-5 w-5" />
       </Action>
       <Action label={reposted.has(post.id) ? "Already reposted" : "Repost"} onClick={() => repost(post.id)} count={post.reposts ?? 0} active={reposted.has(post.id)} disabled={reposted.has(post.id)}>
@@ -232,7 +269,7 @@ export function PostCard({ post }: { post: Post }) {
           </p>
         )}
         <div className="flex flex-wrap gap-1.5">
-          {post.tags.map((t) => (
+          {visibleTags(post.tags ?? []).map((t) => (
             <span key={t} className="text-xs text-accent">
               #{t}
             </span>
@@ -354,6 +391,14 @@ export function PostCard({ post }: { post: Post }) {
           </p>
         </DialogContent>
       </Dialog>
+      <ShareSheet
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        postId={post.id}
+        caption={post.caption}
+        mediaUrl={mediaSource && /^https?:/i.test(mediaSource) ? mediaSource : undefined}
+        onShared={() => void countShare()}
+      />
       <SceneToAction post={post} open={scene} onOpenChange={setScene} />
     </article>
   );
