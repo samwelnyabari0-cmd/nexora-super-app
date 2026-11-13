@@ -19,7 +19,14 @@ type RecipientProfile = {
   handle: string;
   avatar_url: string | null;
 };
-
+type InboxConversation = {
+  userId: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  lastMessage: string;
+  lastMessageAt: string;
+};
 export const Route = createFileRoute("/messages")({
   validateSearch: (search: Record<string, unknown>) => ({
     recipient:
@@ -41,6 +48,8 @@ function Messages() {
   const { user, ready } = useSession();
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [inbox, setInbox] = useState<InboxConversation[]>([]);
+const [inboxLoading, setInboxLoading] = useState(true);
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -61,10 +70,65 @@ function Messages() {
         return;
       }
 
-      if (!recipient || recipient === user.id) {
-        setLoading(false);
-        return;
+      if (!recipient) {
+  setInboxLoading(true);
+
+  const { data, error: inboxError } = await (supabase as any)
+    .from("direct_messages")
+    .select("id, sender_id, recipient_id, body, created_at")
+    .order("created_at", { ascending: false });
+
+  if (cancelled) return;
+
+  if (inboxError) {
+    setError("Could not load your conversations.");
+    setInbox([]);
+  } else {
+    const latestByUser = new Map<string, DirectMessage>();
+
+    for (const message of (data ?? []) as DirectMessage[]) {
+      const otherUser =
+        message.sender_id === user.id
+          ? message.recipient_id
+          : message.sender_id;
+
+      if (otherUser !== user.id && !latestByUser.has(otherUser)) {
+        latestByUser.set(otherUser, message);
       }
+    }
+
+    const conversations = await Promise.all(
+      Array.from(latestByUser.entries()).map(async ([userId, message]) => {
+        const { data: profileData } = await (supabase as any)
+          .rpc("get_chat_recipient_profile", { p_user_id: userId });
+
+        const profile = Array.isArray(profileData)
+          ? profileData[0]
+          : profileData;
+
+        return {
+          userId,
+          displayName: profile?.display_name || "NEXORA User",
+          handle: profile?.handle || "",
+          avatarUrl: profile?.avatar_url || null,
+          lastMessage: message.body,
+          lastMessageAt: message.created_at,
+        };
+      })
+    );
+
+    if (!cancelled) setInbox(conversations);
+  }
+
+  setInboxLoading(false);
+  setLoading(false);
+  return;
+}
+
+if (recipient === user.id) {
+  setLoading(false);
+  return;
+}
 
       setLoading(true);
       setError("");
@@ -176,22 +240,77 @@ function Messages() {
       </div>
     );
   }
+if (!recipient) {
+  return (
+    <main className="mx-auto max-w-2xl p-4">
+      <h1 className="mb-5 text-2xl font-bold">Messages</h1>
 
-  if (!recipient || recipient === user.id) {
-    return (
-      <div className="mx-auto max-w-lg space-y-4 p-8 text-center">
-        <h1 className="text-xl font-bold">No conversation selected</h1>
-        <p className="text-sm text-muted-foreground">
-          Open someone's public profile and select Message to start a
-          conversation.
+      {inboxLoading ? (
+        <p className="py-10 text-center text-muted-foreground">
+          Loading conversations...
         </p>
-        <Button asChild>
-          <a href="/profile">My profile</a>
-        </Button>
-      </div>
-    );
-  }
+      ) : error && inbox.length === 0 ? (
+        <p className="py-10 text-center text-destructive">{error}</p>
+      ) : inbox.length === 0 ? (
+        <div className="py-12 text-center">
+          <h2 className="font-semibold">No conversations yet</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Visit someone's public profile and tap Message to start chatting.
+          </p>
+          <Button asChild className="mt-4">
+            <a href="/explore">Explore people</a>
+          </Button>
+        </div>
+      ) : (
+        <div className="divide-y">
+          {inbox.map((conversation) => (
+            <a
+              key={conversation.userId}
+              href={`/messages?recipient=${encodeURIComponent(
+                conversation.userId
+              )}`}
+              className="flex items-center gap-3 py-4 hover:bg-muted/50"
+            >
+              {conversation.avatarUrl ? (
+                <img
+                  src={conversation.avatarUrl}
+                  alt=""
+                  className="h-12 w-12 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 font-bold">
+                  {conversation.displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
 
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">
+                  {conversation.displayName}
+                </p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {conversation.lastMessage}
+                </p>
+              </div>
+
+              <span className="text-xs text-muted-foreground">
+                {new Date(conversation.lastMessageAt).toLocaleDateString()}
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}
+
+if (recipient === user.id) {
+  return (
+    <div className="p-8 text-center">
+      Invalid conversation.
+    </div>
+  );
+}
+  
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
