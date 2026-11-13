@@ -94,10 +94,14 @@ function PublicProfile() {
 
     void (async () => {
       try {
-        const { data: row, error: profileError } = await (supabase as any)
+        const { data: rows, error: profileError } = await (supabase as any)
   .rpc("get_public_profile", { p_handle: handle });
-        if (cancelled) return;
-        if (profileError || !row) {
+
+if (cancelled) return;
+
+const row = rows?.[0] ?? null;
+
+if (profileError || !row) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
