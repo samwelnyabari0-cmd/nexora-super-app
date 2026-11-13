@@ -100,13 +100,7 @@ function PublicProfile() {
 if (cancelled) return;
 
 const row = profileRows?.[0] ?? null;
-setError("DEBUG: " + JSON.stringify({
-  requestedHandle: handle,
-  returnedProfile: row,
-  loggedInUser: user?.id,
-}));
-setLoading(false);
-return;
+
       if (profileError || !row) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
