@@ -1,3 +1,4 @@
+import { PublicProfileQuery } from "@/components/nexora/PublicProfileQuery";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -61,6 +62,32 @@ const profileCategories = [
 ] as const;
 
 function Profile() {
+  const [publicHandle, setPublicHandle] = useState<string | null>(null);
+  const [checkedUrl, setCheckedUrl] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const handle = params.get("handle")?.trim();
+
+    setPublicHandle(handle || null);
+    setCheckedUrl(true);
+  }, []);
+
+  if (!checkedUrl) {
+    return (
+      <div className="p-8 text-center">
+        Loading profile...
+      </div>
+    );
+  }
+
+  if (publicHandle) {
+    return <PublicProfileQuery handle={publicHandle} />;
+  }
+
+  return <OwnProfile />;
+} 
+  function OwnProfile() {
   const { passport, updatePassport, relay, online, syncRelay, events, posts, saved } = useApp();
   const { user, ready } = useSession();
   const { followers, following } = useSocialGraph();
