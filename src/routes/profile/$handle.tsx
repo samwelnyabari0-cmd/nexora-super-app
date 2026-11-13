@@ -105,8 +105,7 @@ alert(JSON.stringify({
   returnedProfile: row,
   loggedInUser: user?.id,
 }, null, 2));
-        const row = profileRows?.[0] ?? null;
-        if (profileError || !row) {
+      if (profileError || !row) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
