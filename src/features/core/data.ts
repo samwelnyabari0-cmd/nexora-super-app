@@ -178,6 +178,8 @@ export type Place = {
   open?: boolean;
   blurb: string;
   mapsUrl?: string;
+  lat?: number;
+  lon?: number;
 };
 export const places: Place[] = [
   {
