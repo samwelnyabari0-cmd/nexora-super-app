@@ -614,6 +614,45 @@ function handleMediaTouchEnd(
       <p className="text-xs text-white/60">
         {activeMediaIndex + 1} / {mediaPosts.length}
       </p>
+  <div className="flex w-full max-w-xl items-center justify-around rounded-xl bg-white/10 p-3 text-white">
+  <button
+    type="button"
+    onClick={() => void likeMedia(mediaPosts[activeMediaIndex])}
+    className="flex items-center gap-2"
+  >
+    <Heart
+      className={`h-5 w-5 ${
+        likedMedia.includes(mediaPosts[activeMediaIndex].id)
+          ? "fill-red-500 text-red-500"
+          : ""
+      }`}
+    />
+    <span>
+      {likeCounts[mediaPosts[activeMediaIndex].id] ?? 0} Likes
+    </span>
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setCommentsOpen(true);
+      void loadPostComments(mediaPosts[activeMediaIndex].id);
+    }}
+    className="flex items-center gap-2"
+  >
+    <MessageCircle className="h-5 w-5" />
+    Comments
+  </button>
+
+  <button
+    type="button"
+    onClick={() => void sharePublicPost(mediaPosts[activeMediaIndex])}
+    className="flex items-center gap-2"
+  >
+    <Share2 className="h-5 w-5" />
+    Share
+  </button>
+</div>
     <div className="w-full max-w-xl space-y-3 rounded-xl bg-white/10 p-3 text-white">
   <div className="flex items-center justify-between">
     <h3 className="font-semibold">Comments</h3>
