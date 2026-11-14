@@ -35,16 +35,85 @@ function Notifications() {
   const { user } = useSession();
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("all");
   const accountType: AccountType = (user?.user_metadata?.account_type as AccountType) ?? "personal";
-  const [remoteNotices, setRemoteNotices] = useState<Array<{ id: string; body: string; read_at: string | null; created_at: string }>>([]);
+  const [remoteNotices, setRemoteNotices] = useState<Array<{ id: string; body: string; kind: string; read_at: string | null; created_at: string }>>([]);
   useEffect(() => {
-    if (!user) return;
-    void (async () => {
-      const { data } = await (supabase as any).from("notifications").select("id, body, read_at, created_at").eq("recipient_id", user.id).order("created_at", { ascending: false }).limit(50);
+    if (!user) {
+      setRemoteNotices([]);
+      return;
+    }
+
+    let active = true;
+    const loadNotifications = async () => {
+      const { data, error } = await (supabase as any)
+        .from("notifications")
+        .select("id, body, kind, read_at, created_at")
+        .eq("recipient_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (!active) return;
+      if (error) {
+        console.error("Could not load notifications:", error.message);
+        return;
+      }
       setRemoteNotices(data ?? []);
-    })();
-  }, [user]);
+    };
+
+    void loadNotifications();
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (!active) return;
+          if (payload.eventType === "INSERT") {
+            const notice = payload.new as { id: string; body: string; kind: string; read_at: string | null; created_at: string };
+            setRemoteNotices((items) => [notice, ...items.filter((item) => item.id !== notice.id)].slice(0, 50));
+            toast("New notification", { description: notice.body });
+          } else if (payload.eventType === "UPDATE") {
+            const notice = payload.new as { id: string; body: string; kind: string; read_at: string | null; created_at: string };
+            setRemoteNotices((items) => items.map((item) => item.id === notice.id ? notice : item));
+          } else if (payload.eventType === "DELETE") {
+            const removed = payload.old as { id?: string };
+            if (removed.id) setRemoteNotices((items) => items.filter((item) => item.id !== removed.id));
+          }
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("Notification live updates unavailable:", status);
+        }
+      });
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
   const notices = useMemo(() => {
-    const remote: Notice[] = remoteNotices.map((item) => ({ id: item.id, category: "interactions", event: "ACTIVITY", title: "Activity update", detail: item.body, time: new Date(item.created_at).toLocaleDateString(), read: Boolean(item.read_at), href: "/messages", icon: Bell }));
+    const remote: Notice[] = remoteNotices.map((item) => {
+      const kind = item.kind?.toLowerCase() ?? "activity";
+      const isMessage = kind.includes("message");
+      const isComment = kind.includes("comment");
+      const isLike = kind.includes("like");
+      const isFollow = kind.includes("follow");
+      return {
+        id: item.id,
+        category: isMessage ? "messages" : "interactions",
+        event: isMessage ? "MESSAGE" : "INTERACTION",
+        title: isFollow ? "New follower" : isLike ? "New like" : isComment ? "New comment" : isMessage ? "New message" : "Activity update",
+        detail: item.body,
+        time: new Date(item.created_at).toLocaleString(),
+        read: Boolean(item.read_at),
+        href: isMessage ? "/messages" : "/",
+        icon: isMessage ? MessageCircle : isComment ? MessageCircle : isLike ? Heart : isFollow ? Bell : Bell,
+      };
+    });
     const local: Notice[] = localNotices.map((item) => ({ id: item.id, category: item.kind === "safety" ? "account_safety" : "interactions", event: item.kind === "safety" ? "SECURITY" : "INTERACTIONS", title: item.title, detail: item.detail, time: "Just now", read: item.read, href: "/notifications", icon: item.kind === "safety" ? ShieldCheck : Heart }));
     return user ? [...remote, ...local] : [...demoNotices, ...local];
   }, [localNotices, remoteNotices, user]);
@@ -55,10 +124,12 @@ function Notifications() {
     if (user) await (supabase as any).from("notifications").update({ read_at: new Date().toISOString() }).eq("recipient_id", user.id).is("read_at", null);
     setRemoteNotices((items) => items.map((item) => ({ ...item, read_at: new Date().toISOString() })));
   }
-  function markOneRead(id: string) {
+  async function markOneRead(id: string) {
     if (remoteNotices.some((item) => item.id === id)) {
-      void (supabase as any).from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
-      setRemoteNotices((items) => items.map((item) => item.id === id ? { ...item, read_at: new Date().toISOString() } : item));
+      const readAt = new Date().toISOString();
+      setRemoteNotices((items) => items.map((item) => item.id === id ? { ...item, read_at: readAt } : item));
+      const { error } = await (supabase as any).from("notifications").update({ read_at: readAt }).eq("id", id).eq("recipient_id", user?.id);
+      if (error) toast.error("Could not mark notification as read.");
     } else markRead(id);
   }
   return <div className="space-y-4"><PageHeader title="Notifications" action={<DemoBadge>Synced activity</DemoBadge>} /><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void markAllRead()} disabled={!notices.some((item) => !item.read)}><CheckCheck /> Mark all read</Button><Button variant="outline" onClick={async () => { try { await enablePushNotifications(); toast.success("Push notifications enabled on this device."); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not enable notifications."); } }}><Bell /> Push settings</Button><Button variant="ghost" size="icon" aria-label="Notification preferences" title="Notification preferences"><Settings2 /></Button></div><div className="flex gap-1 overflow-x-auto rounded-xl border bg-muted/30 p-1">{tabs.map((tab) => <button type="button" key={tab.id} onClick={() => setActiveTab(tab.id)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium ${activeTab === tab.id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{tab.label}</button>)}</div><section aria-label="Notification feed" className="space-y-3"><p className="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Today</p>{visible.map((notice) => { const Icon = notice.icon; return <article key={notice.id} className={`rounded-2xl border p-4 transition-colors ${notice.read ? "bg-card" : "border-primary/40 bg-primary/5"}`}><div className="flex gap-3"><div className="mt-0.5 rounded-xl bg-muted p-2"><Icon className={`h-4 w-4 ${notice.color ?? "text-primary"}`} /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-400">{notice.event}</p><time className="text-xs text-muted-foreground">{notice.time}</time></div><p className="mt-1 font-semibold">{notice.title}</p><p className="mt-1 text-sm text-muted-foreground">{notice.detail}</p><div className="mt-3 flex flex-wrap items-center gap-2"><a href={notice.href} onClick={() => markOneRead(notice.id)} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Open details <ChevronRight className="h-3.5 w-3.5" /></a>{!notice.read && <button type="button" onClick={() => markOneRead(notice.id)} className="text-xs text-muted-foreground hover:text-foreground">Mark read</button>}</div></div></div></article>})}</section>{!visible.length && <p className="py-16 text-center text-muted-foreground">You&apos;re all caught up.</p>}</div>;
