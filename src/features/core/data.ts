@@ -173,10 +173,11 @@ export type Place = {
   category: string;
   distance: string;
   rating: number;
-  x: number;
-  y: number;
-  open: boolean;
+  x?: number;
+  y?: number;
+  open?: boolean;
   blurb: string;
+  mapsUrl?: string;
 };
 export const places: Place[] = [
   {

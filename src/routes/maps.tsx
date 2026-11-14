@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MapPin, Search, Star, TriangleAlert } from "lucide-react";
-import { places, type Place } from "@/features/core/data";
+import { ExternalLink, MapPin, Search, Star, TriangleAlert } from "lucide-react";
+import type { Place } from "@/features/core/data";
 import { searchPlaces } from "@/lib/maps.functions";
 import { EmptyState, PageHeader } from "@/components/nexora/ui";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/maps")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "Discover — NEXORA Maps" },
-      { name: "description", content: "Discover nearby places with Google Maps." },
+      { name: "description", content: "Discover real places with Google Maps." },
       { property: "og:title", content: "Discover — NEXORA Maps" },
-      { property: "og:description", content: "Find places nearby (simulated)." },
+      { property: "og:description", content: "Search real places and open them in Google Maps." },
     ],
   }),
   component: Maps,
@@ -27,141 +27,167 @@ export const Route = createFileRoute("/maps")({
 function Maps() {
   const { q: initial } = Route.useSearch();
   const [q, setQ] = useState(initial ?? "");
-  const [res, setRes] = useState<Place[]>(places);
+  const [res, setRes] = useState<Place[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const [sel, setSel] = useState<string | null>(null);
-  const mapQuery = encodeURIComponent(q.trim() || "Nairobi, Kenya");
+  const normalizedQuery = q.trim() || "Nairobi, Kenya";
+  const mapQuery = encodeURIComponent(normalizedQuery);
   const googleEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
-  const run = (s: string) => {
+
+  const run = (search: string) => {
+    const query = search.trim() || "Nairobi, Kenya";
     setState("loading");
-    searchPlaces({ data: { query: s.trim() || "Nairobi, Kenya" } })
-      .then((r) => {
-        if (r.error || !r.places.length) {
-          setRes(places);
-          setState("idle");
+    setErrorMessage("");
+    setSel(null);
+
+    searchPlaces({ data: { query } })
+      .then((result) => {
+        if (result.error) {
+          setRes([]);
+          setErrorMessage(result.error);
+          setState("error");
           return;
         }
-        setRes(r.places);
+
+        setRes(result.places);
         setState("idle");
       })
       .catch(() => {
-        setRes(places);
-        setState("idle");
+        setRes([]);
+        setErrorMessage("Google Maps search failed. Please try again.");
+        setState("error");
       });
   };
+
   useEffect(() => {
     run(initial ?? "");
   }, [initial]);
+
   return (
     <div>
-      <PageHeader
-        title="Discover"
-        subtitle="Live map discovery"
-      />
+      <PageHeader title="Discover" subtitle="Find real places with Google Maps" />
+
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
+        onSubmit={(event) => {
+          event.preventDefault();
           run(q);
         }}
         className="mb-4 flex gap-2"
       >
-        <label className="flex flex-1 items-center gap-2 rounded-full border bg-card px-4 py-2.5">
-          <Search className="h-4 w-4 text-muted-foreground" />
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full border bg-card px-4 py-2.5">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="sr-only">Search places</span>
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Food, cafe, dance… (type 'error' to test)"
-            className="flex-1 bg-transparent outline-none"
+            onChange={(event) => setQ(event.target.value)}
+            placeholder="Search cafes, restaurants, shops…"
+            className="min-w-0 flex-1 bg-transparent outline-none"
           />
         </label>
-        <button className="bg-brand rounded-full px-5 font-semibold text-primary-foreground">
-          Search
+        <button
+          type="submit"
+          disabled={state === "loading"}
+          className="bg-brand rounded-full px-5 font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {state === "loading" ? "Searching…" : "Search"}
         </button>
       </form>
+
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div
-          className="map-grid relative aspect-[4/3] overflow-hidden rounded-3xl border"
-          role="img"
-          aria-label="Google map of nearby places"
-        >
-          <iframe
-            title="Google Maps nearby places"
-            src={googleEmbedUrl}
-            className="absolute inset-0 size-full border-0"
-            loading="lazy"
-            allowFullScreen
-          />
-          <span
-            className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-glow ring-4 ring-accent/30"
-            title="You (simulated)"
-          />
-          {res.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setSel(p.id)}
-              style={{ left: `${p.x}%`, top: `${p.y}%` }}
-              aria-label={p.name}
-              className={cn(
-                "absolute -translate-x-1/2 -translate-y-full transition",
-                sel === p.id ? "scale-125 text-accent" : "text-primary",
-              )}
-            >
-              <MapPin className="h-8 w-8 fill-current stroke-background" />
-            </button>
-          ))}
-        </div>
-        <ul className="space-y-2">
+        <section className="space-y-2">
+          <div className="map-grid relative aspect-[4/3] overflow-hidden rounded-3xl border">
+            <iframe
+              title={`Google Maps results for ${normalizedQuery}`}
+              src={googleEmbedUrl}
+              className="absolute inset-0 size-full border-0"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+          >
+            Open this search in Google Maps <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </section>
+
+        <section aria-label="Place search results">
           {state === "loading" ? (
-            [0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
+            <div className="space-y-2">
+              {[0, 1, 2].map((item) => (
+                <Skeleton key={item} className="h-24 rounded-2xl" />
+              ))}
+            </div>
           ) : state === "error" ? (
             <EmptyState
               icon={<TriangleAlert className="h-6 w-6" />}
-              title="Search failed"
-              body="Google Places could not return results. Check your search and try again."
+              title="Google Maps search unavailable"
+              body={errorMessage}
               action={
                 <button
-                  onClick={() => {
-                    setQ("");
-                    run("");
-                  }}
+                  type="button"
+                  onClick={() => run(q)}
                   className="text-sm font-semibold text-accent"
                 >
-                  Retry
+                  Try again
                 </button>
               }
             />
           ) : res.length === 0 ? (
-            <EmptyState icon={<MapPin className="h-6 w-6" />} title="No places found" />
+            <EmptyState
+              icon={<MapPin className="h-6 w-6" />}
+              title="No places found"
+              body="Try another search, such as restaurants, cafes or shopping."
+            />
           ) : (
-            res.map((p) => (
-              <li key={p.id}>
-                <button
-                  onClick={() => setSel(p.id)}
-                  className={cn(
-                    "w-full rounded-2xl border bg-card p-3 text-left",
-                    sel === p.id && "border-accent",
-                  )}
-                >
-                  <div className="flex justify-between">
-                    <p className="font-semibold">{p.name}</p>
-                    <span className="flex items-center gap-1 text-sm">
-                      <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                      {p.rating}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {p.category} · {p.distance} ·{" "}
-                    <span className={p.open ? "text-success" : "text-destructive"}>
-                      {p.open ? "Open" : "Closed"}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">{p.blurb}</p>
-                </button>
-              </li>
-            ))
+            <ul className="space-y-2">
+              {res.map((place) => (
+                <li key={place.id}>
+                  <article
+                    className={cn(
+                      "rounded-2xl border bg-card p-3",
+                      sel === place.id && "border-accent",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSel(place.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold">{place.name}</p>
+                        {place.rating > 0 && (
+                          <span className="flex shrink-0 items-center gap-1 text-sm">
+                            <Star className="h-3.5 w-3.5 fill-warning text-warning" />
+                            {place.rating.toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {place.category} · {place.distance}
+                      </p>
+                    </button>
+                    {place.mapsUrl && (
+                      <a
+                        href={place.mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline"
+                      >
+                        Directions and details <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </article>
+                </li>
+              ))}
+            </ul>
           )}
-        </ul>
+        </section>
       </div>
     </div>
   );
