@@ -59,7 +59,8 @@ function Notifications() {
         .select("id, body, kind, read_at, created_at")
         .eq("recipient_id", user.id)
         .order("created_at", { ascending: false })
-        .range(0, PAGE_SIZE - 1);
+        .order("id", { ascending: false })
+        .limit(PAGE_SIZE);
       if (!active) return;
       if (error) {
         console.error("Could not load notifications:", error.message);
@@ -174,7 +175,9 @@ function Notifications() {
   async function loadMore() {
     if (!user || loadingMore || !hasMore) return;
     setLoadingMore(true);
-    const { data, error } = await (supabase as any).from("notifications").select("id, body, kind, read_at, created_at").eq("recipient_id", user.id).order("created_at", { ascending: false }).range(remoteNotices.length, remoteNotices.length + PAGE_SIZE - 1);
+    const last = remoteNotices[remoteNotices.length - 1];
+    if (!last) return;
+    const { data, error } = await (supabase as any).from("notifications").select("id, body, kind, read_at, created_at").eq("recipient_id", user.id).or(`created_at.lt.${last.created_at},and(created_at.eq.${last.created_at},id.lt.${last.id})`).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE_SIZE);
     setLoadingMore(false);
     if (error) { toast.error("Could not load more notifications."); return; }
     const next = data ?? [];
