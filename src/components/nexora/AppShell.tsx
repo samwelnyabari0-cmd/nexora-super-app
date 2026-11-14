@@ -210,10 +210,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Sparkles className="h-5 w-5" />
           </Link>
           <Button asChild variant="ghost" size="icon" className="relative rounded-full">
-            <Link to="/notifications" aria-label="Notifications">
+            <Link to="/notifications" aria-label={noticeCount > 0 ? `Notifications, ${noticeCount} unread` : "Notifications"}>
               <Bell className="h-5 w-5" />
               {noticeCount > 0 && (
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground shadow-sm">
+                  {noticeCount > 9 ? "9+" : noticeCount}
+                </span>
               )}
             </Link>
           </Button>
