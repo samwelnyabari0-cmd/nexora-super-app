@@ -35,7 +35,7 @@ function Notifications() {
   const { user } = useSession();
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("all");
   const accountType: AccountType = (user?.user_metadata?.account_type as AccountType) ?? "personal";
-  const [remoteNotices, setRemoteNotices] = useState<Array<{ id: string; body: string; kind: string; read_at: string | null; created_at: string }>>([]);
+  const [remoteNotices, setRemoteNotices] = useState<{ id: string; body: string; kind: string; read_at: string | null; created_at: string }[]>([]);
   const [remoteUnreadCount, setRemoteUnreadCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -84,7 +84,6 @@ function Notifications() {
         },
         (payload) => {
           if (!active) return;
-          void refreshUnreadCount();
           void refreshUnreadCount();
           if (payload.eventType === "INSERT") {
             const notice = payload.new as { id: string; body: string; kind: string; read_at: string | null; created_at: string };
@@ -176,36 +175,8 @@ function Notifications() {
     if (!user || loadingMore || !hasMore) return;
     setLoadingMore(true);
     const last = remoteNotices[remoteNotices.length - 1];
-    if (!last) return;
+    if (!last) { setLoadingMore(false); return; }
     const { data, error } = await (supabase as any).from("notifications").select("id, body, kind, read_at, created_at").eq("recipient_id", user.id).or(`created_at.lt.${last.created_at},and(created_at.eq.${last.created_at},id.lt.${last.id})`).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(PAGE_SIZE);
-    setLoadingMore(false);
-    if (error) { toast.error("Could not load more notifications."); return; }
-    const next = data ?? [];
-    setRemoteNotices((items) => [...items, ...next.filter((item: { id: string }) => !items.some((existing) => existing.id === item.id))]);
-    setHasMore(next.length === PAGE_SIZE);
-  }
-  async function deleteOne(id: string) {
-    if (!user) return;
-    const wasUnread = remoteNotices.some((item) => item.id === id && !item.read_at);
-    const { error } = await (supabase as any).from("notifications").delete().eq("id", id).eq("recipient_id", user.id);
-    if (error) { toast.error("Could not delete notification. Check notification delete permissions."); return; }
-    setRemoteNotices((items) => items.filter((item) => item.id !== id));
-    if (wasUnread) setRemoteUnreadCount((count) => Math.max(0, count - 1));
-    toast.success("Notification deleted.");
-  }
-  async function deleteAll() {
-    if (!user || !window.confirm("Delete all your notifications? This cannot be undone.")) return;
-    const { error } = await (supabase as any).from("notifications").delete().eq("recipient_id", user.id);
-    if (error) { toast.error("Could not delete notifications. Check notification delete permissions."); return; }
-    setRemoteNotices([]);
-    setRemoteUnreadCount(0);
-    setHasMore(false);
-    toast.success("All notifications deleted.");
-  }
-  async function loadMore() {
-    if (!user || loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const { data, error } = await (supabase as any).from("notifications").select("id, body, kind, read_at, created_at").eq("recipient_id", user.id).order("created_at", { ascending: false }).range(remoteNotices.length, remoteNotices.length + PAGE_SIZE - 1);
     setLoadingMore(false);
     if (error) { toast.error("Could not load more notifications."); return; }
     const next = data ?? [];
