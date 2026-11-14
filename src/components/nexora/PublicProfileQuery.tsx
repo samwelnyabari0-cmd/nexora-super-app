@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { MessageCircle, UserPlus, UserCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -41,8 +41,99 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   const [postsLoading, setPostsLoading] = useState(false);
   const [error, setError] = useState("");
   const [followBusy, setFollowBusy] = useState(false);
-const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+const [likedMedia, setLikedMedia] = useState<string[]>([]);
+const [heartVisible, setHeartVisible] = useState(false);
+const touchStart = useRef({ x: 0, y: 0 });
+const lastTap = useRef(0);
+const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
   const mediaPosts = posts.filter((post) => !!post.media_url);
+  async function likeMedia(post: PublicPost) {
+  if (!user) {
+    toast.error("Sign in to like posts.");
+    return;
+  }
+
+  if (likedMedia.includes(post.id)) return;
+
+  const { error: likeError } = await (supabase as any)
+    .from("post_interactions")
+    .insert({
+      post_id: post.id,
+      actor_id: user.id,
+      kind: "like",
+    });
+
+  if (likeError && likeError.code !== "23505") {
+    toast.error("Could not like this post.");
+    return;
+  }
+
+  setLikedMedia((current) =>
+    current.includes(post.id) ? current : [...current, post.id]
+  );
+  }
+  function handleMediaTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+  const touch = event.touches[0];
+  touchStart.current = {
+    x: touch.clientX,
+    y: touch.clientY,
+  };
+}
+
+function handleMediaTouchEnd(
+  event: React.TouchEvent<HTMLDivElement>,
+  post: PublicPost
+) {
+  const touch = event.changedTouches[0];
+  const dx = touch.clientX - touchStart.current.x;
+  const dy = touch.clientY - touchStart.current.y;
+
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    setActiveMediaIndex((index) => {
+      if (index === null) return 0;
+      return dx < 0
+        ? Math.min(mediaPosts.length - 1, index + 1)
+        : Math.max(0, index - 1);
+    });
+    lastTap.current = 0;
+    return;
+  }
+
+  if (dy > 80 && Math.abs(dy) > Math.abs(dx)) {
+    setActiveMediaIndex(null);
+    lastTap.current = 0;
+    return;
+  }
+
+  if (Math.abs(dx) < 15 && Math.abs(dy) < 15) {
+    const now = Date.now();
+
+    if (now - lastTap.current < 300) {
+      void likeMedia(post);
+      setHeartVisible(true);
+
+      if (heartTimeout.current) {
+        window.clearTimeout(heartTimeout.current);
+      }
+
+      heartTimeout.current = window.setTimeout(() => {
+        setHeartVisible(false);
+      }, 800);
+
+      lastTap.current = 0;
+    } else {
+      lastTap.current = now;
+    }
+  }
+}
+  useEffect(() => {
+  return () => {
+    if (heartTimeout.current) {
+      window.clearTimeout(heartTimeout.current);
+    }
+  };
+}, []);
   useEffect(() => {
     let cancelled = false;
 
@@ -376,11 +467,15 @@ const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
     >
       ←
     </button>
-
-    <div
-      className="flex max-h-[85vh] max-w-5xl flex-col items-center gap-3"
-      onClick={(event) => event.stopPropagation()}
-    >
+<div
+  className="relative flex max-h-[85vh] max-w-5xl flex-col items-center gap-3"
+  onClick={(event) => event.stopPropagation()}
+  onTouchStart={handleMediaTouchStart}
+  onTouchEnd={(event) =>
+    handleMediaTouchEnd(event, mediaPosts[activeMediaIndex])
+  }
+>
+    
       {(mediaPosts[activeMediaIndex].media_type || "").startsWith("video/") ? (
         <video
           key={mediaPosts[activeMediaIndex].id}
@@ -398,7 +493,12 @@ const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
         />
       )}
 
-      <p className="max-w-xl text-center text-sm text-white">
+      {heartVisible && (
+  <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+    <span className="animate-ping text-7xl text-red-500">♥</span>
+  </div>
+)}
+  <p className="max-w-xl text-center text-sm text-white">
         {mediaPosts[activeMediaIndex].caption || ""}
       </p>
 
