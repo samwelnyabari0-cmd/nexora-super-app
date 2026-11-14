@@ -576,8 +576,8 @@ function handleMediaTouchEnd(
     >
       ←
     </button>
-<div
-  className="relative flex max-h-[85vh] max-w-5xl flex-col items-center gap-3"
+    <div
+  className="relative flex h-[85vh] w-full max-w-5xl flex-col items-center justify-center gap-3"
   onClick={(event) => event.stopPropagation()}
   onTouchStart={handleMediaTouchStart}
   onTouchEnd={(event) =>
