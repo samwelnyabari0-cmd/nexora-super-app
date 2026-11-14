@@ -55,6 +55,25 @@ const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 const [commentText, setCommentText] = useState("");
 const [commentsLoading, setCommentsLoading] = useState(false);
   const mediaPosts = posts.filter((post) => !!post.media_url);
+ async function loadPostComments(postId: string) {
+  setCommentsLoading(true);
+
+  const { data, error } = await (supabase as any)
+    .from("post_comments")
+    .select("id, user_id, content, created_at")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Could not load comments:", error);
+    toast.error("Could not load comments.");
+    setCommentsLoading(false);
+    return;
+  }
+
+  setPostComments(data ?? []);
+  setCommentsLoading(false);
+ }
   useEffect(() => {
   async function loadLikeCounts() {
     if (posts.length === 0) {
