@@ -49,6 +49,37 @@ const lastTap = useRef(0);
 const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
   const mediaPosts = posts.filter((post) => !!post.media_url);
+  useEffect(() => {
+  async function loadLikeCounts() {
+    if (posts.length === 0) {
+      setLikeCounts({});
+      return;
+    }
+
+    const postIds = posts.map((post) => post.id);
+
+    const { data, error } = await (supabase as any)
+      .from("post_interactions")
+      .select("post_id")
+      .in("post_id", postIds)
+      .eq("kind", "like");
+
+    if (error) {
+      console.error("Could not load like counts:", error);
+      return;
+    }
+
+    const counts: Record<string, number> = {};
+
+    for (const row of data ?? []) {
+      counts[row.post_id] = (counts[row.post_id] || 0) + 1;
+    }
+
+    setLikeCounts(counts);
+  }
+
+  void loadLikeCounts();
+}, [posts]);
   async function likeMedia(post: PublicPost) {
   if (!user) {
     toast.error("Sign in to like posts.");
@@ -69,7 +100,12 @@ const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     toast.error("Could not like this post.");
     return;
   }
-
+if (!likeError) {
+  setLikeCounts((current) => ({
+    ...current,
+    [post.id]: (current[post.id] || 0) + 1,
+  }));
+  }
   setLikedMedia((current) =>
     current.includes(post.id) ? current : [...current, post.id]
   );
