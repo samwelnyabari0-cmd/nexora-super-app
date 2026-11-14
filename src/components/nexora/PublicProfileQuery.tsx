@@ -49,6 +49,11 @@ const lastTap = useRef(0);
 const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [postComments, setPostComments] = useState<
+  { id: string; user_id: string; content: string; created_at: string }[]
+>([]);
+const [commentText, setCommentText] = useState("");
+const [commentsLoading, setCommentsLoading] = useState(false);
   const mediaPosts = posts.filter((post) => !!post.media_url);
   useEffect(() => {
   async function loadLikeCounts() {
