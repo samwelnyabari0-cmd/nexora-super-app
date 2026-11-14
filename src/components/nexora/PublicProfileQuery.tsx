@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, UserPlus, UserCheck } from "lucide-react";
+import { MessageCircle, UserPlus, UserCheck, Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
