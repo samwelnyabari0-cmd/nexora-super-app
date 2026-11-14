@@ -729,31 +729,6 @@ void loadPostComments(mediaPosts[activeMediaIndex].id);
     </div>
   </div>
 )}   
-
-
-  <form
-    onSubmit={(event) => {
-      event.preventDefault();
-      void submitPostComment(mediaPosts[activeMediaIndex].id);
-    }}
-    className="flex gap-2"
-  >
-    <input
-      value={commentText}
-      onChange={(event) => setCommentText(event.target.value)}
-      placeholder="Write a comment..."
-      maxLength={2000}
-      className="min-w-0 flex-1 rounded-lg bg-white/15 px-3 py-2 text-sm text-white placeholder:text-white/50"
-    />
-    <button
-      type="submit"
-      disabled={!commentText.trim()}
-      className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
-    >
-      Send
-    </button>
-  </form>
-</div>
 </div>
 
     <button
