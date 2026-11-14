@@ -74,6 +74,33 @@ const [commentsLoading, setCommentsLoading] = useState(false);
   setPostComments(data ?? []);
   setCommentsLoading(false);
  }
+  async function submitPostComment(postId: string) {
+  const content = commentText.trim();
+
+  if (!user) {
+    toast.error("Sign in to comment.");
+    return;
+  }
+
+  if (!content) return;
+
+  const { error } = await (supabase as any)
+    .from("post_comments")
+    .insert({
+      post_id: postId,
+      user_id: user.id,
+      content,
+    });
+
+  if (error) {
+    toast.error("Could not add your comment.");
+    return;
+  }
+
+  setCommentText("");
+  await loadPostComments(postId);
+  toast.success("Comment added.");
+  }
   useEffect(() => {
   async function loadLikeCounts() {
     if (posts.length === 0) {
@@ -567,7 +594,65 @@ function handleMediaTouchEnd(
       <p className="text-xs text-white/60">
         {activeMediaIndex + 1} / {mediaPosts.length}
       </p>
+    <div className="w-full max-w-xl space-y-3 rounded-xl bg-white/10 p-3 text-white">
+  <div className="flex items-center justify-between">
+    <h3 className="font-semibold">Comments</h3>
+    <button
+      type="button"
+      onClick={() => {
+        const post = mediaPosts[activeMediaIndex];
+        setCommentsOpen(false);
+        setPostComments([]);
+        void loadPostComments(post.id);
+        setCommentsOpen(true);
+      }}
+      className="text-xs underline"
+    >
+      Refresh
+    </button>
+  </div>
+
+  {commentsLoading ? (
+    <p className="text-sm text-white/60">Loading comments...</p>
+  ) : postComments.length === 0 ? (
+    <p className="text-sm text-white/60">No comments yet.</p>
+  ) : (
+    <div className="max-h-40 space-y-2 overflow-y-auto">
+      {postComments.map((comment) => (
+        <div key={comment.id} className="rounded-lg bg-white/10 p-2">
+          <p className="text-xs text-white/60">
+            User {comment.user_id.slice(0, 8)}
+          </p>
+          <p className="text-sm">{comment.content}</p>
+        </div>
+      ))}
     </div>
+  )}
+
+  <form
+    onSubmit={(event) => {
+      event.preventDefault();
+      void submitPostComment(mediaPosts[activeMediaIndex].id);
+    }}
+    className="flex gap-2"
+  >
+    <input
+      value={commentText}
+      onChange={(event) => setCommentText(event.target.value)}
+      placeholder="Write a comment..."
+      maxLength={2000}
+      className="min-w-0 flex-1 rounded-lg bg-white/15 px-3 py-2 text-sm text-white placeholder:text-white/50"
+    />
+    <button
+      type="submit"
+      disabled={!commentText.trim()}
+      className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
+    >
+      Send
+    </button>
+  </form>
+</div>
+</div>
 
     <button
       type="button"
