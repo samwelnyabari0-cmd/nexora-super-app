@@ -642,7 +642,8 @@ function handleMediaTouchEnd(
     onClick={(event) => {
       event.stopPropagation();
       setCommentsOpen(true);
-      void loadPostComments(mediaPosts[activeMediaIndex].id);
+setCommentText("");
+void loadPostComments(mediaPosts[activeMediaIndex].id);
     }}
     className="flex flex-col items-center gap-1"
   >
@@ -666,40 +667,69 @@ function handleMediaTouchEnd(
     <span className="text-xs">Share</span>
   </button>
 </div>
-    <div className="w-full max-w-xl space-y-3 rounded-xl bg-white/10 p-3 text-white">
-  <div className="flex items-center justify-between">
-    <h3 className="font-semibold">Comments</h3>
-    <button
-      type="button"
-      onClick={() => {
-        const post = mediaPosts[activeMediaIndex];
-        setCommentsOpen(false);
-        setPostComments([]);
-        void loadPostComments(post.id);
-        setCommentsOpen(true);
-      }}
-      className="text-xs underline"
+ {commentsOpen && (
+  <div
+    className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 p-3 sm:items-center"
+    onClick={() => setCommentsOpen(false)}
+  >
+    <div
+      className="flex max-h-[80vh] w-full max-w-xl flex-col rounded-2xl bg-zinc-950 p-4 text-white"
+      onClick={(event) => event.stopPropagation()}
     >
-      Refresh
-    </button>
-  </div>
+      <div className="flex shrink-0 items-center justify-between border-b border-white/20 pb-3">
+        <h3 className="text-lg font-semibold">Comments</h3>
+        <button
+          type="button"
+          onClick={() => setCommentsOpen(false)}
+          className="rounded-full bg-white/10 px-3 py-2"
+        >
+          Close ✕
+        </button>
+      </div>
 
-  {commentsLoading ? (
-    <p className="text-sm text-white/60">Loading comments...</p>
-  ) : postComments.length === 0 ? (
-    <p className="text-sm text-white/60">No comments yet.</p>
-  ) : (
-    <div className="max-h-40 space-y-2 overflow-y-auto">
-      {postComments.map((comment) => (
-        <div key={comment.id} className="rounded-lg bg-white/10 p-2">
-          <p className="text-xs text-white/60">
-            User {comment.user_id.slice(0, 8)}
-          </p>
-          <p className="text-sm">{comment.content}</p>
-        </div>
-      ))}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-3">
+        {commentsLoading ? (
+          <p className="text-sm text-white/60">Loading comments...</p>
+        ) : postComments.length === 0 ? (
+          <p className="text-sm text-white/60">No comments yet. Be the first!</p>
+        ) : (
+          postComments.map((comment) => (
+            <div key={comment.id} className="rounded-lg bg-white/10 p-3">
+              <p className="text-xs text-white/60">
+                User {comment.user_id.slice(0, 8)}
+              </p>
+              <p className="break-words text-sm">{comment.content}</p>
+            </div>
+          ))
+        )}
+      </div>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submitPostComment(mediaPosts[activeMediaIndex!].id);
+        }}
+        className="flex shrink-0 gap-2 border-t border-white/20 pt-3"
+      >
+        <input
+          value={commentText}
+          onChange={(event) => setCommentText(event.target.value)}
+          placeholder="Write a comment..."
+          maxLength={2000}
+          className="min-w-0 flex-1 rounded-lg bg-white/15 px-3 py-3 text-sm text-white placeholder:text-white/50"
+        />
+        <button
+          type="submit"
+          disabled={!commentText.trim() || commentsLoading}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
+        >
+          Send
+        </button>
+      </form>
     </div>
-  )}
+  </div>
+)}   
+
 
   <form
     onSubmit={(event) => {
