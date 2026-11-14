@@ -43,6 +43,9 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   const [followBusy, setFollowBusy] = useState(false);
 const [likedMedia, setLikedMedia] = useState<string[]>([]);
 const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
+const [likeBusy, setLikeBusy] = useState<string[]>([]);
   const [heartVisible, setHeartVisible] = useState(false);
 const touchStart = useRef({ x: 0, y: 0 });
 const lastTap = useRef(0);
@@ -50,7 +53,7 @@ const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
  const [commentsOpen, setCommentsOpen] = useState(false);
   const [postComments, setPostComments] = useState<
-  { id: string; user_id: string; content: string; created_at: string }[]
+  { id: string; user_id: string; content: string; created_at: string; display_name?: string | null; handle?: string | null; avatar_url?: string | null }[]
 >([]);
 const [commentText, setCommentText] = useState("");
 const [commentsLoading, setCommentsLoading] = useState(false);
@@ -71,7 +74,26 @@ const [commentsLoading, setCommentsLoading] = useState(false);
     return;
   }
 
-  setPostComments(data ?? []);
+  const comments = data ?? [];
+  const userIds = [...new Set(comments.map((comment: any) => comment.user_id).filter(Boolean))];
+  let profileById: Record<string, { display_name: string | null; handle: string | null; avatar_url: string | null }> = {};
+  if (userIds.length) {
+    const { data: profiles, error: profilesError } = await (supabase as any)
+      .from("profiles")
+      .select("id, display_name, handle, avatar_url")
+      .in("id", userIds);
+    if (profilesError) {
+      console.error("Could not load comment authors:", profilesError);
+    } else {
+      profileById = Object.fromEntries((profiles ?? []).map((item: any) => [item.id, item]));
+    }
+  }
+  setPostComments(comments.map((comment: any) => ({
+    ...comment,
+    display_name: profileById[comment.user_id]?.display_name ?? null,
+    handle: profileById[comment.user_id]?.handle ?? null,
+    avatar_url: profileById[comment.user_id]?.avatar_url ?? null,
+  })));
   setCommentsLoading(false);
  }
   async function submitPostComment(postId: string) {
@@ -98,11 +120,13 @@ const [commentsLoading, setCommentsLoading] = useState(false);
   }
 
   setCommentText("");
+  setCommentCounts((current) => ({ ...current, [postId]: (current[postId] || 0) + 1 }));
   await loadPostComments(postId);
   toast.success("Comment added.");
   }
   async function sharePublicPost(post: PublicPost) {
   const shareUrl = `${window.location.origin}/profile?handle=${encodeURIComponent(handle)}`;
+  let shared = false;
 
   try {
     if (navigator.share) {
@@ -111,8 +135,10 @@ const [commentsLoading, setCommentsLoading] = useState(false);
         text: post.caption || "Check out this post on NEXORA",
         url: shareUrl,
       });
+      shared = true;
     } else {
       await navigator.clipboard.writeText(shareUrl);
+      shared = true;
       toast.success("Post link copied.");
     }
   } catch (error) {
@@ -120,74 +146,114 @@ const [commentsLoading, setCommentsLoading] = useState(false);
       toast.error("Could not share this post.");
     }
   }
+
+  if (shared && user) {
+    const { error } = await (supabase as any)
+      .from("post_interactions")
+      .insert({ post_id: post.id, actor_id: user.id, kind: "share" });
+    if (!error) {
+      setShareCounts((current) => ({ ...current, [post.id]: (current[post.id] || 0) + 1 }));
+    } else if (error.code !== "23505") {
+      console.error("Could not record share:", error);
+    }
+  }
   }
   useEffect(() => {
-  async function loadLikeCounts() {
+  async function loadEngagementCounts() {
     if (posts.length === 0) {
       setLikeCounts({});
+      setCommentCounts({});
+      setShareCounts({});
       setLikedMedia([]);
       return;
     }
 
     const postIds = posts.map((post) => post.id);
+    const [interactionsResult, commentsResult] = await Promise.all([
+      (supabase as any)
+        .from("post_interactions")
+        .select("post_id, actor_id, kind")
+        .in("post_id", postIds)
+        .in("kind", ["like", "share"]),
+      (supabase as any)
+        .from("post_comments")
+        .select("post_id")
+        .in("post_id", postIds),
+    ]);
 
-    const { data, error } = await (supabase as any)
-      .from("post_interactions")
-      .select("post_id, actor_id")
-      .in("post_id", postIds)
-      .eq("kind", "like");
-
-    if (error) {
-      console.error("Could not load likes:", error);
-      return;
-    }
-
-    const counts: Record<string, number> = {};
-    const mine: string[] = [];
-
-    for (const row of data ?? []) {
-      counts[row.post_id] = (counts[row.post_id] || 0) + 1;
-
-      if (user?.id && row.actor_id === user.id) {
-        mine.push(row.post_id);
+    if (interactionsResult.error) {
+      console.error("Could not load post interactions:", interactionsResult.error);
+    } else {
+      const likes: Record<string, number> = {};
+      const shares: Record<string, number> = {};
+      const mine: string[] = [];
+      for (const row of interactionsResult.data ?? []) {
+        if (row.kind === "like") {
+          likes[row.post_id] = (likes[row.post_id] || 0) + 1;
+          if (user?.id && row.actor_id === user.id) mine.push(row.post_id);
+        } else if (row.kind === "share") {
+          shares[row.post_id] = (shares[row.post_id] || 0) + 1;
+        }
       }
+      setLikeCounts(likes);
+      setShareCounts(shares);
+      setLikedMedia(mine);
     }
 
-    setLikeCounts(counts);
-    setLikedMedia(mine);
+    if (commentsResult.error) {
+      console.error("Could not load comment counts:", commentsResult.error);
+    } else {
+      const counts: Record<string, number> = {};
+      for (const row of commentsResult.data ?? []) {
+        counts[row.post_id] = (counts[row.post_id] || 0) + 1;
+      }
+      setCommentCounts(counts);
+    }
   }
 
-  void loadLikeCounts();
+  void loadEngagementCounts();
 }, [posts, user?.id]);
-  async function likeMedia(post: PublicPost) {
+  async function likeMedia(post: PublicPost, onlyLike = false) {
   if (!user) {
     toast.error("Sign in to like posts.");
     return;
   }
+  if (likeBusy.includes(post.id)) return;
 
-  if (likedMedia.includes(post.id)) return;
+  const alreadyLiked = likedMedia.includes(post.id);
+  if (alreadyLiked && onlyLike) return;
 
-  const { error: likeError } = await (supabase as any)
-    .from("post_interactions")
-    .insert({
-      post_id: post.id,
-      actor_id: user.id,
-      kind: "like",
-    });
-
-  if (likeError && likeError.code !== "23505") {
-    toast.error("Could not like this post.");
-    return;
+  setLikeBusy((current) => [...current, post.id]);
+  try {
+    if (alreadyLiked) {
+      const { error } = await (supabase as any)
+        .from("post_interactions")
+        .delete()
+        .eq("post_id", post.id)
+        .eq("actor_id", user.id)
+        .eq("kind", "like");
+      if (error) {
+        toast.error("Could not unlike this post.");
+        return;
+      }
+      setLikedMedia((current) => current.filter((id) => id !== post.id));
+      setLikeCounts((current) => ({ ...current, [post.id]: Math.max(0, (current[post.id] || 0) - 1) }));
+    } else {
+      const { error } = await (supabase as any)
+        .from("post_interactions")
+        .insert({ post_id: post.id, actor_id: user.id, kind: "like" });
+      if (error && error.code !== "23505") {
+        toast.error("Could not like this post.");
+        return;
+      }
+      if (!error) {
+        setLikeCounts((current) => ({ ...current, [post.id]: (current[post.id] || 0) + 1 }));
+      }
+      setLikedMedia((current) => current.includes(post.id) ? current : [...current, post.id]);
+    }
+  } finally {
+    setLikeBusy((current) => current.filter((id) => id !== post.id));
   }
-if (!likeError) {
-  setLikeCounts((current) => ({
-    ...current,
-    [post.id]: (current[post.id] || 0) + 1,
-  }));
-  }
-  setLikedMedia((current) =>
-    current.includes(post.id) ? current : [...current, post.id]
-  );
   }
   function handleMediaTouchStart(event: React.TouchEvent<HTMLDivElement>) {
   const touch = event.touches[0];
@@ -226,7 +292,7 @@ function handleMediaTouchEnd(
     const now = Date.now();
 
     if (now - lastTap.current < 300) {
-      void likeMedia(post);
+      void likeMedia(post, true);
       setHeartVisible(true);
 
       if (heartTimeout.current) {
@@ -657,7 +723,7 @@ void loadPostComments(mediaPosts[activeMediaIndex].id);
     <span className="rounded-full bg-black/50 p-3">
       <MessageCircle className="h-7 w-7" />
     </span>
-    <span className="text-xs">Comments</span>
+    <span className="text-xs">{commentCounts[mediaPosts[activeMediaIndex].id] ?? 0}</span>
   </button>
 
   <button
@@ -671,7 +737,7 @@ void loadPostComments(mediaPosts[activeMediaIndex].id);
     <span className="rounded-full bg-black/50 p-3">
       <Share2 className="h-7 w-7" />
     </span>
-    <span className="text-xs">Share</span>
+    <span className="text-xs">{shareCounts[mediaPosts[activeMediaIndex].id] ?? 0}</span>
   </button>
 </div>
  {commentsOpen && (
@@ -703,7 +769,7 @@ void loadPostComments(mediaPosts[activeMediaIndex].id);
           postComments.map((comment) => (
             <div key={comment.id} className="rounded-lg bg-white/10 p-3">
               <p className="text-xs text-white/60">
-                User {comment.user_id.slice(0, 8)}
+                <span className="font-semibold">{comment.display_name || (comment.handle ? `@${comment.handle}` : "NEXORA User")}</span>{comment.handle ? ` · @${comment.handle}` : ""}
               </p>
               <p className="break-words text-sm">{comment.content}</p>
             </div>
