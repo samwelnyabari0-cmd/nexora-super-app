@@ -101,6 +101,26 @@ const [commentsLoading, setCommentsLoading] = useState(false);
   await loadPostComments(postId);
   toast.success("Comment added.");
   }
+  async function sharePublicPost(post: PublicPost) {
+  const shareUrl = `${window.location.origin}/profile?handle=${encodeURIComponent(handle)}`;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: "NEXORA post",
+        text: post.caption || "Check out this post on NEXORA",
+        url: shareUrl,
+      });
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Post link copied.");
+    }
+  } catch (error) {
+    if ((error as Error).name !== "AbortError") {
+      toast.error("Could not share this post.");
+    }
+  }
+  }
   useEffect(() => {
   async function loadLikeCounts() {
     if (posts.length === 0) {
