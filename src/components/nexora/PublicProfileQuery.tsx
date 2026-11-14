@@ -614,43 +614,56 @@ function handleMediaTouchEnd(
       <p className="text-xs text-white/60">
         {activeMediaIndex + 1} / {mediaPosts.length}
       </p>
-  <div className="flex w-full max-w-xl items-center justify-around rounded-xl bg-white/10 p-3 text-white">
+<div className="absolute right-2 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-6 text-white">
   <button
     type="button"
-    onClick={() => void likeMedia(mediaPosts[activeMediaIndex])}
-    className="flex items-center gap-2"
+    onClick={(event) => {
+      event.stopPropagation();
+      void likeMedia(mediaPosts[activeMediaIndex]);
+    }}
+    className="flex flex-col items-center gap-1"
   >
-    <Heart
-      className={`h-5 w-5 ${
-        likedMedia.includes(mediaPosts[activeMediaIndex].id)
-          ? "fill-red-500 text-red-500"
-          : ""
-      }`}
-    />
-    <span>
-      {likeCounts[mediaPosts[activeMediaIndex].id] ?? 0} Likes
+    <span className="rounded-full bg-black/50 p-3">
+      <Heart
+        className={`h-7 w-7 ${
+          likedMedia.includes(mediaPosts[activeMediaIndex].id)
+            ? "fill-red-500 text-red-500"
+            : ""
+        }`}
+      />
+    </span>
+    <span className="text-xs">
+      {likeCounts[mediaPosts[activeMediaIndex].id] ?? 0}
     </span>
   </button>
 
   <button
     type="button"
-    onClick={() => {
+    onClick={(event) => {
+      event.stopPropagation();
       setCommentsOpen(true);
       void loadPostComments(mediaPosts[activeMediaIndex].id);
     }}
-    className="flex items-center gap-2"
+    className="flex flex-col items-center gap-1"
   >
-    <MessageCircle className="h-5 w-5" />
-    Comments
+    <span className="rounded-full bg-black/50 p-3">
+      <MessageCircle className="h-7 w-7" />
+    </span>
+    <span className="text-xs">Comments</span>
   </button>
 
   <button
     type="button"
-    onClick={() => void sharePublicPost(mediaPosts[activeMediaIndex])}
-    className="flex items-center gap-2"
+    onClick={(event) => {
+      event.stopPropagation();
+      void sharePublicPost(mediaPosts[activeMediaIndex]);
+    }}
+    className="flex flex-col items-center gap-1"
   >
-    <Share2 className="h-5 w-5" />
-    Share
+    <span className="rounded-full bg-black/50 p-3">
+      <Share2 className="h-7 w-7" />
+    </span>
+    <span className="text-xs">Share</span>
   </button>
 </div>
     <div className="w-full max-w-xl space-y-3 rounded-xl bg-white/10 p-3 text-white">
