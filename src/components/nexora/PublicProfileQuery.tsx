@@ -125,6 +125,7 @@ const [commentsLoading, setCommentsLoading] = useState(false);
   async function loadLikeCounts() {
     if (posts.length === 0) {
       setLikeCounts({});
+      setLikedMedia([]);
       return;
     }
 
@@ -132,26 +133,32 @@ const [commentsLoading, setCommentsLoading] = useState(false);
 
     const { data, error } = await (supabase as any)
       .from("post_interactions")
-      .select("post_id")
+      .select("post_id, actor_id")
       .in("post_id", postIds)
       .eq("kind", "like");
 
     if (error) {
-      console.error("Could not load like counts:", error);
+      console.error("Could not load likes:", error);
       return;
     }
 
     const counts: Record<string, number> = {};
+    const mine: string[] = [];
 
     for (const row of data ?? []) {
       counts[row.post_id] = (counts[row.post_id] || 0) + 1;
+
+      if (user?.id && row.actor_id === user.id) {
+        mine.push(row.post_id);
+      }
     }
 
     setLikeCounts(counts);
+    setLikedMedia(mine);
   }
 
   void loadLikeCounts();
-}, [posts]);
+}, [posts, user?.id]);
   async function likeMedia(post: PublicPost) {
   if (!user) {
     toast.error("Sign in to like posts.");
