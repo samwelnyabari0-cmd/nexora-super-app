@@ -95,10 +95,8 @@ export const searchPlaces = createServerFn({ method: "GET" })
       placesUrl.searchParams.set("bias", `proximity:${lon},${lat}`);
       placesUrl.searchParams.set("limit", "8");
       placesUrl.searchParams.set("lang", "en");
-      if (categories.startsWith("commercial,catering") === false &&
-          !/restaurant|food|eatery|dining|cafe|coffee|tea|bar|pub|nightlife|fast food|takeaway|pizza|burger|hotel|accommodation|lodging|hospital|clinic|doctor|pharmacy|chemist|school|university|college|bank|atm|fuel|petrol|gas station|supermarket|grocery|mall|shopping centre|shopping center|gym|fitness|park|garden|museum|tourist|attraction|sightseeing/i.test(searchTerm)) {
-        placesUrl.searchParams.set("name", searchTerm);
-      }
+      const isCategorySearch = /restaurant|food|eatery|dining|cafe|coffee|tea|bar|pub|nightlife|fast food|takeaway|pizza|burger|hotel|accommodation|lodging|hospital|clinic|doctor|pharmacy|chemist|school|university|college|bank|atm|fuel|petrol|gas station|supermarket|grocery|mall|shopping centre|shopping center|gym|fitness|park|garden|museum|tourist|attraction|sightseeing/i.test(searchTerm);
+      if (!isCategorySearch) placesUrl.searchParams.set("name", searchTerm);
       placesUrl.searchParams.set("apiKey", key);
 
       const response = await fetch(placesUrl, { cache: "no-store" });
