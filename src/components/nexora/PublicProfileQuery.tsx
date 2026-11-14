@@ -48,6 +48,7 @@ const touchStart = useRef({ x: 0, y: 0 });
 const lastTap = useRef(0);
 const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null);
+ const [commentsOpen, setCommentsOpen] = useState(false);
   const mediaPosts = posts.filter((post) => !!post.media_url);
   useEffect(() => {
   async function loadLikeCounts() {
