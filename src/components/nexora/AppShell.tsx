@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Home,
   Compass,
@@ -31,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { Avatar } from "./ui";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 
 const nav = [
   { to: "/", label: "Home", icon: Home },
@@ -60,7 +62,38 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
-  const noticeCount = notices.filter((n) => !n.read).length;
+  const { user } = useSession();
+  const [remoteUnread, setRemoteUnread] = useState(0);
+  useEffect(() => {
+    if (!user) {
+      setRemoteUnread(0);
+      return;
+    }
+    let active = true;
+    const refreshUnread = async () => {
+      const { count, error } = await (supabase as any)
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", user.id)
+        .is("read_at", null);
+      if (active && !error) setRemoteUnread(count ?? 0);
+    };
+    void refreshUnread();
+    const channel = supabase
+      .channel(`notification-badge:${user.id}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "notifications",
+        filter: `recipient_id=eq.${user.id}`,
+      }, () => void refreshUnread())
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+  const noticeCount = notices.filter((n) => !n.read).length + remoteUnread;
   const unread = conversations.reduce((a, c) => a + c.unread, 0);
 
   return (
