@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ExternalLink, MapPin, Search, Star, TriangleAlert } from "lucide-react";
+import { ExternalLink, MapPin, Search, TriangleAlert } from "lucide-react";
 import type { Place } from "@/features/core/data";
 import { searchPlaces } from "@/lib/maps.functions";
 import { EmptyState, PageHeader } from "@/components/nexora/ui";
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/maps")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "Discover — NEXORA Maps" },
-      { name: "description", content: "Discover real places with Google Maps." },
+      { name: "description", content: "Discover real places with Geoapify and OpenStreetMap." },
       { property: "og:title", content: "Discover — NEXORA Maps" },
-      { property: "og:description", content: "Search real places and open them in Google Maps." },
+      { property: "og:description", content: "Search real places and view them on OpenStreetMap." },
     ],
   }),
   component: Maps,
@@ -32,8 +32,11 @@ function Maps() {
   const [errorMessage, setErrorMessage] = useState("");
   const [sel, setSel] = useState<string | null>(null);
   const normalizedQuery = q.trim() || "Nairobi, Kenya";
-  const mapQuery = encodeURIComponent(normalizedQuery);
-  const googleEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
+  const firstPlace = res.find((place) => place.lat && place.lon);
+  const mapLat = firstPlace?.lat ?? -1.286389;
+  const mapLon = firstPlace?.lon ?? 36.817223;
+  const mapDelta = 0.025;
+  const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLon - mapDelta}%2C${mapLat - mapDelta}%2C${mapLon + mapDelta}%2C${mapLat + mapDelta}&layer=mapnik&marker=${mapLat}%2C${mapLon}`;
 
   const run = (search: string) => {
     const query = search.trim() || "Nairobi, Kenya";
@@ -55,7 +58,7 @@ function Maps() {
       })
       .catch(() => {
         setRes([]);
-        setErrorMessage("Google Maps search failed. Please try again.");
+        setErrorMessage("Geoapify search failed. Please try again.");
         setState("error");
       });
   };
@@ -66,7 +69,7 @@ function Maps() {
 
   return (
     <div>
-      <PageHeader title="Discover" subtitle="Find real places with Google Maps" />
+      <PageHeader title="Discover" subtitle="Find real places with Geoapify" />
 
       <form
         onSubmit={(event) => {
@@ -98,8 +101,8 @@ function Maps() {
         <section className="space-y-2">
           <div className="map-grid relative aspect-[4/3] overflow-hidden rounded-3xl border">
             <iframe
-              title={`Google Maps results for ${normalizedQuery}`}
-              src={googleEmbedUrl}
+              title={`OpenStreetMap results near ${normalizedQuery}`}
+              src={osmEmbedUrl}
               className="absolute inset-0 size-full border-0"
               loading="lazy"
               allowFullScreen
@@ -107,13 +110,14 @@ function Maps() {
             />
           </div>
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`}
+            href={`https://www.openstreetmap.org/?mlat=${mapLat}&mlon=${mapLon}#map=14/${mapLat}/${mapLon}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
           >
-            Open this search in Google Maps <ExternalLink className="h-3.5 w-3.5" />
+            Open this area in OpenStreetMap <ExternalLink className="h-3.5 w-3.5" />
           </a>
+          <p className="text-xs text-muted-foreground">Map data © OpenStreetMap contributors. Place search by Geoapify.</p>
         </section>
 
         <section aria-label="Place search results">
@@ -126,7 +130,7 @@ function Maps() {
           ) : state === "error" ? (
             <EmptyState
               icon={<TriangleAlert className="h-6 w-6" />}
-              title="Google Maps search unavailable"
+              title="Place search unavailable"
               body={errorMessage}
               action={
                 <button
@@ -142,7 +146,7 @@ function Maps() {
             <EmptyState
               icon={<MapPin className="h-6 w-6" />}
               title="No places found"
-              body="Try another search, such as restaurants, cafes or shopping."
+              body="Try another search, such as restaurants in Nairobi or cafes in Westlands."
             />
           ) : (
             <ul className="space-y-2">
@@ -161,16 +165,11 @@ function Maps() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold">{place.name}</p>
-                        {place.rating > 0 && (
-                          <span className="flex shrink-0 items-center gap-1 text-sm">
-                            <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                            {place.rating.toFixed(1)}
-                          </span>
-                        )}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {place.category} · {place.distance}
                       </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{place.blurb}</p>
                     </button>
                     {place.mapsUrl && (
                       <a
