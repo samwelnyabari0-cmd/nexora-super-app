@@ -42,7 +42,8 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
   const [error, setError] = useState("");
   const [followBusy, setFollowBusy] = useState(false);
 const [likedMedia, setLikedMedia] = useState<string[]>([]);
-const [heartVisible, setHeartVisible] = useState(false);
+const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [heartVisible, setHeartVisible] = useState(false);
 const touchStart = useRef({ x: 0, y: 0 });
 const lastTap = useRef(0);
 const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
