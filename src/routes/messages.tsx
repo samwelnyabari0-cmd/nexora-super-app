@@ -509,7 +509,7 @@ if (recipient === user.id) {
         <input
           ref={fileInput}
           type="file"
-          accept="image/*,video/mp4,video/webm"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
           className="hidden"
           aria-label="Choose a photo or video"
           onChange={(event) => {
