@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, UserPlus, UserCheck, Heart, Share2 } from "lucide-react";
+import { MessageCircle, UserPlus, UserCheck, Heart, Share2, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ type PublicProfileRecord = {
   avatar_url: string | null;
   account_type: string | null;
   profile_category: string | null;
+  bio_links: { title: string; url: string }[] | null;
 };
 
 type PublicPost = {
@@ -494,6 +495,37 @@ function handleMediaTouchEnd(
         <p className="mt-4 whitespace-pre-wrap text-sm">
           {profile.bio || "No bio added yet."}
         </p>
+
+        {Array.isArray(profile.bio_links) && profile.bio_links.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {profile.bio_links.map((link, index) => {
+              const title = typeof link?.title === "string" ? link.title.trim() : "";
+              const url = typeof link?.url === "string" ? link.url.trim() : "";
+              let safeUrl = "";
+              try {
+                const parsedUrl = new URL(url);
+                if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+                  safeUrl = parsedUrl.href;
+                }
+              } catch {
+                safeUrl = "";
+              }
+              if (!title || !safeUrl) return null;
+              return (
+                <a
+                  key={`${safeUrl}-${index}`}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm text-primary hover:bg-primary/10"
+                >
+                  <Link2 className="h-4 w-4" />
+                  {title}
+                </a>
+              );
+            })}
+          </div>
+        )}
 
         <div className="mt-5 flex flex-wrap gap-5 border-t pt-4 text-sm">
           <span>
