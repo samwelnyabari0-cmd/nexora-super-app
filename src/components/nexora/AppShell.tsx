@@ -63,6 +63,36 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
   const { user } = useSession();
+
+  // Track authenticated activity across every page rendered inside AppShell.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const updateLastSeen = async () => {
+      if (document.visibilityState !== "visible") return;
+      await (supabase as any)
+        .from("user_presence")
+        .upsert(
+          { user_id: user.id, last_seen: new Date().toISOString() },
+          { onConflict: "user_id" }
+        );
+    };
+
+    void updateLastSeen();
+    const interval = window.setInterval(() => void updateLastSeen(), 30000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void updateLastSeen();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", updateLastSeen);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", updateLastSeen);
+    };
+  }, [user?.id]);
+
   const [remoteUnread, setRemoteUnread] = useState(0);
   useEffect(() => {
     if (!user) {
