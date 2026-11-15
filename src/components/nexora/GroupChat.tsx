@@ -85,8 +85,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       const profileEntries = await Promise.all(
         senderIds.map(async (senderId) => {
           const { data } = await (supabase as any).rpc(
-            "get_chat_recipient_profile",
-            { p_user_id: senderId },
+            "get_group_message_sender_profile",
+            { p_group_id: groupId, p_user_id: senderId },
           );
           const profile = Array.isArray(data) ? data[0] : data;
           return [senderId, {
@@ -178,8 +178,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       if (missingSenders.length > 0) {
         const entries = await Promise.all(missingSenders.map(async (senderId) => {
           const { data: profileData } = await (supabase as any).rpc(
-            "get_chat_recipient_profile",
-            { p_user_id: senderId },
+            "get_group_message_sender_profile",
+            { p_group_id: groupId, p_user_id: senderId },
           );
           const profile = Array.isArray(profileData) ? profileData[0] : profileData;
           return [senderId, {
