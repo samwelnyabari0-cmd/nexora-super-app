@@ -16,6 +16,7 @@
 - The creator is the initial admin.
 - Only admins can add or remove other members. Ordinary members can send messages and leave.
 - If the only admin leaves and other members remain, promote the longest-standing member (earliest `joined_at`) to admin. Use a stable deterministic tie-breaker for equal timestamps.
+- If the final member leaves, retain the now-empty group record and its message history for possible recovery; it remains inaccessible to ordinary users until an authorized recovery path is defined.
 - Only current members can read group details, membership, and messages.
 - Previously sent messages remain visible to remaining members after their sender leaves or is removed; departed users lose access.
 - Support text, image, video, and audio attachments consistently with the existing chat media conventions where secure storage access can be established.
@@ -188,7 +189,6 @@ Expected: all test suites pass, ESLint reports no errors, and the Vercel-targete
 
 Commit the route integration and tests with message `feat: integrate group chats into messages inbox`.
 
-## Unresolved product decisions
+## Remaining technical verification
 
-- If the final member leaves a group (so no members remain), should Nexora delete the now-empty group automatically or retain an inaccessible empty group record for possible administrative recovery?
-- Confirm whether the existing `chat-media` bucket policies can securely support group-scoped objects. This is a technical verification gate, not a product decision; if they cannot, ship text-only group messaging until secure group media storage is available.
+- Confirm whether the existing `chat-media` bucket policies can securely support group-scoped objects. This is a technical verification gate; if they cannot, ship text-only group messaging until secure group media storage is available.
