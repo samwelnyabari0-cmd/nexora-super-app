@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2, Search, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,7 +41,7 @@ export function GroupMembersDialog({
   const currentMember = members.find((member) => member.user_id === userId);
   const isAdmin = currentMember?.role === "admin";
 
-  async function loadMembers() {
+  const loadMembers = useCallback(async () => {
     setLoading(true);
     const { data, error: memberError } = await (supabase as any)
       .from("chat_group_members")
@@ -71,11 +71,11 @@ export function GroupMembersDialog({
 
     setMembers(rows);
     setLoading(false);
-  }
+  }, [groupId]);
 
   useEffect(() => {
     if (open) void loadMembers();
-  }, [open, groupId]);
+  }, [open, loadMembers]);
 
   useEffect(() => {
     if (!open || !isAdmin || query.trim().length < 2) {
