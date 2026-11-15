@@ -30,8 +30,6 @@ import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
 import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { ProfileBadges } from "@/components/nexora/ProfileBadges";
-import { CreatorStudio } from "@/components/nexora/CreatorStudio";
-import { BusinessSuite } from "@/components/nexora/BusinessSuite";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
@@ -88,7 +86,7 @@ function Profile() {
   return <OwnProfile />;
 } 
   function OwnProfile() {
-  const { passport, updatePassport, relay, online, syncRelay, events, posts, saved } = useApp();
+  const { passport } = useApp();
   const { user, ready } = useSession();
   const { followers, following } = useSocialGraph();
   const [bio, setBio] = useState(passport.bio);
@@ -303,32 +301,6 @@ useEffect(() => {
         </Link>
       </Button>
 
-      {accountType === "creator" && <Panel className="space-y-4"><CreatorStudio /></Panel>}
-      {accountType === "business" && <Panel className="space-y-4"><BusinessSuite /></Panel>}
-
-      <Panel className="space-y-2">
-        <p className="flex items-center gap-2 font-display font-semibold">
-          <CloudUpload className="h-5 w-5 text-accent" /> Offline Relay
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Toggle "Online" in the top bar to simulate losing connection. Posts and messages queue here.
-        </p>
-        {relay.length === 0 ? <p className="text-sm">Queue empty.</p> : (
-          <ul className="space-y-1">
-            {relay.map((r) => <li key={r.id} className="rounded-lg bg-muted px-3 py-2 text-sm"><b className="uppercase text-accent">{r.kind}</b> {r.label}</li>)}
-          </ul>
-        )}
-        <Button disabled={!online || !relay.length} onClick={syncRelay} className="bg-brand">Sync locally</Button>
-      </Panel>
-
-      <Panel>
-        <p className="mb-2 font-display font-semibold">Activity events</p>
-        {events.length === 0 ? <p className="text-sm text-muted-foreground">Like, comment or message to see events.</p> : (
-          <ul className="space-y-1 font-mono text-xs">
-            {events.slice(0, 8).map((e) => <li key={e.id}>{e.type} · {e.detail}</li>)}
-          </ul>
-        )}
-      </Panel>
     </div>
   );
 
