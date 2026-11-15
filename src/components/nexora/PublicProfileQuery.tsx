@@ -58,6 +58,14 @@ const heartTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 const [commentText, setCommentText] = useState("");
 const [commentsLoading, setCommentsLoading] = useState(false);
   const mediaPosts = posts.filter((post) => !!post.media_url);
+
+  useEffect(() => {
+    if (postsLoading || !posts.length) return;
+    const requestedPostId = new URLSearchParams(window.location.search).get("post");
+    if (!requestedPostId) return;
+    const index = mediaPosts.findIndex((post) => post.id === requestedPostId);
+    if (index >= 0) setActiveMediaIndex(index);
+  }, [posts, postsLoading]);
  async function loadPostComments(postId: string) {
   setCommentsLoading(true);
 
