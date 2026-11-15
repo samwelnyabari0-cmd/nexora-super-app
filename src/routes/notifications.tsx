@@ -147,7 +147,7 @@ function Notifications() {
         actorProfile: item.actor_id ? actorProfiles[item.actor_id] : undefined,
         time: new Date(item.created_at).toLocaleString(),
         read: Boolean(item.read_at),
-        href: isMessage ? "/messages" : "/",
+        href: isMessage ? "/messages" : item.post_id && user?.user_metadata?.handle ? `/profile?handle=${encodeURIComponent(String(user.user_metadata.handle))}&post=${encodeURIComponent(item.post_id)}` : "/profile",
         icon: isMessage ? MessageCircle : isComment ? MessageCircle : isLike ? Heart : isFollow ? Bell : Bell,
       };
     });
