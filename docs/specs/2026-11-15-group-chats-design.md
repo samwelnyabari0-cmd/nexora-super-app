@@ -16,7 +16,7 @@ Allow Nexora users to create private group conversations, discover and add any u
 - Group admins can add any discoverable Nexora user by name or handle, and can remove members.
 - Ordinary members can participate and leave the group, but cannot add or remove other members.
 - If the only remaining admin leaves, Nexora automatically promotes another existing member to admin so the group can continue.
-- Only current group members can read group details, membership, and messages.
+- Only current group members can read group details, membership, and messages; messages already sent remain in group history for the remaining members after someone leaves or is removed.
 - Group messages support text and media, with sender display name, handle, avatar, and timestamp.
 - Existing one-to-one messaging remains on its current tables and code path.
 
@@ -88,7 +88,7 @@ Subscribe to inserts for the selected group's messages and membership changes re
 - Render messages with sender display name, handle, avatar, and timestamp.
 - Support text and media using the existing chat media conventions.
 - Send button state and error feedback must reflect actual upload/insert results.
-- A member who is removed or leaves must lose read access immediately through RLS, including realtime-backed reads.
+- A member who is removed or leaves must lose read access immediately through RLS, including realtime-backed reads. Their previously sent messages remain visible to current members as group history.
 
 ### Member management
 
@@ -144,4 +144,3 @@ Avoid creating all proposed components if the repository's current component str
 ## Unresolved product decisions
 
 These choices affect user-visible behavior and must be confirmed before implementation:
-1. Should a removed or departed member's previous messages remain visible to the remaining group as chat history, or be deleted when that member leaves/is removed?
