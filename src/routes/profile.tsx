@@ -260,7 +260,7 @@ useEffect(() => {
            {passport.bio && (
   <p className="text-sm">{passport.bio}</p>
 )}
-          <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
+          <div className="flex flex-wrap gap-2"><Button asChild type="button" size="sm"><Link to="/profile-settings"><Pencil className="h-4 w-4" /> Edit Profile</Link></Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
         <div id="pulse-passport"><Button asChild type="button" variant="outline" className="w-full justify-start gap-3 rounded-2xl py-6">
           <Link to="/profile-settings">
@@ -269,6 +269,8 @@ useEffect(() => {
             <span className="ml-auto text-xs text-muted-foreground">Identity, account type & privacy</span>
           </Link>
         </Button>
+        {accountType === "creator" && <Panel className="space-y-4"><CreatorStudio /></Panel>}
+        {accountType === "business" && <Panel className="space-y-4"><BusinessSuite /></Panel>}
         <Panel className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
             {(
@@ -323,137 +325,6 @@ useEffect(() => {
             </div>
           )}
         </Panel>
-        {passportOpen && <Panel className="space-y-3">
-          <div className="flex items-center gap-3 rounded-2xl border bg-background/50 p-3">
-            <button type="button" className="group relative shrink-0" onClick={() => avatarInput.current?.click()} aria-label="Change profile picture">
-              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-14 w-14 rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={56} ring />}
-              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[9px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
-            </button>
-            <div><p className="font-semibold">Profile photo</p><p className="text-xs text-muted-foreground">Upload or change your Pulse Passport photo.</p></div>
-          </div>
-          <p className="flex items-center gap-2 font-display font-semibold">
-            <ShieldCheck className="h-5 w-5 text-accent" /> Pulse Passport
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Verified account identity · profile, interests, and sharing preferences are stored
-            securely.
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="font-display text-3xl font-bold text-brand">
-              {passport.reputation}
-            </span>
-            <span className="text-sm text-muted-foreground">reputation score</span>
-          </div>
-          <div className="space-y-3 rounded-2xl border bg-background/50 p-3">
-            <div><p className="font-semibold">Account type</p><p className="text-xs text-muted-foreground">Choose the tools and profile experience that fit you.</p></div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {accountTypes.map((type) => <button key={type.value} type="button" onClick={() => { setAccountType(type.value); syncProfile({ account_type: type.value }); }} className={`rounded-xl border p-3 text-left transition ${accountType === type.value ? "border-primary bg-primary/10" : "hover:bg-muted"}`}><p className="text-sm font-semibold">{type.label}</p><p className="mt-1 text-xs text-muted-foreground">{type.description}</p></button>)}
-            </div>
-            {(accountType === "creator" || accountType === "business") && <div><p className="mb-2 text-sm font-semibold">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{profileCategories.map(([value, label]) => <button key={value} type="button" onClick={() => { setProfileCategory(value); syncProfile({ profile_category: value }); }} className={`rounded-lg border px-2 py-2 text-xs ${profileCategory === value ? "border-accent bg-accent/10 text-accent" : "hover:bg-muted"}`}>{label}</button>)}</div></div>}
-          </div>
-          {accountType === "creator" && <CreatorStudio />}
-          {accountType === "business" && <BusinessSuite />}
-          <label className="block space-y-2 text-sm font-semibold">
-            Display name
-            <input
-              aria-label="Display name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => {
-                if (name.trim()) {
-                  updatePassport({ name: name.trim() });
-                  syncProfile({ display_name: name.trim() });
-                }
-              }}
-              className="w-full rounded-xl border bg-background px-3 py-2"
-            />
-          </label>
-          <label className="block space-y-2 text-sm font-semibold">
-            Handle
-            <input
-              aria-label="Profile handle"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value.replace(/[^a-zA-Z0-9._]/g, ""))}
-              onBlur={() => {
-                if (handle) {
-                  updatePassport({ handle });
-                  syncProfile({ handle });
-                }
-              }}
-              className="w-full rounded-xl border bg-background px-3 py-2"
-            />
-          </label>
-          <label htmlFor="bio" className="text-sm font-semibold">
-            Bio
-          </label>
-          <input
-            id="bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            onBlur={() => {
-              updatePassport({ bio });
-              syncProfile({ bio });
-            }}
-            className="w-full rounded-xl border bg-background px-3 py-2"
-          />
-          <p className="text-sm font-semibold">Interests</p>
-          <div className="flex flex-wrap gap-2">
-            {allInterests.map((i) => (
-              <Chip
-                key={i}
-                active={passport.interests.includes(i)}
-                onClick={() => {
-                  const interests = passport.interests.includes(i)
-                    ? passport.interests.filter((x) => x !== i)
-                    : [...passport.interests, i];
-                  updatePassport({ interests });
-                  syncProfile({ interests: JSON.stringify(interests) });
-                }}
-              >
-                {i}
-              </Chip>
-            ))}
-          </div>
-          <div className="rounded-2xl border p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">Profile visibility</p>
-                <p className="text-sm text-muted-foreground">
-                  {privateProfile
-                    ? "Only approved followers can see your profile and posts."
-                    : "Anyone can discover your profile and public posts."}
-                </p>
-              </div>
-              <Switch
-                checked={!privateProfile}
-                disabled={!user || savingPrivacy}
-                onCheckedChange={(isPublic) => void updatePrivacy(!isPublic)}
-                aria-label="Make profile public"
-              />
-            </div>
-            {!user && (
-              <Link
-                to="/auth"
-                className="mt-2 inline-block text-sm font-semibold text-accent underline"
-              >
-                Sign in to change visibility
-              </Link>
-            )}
-          </div>
-          <p className="pt-2 text-sm font-semibold">Sharing permissions</p>
-          {(Object.keys(passport.share) as (keyof typeof passport.share)[]).map((k) => (
-            <label
-              key={k}
-              className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm capitalize"
-            >
-              Share {k}
-              <Switch
-                checked={passport.share[k]}
-                onCheckedChange={(v) => updatePassport({ share: { ...passport.share, [k]: v } })}
-              />
-            </label>
-          ))}
-        </Panel>}
         </div>
       </div>
       <div className="space-y-4">
