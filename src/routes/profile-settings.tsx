@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, ShieldCheck, UserRound, BriefcaseBusiness, Sparkles } from "lucide-react";
+import { ArrowLeft, Camera, ShieldCheck, UserRound, BriefcaseBusiness, Sparkles, Link2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,8 @@ export const Route = createFileRoute("/profile-settings")({
   head: () => ({ meta: [{ title: "Profile settings — NEXORA" }] }),
   component: ProfileSettings,
 });
+
+type BioLink = { title: string; url: string };
 
 const interests = ["city", "food", "tech", "music", "dance", "travel", "nature", "creators"];
 const categories = [
@@ -38,6 +40,7 @@ function ProfileSettings() {
   const [category, setCategory] = useState("");
   const [privateProfile, setPrivateProfile] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [bioLinks, setBioLinks] = useState<BioLink[]>([]);
   const [share, setShare] = useState<typeof passport.share>(passport.share);
 
   useEffect(() => {
@@ -45,7 +48,7 @@ function ProfileSettings() {
     let active = true;
     void (async () => {
       const { data, error } = await (supabase as any).from("profiles")
-        .select("display_name, handle, bio, avatar_url, account_type, profile_category, private_profile, interests")
+        .select("display_name, handle, bio, avatar_url, account_type, profile_category, private_profile, interests, bio_links")
         .eq("id", user.id).maybeSingle();
       if (!active) return;
       if (error) {
@@ -61,6 +64,7 @@ function ProfileSettings() {
         setCategory(data?.profile_category ?? metadata.profile_category ?? "");
         setPrivateProfile(Boolean(data?.private_profile ?? metadata.private_profile));
         setSelectedInterests(Array.isArray(data?.interests) ? data.interests : passport.interests ?? []);
+        setBioLinks(Array.isArray(data?.bio_links) ? data.bio_links.filter((item: any) => item && typeof item.title === "string" && typeof item.url === "string").slice(0, 5) : []);
       }
       setLoading(false);
     })();
@@ -71,10 +75,24 @@ function ProfileSettings() {
     if (!user) return toast.error("Sign in to update your profile.");
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
+    const cleanBioLinks = bioLinks.map(link => ({ title: link.title.trim(), url: link.url.trim() })).filter(link => link.title || link.url);
+    for (const link of cleanBioLinks) {
+      try {
+        const parsed = new URL(link.url);
+        if (!link.title || !["http:", "https:"].includes(parsed.protocol)) throw new Error();
+      } catch {
+        setSaving(false);
+        return toast.error("Each bio link needs a title and a valid http:// or https:// URL.");
+      }
+    }
+    if (cleanBioLinks.length > 5) {
+      setSaving(false);
+      return toast.error("You can add up to 5 bio links.");
+    }
     const { error } = await (supabase as any).from("profiles").upsert({
       id: user.id, display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
       account_type: accountType, profile_category: category || null,
-      private_profile: privateProfile, interests: selectedInterests,
+      private_profile: privateProfile, interests: selectedInterests, bio_links: cleanBioLinks,
     });
     if (!error) {
       const { error: authError } = await supabase.auth.updateUser({ data: {
@@ -134,6 +152,28 @@ function ProfileSettings() {
         <label className="block space-y-1 text-sm font-medium">Display name<input value={name} onChange={e=>setName(e.target.value)} maxLength={60} className="w-full rounded-xl border bg-background px-3 py-2 font-normal" /></label>
         <label className="block space-y-1 text-sm font-medium">Handle<input value={handle} onChange={e=>setHandle(e.target.value.replace(/[^a-zA-Z0-9._@]/g,""))} maxLength={30} className="w-full rounded-xl border bg-background px-3 py-2 font-normal" /></label>
         <label className="block space-y-1 text-sm font-medium">Bio<textarea value={bio} onChange={e=>setBio(e.target.value)} maxLength={160} rows={3} className="w-full rounded-xl border bg-background px-3 py-2 font-normal" /></label>
+      </Panel>
+
+      <Panel className="space-y-3">
+        <h2 className="flex items-center gap-2 font-semibold"><Link2 className="h-5 w-5" /> Bio links</h2>
+        <p className="text-xs text-muted-foreground">Add up to 5 links to your website, social pages, portfolio or store. They will be saved with your profile.</p>
+        {bioLinks.map((link, index) => (
+          <div key={index} className="space-y-2 rounded-xl border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Link {index + 1}</p>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Remove link ${index + 1}`} onClick={() => setBioLinks(current => current.filter((_, i) => i !== index))}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+            <input value={link.title} onChange={e => setBioLinks(current => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} maxLength={40} placeholder="Link title (e.g. My website)" className="w-full rounded-xl border bg-background px-3 py-2 text-sm" />
+            <input type="url" value={link.url} onChange={e => setBioLinks(current => current.map((item, i) => i === index ? { ...item, url: e.target.value } : item))} placeholder="https://example.com" className="w-full rounded-xl border bg-background px-3 py-2 text-sm" />
+          </div>
+        ))}
+        {bioLinks.length < 5 && (
+          <Button type="button" variant="outline" className="w-full" onClick={() => setBioLinks(current => [...current, { title: "", url: "" }])}>
+            <Plus className="mr-2 h-4 w-4" /> Add bio link
+          </Button>
+        )}
       </Panel>
 
       <Panel className="space-y-3">
