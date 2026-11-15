@@ -157,20 +157,53 @@ useEffect(() => {
   setHandle(passport.handle);
   setBio(passport.bio);
 }, [passport.name, passport.handle, passport.bio]);
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void (async () => {
+      const { data, error } = await (supabase as any)
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        console.error("Could not load profile photo:", error.message);
+        return;
+      }
+      if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
   async function uploadAvatar(file: File) {
     if (!user) return;
     setAvatarUploading(true);
-    const path = `${user.id}/avatar-${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
-    const { error } = await supabase.storage.from("post-media").upload(path, file, { upsert: false, contentType: file.type });
-    if (!error) {
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/avatar-${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from("post-media")
+        .upload(path, file, { upsert: false, contentType: file.type || "image/jpeg" });
+      if (uploadError) throw uploadError;
+
       const { data } = supabase.storage.from("post-media").getPublicUrl(path);
+      const { error: profileError } = await (supabase as any)
+        .from("profiles")
+        .update({ avatar_url: data.publicUrl })
+        .eq("id", user.id);
+      if (profileError) throw profileError;
+
       setAvatarUrl(data.publicUrl);
-      await Promise.all([
-        supabase.auth.updateUser({ data: { avatar_url: data.publicUrl } }),
-        (supabase as any).from("profiles").upsert({ id: user.id, avatar_url: data.publicUrl }),
-      ]);
+      toast.success("Profile photo saved.");
+    } catch (error) {
+      console.error("Profile photo upload failed:", error);
+      toast.error("Could not save your profile photo. Please try again.");
+    } finally {
+      setAvatarUploading(false);
     }
-    setAvatarUploading(false);
   }
 
   async function shareProfile() {
