@@ -112,7 +112,7 @@ function Notifications() {
     };
   }, [user?.id]);
   useEffect(() => {
-    const actorIds = [...new Set(remoteNotices.map((item) => item.actor_id).filter((id): id is string => Boolean(id)))];
+    const actorIds = [...new Set([...remoteNotices.map((item) => item.actor_id).filter((id): id is string => Boolean(id)), ...(user?.id ? [user.id] : [])])];
     const missingIds = actorIds.filter((id) => !actorProfiles[id]);
     if (!missingIds.length) return;
     let active = true;
@@ -130,7 +130,7 @@ function Notifications() {
       }));
     })();
     return () => { active = false; };
-  }, [remoteNotices, actorProfiles]);
+  }, [remoteNotices, actorProfiles, user?.id]);
   const notices = useMemo(() => {
     const remote: Notice[] = remoteNotices.map((item) => {
       const kind = item.kind?.toLowerCase() ?? "activity";
@@ -147,7 +147,7 @@ function Notifications() {
         actorProfile: item.actor_id ? actorProfiles[item.actor_id] : undefined,
         time: new Date(item.created_at).toLocaleString(),
         read: Boolean(item.read_at),
-        href: isMessage ? "/messages" : item.post_id && user?.user_metadata?.handle ? `/profile?handle=${encodeURIComponent(String(user.user_metadata.handle))}&post=${encodeURIComponent(item.post_id)}` : "/profile",
+        href: isMessage ? "/messages" : item.post_id && actorProfiles[user?.id ?? ""]?.handle ? `/profile?handle=${encodeURIComponent(String(actorProfiles[user?.id ?? ""]?.handle))}&post=${encodeURIComponent(item.post_id)}` : "/profile",
         icon: isMessage ? MessageCircle : isComment ? MessageCircle : isLike ? Heart : isFollow ? Bell : Bell,
       };
     });
