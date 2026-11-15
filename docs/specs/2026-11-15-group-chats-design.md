@@ -11,10 +11,11 @@ Allow Nexora users to create private group conversations, discover and add any u
 ## Approved product decisions
 
 - Group conversations appear alongside existing private conversations in Messages.
-- A group has a name, optional description, and optional photo.
+- A group has a name, optional description, and optional photo; when no photo is uploaded, show a default group avatar.
 - Group creators become admins.
 - Group admins can add any discoverable Nexora user by name or handle, and can remove members.
 - Ordinary members can participate and leave the group, but cannot add or remove other members.
+- If the only remaining admin leaves, Nexora automatically promotes another existing member to admin so the group can continue.
 - Only current group members can read group details, membership, and messages.
 - Group messages support text and media, with sender display name, handle, avatar, and timestamp.
 - Existing one-to-one messaging remains on its current tables and code path.
@@ -95,7 +96,7 @@ Subscribe to inserts for the selected group's messages and membership changes re
 - Admins can remove members.
 - Ordinary members cannot see or invoke add/remove controls.
 - Any attempted unauthorized operation must be rejected by the database even if a client bypasses the UI.
-- Members can leave. The behavior when the last admin leaves is listed under unresolved decisions below.
+- Members can leave. If the only remaining admin leaves, promote another existing member to admin automatically.
 
 ## Proposed code boundaries
 
@@ -143,6 +144,4 @@ Avoid creating all proposed components if the repository's current component str
 ## Unresolved product decisions
 
 These choices affect user-visible behavior and must be confirmed before implementation:
-1. If the only remaining admin leaves, should the group be deleted, or should another member be promoted automatically?
-2. Should group photo uploads be optional at launch (with a default group avatar), or should photo upload be required?
-3. Should a removed/left member's previous messages remain visible to the remaining group, as normal chat history, or be deleted with that member's membership?
+1. Should a removed or departed member's previous messages remain visible to the remaining group as chat history, or be deleted when that member leaves/is removed?
