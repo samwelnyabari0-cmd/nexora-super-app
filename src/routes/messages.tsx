@@ -67,8 +67,90 @@ const [inboxLoading, setInboxLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [recipientLastSeen, setRecipientLastSeen] = useState<string | null>(null);
 
   const log = useRef<HTMLDivElement>(null);
+
+  // Keep the signed-in user's last activity fresh while the Messages page is visible.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const updateLastSeen = async () => {
+      if (document.visibilityState !== "visible") return;
+      await (supabase as any)
+        .from("user_presence")
+        .upsert(
+          { user_id: user.id, last_seen: new Date().toISOString() },
+          { onConflict: "user_id" }
+        );
+    };
+
+    void updateLastSeen();
+    const interval = window.setInterval(() => void updateLastSeen(), 30000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void updateLastSeen();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", updateLastSeen);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", updateLastSeen);
+    };
+  }, [user?.id]);
+
+  // Read and subscribe to the current conversation partner's last activity.
+  useEffect(() => {
+    if (!user?.id || !recipient || recipient === user.id) {
+      setRecipientLastSeen(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadPresence = async () => {
+      const { data } = await (supabase as any)
+        .from("user_presence")
+        .select("last_seen")
+        .eq("user_id", recipient)
+        .maybeSingle();
+
+      if (!cancelled) setRecipientLastSeen(data?.last_seen ?? null);
+    };
+
+    void loadPresence();
+    const channel = supabase
+      .channel(`user-presence-${recipient}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_presence",
+          filter: `user_id=eq.${recipient}`,
+        },
+        (payload) => {
+          const next = (payload.new as { last_seen?: string } | null)?.last_seen;
+          if (next) setRecipientLastSeen(next);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, recipient]);
+
+  const recipientIsOnline =
+    !!recipientLastSeen &&
+    Date.now() - new Date(recipientLastSeen).getTime() < 90000;
+
+  const recipientStatus = recipientIsOnline
+    ? "Online"
+    : recipientLastSeen
+      ? `Last seen ${new Date(recipientLastSeen).toLocaleString()}`
+      : "Offline";
 
   useEffect(() => {
     let cancelled = false;
@@ -574,8 +656,11 @@ if (recipient === user.id) {
 
         <div className="min-w-0">
           <h1 className="truncate font-semibold">{recipientName}</h1>
-          <p className="text-xs text-muted-foreground">
-            {profile?.handle ? `@${profile.handle}` : "Direct conversation"}
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {recipientIsOnline && (
+              <span className="h-2 w-2 rounded-full bg-green-500" aria-label="Online" />
+            )}
+            <span>{recipientStatus}</span>
           </p>
         </div>
       </header>
