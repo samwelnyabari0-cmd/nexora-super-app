@@ -262,10 +262,12 @@ useEffect(() => {
 )}
           <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setPassportOpen(true)}><Pencil className="h-4 w-4" /> Edit Profile</Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
         </Panel>
-        <div id="pulse-passport"><Button type="button" variant={passportOpen ? "default" : "outline"} className="w-full justify-start gap-3 rounded-2xl py-6" onClick={() => setPassportOpen((open) => !open)} aria-expanded={passportOpen}>
-          <ShieldCheck className="h-5 w-5 text-accent" />
-          <span className="font-display font-semibold">Pulse Passport</span>
-          <span className="ml-auto text-xs text-muted-foreground">{passportOpen ? "Hide features" : "Identity, profile & sharing"}</span>
+        <div id="pulse-passport"><Button asChild type="button" variant="outline" className="w-full justify-start gap-3 rounded-2xl py-6">
+          <Link to="/profile-settings">
+            <ShieldCheck className="h-5 w-5 text-accent" />
+            <span className="font-display font-semibold">Profile Settings</span>
+            <span className="ml-auto text-xs text-muted-foreground">Identity, account type & privacy</span>
+          </Link>
         </Button>
         <Panel className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
