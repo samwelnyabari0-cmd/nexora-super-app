@@ -28,7 +28,6 @@ export function CreateGroupDialog({
   const [searching, setSearching] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     if (!open || query.trim().length < 2) {
@@ -75,7 +74,6 @@ export function CreateGroupDialog({
     setSelected([]);
     setPhoto(null);
     setError("");
-    setNotice("");
   }
 
   function togglePerson(person: DirectoryPerson) {
@@ -116,12 +114,12 @@ export function CreateGroupDialog({
 
     if (photo) {
       const extension = photo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const photoPath = `groups/${groupId}/${userId}/group-avatar.${extension}`;
+      const photoPath = `groups/${groupId}/${userId}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage
         .from("chat-media")
         .upload(photoPath, photo, {
           contentType: photo.type,
-          upsert: true,
+          upsert: false,
         });
 
       if (uploadError) {
@@ -137,26 +135,31 @@ export function CreateGroupDialog({
       }
     }
 
+    const failedMembers: string[] = [];
     if (selected.length > 0) {
-      const { error: membersError } = await (supabase as any)
-        .from("chat_group_members")
-        .insert(
-          selected.map((person) => ({
-            group_id: groupId,
-            user_id: person.id,
-            role: "member",
-          })),
-        );
-
-      if (membersError) {
-        warnings.push(
-          "The group was created, but some selected members could not be added. You can add them from group details.",
-        );
-      }
+      const results = await Promise.all(
+        selected.map(async (person) => {
+          const { error: memberError } = await (supabase as any)
+            .from("chat_group_members")
+            .insert({
+              group_id: groupId,
+              user_id: person.id,
+              role: "member",
+            });
+          return { handle: person.handle || person.display_name || "selected user", failed: Boolean(memberError) };
+        }),
+      );
+      failedMembers.push(...results.filter((result) => result.failed).map((result) => result.handle));
     }
 
-    if (warnings.length > 0) setNotice(warnings.join(" "));
     setCreating(false);
+    if (warnings.length > 0 || failedMembers.length > 0) {
+      const messages = [...warnings];
+      if (failedMembers.length > 0) {
+        messages.push(`Could not add: ${failedMembers.map((handle) => "@" + handle).join(", ")}. You can add them later from group members.`);
+      }
+      window.alert(messages.join("\\n"));
+    }
     setOpen(false);
     reset();
     onCreated(groupId);
@@ -331,7 +334,6 @@ export function CreateGroupDialog({
               </div>
 
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-              {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
 
               <Button type="submit" className="w-full" disabled={!name.trim() || creating}>
                 {creating ? (
