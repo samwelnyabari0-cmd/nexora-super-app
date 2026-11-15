@@ -64,21 +64,56 @@ function Account() {
 
 function ProfileTab() {
   const { user } = useSession();
-  const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
-  const [name, setName] = useState(meta.display_name ?? meta.full_name ?? "");
-  const [handle, setHandle] = useState(meta.handle ?? "");
-  const [bio, setBio] = useState(meta.bio ?? "");
+  const [name, setName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void (async () => {
+      const { data, error } = await (supabase as any)
+        .from("profiles")
+        .select("display_name, handle, bio")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        console.error("Could not load account profile:", error.message);
+        toast.error("Could not load your profile details.");
+        return;
+      }
+      const metadata = (user.user_metadata ?? {}) as Record<string, string | undefined>;
+      setName(data?.display_name ?? metadata.display_name ?? metadata.full_name ?? "");
+      setHandle(data?.handle ?? metadata.handle ?? "");
+      setBio(data?.bio ?? metadata.bio ?? "");
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
   async function saveProfile(e: FormEvent) {
     e.preventDefault();
+    if (!user) return;
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({
-      data: { display_name: name.trim(), handle: handle.trim().replace(/^@/, ""), bio: bio.trim() },
-    });
+    const { error } = await (supabase as any)
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        display_name: name.trim(),
+        handle: handle.trim().replace(/^@/, ""),
+        bio: bio.trim(),
+      });
     setBusy(false);
-    error ? toast.error("Could not save profile.") : toast.success("Profile saved.");
+    if (error) {
+      console.error("Account profile save failed:", error);
+      toast.error("Could not save profile.");
+      return;
+    }
+    toast.success("Profile saved.");
   }
 
   async function changeEmail(e: FormEvent) {
