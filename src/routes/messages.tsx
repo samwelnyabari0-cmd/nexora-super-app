@@ -13,6 +13,8 @@ type DirectMessage = {
   body: string;
   media_path?: string | null;
   media_type?: "image" | "video" | "audio" | null;
+  delivered_at?: string | null;
+  seen_at?: string | null;
   created_at: string;
 };
 
@@ -84,7 +86,7 @@ const [inboxLoading, setInboxLoading] = useState(true);
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, media_path, media_type, created_at")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -146,14 +148,14 @@ if (recipient === user.id) {
         await Promise.all([
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, created_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at")
             .eq("sender_id", user.id)
             .eq("recipient_id", recipient)
             .order("created_at", { ascending: true }),
 
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, created_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at")
             .eq("sender_id", recipient)
             .eq("recipient_id", user.id)
             .order("created_at", { ascending: true }),
@@ -182,7 +184,46 @@ if (recipient === user.id) {
             new Date(b.created_at).getTime()
         );
 
-        setMessages(combined);
+        const incomingMessages = combined.filter(
+          (message) => message.sender_id === recipient && message.recipient_id === user.id
+        );
+        if (incomingMessages.length > 0) {
+          const receiptTime = new Date().toISOString();
+          const undeliveredIds = incomingMessages
+            .filter((message) => !message.delivered_at)
+            .map((message) => message.id);
+          const unseenIds = incomingMessages
+            .filter((message) => !message.seen_at)
+            .map((message) => message.id);
+
+          if (undeliveredIds.length > 0) {
+            await (supabase as any)
+              .from("direct_messages")
+              .update({ delivered_at: receiptTime })
+              .in("id", undeliveredIds);
+          }
+          if (unseenIds.length > 0) {
+            await (supabase as any)
+              .from("direct_messages")
+              .update({ seen_at: receiptTime })
+              .in("id", unseenIds);
+          }
+
+          const incomingIds = new Set(incomingMessages.map((message) => message.id));
+          setMessages(
+            combined.map((message) =>
+              incomingIds.has(message.id)
+                ? {
+                    ...message,
+                    delivered_at: message.delivered_at || receiptTime,
+                    seen_at: message.seen_at || receiptTime,
+                  }
+                : message
+            )
+          );
+        } else {
+          setMessages(combined);
+        }
       }
 
       setProfile(profileResult.data ?? null);
@@ -195,6 +236,41 @@ if (recipient === user.id) {
       cancelled = true;
     };
   }, [ready, user?.id, recipient, refresh]);
+
+  useEffect(() => {
+    if (!user?.id || !recipient) return;
+
+    const channel = supabase
+      .channel(`message-receipts-${user.id}-${recipient}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "direct_messages",
+          filter: `recipient_id=eq.${recipient}`,
+        },
+        (payload) => {
+          const updated = payload.new as DirectMessage;
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === updated.id
+                ? {
+                    ...message,
+                    delivered_at: updated.delivered_at,
+                    seen_at: updated.seen_at,
+                  }
+                : message
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, recipient]);
 
   useEffect(() => {
     const node = log.current;
@@ -550,8 +626,19 @@ if (recipient === user.id) {
                       {message.body}
                     </p>
                   )}
-                  <p className="mt-1 text-right text-[10px] opacity-70">
-                    {new Date(message.created_at).toLocaleString()}
+                  <p className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
+                    <span>{new Date(message.created_at).toLocaleString()}</span>
+                    {mine && (
+                      <span aria-label={
+                        message.seen_at
+                          ? "Seen"
+                          : message.delivered_at
+                            ? "Delivered"
+                            : "Sent"
+                      }>
+                        {message.seen_at ? "✓✓" : message.delivered_at ? "✓✓" : "✓"}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
