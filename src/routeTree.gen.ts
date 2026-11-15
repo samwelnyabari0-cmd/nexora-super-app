@@ -582,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   PlatformRoute: PlatformRoute,
   ProfileRoute: ProfileRoute,
+  ProfileSettingsRoute: ProfileSettingsRoute,
 PublicProfileRoute: PublicProfileRoute,
   SavedRoute: SavedRoute,
   SettingsRoute: SettingsRoute,
