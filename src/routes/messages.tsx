@@ -1,7 +1,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -12,7 +12,7 @@ type DirectMessage = {
   recipient_id: string;
   body: string;
   media_path?: string | null;
-  media_type?: "image" | "video" | null;
+  media_type?: "image" | "video" | "audio" | null;
   created_at: string;
 };
 
@@ -57,6 +57,10 @@ const [inboxLoading, setInboxLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -116,7 +120,7 @@ const [inboxLoading, setInboxLoading] = useState(true);
           displayName: profile?.display_name || "NEXORA User",
           handle: profile?.handle || "",
           avatarUrl: profile?.avatar_url || null,
-          lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : ""),
+          lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : ""),
           lastMessageAt: message.created_at,
         };
       })
@@ -225,6 +229,72 @@ if (recipient === user.id) {
     };
   }, [messages]);
 
+  async function startVoiceRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Voice recording is not supported in this browser.");
+      return;
+    }
+
+    try {
+      setError("");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "";
+
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
+      recorderRef.current = recorder;
+      recordingChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+
+      recorder.onerror = () => {
+        setError("Voice recording failed. Please try again.");
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+
+      recorder.onstop = () => {
+        const type = recorder.mimeType || mimeType || "audio/webm";
+        const extension = type.includes("mp4") ? "m4a" : "webm";
+        const blob = new Blob(recordingChunksRef.current, { type });
+        if (blob.size > 0) {
+          setSelectedFile(new File([blob], `voice-message.${extension}`, { type }));
+          if (fileInput.current) fileInput.current.value = "";
+        } else {
+          setError("No audio was recorded. Please try again.");
+        }
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setError("Microphone access was denied or unavailable.");
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      recordingStreamRef.current = null;
+      setRecording(false);
+    }
+  }
+
+  function stopVoiceRecording() {
+    if (recorderRef.current?.state === "recording") {
+      recorderRef.current.stop();
+    }
+  }
+
   async function sendMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -242,13 +312,14 @@ if (recipient === user.id) {
     setError("");
 
     let mediaPath: string | null = null;
-    let mediaType: "image" | "video" | null = null;
+    let mediaType: "image" | "video" | "audio" | null = null;
 
     if (attachment) {
       const isImage = attachment.type.startsWith("image/");
       const isVideo = attachment.type.startsWith("video/");
-      if (!isImage && !isVideo) {
-        setError("Choose an image or video file.");
+      const isAudio = attachment.type.startsWith("audio/");
+      if (!isImage && !isVideo && !isAudio) {
+        setError("Choose an image, video, or audio file.");
         setSending(false);
         return;
       }
@@ -258,8 +329,8 @@ if (recipient === user.id) {
         return;
       }
 
-      mediaType = isImage ? "image" : "video";
-      const extension = attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : "mp4");
+      mediaType = isImage ? "image" : isVideo ? "video" : "audio";
+      const extension = attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
       mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
@@ -460,6 +531,12 @@ if (recipient === user.id) {
                         playsInline
                         className="mb-2 max-h-72 max-w-full rounded-lg"
                       />
+                    ) : message.media_type === "audio" ? (
+                      <audio
+                        src={mediaUrls[message.id]}
+                        controls
+                        className="mb-2 w-full min-w-[220px]"
+                      />
                     ) : (
                       <img
                         src={mediaUrls[message.id]}
@@ -509,7 +586,7 @@ if (recipient === user.id) {
         <input
           ref={fileInput}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav"
           className="hidden"
           aria-label="Choose a photo or video"
           onChange={(event) => {
@@ -527,6 +604,20 @@ if (recipient === user.id) {
         >
           <ImagePlus className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={recording ? "Stop voice recording" : "Record voice message"}
+          disabled={sending}
+          onClick={recording ? stopVoiceRecording : startVoiceRecording}
+        >
+          {recording ? (
+            <Square className="h-4 w-4" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
+        </Button>
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -540,7 +631,7 @@ if (recipient === user.id) {
           type="submit"
           size="icon"
           aria-label="Send message"
-          disabled={(!draft.trim() && !selectedFile) || sending}
+          disabled={(!draft.trim() && !selectedFile) || sending || recording}
         >
           <Send className="h-4 w-4" />
         </Button>
