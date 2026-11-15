@@ -95,6 +95,21 @@ const [inboxLoading, setInboxLoading] = useState(true);
     setError("Could not load your conversations.");
     setInbox([]);
   } else {
+    const receivedUndelivered = ((data ?? []) as DirectMessage[])
+      .filter(
+        (message) =>
+          message.recipient_id === user.id && !message.delivered_at
+      )
+      .map((message) => message.id);
+
+    if (receivedUndelivered.length > 0) {
+      const deliveredTime = new Date().toISOString();
+      await (supabase as any)
+        .from("direct_messages")
+        .update({ delivered_at: deliveredTime })
+        .in("id", receivedUndelivered);
+    }
+
     const latestByUser = new Map<string, DirectMessage>();
 
     for (const message of (data ?? []) as DirectMessage[]) {
@@ -629,13 +644,16 @@ if (recipient === user.id) {
                   <p className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
                     <span>{new Date(message.created_at).toLocaleString()}</span>
                     {mine && (
-                      <span aria-label={
-                        message.seen_at
-                          ? "Seen"
-                          : message.delivered_at
-                            ? "Delivered"
-                            : "Sent"
-                      }>
+                      <span
+                        className={message.seen_at ? "font-semibold text-sky-300" : ""}
+                        aria-label={
+                          message.seen_at
+                            ? "Seen"
+                            : message.delivered_at
+                              ? "Delivered"
+                              : "Sent"
+                        }
+                      >
                         {message.seen_at ? "✓✓" : message.delivered_at ? "✓✓" : "✓"}
                       </span>
                     )}
