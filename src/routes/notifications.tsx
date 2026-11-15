@@ -118,9 +118,7 @@ function Notifications() {
     let active = true;
     void (async () => {
       const { data, error } = await (supabase as any)
-        .from("profiles")
-        .select("id, display_name, handle, avatar_url")
-        .in("id", missingIds);
+        .rpc("get_public_profiles", { profile_ids: missingIds });
       if (!active) return;
       if (error) {
         console.error("Could not load notification actor profiles:", error.message);
