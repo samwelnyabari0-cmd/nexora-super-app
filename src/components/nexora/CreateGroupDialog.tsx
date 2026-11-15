@@ -91,7 +91,6 @@ export function CreateGroupDialog({
 
     setCreating(true);
     setError("");
-    setNotice("");
 
     const { data: group, error: groupError } = await (supabase as any)
       .from("chat_groups")
