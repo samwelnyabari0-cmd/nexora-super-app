@@ -417,6 +417,37 @@ if (recipient === user.id) {
   }, [user?.id, recipient]);
 
   useEffect(() => {
+    if (!user?.id || recipient || group) return;
+
+    const channel = supabase
+      .channel(`group-inbox-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_group_messages",
+        },
+        () => setRefresh((value) => value + 1),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_group_members",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => setRefresh((value) => value + 1),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, recipient, group]);
+
+  useEffect(() => {
     const node = log.current;
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages]);
