@@ -82,7 +82,7 @@ function ProfileSettings() {
         account_type: accountType, profile_category: category || null, private_profile: privateProfile,
       } });
       if (authError) console.error("Auth metadata sync warning:", authError);
-      updatePassport({ name: name.trim(), handle: cleanHandle, bio: bio.trim(), interests: selectedInterests });
+      updatePassport({ name: name.trim(), handle: cleanHandle, bio: bio.trim(), interests: selectedInterests, share });
       toast.success("Profile settings saved.");
     } else {
       console.error("Profile settings save failed:", error);
@@ -154,6 +154,12 @@ function ProfileSettings() {
         <h2 className="flex items-center gap-2 font-semibold"><Sparkles className="h-5 w-5" /> Interests</h2>
         <p className="text-xs text-muted-foreground">Choose topics that describe what you enjoy.</p>
         <div className="flex flex-wrap gap-2">{interests.map(i=><Chip key={i} active={selectedInterests.includes(i)} onClick={()=>setSelectedInterests(current=>current.includes(i)?current.filter(x=>x!==i):[...current,i])}>{i}</Chip>)}</div>
+      </Panel>
+
+      <Panel className="space-y-3">
+        <h2 className="font-semibold">Sharing permissions</h2>
+        <p className="text-xs text-muted-foreground">Choose which parts of your Pulse Passport can be shared.</p>
+        {Object.entries(share).map(([key, value])=><div key={key} className="flex items-center justify-between rounded-xl border px-3 py-2"><span className="text-sm capitalize">Share {key}</span><Switch checked={Boolean(value)} onCheckedChange={next=>setShare(current=>({...current,[key]:next}))} /></div>)}
       </Panel>
 
       {accountType==="creator" && <Panel className="space-y-3"><h2 className="font-semibold">Creator Studio</h2><CreatorStudio /></Panel>}
