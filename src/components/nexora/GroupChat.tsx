@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ImagePlus, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
 
 type GroupMessage = {
   id: string;
@@ -323,12 +324,17 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             {group.name.charAt(0).toUpperCase()}
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="truncate font-semibold">{group.name}</h1>
           <p className="truncate text-xs text-muted-foreground">
             {group.description || "Group conversation"}
           </p>
         </div>
+        <GroupMembersDialog
+          groupId={groupId}
+          userId={userId}
+          onLeave={onBack}
+        />
       </header>
 
       <div ref={log} className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
