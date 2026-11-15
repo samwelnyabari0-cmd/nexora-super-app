@@ -1,7 +1,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -11,6 +11,8 @@ type DirectMessage = {
   sender_id: string;
   recipient_id: string;
   body: string;
+  media_path?: string | null;
+  media_type?: "image" | "video" | null;
   created_at: string;
 };
 
@@ -52,6 +54,9 @@ function Messages() {
 const [inboxLoading, setInboxLoading] = useState(true);
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  const fileInput = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +80,7 @@ const [inboxLoading, setInboxLoading] = useState(true);
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, created_at")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, created_at")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -111,7 +116,7 @@ const [inboxLoading, setInboxLoading] = useState(true);
           displayName: profile?.display_name || "NEXORA User",
           handle: profile?.handle || "",
           avatarUrl: profile?.avatar_url || null,
-          lastMessage: message.body,
+          lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : ""),
           lastMessageAt: message.created_at,
         };
       })
@@ -137,14 +142,14 @@ if (recipient === user.id) {
         await Promise.all([
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, created_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, created_at")
             .eq("sender_id", user.id)
             .eq("recipient_id", recipient)
             .order("created_at", { ascending: true }),
 
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, created_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, created_at")
             .eq("sender_id", recipient)
             .eq("recipient_id", user.id)
             .order("created_at", { ascending: true }),
@@ -192,12 +197,41 @@ if (recipient === user.id) {
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMediaUrls() {
+      const mediaMessages = messages.filter((message) => message.media_path);
+      const entries = await Promise.all(
+        mediaMessages.map(async (message) => {
+          const { data } = await supabase.storage
+            .from("chat-media")
+            .createSignedUrl(message.media_path!, 3600);
+          return [message.id, data?.signedUrl || ""] as const;
+        })
+      );
+
+      if (!cancelled) {
+        setMediaUrls((current) => ({
+          ...current,
+          ...Object.fromEntries(entries.filter(([, url]) => Boolean(url))),
+        }));
+      }
+    }
+
+    void loadMediaUrls();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages]);
+
   async function sendMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const body = draft.trim();
+    const attachment = selectedFile;
 
-    if (!body || !user || !recipient || sending) return;
+    if ((!body && !attachment) || !user || !recipient || sending) return;
 
     if (recipient === user.id) {
       setError("You cannot message your own account.");
@@ -207,22 +241,64 @@ if (recipient === user.id) {
     setSending(true);
     setError("");
 
+    let mediaPath: string | null = null;
+    let mediaType: "image" | "video" | null = null;
+
+    if (attachment) {
+      const isImage = attachment.type.startsWith("image/");
+      const isVideo = attachment.type.startsWith("video/");
+      if (!isImage && !isVideo) {
+        setError("Choose an image or video file.");
+        setSending(false);
+        return;
+      }
+      if (attachment.size > 50 * 1024 * 1024) {
+        setError("The file must be 50 MB or smaller.");
+        setSending(false);
+        return;
+      }
+
+      mediaType = isImage ? "image" : "video";
+      const extension = attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : "mp4");
+      mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("chat-media")
+        .upload(mediaPath, attachment, {
+          contentType: attachment.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        setError("Media upload failed. Please try again.");
+        setSending(false);
+        return;
+      }
+    }
+
     const { error: sendError } = await (supabase as any)
       .from("direct_messages")
       .insert({
         sender_id: user.id,
         recipient_id: recipient,
         body,
+        media_path: mediaPath,
+        media_type: mediaType,
       });
 
-    setSending(false);
-
     if (sendError) {
+      if (mediaPath) {
+        await supabase.storage.from("chat-media").remove([mediaPath]);
+      }
       setError("Message could not be sent. Please try again.");
+      setSending(false);
       return;
     }
 
     setDraft("");
+    setSelectedFile(null);
+    if (fileInput.current) fileInput.current.value = "";
+    setSending(false);
     setRefresh((value) => value + 1);
   }
 
@@ -376,9 +452,27 @@ if (recipient === user.id) {
                       : "bg-muted"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm">
-                    {message.body}
-                  </p>
+                  {message.media_path && mediaUrls[message.id] && (
+                    message.media_type === "video" ? (
+                      <video
+                        src={mediaUrls[message.id]}
+                        controls
+                        playsInline
+                        className="mb-2 max-h-72 max-w-full rounded-lg"
+                      />
+                    ) : (
+                      <img
+                        src={mediaUrls[message.id]}
+                        alt="Shared photo"
+                        className="mb-2 max-h-72 max-w-full rounded-lg object-contain"
+                      />
+                    )
+                  )}
+                  {message.body && (
+                    <p className="whitespace-pre-wrap text-sm">
+                      {message.body}
+                    </p>
+                  )}
                   <p className="mt-1 text-right text-[10px] opacity-70">
                     {new Date(message.created_at).toLocaleString()}
                   </p>
@@ -393,7 +487,46 @@ if (recipient === user.id) {
         <p className="pb-2 text-sm text-destructive">{error}</p>
       )}
 
-      <form onSubmit={sendMessage} className="flex gap-2 border-t pt-3">
+      {selectedFile && (
+        <div className="flex items-center justify-between gap-2 border-t px-2 py-2 text-sm">
+          <span className="min-w-0 truncate">📎 {selectedFile.name}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Remove attachment"
+            onClick={() => {
+              setSelectedFile(null);
+              if (fileInput.current) fileInput.current.value = "";
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      <form onSubmit={sendMessage} className="flex items-center gap-2 border-t pt-3">
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*,video/mp4,video/webm"
+          className="hidden"
+          aria-label="Choose a photo or video"
+          onChange={(event) => {
+            const file = event.target.files?.[0] || null;
+            if (file) setSelectedFile(file);
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label="Attach photo or video"
+          disabled={sending}
+          onClick={() => fileInput.current?.click()}
+        >
+          <ImagePlus className="h-4 w-4" />
+        </Button>
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -407,7 +540,7 @@ if (recipient === user.id) {
           type="submit"
           size="icon"
           aria-label="Send message"
-          disabled={!draft.trim() || sending}
+          disabled={(!draft.trim() && !selectedFile) || sending}
         >
           <Send className="h-4 w-4" />
         </Button>
