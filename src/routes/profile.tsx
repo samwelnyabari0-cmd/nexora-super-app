@@ -303,7 +303,7 @@ useEffect(() => {
 
     </div>
   );
-
+}
 
 type ProfileMediaTab = "posts" | "reels" | "collabs" | "saved";
 
