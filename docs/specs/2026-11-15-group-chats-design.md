@@ -15,7 +15,7 @@ Allow Nexora users to create private group conversations, discover and add any u
 - Group creators become admins.
 - Group admins can add any discoverable Nexora user by name or handle, and can remove members.
 - Ordinary members can participate and leave the group, but cannot add or remove other members.
-- If the only remaining admin leaves, Nexora automatically promotes another existing member to admin so the group can continue.
+- If the only remaining admin leaves, Nexora automatically promotes the longest-standing existing member (earliest `joined_at`) to admin so the group can continue; use a stable tie-breaker when join timestamps match.
 - Only current group members can read group details, membership, and messages; messages already sent remain in group history for the remaining members after someone leaves or is removed.
 - Group messages support text and media, with sender display name, handle, avatar, and timestamp.
 - Existing one-to-one messaging remains on its current tables and code path.
@@ -96,7 +96,7 @@ Subscribe to inserts for the selected group's messages and membership changes re
 - Admins can remove members.
 - Ordinary members cannot see or invoke add/remove controls.
 - Any attempted unauthorized operation must be rejected by the database even if a client bypasses the UI.
-- Members can leave. If the only remaining admin leaves, promote another existing member to admin automatically.
+- Members can leave. If the only remaining admin leaves, promote the longest-standing existing member (earliest `joined_at`) to admin automatically, using a stable tie-breaker for equal timestamps.
 
 ## Proposed code boundaries
 
