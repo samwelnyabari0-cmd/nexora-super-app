@@ -5,6 +5,8 @@ import { ArrowLeft, Send, ImagePlus, X, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { CreateGroupDialog } from "@/components/nexora/CreateGroupDialog";
+import { GroupChat } from "@/components/nexora/GroupChat";
 
 type DirectMessage = {
   id: string;
@@ -31,10 +33,18 @@ type InboxConversation = {
   lastMessage: string;
   lastMessageAt: string;
 };
+type GroupInboxConversation = {
+  groupId: string;
+  name: string;
+  avatarUrl: string | null;
+  lastMessage: string;
+  lastMessageAt: string;
+};
 export const Route = createFileRoute("/messages")({
   validateSearch: (search: Record<string, unknown>) => ({
     recipient:
       typeof search.recipient === "string" ? search.recipient : "",
+    group: typeof search.group === "string" ? search.group : "",
     returnTo:
       typeof search.returnTo === "string" &&
       search.returnTo.startsWith("/profile")
@@ -48,12 +58,13 @@ export const Route = createFileRoute("/messages")({
 });
 
 function Messages() {
-  const { recipient, returnTo } = Route.useSearch();
+  const { recipient, group, returnTo } = Route.useSearch();
   const { user, ready } = useSession();
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [inbox, setInbox] = useState<InboxConversation[]>([]);
-const [inboxLoading, setInboxLoading] = useState(true);
+  const [groupInbox, setGroupInbox] = useState<GroupInboxConversation[]>([]);
+  const [inboxLoading, setInboxLoading] = useState(true);
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -138,6 +149,11 @@ const [inboxLoading, setInboxLoading] = useState(true);
         return;
       }
 
+      if (group) {
+        setLoading(false);
+        return;
+      }
+
       if (!recipient) {
   setInboxLoading(true);
 
@@ -201,6 +217,62 @@ const [inboxLoading, setInboxLoading] = useState(true);
     );
 
     if (!cancelled) setInbox(conversations);
+  }
+
+  // Load groups where the signed-in user is currently a member.
+  const { data: memberships, error: membershipError } = await (supabase as any)
+    .from("chat_group_members")
+    .select("group_id")
+    .eq("user_id", user.id);
+
+  if (!cancelled) {
+    if (membershipError || !memberships?.length) {
+      setGroupInbox([]);
+    } else {
+      const groupIds = [...new Set(memberships.map((row: { group_id: string }) => row.group_id))];
+      const [{ data: groups }, { data: groupMessages }] = await Promise.all([
+        (supabase as any)
+          .from("chat_groups")
+          .select("id, name, avatar_url, created_at")
+          .in("id", groupIds),
+        (supabase as any)
+          .from("chat_group_messages")
+          .select("id, group_id, body, media_type, created_at")
+          .in("group_id", groupIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const latestByGroup = new Map<string, any>();
+      for (const message of groupMessages ?? []) {
+        if (!latestByGroup.has(message.group_id)) {
+          latestByGroup.set(message.group_id, message);
+        }
+      }
+
+      const groupRows = await Promise.all((groups ?? []).map(async (item: any) => {
+        const latest = latestByGroup.get(item.id);
+        let signedAvatar: string | null = null;
+        if (item.avatar_url) {
+          const { data: signed } = await supabase.storage
+            .from("chat-media")
+            .createSignedUrl(item.avatar_url, 3600);
+          signedAvatar = signed?.signedUrl ?? null;
+        }
+        return {
+          groupId: item.id,
+          name: item.name,
+          avatarUrl: signedAvatar,
+          lastMessage: latest?.body || (
+            latest?.media_type === "video" ? "🎥 Video" :
+            latest?.media_type === "image" ? "📷 Photo" :
+            latest?.media_type === "audio" ? "🎤 Voice message" :
+            "No messages yet"
+          ),
+          lastMessageAt: latest?.created_at || item.created_at,
+        } as GroupInboxConversation;
+      }));
+      if (!cancelled) setGroupInbox(groupRows);
+    }
   }
 
   setInboxLoading(false);
@@ -307,7 +379,7 @@ if (recipient === user.id) {
     return () => {
       cancelled = true;
     };
-  }, [ready, user?.id, recipient, refresh]);
+  }, [ready, user?.id, recipient, group, refresh]);
 
   useEffect(() => {
     if (!user?.id || !recipient) return;
@@ -535,18 +607,49 @@ if (recipient === user.id) {
       </div>
     );
   }
-if (!recipient) {
+if (group) {
+  return (
+    <GroupChat
+      groupId={group}
+      userId={user.id}
+      onBack={() => { window.location.href = "/messages"; }}
+    />
+  );
+}
+
+if (!recipient && !group) {
+  const combinedInbox = [
+    ...groupInbox.map((item) => ({ kind: "group" as const, ...item })),
+    ...inbox.map((item) => ({
+      kind: "direct" as const,
+      userId: item.userId,
+      displayName: item.displayName,
+      handle: item.handle,
+      avatarUrl: item.avatarUrl,
+      lastMessage: item.lastMessage,
+      lastMessageAt: item.lastMessageAt,
+    })),
+  ].sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+
   return (
     <main className="mx-auto max-w-2xl p-4">
-      <h1 className="mb-5 text-2xl font-bold">Messages</h1>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Messages</h1>
+        <CreateGroupDialog
+          userId={user.id}
+          onCreated={(groupId) => {
+            window.location.href = `/messages?group=${encodeURIComponent(groupId)}`;
+          }}
+        />
+      </div>
 
       {inboxLoading ? (
         <p className="py-10 text-center text-muted-foreground">
           Loading conversations...
         </p>
-      ) : error && inbox.length === 0 ? (
+      ) : error && inbox.length === 0 && groupInbox.length === 0 ? (
         <p className="py-10 text-center text-destructive">{error}</p>
-      ) : inbox.length === 0 ? (
+      ) : inbox.length === 0 && groupInbox.length === 0 ? (
         <div className="py-12 text-center">
           <h2 className="font-semibold">No conversations yet</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -558,40 +661,41 @@ if (!recipient) {
         </div>
       ) : (
         <div className="divide-y">
-          {inbox.map((conversation) => (
-            <a
-              key={conversation.userId}
-              href={`/messages?recipient=${encodeURIComponent(
-                conversation.userId
-              )}`}
-              className="flex items-center gap-3 py-4 hover:bg-muted/50"
-            >
-              {conversation.avatarUrl ? (
-                <img
-                  src={conversation.avatarUrl}
-                  alt=""
-                  className="h-12 w-12 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 font-bold">
-                  {conversation.displayName.charAt(0).toUpperCase()}
+          {combinedInbox.map((conversation) => {
+            const isGroup = conversation.kind === "group";
+            const title = isGroup ? conversation.name : conversation.displayName;
+            const href = isGroup
+              ? `/messages?group=${encodeURIComponent(conversation.groupId)}`
+              : `/messages?recipient=${encodeURIComponent(conversation.userId)}`;
+            return (
+              <a
+                key={isGroup ? `group-${conversation.groupId}` : `direct-${conversation.userId}`}
+                href={href}
+                className="flex items-center gap-3 py-4 hover:bg-muted/50"
+              >
+                {conversation.avatarUrl ? (
+                  <img
+                    src={conversation.avatarUrl}
+                    alt=""
+                    className={`h-12 w-12 object-cover ${isGroup ? "rounded-2xl" : "rounded-full"}`}
+                  />
+                ) : (
+                  <div className={`flex h-12 w-12 items-center justify-center bg-primary/15 font-bold ${isGroup ? "rounded-2xl" : "rounded-full"}`}>
+                    {title.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{title}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {conversation.lastMessage}
+                  </p>
                 </div>
-              )}
-
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold">
-                  {conversation.displayName}
-                </p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {conversation.lastMessage}
-                </p>
-              </div>
-
-              <span className="text-xs text-muted-foreground">
-                {new Date(conversation.lastMessageAt).toLocaleDateString()}
-              </span>
-            </a>
-          ))}
+                <span className="text-xs text-muted-foreground">
+                  {new Date(conversation.lastMessageAt).toLocaleDateString()}
+                </span>
+              </a>
+            );
+          })}
         </div>
       )}
     </main>
