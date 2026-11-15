@@ -67,60 +67,64 @@ const [inboxLoading, setInboxLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [recipientLastSeen, setRecipientLastSeen] = useState<string | null>(null);
+  const [recipientPresence, setRecipientPresence] = useState<{
+    show_online: boolean;
+    show_last_seen: boolean;
+    last_seen: string | null;
+  } | null>(null);
 
   const log = useRef<HTMLDivElement>(null);
 
-  // Read and subscribe to the current conversation partner's last activity.
+  // Presence is returned only for people who have exchanged direct messages.
   useEffect(() => {
     if (!user?.id || !recipient || recipient === user.id) {
-      setRecipientLastSeen(null);
+      setRecipientPresence(null);
       return;
     }
 
     let cancelled = false;
     const loadPresence = async () => {
-      const { data } = await (supabase as any)
-        .from("user_presence")
-        .select("last_seen")
-        .eq("user_id", recipient)
-        .maybeSingle();
+      const { data, error } = await (supabase as any).rpc(
+        "get_chat_presence_status",
+        { p_user_id: recipient }
+      );
 
-      if (!cancelled) setRecipientLastSeen(data?.last_seen ?? null);
+      if (cancelled) return;
+      if (error) {
+        setRecipientPresence(null);
+        return;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      setRecipientPresence(
+        row
+          ? {
+              show_online: row.show_online ?? true,
+              show_last_seen: row.show_last_seen ?? true,
+              last_seen: row.last_seen ?? null,
+            }
+          : null
+      );
     };
 
     void loadPresence();
-    const channel = supabase
-      .channel(`user-presence-${recipient}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_presence",
-          filter: `user_id=eq.${recipient}`,
-        },
-        (payload) => {
-          const next = (payload.new as { last_seen?: string } | null)?.last_seen;
-          if (next) setRecipientLastSeen(next);
-        }
-      )
-      .subscribe();
+    const interval = window.setInterval(() => void loadPresence(), 30000);
 
     return () => {
       cancelled = true;
-      void supabase.removeChannel(channel);
+      window.clearInterval(interval);
     };
   }, [user?.id, recipient]);
 
   const recipientIsOnline =
-    !!recipientLastSeen &&
-    Date.now() - new Date(recipientLastSeen).getTime() < 90000;
+    !!recipientPresence?.show_online &&
+    !!recipientPresence.last_seen &&
+    Date.now() - new Date(recipientPresence.last_seen).getTime() < 90000;
 
   const recipientStatus = recipientIsOnline
     ? "Online"
-    : recipientLastSeen
-      ? `Last seen ${new Date(recipientLastSeen).toLocaleString()}`
+    : recipientPresence?.show_last_seen && recipientPresence.last_seen
+      ? `Last seen ${new Date(recipientPresence.last_seen).toLocaleString()}`
       : "Offline";
 
   useEffect(() => {
