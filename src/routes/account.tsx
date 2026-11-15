@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { KeyRound, LogOut, Mail, ShieldCheck, User as UserIcon } from "lucide-react";
+import { KeyRound, LogOut, Mail, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel } from "@/components/nexora/ui";
@@ -14,13 +14,13 @@ export const Route = createFileRoute("/account")({
   component: Account,
 });
 
-type Tab = "profile" | "security" | "sessions";
+type Tab = "email" | "security" | "sessions";
 type Factor = { id: string; status: string };
 
 function Account() {
   const { user, ready } = useSession();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>("email");
 
   if (ready && !user) {
     return (
@@ -39,8 +39,8 @@ function Account() {
     void navigate({ to: "/auth" });
   }
 
-  const tabs: { id: Tab; label: string; icon: typeof UserIcon }[] = [
-    { id: "profile", label: "Profile", icon: UserIcon },
+  const tabs: { id: Tab; label: string; icon: typeof Mail }[] = [
+    { id: "email", label: "Email", icon: Mail },
     { id: "security", label: "Security", icon: ShieldCheck },
     { id: "sessions", label: "Sessions", icon: LogOut },
   ];
@@ -55,66 +55,17 @@ function Account() {
           </Button>
         ))}
       </div>
-      {tab === "profile" && <ProfileTab />}
+      {tab === "email" && <EmailTab />}
       {tab === "security" && <SecurityTab />}
       {tab === "sessions" && <SessionsTab onSignOut={signOut} />}
     </div>
   );
 }
 
-function ProfileTab() {
+function EmailTab() {
   const { user } = useSession();
-  const [name, setName] = useState("");
-  const [handle, setHandle] = useState("");
-  const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    void (async () => {
-      const { data, error } = await (supabase as any)
-        .from("profiles")
-        .select("display_name, handle, bio")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (!active) return;
-      if (error) {
-        console.error("Could not load account profile:", error.message);
-        toast.error("Could not load your profile details.");
-        return;
-      }
-      const metadata = (user.user_metadata ?? {}) as Record<string, string | undefined>;
-      setName(data?.display_name ?? metadata.display_name ?? metadata.full_name ?? "");
-      setHandle(data?.handle ?? metadata.handle ?? "");
-      setBio(data?.bio ?? metadata.bio ?? "");
-    })();
-    return () => {
-      active = false;
-    };
-  }, [user?.id]);
-
-  async function saveProfile(e: FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-    setBusy(true);
-    const { error } = await (supabase as any)
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        display_name: name.trim(),
-        handle: handle.trim().replace(/^@/, ""),
-        bio: bio.trim(),
-      });
-    setBusy(false);
-    if (error) {
-      console.error("Account profile save failed:", error);
-      toast.error("Could not save profile.");
-      return;
-    }
-    toast.success("Profile saved.");
-  }
 
   async function changeEmail(e: FormEvent) {
     e.preventDefault();
@@ -127,24 +78,14 @@ function ProfileTab() {
   }
 
   return (
-    <div className="space-y-4">
-      <Panel>
-        <form onSubmit={saveProfile} className="space-y-3">
-          <div><Label htmlFor="name">Display name</Label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} /></div>
-          <div><Label htmlFor="handle">Creator handle</Label><Input id="handle" value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={30} /></div>
-          <div><Label htmlFor="bio">Bio</Label><Input id="bio" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={160} /></div>
-          <Button type="submit" disabled={busy}>Save changes</Button>
-        </form>
-      </Panel>
-      <Panel>
-        <form onSubmit={changeEmail} className="space-y-3">
-          <p className="flex items-center gap-2 text-sm"><Mail size={16} /> Current email: {user?.email}</p>
-          <Label htmlFor="email">New email</Label>
-          <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Button type="submit" variant="outline" disabled={busy || !email}>Change email</Button>
-        </form>
-      </Panel>
-    </div>
+    <Panel>
+      <form onSubmit={changeEmail} className="space-y-3">
+        <p className="flex items-center gap-2 text-sm"><Mail size={16} /> Current email: {user?.email}</p>
+        <Label htmlFor="email">New email</Label>
+        <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Button type="submit" variant="outline" disabled={busy || !email}>Change email</Button>
+      </form>
+    </Panel>
   );
 }
 
