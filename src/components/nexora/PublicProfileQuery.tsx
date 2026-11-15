@@ -87,9 +87,7 @@ const [commentsLoading, setCommentsLoading] = useState(false);
   let profileById: Record<string, { display_name: string | null; handle: string | null; avatar_url: string | null }> = {};
   if (userIds.length) {
     const { data: profiles, error: profilesError } = await (supabase as any)
-      .from("profiles")
-      .select("id, display_name, handle, avatar_url")
-      .in("id", userIds);
+      .rpc("get_public_comment_profiles", { target_user_ids: userIds });
     if (profilesError) {
       console.error("Could not load comment authors:", profilesError);
     } else {
@@ -775,11 +773,20 @@ void loadPostComments(mediaPosts[activeMediaIndex].id);
           <p className="text-sm text-white/60">No comments yet. Be the first!</p>
         ) : (
           postComments.map((comment) => (
-            <div key={comment.id} className="rounded-lg bg-white/10 p-3">
-              <p className="text-xs text-white/60">
-                <span className="font-semibold">{comment.display_name || (comment.handle ? `@${comment.handle}` : "NEXORA User")}</span>{comment.handle ? ` · @${comment.handle}` : ""}
-              </p>
-              <p className="break-words text-sm">{comment.content}</p>
+            <div key={comment.id} className="flex items-start gap-2 rounded-lg bg-white/10 p-3">
+              {comment.avatar_url ? (
+                <img src={comment.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold">
+                  {(comment.display_name || comment.handle || "N").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-white/60">
+                  <span className="font-semibold">{comment.display_name || (comment.handle ? `@${comment.handle}` : "NEXORA User")}</span>{comment.handle ? ` · @${comment.handle}` : ""}
+                </p>
+                <p className="break-words text-sm">{comment.content}</p>
+              </div>
             </div>
           ))
         )}
