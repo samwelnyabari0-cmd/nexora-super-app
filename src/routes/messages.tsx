@@ -71,35 +71,6 @@ const [inboxLoading, setInboxLoading] = useState(true);
 
   const log = useRef<HTMLDivElement>(null);
 
-  // Keep the signed-in user's last activity fresh while the Messages page is visible.
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const updateLastSeen = async () => {
-      if (document.visibilityState !== "visible") return;
-      await (supabase as any)
-        .from("user_presence")
-        .upsert(
-          { user_id: user.id, last_seen: new Date().toISOString() },
-          { onConflict: "user_id" }
-        );
-    };
-
-    void updateLastSeen();
-    const interval = window.setInterval(() => void updateLastSeen(), 30000);
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") void updateLastSeen();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", updateLastSeen);
-
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", updateLastSeen);
-    };
-  }, [user?.id]);
-
   // Read and subscribe to the current conversation partner's last activity.
   useEffect(() => {
     if (!user?.id || !recipient || recipient === user.id) {
