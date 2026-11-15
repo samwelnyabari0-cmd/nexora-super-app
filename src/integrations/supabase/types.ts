@@ -234,12 +234,13 @@ export type Database = {
       }
       redeem_invite: { Args: { code: string }; Returns: string }
       search_directory: {
-        Args: { q: string }
-        Returns: {
-          display_name: string
-          handle: string
-          id: string
-        }[]
+  Args: { q: string }
+  Returns: {
+    display_name: string
+    handle: string
+    id: string
+    avatar_url: string | null
+  }[]
       }
     }
     Enums: {
