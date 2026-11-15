@@ -31,7 +31,12 @@ function Explore() {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("All");
   const [people, setPeople] = useState<
-  { id: string; display_name: string | null; handle: string | null }[]
+  {
+    id: string;
+    display_name: string | null;
+    handle: string | null;
+    avatar_url: string | null;
+  }[]
 >([]);
   const query = q.trim().toLowerCase();
   useEffect(() => {
@@ -108,7 +113,15 @@ setPeople(
   search={{ handle: person.handle! }}
   className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
 >
-                    <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
+                    {person.avatar_url ? (
+                      <img
+                        src={person.avatar_url}
+                        alt={person.display_name ?? person.handle ?? "NEXORA User"}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{person.display_name ?? "NEXORA User"}</p>
                       <p className="truncate text-xs text-muted-foreground">@{person.handle}</p>
