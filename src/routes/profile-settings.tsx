@@ -38,7 +38,7 @@ function ProfileSettings() {
   const [category, setCategory] = useState("");
   const [privateProfile, setPrivateProfile] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [share, setShare] = useState<Record<string, boolean>>(passport.share as Record<string, boolean>);
+  const [share, setShare] = useState<typeof passport.share>(passport.share);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
