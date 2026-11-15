@@ -15,6 +15,7 @@ type DirectoryPerson = {
   id: string;
   display_name: string | null;
   handle: string | null;
+  avatar_url: string | null;
 };
 
 type GroupMembersDialogProps = {
@@ -217,6 +218,13 @@ export function GroupMembersDialog({
                         onClick={() => void addMember(person)}
                         className="flex w-full items-center gap-2 rounded-md p-2 text-left hover:bg-muted disabled:opacity-50"
                       >
+                        {person.avatar_url ? (
+                          <img src={person.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold">
+                            {(person.display_name || person.handle || "N").charAt(0).toUpperCase()}
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{person.display_name || "NEXORA User"}</span>
                           <span className="block truncate text-xs text-muted-foreground">@{person.handle}</span>
