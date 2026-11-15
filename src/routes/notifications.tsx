@@ -92,7 +92,7 @@ function Notifications() {
             setRemoteNotices((items) => [notice, ...items.filter((item) => item.id !== notice.id)].slice(0, 50));
             toast("New notification", { description: notice.body });
           } else if (payload.eventType === "UPDATE") {
-            const notice = payload.new as { id: string; body: string; kind: string; read_at: string | null; created_at: string };
+            const notice = payload.new as { id: string; actor_id: string | null; post_id: string | null; body: string; kind: string; read_at: string | null; created_at: string };
             setRemoteNotices((items) => items.map((item) => item.id === notice.id ? notice : item));
           } else if (payload.eventType === "DELETE") {
             const removed = payload.old as { id?: string };
