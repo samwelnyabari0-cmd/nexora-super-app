@@ -41,6 +41,43 @@ function Settings() {
     void navigate({ to: "/auth" });
   }
   const [savedReports, setSavedReports] = useState<Array<{ target_id: string; reason: string; status: string }>>([]);
+  const [showOnlineStatus, setShowOnlineStatus] = useState(true);
+  const [showLastSeen, setShowLastSeen] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    void (supabase as any)
+      .from("user_presence")
+      .select("show_online, show_last_seen")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }: { data: { show_online?: boolean; show_last_seen?: boolean } | null; error: unknown }) => {
+        if (error) {
+          toast.error("Could not load online status settings.");
+          return;
+        }
+        if (data) {
+          setShowOnlineStatus(data.show_online ?? true);
+          setShowLastSeen(data.show_last_seen ?? true);
+        }
+      });
+  }, [user?.id]);
+
+  async function updatePresenceSetting(column: "show_online" | "show_last_seen", value: boolean) {
+    if (!user) return;
+    const setter = column === "show_online" ? setShowOnlineStatus : setShowLastSeen;
+    const previous = column === "show_online" ? showOnlineStatus : showLastSeen;
+    setter(value);
+
+    const { error } = await (supabase as any)
+      .from("user_presence")
+      .upsert({ user_id: user.id, [column]: value }, { onConflict: "user_id" });
+
+    if (error) {
+      setter(previous);
+      toast.error("Could not save your online status setting.");
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -128,6 +165,30 @@ function Settings() {
           </Link>
         ))}
       </section>
+      {user && (
+        <section className="mb-8">
+          <h2 className="mb-1 text-lg font-semibold">Online status</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            These settings control what people you have exchanged messages with can see.
+          </p>
+          <label className="flex items-center justify-between gap-4 border-b py-4">
+            <span className="text-sm">Show Online Status</span>
+            <Switch
+              aria-label="Show Online Status"
+              checked={showOnlineStatus}
+              onCheckedChange={(value) => void updatePresenceSetting("show_online", value)}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-4 border-b py-4">
+            <span className="text-sm">Show Last Seen</span>
+            <Switch
+              aria-label="Show Last Seen"
+              checked={showLastSeen}
+              onCheckedChange={(value) => void updatePresenceSetting("show_last_seen", value)}
+            />
+          </label>
+        </section>
+      )}
       {groups.map((g) => (
         <section key={g.title} className="mb-8">
           <h2 className="mb-3 text-lg font-semibold">{g.title}</h2>
