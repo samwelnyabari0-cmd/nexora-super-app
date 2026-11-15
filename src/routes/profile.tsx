@@ -220,155 +220,117 @@ useEffect(() => {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-4">
-        <PageHeader title="Profile" />
+    <div className="mx-auto max-w-4xl space-y-4">
+      <PageHeader title="Profile" />
+      <Panel className="space-y-4">
+        <div className="flex items-start gap-4">
+          <div className="group relative shrink-0">
+            {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
+            <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+          </div>
+          <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
+            <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{followers.toLocaleString()} Followers · {following.toLocaleString()} Following · <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span></p>
+          </div>
+        </div>
+        <ProfileBadges
+          accountType={accountType}
+          industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
+          isVerified
+        />
+        {accountType === "creator" && user?.id && (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-amber-300" /> Support this creator</p>
+            <CreatorPaymentActions creatorId={user.id} />
+          </div>
+        )}
+        {passport.bio && <p className="text-sm">{passport.bio}</p>}
         <div className="flex flex-wrap gap-2">
-          {moreLinks.map(({ to, label, icon: Icon }) => (
-            <Button key={to} asChild variant="outline" size="sm">
-              <Link to={to}>
-                <Icon />
-                {label}
-              </Link>
+          <Button asChild type="button" size="sm"><Link to="/profile-settings"><Pencil className="h-4 w-4" /> Edit Profile</Link></Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button>
+        </div>
+      </Panel>
+
+      <Panel className="space-y-4">
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              { value: "followers", label: "Followers", Icon: Users },
+              { value: "following", label: "Following", Icon: UserPlus },
+              { value: "saved", label: "Saved", Icon: Bookmark },
+              { value: "posts", label: "Posts", Icon: Grid3X3 },
+              { value: "reels", label: "Reels", Icon: Film },
+              { value: "collabs", label: "Collabs", Icon: Users },
+            ] as const
+          ).map(({ value, label, Icon: IconComponent }) => (
+            <Button
+              key={value}
+              variant={socialTab === value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSocialTab(value as typeof socialTab)}
+            >
+              <IconComponent className="h-4 w-4" /> {label}
             </Button>
           ))}
         </div>
-        <Panel className="space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="group relative shrink-0">
-              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
-              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
-            </div>
-            <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
-            <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
-              <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{followers.toLocaleString()} Followers · {following.toLocaleString()} Following · <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span></p>
-            </div>
-          </div>
-          <ProfileBadges
-            accountType={accountType}
-            industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
-            isVerified
-          />
-          {accountType === "creator" && user?.id && (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
-              <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-amber-300" /> Support this creator</p>
-              <CreatorPaymentActions creatorId={user.id} />
-            </div>
-          )}
-           {passport.bio && (
-  <p className="text-sm">{passport.bio}</p>
-)}
-          <div className="flex flex-wrap gap-2"><Button asChild type="button" size="sm"><Link to="/profile-settings"><Pencil className="h-4 w-4" /> Edit Profile</Link></Button><Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button></div>
-        </Panel>
-        <div id="pulse-passport"><Button asChild type="button" variant="outline" className="w-full justify-start gap-3 rounded-2xl py-6">
-          <Link to="/profile-settings">
-            <ShieldCheck className="h-5 w-5 text-accent" />
-            <span className="font-display font-semibold">Profile Settings</span>
-            <span className="ml-auto text-xs text-muted-foreground">Identity, account type & privacy</span>
-          </Link>
-        </Button>
-        {accountType === "creator" && <Panel className="space-y-4"><CreatorStudio /></Panel>}
-        {accountType === "business" && <Panel className="space-y-4"><BusinessSuite /></Panel>}
-        <Panel className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            {(
-              [
-                { value: "followers", label: "Followers", Icon: Users },
-                { value: "following", label: "Following", Icon: UserPlus },
-                { value: "saved", label: "Saved", Icon: Bookmark },
-                { value: "posts", label: "Posts", Icon: Grid3X3 },
-                { value: "reels", label: "Reels", Icon: Film },
-                { value: "collabs", label: "Collabs", Icon: Users },
-              ] as const
-            ).map(({ value, label, Icon: IconComponent }) => (
-              <Button
-                key={value}
-                variant={socialTab === value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSocialTab(value as typeof socialTab)}
-              >
-                <IconComponent className="h-4 w-4" /> {label}
-              </Button>
-            ))}
-          </div>
-          
-{(socialTab === "posts" ||
-  socialTab === "reels" ||
-  socialTab === "collabs" ||
-  socialTab === "saved") && (
-  <ProfileMediaExperience tab={socialTab} />
-)}
-     {(socialTab === "followers" || socialTab === "following") && (
-            <div className="space-y-2">
-              {connections.map((connection) => (
-                <div key={connection.id} className="flex items-center gap-3 rounded-xl border p-3">
-                  <Avatar
-                    name={connection.display_name ?? connection.handle ?? "NEXORA user"}
-                    size={40}
-                  />
-                  <div className="min-w-0">
-                    <p className="font-semibold">{connection.display_name ?? "NEXORA user"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      @{connection.handle ?? connection.id.slice(0, 8)}
-                    </p>
-                  </div>
-                  <Button className="ml-auto" variant="outline" size="sm">
-                    View
-                  </Button>
+        {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs" || socialTab === "saved") && (
+          <ProfileMediaExperience tab={socialTab} />
+        )}
+        {(socialTab === "followers" || socialTab === "following") && (
+          <div className="space-y-2">
+            {connections.map((connection) => (
+              <div key={connection.id} className="flex items-center gap-3 rounded-xl border p-3">
+                <Avatar name={connection.display_name ?? connection.handle ?? "NEXORA user"} size={40} />
+                <div className="min-w-0">
+                  <p className="font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                  <p className="text-sm text-muted-foreground">@{connection.handle ?? connection.id.slice(0, 8)}</p>
                 </div>
-              ))}
-              {!connections.length && (
-                <p className="text-sm text-muted-foreground">No {socialTab} yet.</p>
-              )}
-            </div>
-          )}
-        </Panel>
-        </div>
-      </div>
-      <div className="space-y-4">
-        <Panel className="space-y-2">
-          <p className="flex items-center gap-2 font-display font-semibold">
-            <CloudUpload className="h-5 w-5 text-accent" /> Offline Relay
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Toggle "Online" in the top bar to simulate losing connection. Posts and messages queue
-            here.
-          </p>
-          {relay.length === 0 ? (
-            <p className="text-sm">Queue empty.</p>
-          ) : (
-            <ul className="space-y-1">
-              {relay.map((r) => (
-                <li key={r.id} className="rounded-lg bg-muted px-3 py-2 text-sm">
-                  <b className="uppercase text-accent">{r.kind}</b> {r.label}
-                </li>
-              ))}
-            </ul>
-          )}
-          <Button disabled={!online || !relay.length} onClick={syncRelay} className="bg-brand">
-            Sync locally
-          </Button>
-        </Panel>
-        <Panel>
-          <p className="mb-2 font-display font-semibold">Activity events</p>
-          {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Like, comment or message to see events.</p>
-          ) : (
-            <ul className="space-y-1 font-mono text-xs">
-              {events.slice(0, 8).map((e) => (
-                <li key={e.id}>
-                  {e.type} · {e.detail}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+                <Button className="ml-auto" variant="outline" size="sm">View</Button>
+              </div>
+            ))}
+            {!connections.length && <p className="text-sm text-muted-foreground">No {socialTab} yet.</p>}
+          </div>
+        )}
+      </Panel>
+
+      <Button asChild type="button" variant="outline" className="w-full justify-start gap-3 rounded-2xl py-6">
+        <Link to="/profile-settings">
+          <ShieldCheck className="h-5 w-5 text-accent" />
+          <span className="font-display font-semibold">Profile Settings</span>
+          <span className="ml-auto text-xs text-muted-foreground">Identity, account type & privacy</span>
+        </Link>
+      </Button>
+
+      {accountType === "creator" && <Panel className="space-y-4"><CreatorStudio /></Panel>}
+      {accountType === "business" && <Panel className="space-y-4"><BusinessSuite /></Panel>}
+
+      <Panel className="space-y-2">
+        <p className="flex items-center gap-2 font-display font-semibold">
+          <CloudUpload className="h-5 w-5 text-accent" /> Offline Relay
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Toggle "Online" in the top bar to simulate losing connection. Posts and messages queue here.
+        </p>
+        {relay.length === 0 ? <p className="text-sm">Queue empty.</p> : (
+          <ul className="space-y-1">
+            {relay.map((r) => <li key={r.id} className="rounded-lg bg-muted px-3 py-2 text-sm"><b className="uppercase text-accent">{r.kind}</b> {r.label}</li>)}
+          </ul>
+        )}
+        <Button disabled={!online || !relay.length} onClick={syncRelay} className="bg-brand">Sync locally</Button>
+      </Panel>
+
+      <Panel>
+        <p className="mb-2 font-display font-semibold">Activity events</p>
+        {events.length === 0 ? <p className="text-sm text-muted-foreground">Like, comment or message to see events.</p> : (
+          <ul className="space-y-1 font-mono text-xs">
+            {events.slice(0, 8).map((e) => <li key={e.id}>{e.type} · {e.detail}</li>)}
+          </ul>
+        )}
+      </Panel>
     </div>
   );
-}
 
 
 type ProfileMediaTab = "posts" | "reels" | "collabs" | "saved";
@@ -460,7 +422,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   return (
     <>
       {/* Fixed-height profile media grid */}
-      <div className="relative h-[320px] overflow-y-auto rounded-2xl pr-1">
+      <div className="relative rounded-2xl pr-1">
         {activeItems.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
             <Grid3X3 className="mb-3 h-8 w-8 text-muted-foreground" />
