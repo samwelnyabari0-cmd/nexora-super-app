@@ -676,5 +676,4 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
       )}
     </>
   );
-        }
-        
+}
