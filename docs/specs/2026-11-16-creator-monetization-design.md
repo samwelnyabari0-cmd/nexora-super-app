@@ -69,8 +69,9 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 - A separate Support Creator action accepts one-time tips in KES.
 - Tips are not subscriptions and do not create subscriber status.
 - Use Paystack for KES checkout, subject to confirmation that the configured merchant account supports the selected checkout and billing capabilities.
+- Paystack documents recurring subscriptions as card-based in Kenya; direct debit support is documented for Nigeria. Automatic monthly renewal can therefore be offered only for eligible reusable card authorizations. M-Pesa and other non-recurring methods must use manual renewal.
 - The existing creator payment code currently initializes and verifies one-time transactions. Do not represent a one-time transaction as recurring billing.
-- Automatic monthly renewal remains the desired subscription experience, but implement it only after confirming that the configured Paystack merchant account and supported payment method provide genuine recurring billing/authorization and the required webhook lifecycle. If recurring billing is unavailable, clearly label the first release as manual renewal rather than implying automatic renewal.
+- Implement card recurring billing only after confirming the configured merchant account, reusable authorization, subscription plan setup, and webhook lifecycle. If a payment method cannot be renewed automatically, clearly label it as manual renewal.
 - Verify payment server-side before crediting creator wallets, activating subscriptions, or granting exclusive-content access.
 - Make webhook and verification processing idempotent to prevent duplicate credits or entitlements.
 - Never expose secret payment keys or sensitive payment details to clients.
@@ -105,7 +106,7 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 
 ## Scope boundaries
 
-First release includes one tier per creator, application-based approval, subscriber badges, subscribers-only content access, one-time tips, KES checkout, and basic admin review. Genuine automatic recurring billing is included only if supported and verified for the configured Paystack merchant account; otherwise the first release must clearly use manual renewal.
+First release includes one tier per creator, application-based approval, subscriber badges, subscribers-only content access, one-time tips, KES checkout, and basic admin review. Automatic renewal is limited to eligible reusable card authorizations; M-Pesa and other non-recurring methods use clearly disclosed manual renewal.
 
 Out of scope for the first release: multiple creator tiers, complex perk bundles, gifting subscriptions, creator analytics dashboards, and non-Paystack payment providers.
 
@@ -120,7 +121,7 @@ Out of scope for the first release: multiple creator tiers, complex perk bundles
 - The stored FX quote and expected KES amount are used for verification; the rate is not recalculated after checkout starts.
 - Tips remain separate from subscriptions and are charged in KES.
 - Subscriber status and exclusive-content access are granted only after verified successful payment and remain synchronized with renewal/cancellation state.
-- Automatic renewal is implemented only when genuine provider support is confirmed; otherwise manual renewal is clearly disclosed.
+- Automatic renewal is available only for eligible reusable card authorizations; M-Pesa and other non-recurring methods are clearly disclosed as manual renewal.
 - Duplicate payment notifications cannot double-credit wallets or duplicate entitlements.
 - Falling below 1,000 followers after approval does not by itself revoke monetization.
 - Existing Nexora Pro, Studio, profile, wallet, and payment flows continue to work.
