@@ -1,7 +1,7 @@
 # NEXORA Creator Monetization Design
 
 **Date:** 2026-11-16  
-**Status:** Approved design; awaiting written-spec review before implementation planning.
+**Status:** Approved design; implementation planning in progress.
 
 ## Goals
 
@@ -37,11 +37,18 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 ## Creator subscription configuration
 
 - Each creator starts with one subscription tier.
-- The creator chooses a tier name and monthly price in Kenyan shillings (KES), within platform-defined validation limits.
+- The creator chooses a tier name and monthly price in US dollars (USD), with a minimum of $2 per month and no fixed maximum initially.
 - Creators can edit their tier details in Creator Settings.
 - Public profiles show the creator tier badge and a subscription price/CTA directly below the bio.
 - Price changes must be disclosed to affected subscribers before a new price is charged; the implementation must respect provider capabilities and applicable requirements.
 - Multiple tiers are out of scope for the first release.
+
+## Currency and creator earnings
+
+- Creator subscription prices and charges are denominated in USD, with a minimum of $2 per month.
+- Creator wallet balances and payouts are in KES for the first release.
+- The verified USD payment is converted to KES using the actual, recorded exchange rate at payment time, after applicable fees.
+- Each conversion stores the original USD amount, KES credited amount, FX rate, FX source/reference, and conversion timestamp. Never use a hardcoded or guessed exchange rate.
 
 ## Subscriber experience and benefits
 
@@ -55,7 +62,7 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 
 - A separate Support Creator action accepts one-time tips.
 - Tips are not subscriptions and do not create subscriber status.
-- Use Paystack for checkout where supported.
+- Use Paystack for USD checkout where the merchant account is enabled for international USD card payments. The minimum creator subscription price is $2 USD per month.
 - Existing creator payment code currently initializes and verifies one-time transactions. Do not represent a one-time transaction as recurring billing.
 - Implement genuine recurring billing only after confirming the available Paystack subscription/authorization/plan capabilities and required webhook behavior for the configured merchant account.
 - Verify payment server-side before crediting creator wallets, activating subscriptions, or granting exclusive-content access.
@@ -76,6 +83,9 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 - Enforce row-level access and server-side authorization so users cannot approve themselves, alter another creator's tier, or grant themselves subscriber benefits.
 - Preserve compatibility with existing wallet and creator-payment records; inspect the current schema and RPCs before proposing migrations.
 - Store payment references and subscription lifecycle events needed for reconciliation and support, without storing raw card credentials.
+- Creator subscription prices and subscriber charges are denominated in USD. Creator wallet balances and payouts remain in KES for the first release.
+- After server-side payment verification, record the actual USD-to-KES exchange rate and conversion timestamp used, then credit the creator's KES wallet after applicable fees. Preserve the original USD amount and conversion details for reconciliation.
+- Do not hardcode or invent an exchange rate. The payment/conversion implementation must use a rate supplied by the payment/settlement provider or a configured, auditable FX source; if no trustworthy rate is available, hold the funds as pending rather than crediting a guessed KES amount.
 
 ## Failure handling
 
