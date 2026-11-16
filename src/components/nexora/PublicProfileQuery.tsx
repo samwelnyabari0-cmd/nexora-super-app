@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
+import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 
 type PublicProfileRecord = {
   id: string;
@@ -496,6 +497,13 @@ function handleMediaTouchEnd(
         <p className="mt-4 whitespace-pre-wrap text-sm">
           {profile.bio || "No bio added yet."}
         </p>
+
+        {profile.account_type === "creator" && !isOwner && (
+          <div className="mt-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="mb-2 text-sm font-semibold">Support this creator</p>
+            <CreatorPaymentActions creatorId={profile.id} />
+          </div>
+        )}
 
         {Array.isArray(profile.bio_links) && profile.bio_links.length > 0 && (
           <div className="mt-4">
