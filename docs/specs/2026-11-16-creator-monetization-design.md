@@ -37,18 +37,24 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 ## Creator subscription configuration
 
 - Each creator starts with one subscription tier.
-- The creator chooses a tier name and monthly price in US dollars (USD), with a minimum of $2 per month and no fixed maximum initially.
+- The creator chooses a tier name and monthly price displayed in US dollars (USD), with a minimum of $2 per month and no fixed maximum initially.
+- For the first release, subscribers are charged in Kenyan shillings (KES), not USD. The USD tier price is converted to a KES checkout amount using a trustworthy, auditable exchange-rate source when checkout is initialized.
+- The exact USD price, FX rate, FX source/reference, rate timestamp, and resulting KES amount must be stored with the pending payment and used unchanged during payment verification.
 - Creators can edit their tier details in Creator Settings.
-- Public profiles show the creator tier badge and a subscription price/CTA directly below the bio.
+- Public profiles show the creator tier badge and a subscription price/CTA directly below the bio. The displayed price remains in USD; checkout clearly shows the KES amount before payment.
 - Price changes must be disclosed to affected subscribers before a new price is charged; the implementation must respect provider capabilities and applicable requirements.
 - Multiple tiers are out of scope for the first release.
 
 ## Currency and creator earnings
 
-- Creator subscription prices and charges are denominated in USD, with a minimum of $2 per month.
-- Creator wallet balances and payouts are in KES for the first release.
-- The verified USD payment is converted to KES using the actual, recorded exchange rate at payment time, after applicable fees.
-- Each conversion stores the original USD amount, KES credited amount, FX rate, FX source/reference, and conversion timestamp. Never use a hardcoded or guessed exchange rate.
+- Creator subscription tier prices are displayed and configured in USD, with a minimum of $2 per month.
+- Subscriber checkout charges are in KES for the first release.
+- Creator wallet balances are in KES.
+- The KES checkout amount is calculated from the USD tier price using a trustworthy, auditable FX rate at checkout initialization. The rate and calculated amount are persisted with the pending transaction; verification must compare against that exact stored amount and must not fetch a new rate.
+- Store the original USD amount, charged KES amount, FX rate, FX source/reference, rate timestamp, and conversion details for reconciliation.
+- Creator earnings are credited to the KES wallet only after verified payment and applicable fees.
+- Never use a hardcoded or guessed exchange rate. If no trustworthy rate is available, do not initialize checkout or credit a guessed amount.
+- Payout method and availability must be confirmed against the creator's completed payout verification and supported provider capabilities. Do not promise bank or M-Pesa payouts until the selected payout route is verified and implemented.
 
 ## Subscriber experience and benefits
 
@@ -60,11 +66,11 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 
 ## Tips and payment processing
 
-- A separate Support Creator action accepts one-time tips.
+- A separate Support Creator action accepts one-time tips in KES.
 - Tips are not subscriptions and do not create subscriber status.
-- Use Paystack for USD checkout where the merchant account is enabled for international USD card payments. The minimum creator subscription price is $2 USD per month.
-- Existing creator payment code currently initializes and verifies one-time transactions. Do not represent a one-time transaction as recurring billing.
-- Implement genuine recurring billing only after confirming the available Paystack subscription/authorization/plan capabilities and required webhook behavior for the configured merchant account.
+- Use Paystack for KES checkout, subject to confirmation that the configured merchant account supports the selected checkout and billing capabilities.
+- The existing creator payment code currently initializes and verifies one-time transactions. Do not represent a one-time transaction as recurring billing.
+- Automatic monthly renewal remains the desired subscription experience, but implement it only after confirming that the configured Paystack merchant account and supported payment method provide genuine recurring billing/authorization and the required webhook lifecycle. If recurring billing is unavailable, clearly label the first release as manual renewal rather than implying automatic renewal.
 - Verify payment server-side before crediting creator wallets, activating subscriptions, or granting exclusive-content access.
 - Make webhook and verification processing idempotent to prevent duplicate credits or entitlements.
 - Never expose secret payment keys or sensitive payment details to clients.
@@ -83,9 +89,12 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 - Enforce row-level access and server-side authorization so users cannot approve themselves, alter another creator's tier, or grant themselves subscriber benefits.
 - Preserve compatibility with existing wallet and creator-payment records; inspect the current schema and RPCs before proposing migrations.
 - Store payment references and subscription lifecycle events needed for reconciliation and support, without storing raw card credentials.
-- Creator subscription prices and subscriber charges are denominated in USD. Creator wallet balances and payouts remain in KES for the first release.
-- After server-side payment verification, record the actual USD-to-KES exchange rate and conversion timestamp used, then credit the creator's KES wallet after applicable fees. Preserve the original USD amount and conversion details for reconciliation.
-- Do not hardcode or invent an exchange rate. The payment/conversion implementation must use a rate supplied by the payment/settlement provider or a configured, auditable FX source; if no trustworthy rate is available, hold the funds as pending rather than crediting a guessed KES amount.
+- Existing Nexora Pro and Studio subscriptions and their KES payment flow must remain unchanged.
+- Store the USD creator tier price and the KES checkout quote together, including the exact FX rate, source/reference, and timestamp used to calculate the amount.
+- The pending checkout record is authoritative for payment verification: verify the provider's actual KES charge against the stored expected KES amount, then credit the KES wallet after applicable fees.
+- Do not fetch a fresh FX rate during verification or silently change an amount after checkout begins.
+- Do not hardcode or invent an exchange rate. If no trustworthy rate is available, hold the transaction pending or fail checkout rather than crediting a guessed KES amount.
+- Payout routes must be verified before being offered to creators; do not assume a bank account or M-Pesa payout is available.
 
 ## Failure handling
 
@@ -96,7 +105,7 @@ One-time tips use the basic account, identity, and payout requirements; the 1,00
 
 ## Scope boundaries
 
-First release includes one tier per creator, application-based approval, subscriber badges, subscribers-only content access, one-time tips, recurring billing where provider support is confirmed, and basic admin review.
+First release includes one tier per creator, application-based approval, subscriber badges, subscribers-only content access, one-time tips, KES checkout, and basic admin review. Genuine automatic recurring billing is included only if supported and verified for the configured Paystack merchant account; otherwise the first release must clearly use manual renewal.
 
 Out of scope for the first release: multiple creator tiers, complex perk bundles, gifting subscriptions, creator analytics dashboards, and non-Paystack payment providers.
 
@@ -106,9 +115,12 @@ Out of scope for the first release: multiple creator tiers, complex perk bundles
 - Eligible creators can apply and see application status.
 - Only authorized administrators can approve, reject, or suspend applications.
 - Approved creators can configure one valid monthly tier.
-- Public profiles show the correct creator tier and price below the bio.
-- Tips remain separate from subscriptions.
+- Public profiles show the correct creator tier and USD price below the bio.
+- Checkout clearly displays the KES amount before payment.
+- The stored FX quote and expected KES amount are used for verification; the rate is not recalculated after checkout starts.
+- Tips remain separate from subscriptions and are charged in KES.
 - Subscriber status and exclusive-content access are granted only after verified successful payment and remain synchronized with renewal/cancellation state.
+- Automatic renewal is implemented only when genuine provider support is confirmed; otherwise manual renewal is clearly disclosed.
 - Duplicate payment notifications cannot double-credit wallets or duplicate entitlements.
 - Falling below 1,000 followers after approval does not by itself revoke monetization.
-- Existing profile, wallet, and payment flows continue to work.
+- Existing Nexora Pro, Studio, profile, wallet, and payment flows continue to work.
