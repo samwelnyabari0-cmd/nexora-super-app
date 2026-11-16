@@ -90,6 +90,7 @@ function Profile() {
   const { user, ready } = useSession();
   const { followers, following } = useSocialGraph();
   const [bio, setBio] = useState(passport.bio);
+  const [bioLinks, setBioLinks] = useState<Array<{ title: string; url: string }>>([]);
   const [privateProfile, setPrivateProfile] = useState(
     Boolean(user?.user_metadata?.private_profile),
   );
@@ -127,6 +128,33 @@ function Profile() {
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
   }, [ready, user?.user_metadata?.private_profile]);
+
+  useEffect(() => {
+    if (!user) {
+      setBioLinks([]);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const { data, error } = await (supabase as any)
+        .from("profiles")
+        .select("bio_links")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        console.error("Could not load profile bio links:", error.message);
+        return;
+      }
+      const links = Array.isArray(data?.bio_links) ? data.bio_links : [];
+      setBioLinks(links.filter((link: any) =>
+        link && typeof link.title === "string" && typeof link.url === "string"
+      ).slice(0, 5));
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   async function updatePrivacy(nextPrivate: boolean) {
     setPrivateProfile(nextPrivate);
@@ -245,6 +273,37 @@ useEffect(() => {
           </div>
         )}
         {passport.bio && <p className="text-sm">{passport.bio}</p>}
+
+        {bioLinks.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {bioLinks.map((link, index) => {
+              const title = link.title.trim();
+              const rawUrl = link.url.trim();
+              let safeUrl = "";
+              try {
+                const parsedUrl = new URL(rawUrl);
+                if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+                  safeUrl = parsedUrl.href;
+                }
+              } catch {
+                safeUrl = "";
+              }
+              if (!title || !safeUrl) return null;
+              return (
+                <a
+                  key={`${safeUrl}-${index}`}
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm text-primary hover:bg-primary/10"
+                >
+                  <span aria-hidden="true">↗</span>
+                  {title}
+                </a>
+              );
+            })}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button asChild type="button" size="sm"><Link to="/profile-settings"><Pencil className="h-4 w-4" /> Edit Profile</Link></Button>
           <Button type="button" size="sm" variant="outline" onClick={() => void shareProfile()}><Share2 className="h-4 w-4" /> Share Profile</Button>
