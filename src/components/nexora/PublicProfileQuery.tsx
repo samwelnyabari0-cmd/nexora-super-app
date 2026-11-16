@@ -36,6 +36,7 @@ export function PublicProfileQuery({ handle }: { handle: string }) {
 
   const [profile, setProfile] =
     useState<PublicProfileRecord | null>(null);
+  const [bioLinksOpen, setBioLinksOpen] = useState(false);
 
   const [posts, setPosts] = useState<PublicPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -497,33 +498,46 @@ function handleMediaTouchEnd(
         </p>
 
         {Array.isArray(profile.bio_links) && profile.bio_links.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {profile.bio_links.map((link, index) => {
-              const title = typeof link?.title === "string" ? link.title.trim() : "";
-              const url = typeof link?.url === "string" ? link.url.trim() : "";
-              let safeUrl = "";
-              try {
-                const parsedUrl = new URL(url);
-                if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
-                  safeUrl = parsedUrl.href;
-                }
-              } catch {
-                safeUrl = "";
-              }
-              if (!title || !safeUrl) return null;
-              return (
-                <a
-                  key={`${safeUrl}-${index}`}
-                  href={safeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm text-primary hover:bg-primary/10"
-                >
-                  <Link2 className="h-4 w-4" />
-                  {title}
-                </a>
-              );
-            })}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setBioLinksOpen((open) => !open)}
+              aria-expanded={bioLinksOpen}
+              aria-label={bioLinksOpen ? "Hide profile links" : "Show profile links"}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-primary transition hover:bg-primary/10"
+            >
+              <Link2 className="h-5 w-5" />
+            </button>
+            {bioLinksOpen && (
+              <div className="mt-2 flex flex-wrap gap-2 rounded-xl border bg-card p-3">
+                {profile.bio_links.map((link, index) => {
+                  const title = typeof link?.title === "string" ? link.title.trim() : "";
+                  const url = typeof link?.url === "string" ? link.url.trim() : "";
+                  let safeUrl = "";
+                  try {
+                    const parsedUrl = new URL(url);
+                    if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+                      safeUrl = parsedUrl.href;
+                    }
+                  } catch {
+                    safeUrl = "";
+                  }
+                  if (!title || !safeUrl) return null;
+                  return (
+                    <a
+                      key={`${safeUrl}-${index}`}
+                      href={safeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm text-primary hover:bg-primary/10"
+                    >
+                      <Link2 className="h-4 w-4" />
+                      {title}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
