@@ -21,6 +21,7 @@ import { toast } from "sonner";
   Trash2,
   X,
   Play,
+  Link2,
 } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,6 +92,7 @@ function Profile() {
   const { followers, following } = useSocialGraph();
   const [bio, setBio] = useState(passport.bio);
   const [bioLinks, setBioLinks] = useState<Array<{ title: string; url: string }>>([]);
+  const [bioLinksOpen, setBioLinksOpen] = useState(false);
   const [privateProfile, setPrivateProfile] = useState(
     Boolean(user?.user_metadata?.private_profile),
   );
@@ -275,33 +277,46 @@ useEffect(() => {
         {passport.bio && <p className="text-sm">{passport.bio}</p>}
 
         {bioLinks.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {bioLinks.map((link, index) => {
-              const title = link.title.trim();
-              const rawUrl = link.url.trim();
-              let safeUrl = "";
-              try {
-                const parsedUrl = new URL(rawUrl);
-                if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
-                  safeUrl = parsedUrl.href;
-                }
-              } catch {
-                safeUrl = "";
-              }
-              if (!title || !safeUrl) return null;
-              return (
-                <a
-                  key={`${safeUrl}-${index}`}
-                  href={safeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm text-primary hover:bg-primary/10"
-                >
-                  <span aria-hidden="true">↗</span>
-                  {title}
-                </a>
-              );
-            })}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setBioLinksOpen((open) => !open)}
+              aria-expanded={bioLinksOpen}
+              aria-label={bioLinksOpen ? "Hide profile links" : "Show profile links"}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-primary transition hover:bg-primary/10"
+            >
+              <Link2 className="h-5 w-5" />
+            </button>
+            {bioLinksOpen && (
+              <div className="mt-2 flex max-w-full flex-wrap gap-2 rounded-xl border bg-card p-3">
+                {bioLinks.map((link, index) => {
+                  const title = link.title.trim();
+                  const rawUrl = link.url.trim();
+                  let safeUrl = "";
+                  try {
+                    const parsedUrl = new URL(rawUrl);
+                    if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+                      safeUrl = parsedUrl.href;
+                    }
+                  } catch {
+                    safeUrl = "";
+                  }
+                  if (!title || !safeUrl) return null;
+                  return (
+                    <a
+                      key={`${safeUrl}-${index}`}
+                      href={safeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm text-primary hover:bg-primary/10"
+                    >
+                      <span aria-hidden="true">↗</span>
+                      {title}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
         <div className="flex flex-wrap gap-2">
