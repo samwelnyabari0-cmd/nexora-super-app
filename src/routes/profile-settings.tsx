@@ -41,6 +41,7 @@ function ProfileSettings() {
   const [privateProfile, setPrivateProfile] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [bioLinks, setBioLinks] = useState<BioLink[]>([]);
+  const [bioLinksOpen, setBioLinksOpen] = useState(false);
   const [share, setShare] = useState<typeof passport.share>(passport.share);
 
   useEffect(() => {
@@ -155,8 +156,24 @@ function ProfileSettings() {
       </Panel>
 
       <Panel className="space-y-3">
-        <h2 className="flex items-center gap-2 font-semibold"><Link2 className="h-5 w-5" /> Bio links</h2>
-        <p className="text-xs text-muted-foreground">Add up to 5 links to your website, social pages, portfolio or store. They will be saved with your profile.</p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Bio links</h2>
+            <p className="text-xs text-muted-foreground">Manage up to 5 website or social links.</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={bioLinksOpen ? "Hide bio links" : "Show bio links"}
+            aria-expanded={bioLinksOpen}
+            onClick={() => setBioLinksOpen(open => !open)}
+          >
+            <Link2 className="h-4 w-4" />
+          </Button>
+        </div>
+        {bioLinksOpen && <>
+        <p className="text-xs text-muted-foreground">Add links to your website, social pages, portfolio or store. They will be saved with your profile.</p>
         {bioLinks.map((link, index) => (
           <div key={index} className="space-y-2 rounded-xl border p-3">
             <div className="flex items-center justify-between gap-2">
@@ -174,6 +191,7 @@ function ProfileSettings() {
             <Plus className="mr-2 h-4 w-4" /> Add bio link
           </Button>
         )}
+        </>}
       </Panel>
 
       <Panel className="space-y-3">
