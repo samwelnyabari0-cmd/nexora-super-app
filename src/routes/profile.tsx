@@ -268,11 +268,18 @@ useEffect(() => {
           industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
           isVerified
         />
-        {accountType === "creator" && user?.id && (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
-            <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-amber-300" /> Support this creator</p>
-            <CreatorPaymentActions creatorId={user.id} />
-          </div>
+        {user?.id && (
+          <>
+            {accountType === "creator" && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-amber-300" /> Support this creator</p>
+                <CreatorPaymentActions creatorId={user.id} />
+              </div>
+            )}
+            {accountType !== "creator" && (
+              <CreatorPaymentActions creatorId={user.id} showActions={false} />
+            )}
+          </>
         )}
         {passport.bio && <p className="text-sm">{passport.bio}</p>}
 
