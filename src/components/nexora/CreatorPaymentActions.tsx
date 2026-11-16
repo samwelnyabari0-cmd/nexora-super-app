@@ -9,7 +9,7 @@ import {
 } from "@/lib/paystack.functions";
 import { useSession } from "@/lib/session";
 
-export function CreatorPaymentActions({ creatorId }: { creatorId: string }) {
+export function CreatorPaymentActions({ creatorId, showActions = true }: { creatorId: string; showActions?: boolean }) {
   const { user, ready } = useSession();
   const init = useServerFn(initCreatorMonetizationPayment);
   const verify = useServerFn(verifyCreatorMonetizationPayment);
@@ -68,6 +68,8 @@ export function CreatorPaymentActions({ creatorId }: { creatorId: string }) {
       setBusy(false);
     }
   }
+
+  if (!showActions) return null;
 
   if (!ready || !user) {
     return <p className="text-xs text-muted-foreground">Sign in to tip or subscribe to this creator.</p>;
