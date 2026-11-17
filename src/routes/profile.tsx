@@ -66,6 +66,7 @@ function Profile() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("explore") === "1") setExploreOpen(true);
     const handle = params.get("handle")?.trim();
 
     setPublicHandle(handle || null);
