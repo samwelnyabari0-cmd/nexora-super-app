@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Home,
+  ArrowLeft,
   Compass,
   PlusSquare,
   MessageCircle,
@@ -63,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
   const { user } = useSession();
+  const isFeaturePage = moreLinks.some(({ to }) => path === to || path.startsWith(`${to}/`));
 
   // Track authenticated activity across every page rendered inside AppShell.
   useEffect(() => {
@@ -177,6 +179,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Top bar */}
       <header className="glass sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 md:px-6">
+        {isFeaturePage && (
+          <Link
+            to="/profile?explore=1"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition hover:bg-muted"
+            aria-label="Back to Explore Nexora"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            <span>Explore</span>
+          </Link>
+        )}
         <Link to="/" className="flex items-center gap-2 md:hidden" aria-label="NEXORA home">
           <span className="bg-brand grid h-8 w-8 place-items-center rounded-lg font-display font-bold text-primary-foreground">
             N
