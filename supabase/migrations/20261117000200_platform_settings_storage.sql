@@ -37,6 +37,15 @@ create policy "platform_settings_public_read"
   to anon, authenticated
   using (true);
 
+-- The public settings reader needs only the creator fee column, not admin metadata.
+grant select (platform_fee_percent) on public.creator_monetization_platform_config to anon, authenticated;
+
+create policy "creator_platform_config_public_fee_read"
+  on public.creator_monetization_platform_config
+  for select
+  to anon, authenticated
+  using (true);
+
 create table if not exists public.platform_settings_history (
   id uuid primary key default gen_random_uuid(),
   setting_key text not null,
