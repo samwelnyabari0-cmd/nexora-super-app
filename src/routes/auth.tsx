@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { BadgeCheck, LogOut, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,26 @@ const authRedirectUrl = () => {
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
+
+type HCaptchaWidgetId = number;
+
+declare global {
+  interface Window {
+    hcaptcha?: {
+      render: (
+        container: HTMLElement,
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        },
+      ) => HCaptchaWidgetId;
+      reset: (widgetId?: HCaptchaWidgetId) => void;
+      remove: (widgetId: HCaptchaWidgetId) => void;
+    };
+  }
+}
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -35,24 +55,111 @@ function AuthPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaLoadError, setCaptchaLoadError] = useState(false);
+  const captchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+  const captchaContainerRef = useRef<HTMLDivElement>(null);
+  const captchaWidgetIdRef = useRef<HCaptchaWidgetId | null>(null);
+
+  useEffect(() => {
+    if (!captchaSiteKey) return;
+
+    const renderCaptcha = () => {
+      const api = window.hcaptcha;
+      const container = captchaContainerRef.current;
+      if (!api || !container || captchaWidgetIdRef.current !== null) return;
+
+      captchaWidgetIdRef.current = api.render(container, {
+        sitekey: captchaSiteKey,
+        callback: (token) => setCaptchaToken(token),
+        "expired-callback": () => setCaptchaToken(null),
+        "error-callback": () => setCaptchaToken(null),
+      });
+    };
+
+    if (window.hcaptcha) {
+      renderCaptcha();
+    } else {
+      let script = document.getElementById("hcaptcha-api-script") as HTMLScriptElement | null;
+      const handleLoad = () => {
+        if (window.hcaptcha) renderCaptcha();
+        else setCaptchaLoadError(true);
+      };
+      const handleError = () => setCaptchaLoadError(true);
+
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "hcaptcha-api-script";
+        script.src = "https://js.hcaptcha.com/1/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        script.addEventListener("load", handleLoad);
+        script.addEventListener("error", handleError);
+        document.head.appendChild(script);
+      } else {
+        script.addEventListener("load", handleLoad);
+        script.addEventListener("error", handleError);
+        if (window.hcaptcha) handleLoad();
+      }
+
+      return () => {
+        script?.removeEventListener("load", handleLoad);
+        script?.removeEventListener("error", handleError);
+        if (captchaWidgetIdRef.current !== null) {
+          window.hcaptcha?.remove(captchaWidgetIdRef.current);
+          captchaWidgetIdRef.current = null;
+        }
+      };
+    }
+
+    return () => {
+      if (captchaWidgetIdRef.current !== null) {
+        window.hcaptcha?.remove(captchaWidgetIdRef.current);
+        captchaWidgetIdRef.current = null;
+      }
+    };
+  }, [captchaSiteKey]);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    if (captchaWidgetIdRef.current !== null) {
+      window.hcaptcha?.reset(captchaWidgetIdRef.current);
+    }
+  }
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!captchaToken) {
+      toast.error("Complete the hCaptcha check before continuing.");
+      return;
+    }
+
+    const token = captchaToken;
     setBusy(mode);
     try {
       const result = mode === "sign-in"
-        ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+        ? await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+            options: { captchaToken: token },
+          })
         : await supabase.auth.signUp({
             email: email.trim(),
             password,
             options: {
               emailRedirectTo: authRedirectUrl(),
+              captchaToken: token,
             },
           });
       if (result.error) {
-        const message = result.error.message.toLowerCase().includes("confirm")
-          ? "Check your email to confirm your account before signing in."
-          : mode === "sign-in" ? "Invalid email or password." : "Unable to create the account. Check the details and try again.";
+        const errorMessage = result.error.message.toLowerCase();
+        const message = errorMessage.includes("captcha")
+          ? "hCaptcha verification failed. Please complete the check again."
+          : errorMessage.includes("confirm")
+            ? "Check your email to confirm your account before signing in."
+            : mode === "sign-in"
+              ? "Invalid email or password."
+              : "Unable to create the account. Check the details and try again.";
         toast.error(message);
       } else if (mode === "sign-up") {
         toast.success("Account created. Check your email to confirm it, then sign in.");
@@ -62,6 +169,7 @@ function AuthPage() {
       }
     } finally {
       setBusy(null);
+      resetCaptcha();
     }
   }
 
@@ -126,7 +234,21 @@ function AuthPage() {
               <input id="auth-email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2" />
               <label className="block text-sm font-medium" htmlFor="auth-password">Password</label>
               <input id="auth-password" type="password" required minLength={8} autoComplete={mode === "sign-in" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2" />
-                <Button type="submit" disabled={busy !== null} className="w-full">
+              {captchaSiteKey ? (
+                <div className="space-y-2">
+                  <div ref={captchaContainerRef} />
+                  {captchaLoadError && (
+                    <p className="text-sm text-destructive">
+                      The security check could not load. Refresh the page and try again.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-destructive">
+                  Email sign-in is temporarily unavailable because the CAPTCHA site key is not configured.
+                </p>
+              )}
+                <Button type="submit" disabled={busy !== null || !captchaSiteKey || !captchaToken} className="w-full">
                 {mode === "sign-in" ? "Sign in" : "Create account"}
               </Button>
             </form>
@@ -138,7 +260,14 @@ function AuthPage() {
             <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void signInWithGoogle()} className="w-full">
               Continue with Google
             </Button>
-            <button type="button" className="w-full text-sm underline" onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}>
+            <button
+              type="button"
+              className="w-full text-sm underline"
+              onClick={() => {
+                resetCaptcha();
+                setMode(mode === "sign-in" ? "sign-up" : "sign-in");
+              }}
+            >
               {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
             </button>
             {busy && busy !== "out" && <p className="text-xs text-muted-foreground">Working…</p>}
