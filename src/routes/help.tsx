@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { MessageCircle, Send, LifeBuoy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/nexora/ui";
@@ -123,7 +123,7 @@ function Help() {
     return () => { active = false; };
   }, [user?.id, selectedId]);
 
-  async function submitTicket(event: React.FormEvent<HTMLFormElement>) {
+  async function submitTicket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user) return;
     if (subject.trim().length < 3 || description.trim().length < 10) {
