@@ -12,6 +12,7 @@ import {
   Zap,
   MapPin,
   Trash2,
+  Flag,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -283,14 +284,29 @@ export function PostCard({ post }: { post: Post }) {
               </p>
             )}
             {post.comments.map((k) => (
-  <div key={k.id} className="space-y-0.5">
-    <p className="text-sm">
-      <span className="font-semibold">@{k.author}</span> {k.text}
-    </p>
-    {k.createdAt && (
-      <p className="text-xs text-muted-foreground">
-        {new Date(k.createdAt).toLocaleString()}
+  <div key={k.id} className="flex items-start gap-2">
+    <div className="min-w-0 flex-1 space-y-0.5">
+      <p className="text-sm">
+        <span className="font-semibold">@{k.author}</span> {k.text}
       </p>
+      {k.createdAt && (
+        <p className="text-xs text-muted-foreground">
+          {new Date(k.createdAt).toLocaleString()}
+        </p>
+      )}
+    </div>
+    {user && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k.id) && (
+      <button type="button" className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive" aria-label="Report comment" title="Report comment"
+        onClick={async () => {
+          const { error } = await (supabase as any).from("reports").insert({
+            reporter_id: user.id, target_id: k.id, target_type: "comment",
+            reason: "Other", details: "Comment reported from the Nexora feed."
+          });
+          if (error) toast.error("Comment report could not be submitted.");
+          else toast.success("Comment reported to moderators.");
+        }}>
+        <Flag className="h-3.5 w-3.5" />
+      </button>
     )}
   </div>
 ))}
@@ -373,6 +389,7 @@ export function PostCard({ post }: { post: Post }) {
               const { error } = await (supabase as any).from("reports").insert({
                 reporter_id: user.id,
                 target_id: post.id,
+                target_type: "post",
                 reason,
               });
               if (error) {
