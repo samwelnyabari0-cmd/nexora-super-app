@@ -148,7 +148,7 @@ function Notifications() {
         actorProfile: item.actor_id ? actorProfiles[item.actor_id] : undefined,
         time: new Date(item.created_at).toLocaleString(),
         read: Boolean(item.read_at),
-        href: isMessage && item.actor_id ? `/messages?recipient=${encodeURIComponent(item.actor_id)}` : isMessage ? "/messages" : item.post_id && actorProfiles[user?.id ?? ""]?.handle ? `/profile?handle=${encodeURIComponent(String(actorProfiles[user?.id ?? ""]?.handle))}&post=${encodeURIComponent(item.post_id)}` : "/profile",
+        href: isAnnouncement ? "/notifications" : isMessage && item.actor_id ? `/messages?recipient=${encodeURIComponent(item.actor_id)}` : isMessage ? "/messages" : item.post_id && actorProfiles[user?.id ?? ""]?.handle ? `/profile?handle=${encodeURIComponent(String(actorProfiles[user?.id ?? ""]?.handle))}&post=${encodeURIComponent(item.post_id)}` : "/profile",
         icon: isMessage ? MessageCircle : isComment ? MessageCircle : isLike ? Heart : isFollow ? Bell : Bell,
       };
     });
