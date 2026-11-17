@@ -223,6 +223,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_my_account_suspended: { Args: Record<PropertyKey, never>; Returns: boolean }
+
       are_contacts: { Args: { a: string; b: string }; Returns: boolean }
       contact_names: {
         Args: { ids: string[] }
