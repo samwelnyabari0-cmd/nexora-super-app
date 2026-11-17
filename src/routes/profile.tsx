@@ -66,7 +66,6 @@ function Profile() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("explore") === "1") setExploreOpen(true);
     const handle = params.get("handle")?.trim();
 
     setPublicHandle(handle || null);
@@ -109,6 +108,11 @@ function Profile() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("explore") === "1") setExploreOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!user || (socialTab !== "followers" && socialTab !== "following")) return;
