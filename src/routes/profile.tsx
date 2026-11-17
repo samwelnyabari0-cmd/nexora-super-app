@@ -496,7 +496,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   return (
     <>
       {/* Fixed-height profile media grid */}
-      <div className="relative rounded-2xl pr-1">
+      <div className="relative h-[420px] max-h-[65vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
         {activeItems.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
             <Grid3X3 className="mb-3 h-8 w-8 text-muted-foreground" />
