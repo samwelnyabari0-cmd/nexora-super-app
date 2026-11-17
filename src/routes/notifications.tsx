@@ -138,7 +138,7 @@ function Notifications() {
       const isComment = kind.includes("comment");
       const isLike = kind.includes("like");
       const isFollow = kind.includes("follow");
-      const isAnnouncement = kind === "system_announcement";
+      const isAnnouncement = kind === "system";
       return {
         id: item.id,
         category: isAnnouncement ? "ecosystem" : isMessage ? "messages" : "interactions",
