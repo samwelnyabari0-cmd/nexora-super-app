@@ -374,6 +374,27 @@ useEffect(() => {
         )}
       </Panel>
 
+      <Panel className="space-y-3">
+        <div>
+          <h2 className="font-display text-lg font-bold">Explore Nexora</h2>
+          <p className="text-sm text-muted-foreground">Open your Nexora tools and services.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {moreLinks.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="flex min-w-0 items-center gap-3 rounded-xl border bg-card p-3 text-sm font-medium transition hover:border-primary/50 hover:bg-primary/5"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </Panel>
+
       <Button asChild type="button" variant="outline" className="w-full justify-start gap-3 rounded-2xl py-6">
         <Link to="/profile-settings">
           <ShieldCheck className="h-5 w-5 text-accent" />
