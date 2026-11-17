@@ -28,7 +28,14 @@ create table if not exists public.platform_settings (
 
 alter table public.platform_settings enable row level security;
 revoke all on table public.platform_settings from public, anon, authenticated;
+grant select on table public.platform_settings to anon, authenticated;
 grant select, insert, update, delete on table public.platform_settings to service_role;
+
+create policy "platform_settings_public_read"
+  on public.platform_settings
+  for select
+  to anon, authenticated
+  using (true);
 
 create table if not exists public.platform_settings_history (
   id uuid primary key default gen_random_uuid(),
@@ -70,7 +77,7 @@ create or replace function public.get_public_platform_settings()
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = ''
 as $function$
   select coalesce(
