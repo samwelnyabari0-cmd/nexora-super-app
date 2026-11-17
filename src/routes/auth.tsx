@@ -152,9 +152,14 @@ function AuthPage() {
             },
           });
       if (result.error) {
-        const message = result.error.message.toLowerCase().includes("confirm")
-          ? "Check your email to confirm your account before signing in."
-          : mode === "sign-in" ? "Invalid email or password." : "Unable to create the account. Check the details and try again.";
+        const errorMessage = result.error.message.toLowerCase();
+        const message = errorMessage.includes("captcha")
+          ? "hCaptcha verification failed. Please complete the check again."
+          : errorMessage.includes("confirm")
+            ? "Check your email to confirm your account before signing in."
+            : mode === "sign-in"
+              ? "Invalid email or password."
+              : "Unable to create the account. Check the details and try again.";
         toast.error(message);
       } else if (mode === "sign-up") {
         toast.success("Account created. Check your email to confirm it, then sign in.");
