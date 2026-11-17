@@ -6,10 +6,47 @@ type SessionState = { user: User | null; ready: boolean };
 
 let cached: SessionState = { user: null, ready: false };
 let started = false;
+let suspensionTimer: number | null = null;
+let checkingUserId: string | null = null;
 const subs = new Set<() => void>();
 
 function notify() {
   subs.forEach((fn) => fn());
+}
+
+/**
+ * Re-check the signed-in user's suspension status.
+ * Network/RPC errors fail open so a temporary outage does not sign out
+ * legitimate users; server-side authorization must still protect data.
+ */
+async function checkSuspension() {
+  const user = cached.user;
+  if (!user || checkingUserId) return;
+
+  checkingUserId = user.id;
+  try {
+    const { data, error } = await supabase.rpc("is_my_account_suspended");
+    if (!error && data === true && cached.user?.id === user.id) {
+      await supabase.auth.signOut({ scope: "local" });
+    }
+  } catch {
+    // A failed status check must not be treated as a confirmed suspension.
+  } finally {
+    checkingUserId = null;
+  }
+}
+
+function startSuspensionMonitor() {
+  if (suspensionTimer !== null || typeof window === "undefined") return;
+
+  suspensionTimer = window.setInterval(() => {
+    void checkSuspension();
+  }, 60_000);
+
+  window.addEventListener("focus", checkSuspension);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void checkSuspension();
+  });
 }
 
 /** One subscription for the whole app; identity changes only. */
@@ -18,6 +55,7 @@ async function init() {
   started = true;
   cached = { user: null, ready: true };
   notify();
+
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
@@ -26,11 +64,18 @@ async function init() {
     const session = result && "data" in result ? result.data.session : null;
     cached = { user: session?.user ?? null, ready: true };
     notify();
+
     supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       cached = { user: nextSession?.user ?? null, ready: true };
       notify();
+      if (event === "SIGNED_IN" && nextSession?.user) {
+        window.setTimeout(() => void checkSuspension(), 0);
+      }
     });
+
+    startSuspensionMonitor();
+    if (cached.user) void checkSuspension();
   } catch {
     cached = { user: null, ready: true };
     notify();
