@@ -138,11 +138,12 @@ function Notifications() {
       const isComment = kind.includes("comment");
       const isLike = kind.includes("like");
       const isFollow = kind.includes("follow");
+      const isAnnouncement = kind === "system_announcement";
       return {
         id: item.id,
-        category: isMessage ? "messages" : "interactions",
-        event: isMessage ? "MESSAGE" : "INTERACTION",
-        title: isFollow ? "New follower" : isLike ? "New like" : isComment ? "New comment" : isMessage ? "New message" : "Activity update",
+        category: isAnnouncement ? "ecosystem" : isMessage ? "messages" : "interactions",
+        event: isAnnouncement ? "PLATFORM ANNOUNCEMENT" : isMessage ? "MESSAGE" : "INTERACTION",
+        title: isAnnouncement ? "Nexora announcement" : isFollow ? "New follower" : isLike ? "New like" : isComment ? "New comment" : isMessage ? "New message" : "Activity update",
         detail: item.body,
         actorProfile: item.actor_id ? actorProfiles[item.actor_id] : undefined,
         time: new Date(item.created_at).toLocaleString(),
