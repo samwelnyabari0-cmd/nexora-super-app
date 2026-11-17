@@ -18,6 +18,18 @@ update private.platform_admins
 set role = 'super_admin'
 where user_id = '5e072a58-2a91-497f-9fec-31c1a0df1780'::uuid;
 
+DO $
+begin
+  if not exists (
+    select 1 from private.platform_admins
+    where user_id = '5e072a58-2a91-497f-9fec-31c1a0df1780'::uuid
+      and role = 'super_admin'
+  ) then
+    raise exception 'Expected initial Super Admin membership was not found; aborting role migration.';
+  end if;
+end;
+$;
+
 create or replace function public.is_platform_super_admin(p_user_id uuid)
 returns boolean
 language sql
