@@ -25,14 +25,12 @@ stable
 security definer
 set search_path = ''
 as $function$
-  select
-    auth.role() = 'service_role'
-    and exists (
-      select 1
-      from private.platform_admins
-      where user_id = p_user_id
-        and role = 'super_admin'
-    );
+  select exists (
+    select 1
+    from private.platform_admins
+    where user_id = p_user_id
+      and role = 'super_admin'
+  );
 $function$;
 
 revoke all on function public.is_platform_super_admin(uuid) from public, anon, authenticated;
