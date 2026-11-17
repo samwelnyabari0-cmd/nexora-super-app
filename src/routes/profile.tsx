@@ -98,6 +98,7 @@ function Profile() {
   );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [socialTab, setSocialTab] = useState<"posts" | "reels" | "collabs" | "saved" | "followers" | "following">("posts");
+  const [exploreOpen, setExploreOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   const [accountType, setAccountType] = useState<"personal" | "creator" | "business">(user?.user_metadata?.account_type ?? "personal");
   const [profileCategory, setProfileCategory] = useState<string>(user?.user_metadata?.profile_category ?? "");
@@ -249,7 +250,52 @@ useEffect(() => {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <PageHeader title="Profile" />
+      <PageHeader
+        title="Profile"
+        action={
+          <div className="relative">
+            <Button
+              type="button"
+              variant={exploreOpen ? "default" : "outline"}
+              size="icon"
+              aria-label={exploreOpen ? "Close Explore Nexora" : "Open Explore Nexora"}
+              aria-expanded={exploreOpen}
+              onClick={() => setExploreOpen((open) => !open)}
+              className="h-11 w-11 rounded-xl"
+            >
+              <Grid3X3 className="h-5 w-5" />
+            </Button>
+            {exploreOpen && (
+              <div className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-[min(90vw,380px)] overflow-y-auto rounded-2xl border bg-card p-4 shadow-2xl">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-display text-lg font-bold">Explore Nexora</h2>
+                    <p className="text-xs text-muted-foreground">Your tools and services</p>
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" aria-label="Close Explore Nexora" onClick={() => setExploreOpen(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {moreLinks.map(({ to, label, icon: Icon }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      onClick={() => setExploreOpen(false)}
+                      className="flex min-w-0 items-center gap-3 rounded-xl border bg-background p-3 text-sm font-medium transition hover:border-primary/50 hover:bg-primary/5"
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-5 w-5" aria-hidden />
+                      </span>
+                      <span className="min-w-0">{label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        }
+      />
       <Panel className="space-y-4">
         <div className="flex items-start gap-4">
           <div className="group relative shrink-0">
@@ -372,27 +418,6 @@ useEffect(() => {
             {!connections.length && <p className="text-sm text-muted-foreground">No {socialTab} yet.</p>}
           </div>
         )}
-      </Panel>
-
-      <Panel className="space-y-3">
-        <div>
-          <h2 className="font-display text-lg font-bold">Explore Nexora</h2>
-          <p className="text-sm text-muted-foreground">Open your Nexora tools and services.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {moreLinks.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              className="flex min-w-0 items-center gap-3 rounded-xl border bg-card p-3 text-sm font-medium transition hover:border-primary/50 hover:bg-primary/5"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="min-w-0">{label}</span>
-            </Link>
-          ))}
-        </div>
       </Panel>
 
       <Button asChild type="button" variant="outline" className="w-full justify-start gap-3 rounded-2xl py-6">
