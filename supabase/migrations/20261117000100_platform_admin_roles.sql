@@ -1,6 +1,5 @@
 -- Establish explicit platform administrator roles for Nexora Platform Settings.
--- The existing platform administrator is promoted by stable user ID, not email.
--- This migration is staged for review and has NOT been applied to the hosted database.
+-- Promote the sole verified existing administrator; abort if membership is not exactly one.
 
 begin;
 
@@ -14,21 +13,22 @@ alter table private.platform_admins
   add constraint platform_admins_role_check
   check (role in ('admin', 'super_admin'));
 
-update private.platform_admins
-set role = 'super_admin'
-where user_id = '5e072a58-2a91-497f-9fec-31c1a0df1780'::uuid;
-
-DO $
+DO $$
+declare
+  existing_admin_count integer;
 begin
-  if not exists (
-    select 1 from private.platform_admins
-    where user_id = '5e072a58-2a91-497f-9fec-31c1a0df1780'::uuid
-      and role = 'super_admin'
-  ) then
-    raise exception 'Expected initial Super Admin membership was not found; aborting role migration.';
+  select count(*) into existing_admin_count
+  from private.platform_admins;
+
+  if existing_admin_count <> 1 then
+    raise exception 'Expected exactly one existing platform administrator; found %. Aborting role migration.', existing_admin_count;
   end if;
+
+  update private.platform_admins
+  set role = 'super_admin'
+  where user_id = (select user_id from private.platform_admins);
 end;
-$;
+$$;
 
 create or replace function public.is_platform_super_admin(p_user_id uuid)
 returns boolean
