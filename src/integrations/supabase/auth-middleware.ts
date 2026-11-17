@@ -100,6 +100,21 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       throw new Error('Unauthorized: No user ID found in token');
     }
 
+    // Re-check current suspension state on every protected server operation.
+    // Fail closed if the status cannot be verified.
+    const { data: isSuspended, error: suspensionError } = await supabase.rpc(
+      'is_my_account_suspended'
+    );
+
+    if (suspensionError) {
+      console.error('[Auth] Could not verify account suspension status', suspensionError);
+      throw new Error('Unable to verify account status. Please try again.');
+    }
+
+    if (isSuspended === true) {
+      throw new Error('Forbidden: This account has been suspended.');
+    }
+
     return next({
       context: {
         supabase,
