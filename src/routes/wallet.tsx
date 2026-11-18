@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Send, Globe } from "lucide-react";
 import { useApp } from "@/features/core/store";
 import { DemoBadge, PageHeader, Panel } from "@/components/nexora/ui";
 import { toast } from "sonner";
 import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/wallet")({
   head: () => ({
@@ -28,9 +30,71 @@ const gatewayFor = (currency: (typeof CURRENCIES)[number]) => ["KES", "NGN", "ZA
 
 function WalletPage() {
   const { txns } = useApp();
-  const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>("USD");
-  const liveBalance = 0;
-  const liveTxns = txns.filter((t) => t.id.startsWith("paystack:"));
+  const { user } = useSession();
+  const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>("KES");
+  const [walletRows, setWalletRows] = useState<Array<{
+    id: string;
+    kind: string;
+    amount: number;
+    label: string;
+    created_at: string;
+    currency: string;
+  }>>([]);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const loadWallet = async () => {
+      if (!user) {
+        if (active) {
+          setWalletRows([]);
+          setWalletLoading(false);
+        }
+        return;
+      }
+
+      setWalletLoading(true);
+      const { data, error } = await (supabase as any)
+        .from("wallet_txns")
+        .select("id, kind, amount, label, created_at, currency")
+        .eq("user_id", user.id)
+        .eq("status", "completed")
+        .not("verified_at", "is", null)
+        .order("created_at", { ascending: false });
+
+      if (!active) return;
+      if (error) {
+        console.error("Could not load verified wallet transactions:", error.message);
+        setWalletError("Could not load your verified wallet balance. Please refresh.");
+        setWalletRows([]);
+      } else {
+        setWalletError("");
+        setWalletRows((data ?? []).map((row: any) => ({
+          ...row,
+          amount: Number(row.amount),
+        })));
+      }
+      setWalletLoading(false);
+    };
+
+    void loadWallet();
+    const refresh = () => void loadWallet();
+    window.addEventListener("nexora:wallet-refresh", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("nexora:wallet-refresh", refresh);
+    };
+  }, [user]);
+
+  const balances = CURRENCIES.reduce((result, item) => {
+    result[item] = walletRows
+      .filter((row) => row.currency === item)
+      .reduce((total, row) => total + (row.kind === "in" ? row.amount : -row.amount), 0);
+    return result;
+  }, {} as Record<(typeof CURRENCIES)[number], number>);
+  const liveBalance = balances[currency] ?? 0;
+  const liveTxns = walletRows.filter((row) => row.currency === currency);
   const [to, setTo] = useState("");
   const [amt, setAmt] = useState("");
   const [note, setNote] = useState("");
@@ -49,7 +113,7 @@ function WalletPage() {
         <PageHeader title="Wallet" action={<DemoBadge>Live ledger</DemoBadge>} />
         <Panel className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm font-semibold"><Globe className="h-4 w-4 text-cyan-400" /> Currency</label><select aria-label="Wallet currency" value={currency} onChange={(event) => setCurrency(event.target.value as (typeof CURRENCIES)[number])} className="rounded-xl border bg-background px-3 py-2 text-sm">{CURRENCIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{CURRENCIES.map((item) => <button type="button" key={item} onClick={() => setCurrency(item)} className={`rounded-xl border p-3 text-left transition-colors hover:bg-muted ${currency === item ? "border-primary bg-primary/10" : ""}`}><p className="text-xs text-muted-foreground">{item} balance</p><p className="mt-1 font-semibold">{formatCurrency(item === currency ? liveBalance : liveBalance * FX_TO_USD[currency] / FX_TO_USD[item], item)}</p></button>)}</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{CURRENCIES.map((item) => <button type="button" key={item} onClick={() => setCurrency(item)} className={`rounded-xl border p-3 text-left transition-colors hover:bg-muted ${currency === item ? "border-primary bg-primary/10" : ""}`}><p className="text-xs text-muted-foreground">{item} balance</p><p className="mt-1 font-semibold">{formatCurrency(balances[item] ?? 0, item)}</p></button>)}</div>
           <p className="text-xs text-muted-foreground">Gateway: {gatewayFor(currency)} · FX conversion fee estimate: 1.5%–2% shown before settlement.</p>
         </Panel>
         <div className="bg-brand rounded-3xl p-6 text-primary-foreground shadow-glow">
@@ -133,6 +197,7 @@ function WalletPage() {
           Transactions <span className="text-xs text-muted-foreground">(verified only)</span>
         </p>
         <ul className="divide-y">
+          {!walletLoading && liveTxns.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">No verified {currency} transactions yet.</li>}
           {liveTxns.map((t) => (
             <li key={t.id} className="flex items-center gap-3 py-3">
               <span
@@ -150,7 +215,7 @@ function WalletPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{t.label}</p>
-                <p className="text-xs text-muted-foreground">{t.at}</p>
+                <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString()}</p>
               </div>
               <p
                 className={
