@@ -36,7 +36,7 @@ function InstructorAcademy() {
     setPublishing(true);
     try {
       const slug = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-      const { data: course, error: courseError } = await (supabase as any).from("edu_courses").insert({ instructor_id: user.id, title: title.trim(), slug, description: description.trim(), category, price_usd: Number(priceUsd) || 0, price_kes: Number(priceKes) || 0, is_published: true }).select("id").single();
+      const { data: course, error: courseError } = await (supabase as any).from("edu_courses").insert({ instructor_id: user.id, title: title.trim(), slug, description: description.trim(), category, price_usd: Number(priceUsd) || 0, price_kes: Number(priceKes) || 0, is_published: false }).select("id").single();
       if (courseError) throw courseError;
       for (const [index, lesson] of lessons.entries()) {
         const path = `${user.id}/${course.id}/lessons/${crypto.randomUUID()}-${lesson.file.name}`;
@@ -52,6 +52,12 @@ function InstructorAcademy() {
         const { error: resourceError } = await (supabase as any).from("edu_resources").insert({ course_id: course.id, resource_name: resource.name, file_type: resource.name.split(".").pop()?.toLowerCase() ?? "file", r2_object_key: path, file_size_bytes: resource.size, access_tier: "enrolled" });
         if (resourceError) throw resourceError;
       }
+      const { error: publishError } = await (supabase as any)
+        .from("edu_courses")
+        .update({ is_published: true })
+        .eq("id", course.id)
+        .eq("instructor_id", user.id);
+      if (publishError) throw publishError;
       setPublished(true); toast.success("Course published to Nexora Academy.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Course publishing failed."); }
     finally { setPublishing(false); }
