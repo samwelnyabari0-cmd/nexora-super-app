@@ -180,6 +180,7 @@ export type Place = {
   mapsUrl?: string;
   lat?: number;
   lon?: number;
+  country?: string;
 };
 export const places: Place[] = [
   {
