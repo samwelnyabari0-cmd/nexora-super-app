@@ -27,37 +27,35 @@ function verifyWebhookSignature(
 
   // Current Paystack webhook signature
   if (currentHeader && signingSecret) {
-    const fields = Object.fromEntries(
-      currentHeader.split(",").map((part) => {
-        const separator = part.indexOf("=");
-
-        return separator < 0
-          ? [part.trim(), ""]
-          : [
-              part.slice(0, separator).trim(),
-              part.slice(separator + 1).trim(),
-            ];
-      })
-    );
-
-    const timestamp = Number(fields.t);
-    const signatureField = fields.v1 ?? "";
-
-    const signature = signatureField.includes(":")
-      ? signatureField.slice(signatureField.lastIndexOf(":") + 1)
-      : signatureField;
+    // Paystack can include multiple v1 signatures during signing-secret rotation.
+    // Preserve every v1 value rather than collapsing duplicate header fields.
+    const headerParts = currentHeader.split(",").map((part) => part.trim());
+    const timestampPart = headerParts.find((part) => part.startsWith("t="));
+    const timestamp = Number(timestampPart?.slice(2));
+    const signatures = headerParts
+      .filter((part) => part.startsWith("v1="))
+      .map((part) => {
+        const value = part.slice(3);
+        const separator = value.indexOf(":");
+        return separator >= 0 ? value.slice(separator + 1) : value;
+      });
 
     if (
       Number.isFinite(timestamp) &&
-      Math.abs(Date.now() / 1000 - timestamp) <=
-        MAX_SIGNATURE_AGE_SECONDS &&
-      signature
+      Math.abs(Date.now() / 1000 - timestamp) <= MAX_SIGNATURE_AGE_SECONDS &&
+      signatures.length > 0
     ) {
       const expected = createHmac("sha512", signingSecret)
         .update(`${timestamp}.${rawBody}`, "utf8")
         .digest("hex");
 
-      if (safeHexEqual(expected, signature)) {
+      if (
+        signatures.some(
+          (signature) =>
+            /^[a-f0-9]{128}$/i.test(signature) &&
+            safeHexEqual(expected, signature)
+        )
+      ) {
         return true;
       }
     }
@@ -241,55 +239,67 @@ export const Route = createFileRoute(
             );
           }
 
-          // Update existing Nexora account plan indicators
-          const { data: authResult, error: getUserError } =
-            await supabaseAdmin.auth.admin.getUserById(
-              userId
-            );
+          // Keep paid-plan authorization in app_metadata, which users cannot edit.
+          // Read the subscription row after the idempotent RPC so duplicate webhook
+          // deliveries can safely re-sync the current authoritative expiry.
+          const admin = supabaseAdmin as any;
+          const [
+            { data: authResult, error: getUserError },
+            { data: subscription, error: subscriptionError },
+          ] = await Promise.all([
+            admin.auth.admin.getUserById(userId),
+            admin
+              .from("subscriptions")
+              .select("tier, status, current_period_end")
+              .eq("user_id", userId)
+              .maybeSingle(),
+          ]);
 
-          if (getUserError || !authResult.user) {
-            console.error(
-              "[Paystack] Could not load account",
-              getUserError
-            );
-
-            return new Response(
-              "Subscription activated; account sync pending",
-              { status: 500 }
-            );
+          if (getUserError || !authResult?.user) {
+            console.error("[Paystack] Could not load account", getUserError);
+            return new Response("Subscription activated; account sync pending", {
+              status: 500,
+            });
           }
 
-          const existingMetadata =
-            authResult.user.user_metadata ?? {};
-
-          const accountTier =
-            tier === "studio"
-              ? "studio_vip"
-              : "creator_pro";
-
-          const { error: metadataError } =
-            await supabaseAdmin.auth.admin.updateUserById(
-              userId,
-              {
-                user_metadata: {
-                  ...existingMetadata,
-                  account_tier: accountTier,
-                  subscription_tier: tier,
-                  plan: tier,
-                },
-              }
+          if (
+            subscriptionError ||
+            !subscription ||
+            subscription.status !== "active" ||
+            subscription.tier !== tier ||
+            !Number.isFinite(Date.parse(subscription.current_period_end)) ||
+            Date.parse(subscription.current_period_end) <= Date.now()
+          ) {
+            console.error(
+              "[Paystack] Subscription record is missing or not active",
+              subscriptionError
             );
+            return new Response("Subscription record could not be confirmed", {
+              status: 500,
+            });
+          }
+
+          const existingAppMetadata = authResult.user.app_metadata ?? {};
+          const accountTier = tier === "studio" ? "studio_vip" : "creator_pro";
+
+          const { error: metadataError } = await admin.auth.admin.updateUserById(
+            userId,
+            {
+              app_metadata: {
+                ...existingAppMetadata,
+                account_tier: accountTier,
+                subscription_tier: tier,
+                plan: tier,
+                subscription_expires_at: subscription.current_period_end,
+              },
+            }
+          );
 
           if (metadataError) {
-            console.error(
-              "[Paystack] Account metadata sync failed",
-              metadataError
-            );
-
-            return new Response(
-              "Subscription activated; account sync pending",
-              { status: 500 }
-            );
+            console.error("[Paystack] Account app metadata sync failed", metadataError);
+            return new Response("Subscription activated; account sync pending", {
+              status: 500,
+            });
           }
 
           return Response.json({
