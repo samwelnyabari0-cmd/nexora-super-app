@@ -11,9 +11,18 @@ export const UPLOAD_POLICY = {
 export const DAILY_UPLOAD_LIMIT_MESSAGE = "Daily upload limit reached for your current plan. Upgrade to Nexora Pro or Studio VIP to expand your daily upload caps and server bandwidth.";
 export const FILE_SIZE_LIMIT_MESSAGE = "File size exceeds your plan limit. Upgrade your Nexora account to upload higher-resolution videos up to 10 GB.";
 
-export function accountTierFromUser(user: { user_metadata?: Record<string, unknown> } | null | undefined): UploadAccountTier {
-  const raw = user?.user_metadata?.account_tier ?? user?.user_metadata?.account_type;
-  if (raw === "studio_vip" || raw === "creator_pro" || raw === "creator") return raw;
+export function accountTierFromUser(user: { app_metadata?: Record<string, unknown> } | null | undefined): UploadAccountTier {
+  const metadata = user?.app_metadata ?? {};
+  const raw = metadata.account_tier ?? metadata.account_type;
+
+  if (raw === "creator") return "creator";
+
+  if (raw === "studio_vip" || raw === "creator_pro") {
+    const expiresAt = Date.parse(String(metadata.subscription_expires_at ?? ""));
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return "personal";
+    return raw;
+  }
+
   return "personal";
 }
 
