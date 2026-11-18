@@ -26,6 +26,7 @@ import {
   Phone,
   Trophy,
   GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
   const { user } = useSession();
-  const isFeaturePage = moreLinks.some(({ to }) => path === to || path.startsWith(`${to}/`));
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) {
+      setIsPlatformAdmin(false);
+      return () => { active = false; };
+    }
+    void supabase.rpc("my_is_platform_admin").then(({ data, error }) => {
+      if (active) setIsPlatformAdmin(!error && data === true);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
+  const navItems = isPlatformAdmin
+    ? [...nav, { to: "/admin/finance" as const, label: "Admin Finance", icon: ShieldCheck }]
+    : nav;
+  const isFeaturePage =
+    path.startsWith("/admin") ||
+    moreLinks.some(({ to }) => path === to || path.startsWith(`${to}/`));
 
   // Track authenticated activity across every page rendered inside AppShell.
   useEffect(() => {
@@ -141,7 +159,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto" aria-label="Main">
-          {nav.map(({ to, label, icon: Icon }) => {
+          {navItems.map(({ to, label, icon: Icon }) => {
             const active = to === "/" ? path === "/" : path.startsWith(to);
             return (
               <Link
@@ -271,7 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-label="Main"
         className="glass fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 md:hidden"
       >
-        {nav
+        {navItems
           .filter((n) => mobileNav.includes(n.to))
           .map(({ to, label, icon: Icon }) => {
             const active = to === "/" ? path === "/" : path.startsWith(to);
