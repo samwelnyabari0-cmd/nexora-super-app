@@ -71,11 +71,15 @@ function CallsPage() {
   const { user, ready } = useSession();
   const { invite } = Route.useSearch();
 
-    const rawTier = user?.user_metadata?.subscription_tier;
-  // Everyone is on Free until a paid plan is recorded on the account.
-  const hasSyncedPlan = true;
+  const appMetadata = user?.app_metadata ?? {};
+  const rawTier = appMetadata.subscription_tier ?? appMetadata.plan;
+  const expiresAt = Date.parse(String(appMetadata.subscription_expires_at ?? ""));
+  const hasActivePaidPlan =
+    (rawTier === "pro" || rawTier === "studio") &&
+    Number.isFinite(expiresAt) &&
+    expiresAt > Date.now();
 
-  const userPlan = rawTier === "pro" || rawTier === "studio" ? rawTier : "free";
+  const userPlan = hasActivePaidPlan ? rawTier : "free";
   const planLabel =
     userPlan === "studio" ? "Studio" :
     userPlan === "pro" ? "Pro" : "Free";
@@ -121,7 +125,7 @@ function CallsPage() {
                 ? <Sparkles className="h-5 w-5 text-cyan-300" />
                 : <Crown className="h-5 w-5 text-amber-300" />}
 
-              {user ? (hasSyncedPlan ? planLabel : "Not synced") : "Sign in"}
+              {user ? planLabel : "Sign in"}
             </div>
 
             <p className="mt-1 text-xs text-indigo-100/70">
@@ -134,7 +138,7 @@ function CallsPage() {
       {/* Subscription plan indicators */}
       <section className="grid gap-3 sm:grid-cols-3">
         <div className={`rounded-2xl border p-4 ${
-          userPlan === "free" && hasSyncedPlan
+          user && userPlan === "free"
             ? "border-cyan-400/50 bg-cyan-400/[0.07]"
             : "border-border bg-card"
         }`}>
@@ -145,7 +149,7 @@ function CallsPage() {
           <p className="mt-3 text-[11px] font-semibold text-emerald-500">
             Calling included
           </p>
-          {hasSyncedPlan && userPlan === "free" && (
+          {user && userPlan === "free" && (
             <span className="mt-2 inline-block text-[10px] font-bold text-cyan-500">
               CURRENT PLAN
             </span>
@@ -165,7 +169,7 @@ function CallsPage() {
             Ad-free viewing, background play, expanded uploads
             and Pro creator tools.
           </p>
-          {hasSyncedPlan && userPlan === "pro" ? (
+          {user && userPlan === "pro" ? (
             <p className="mt-3 text-[10px] font-bold text-indigo-500">
               CURRENT PLAN
             </p>
@@ -190,7 +194,7 @@ function CallsPage() {
             Advanced creator tools, deeper analytics and
             professional publishing features.
           </p>
-          {hasSyncedPlan && userPlan === "studio" ? (
+          {user && userPlan === "studio" ? (
             <p className="mt-3 text-[10px] font-bold text-cyan-500">
               CURRENT PLAN
             </p>
@@ -202,13 +206,6 @@ function CallsPage() {
           )}
         </div>
       </section>
-
-      {!hasSyncedPlan && user && (
-        <p className="text-xs text-muted-foreground">
-          Your subscription status has not been synchronized yet.
-          Your existing calling features remain available.
-        </p>
-      )}
 
       {/* Existing working calling system — preserved */}
       {user ? (
