@@ -28,6 +28,7 @@ export function PaystackTopUp() {
     verify({ data: { reference: ref } })
       .then((r) => {
         if (r.paid) {
+          window.dispatchEvent(new Event("nexora:wallet-refresh"));
           toast.success(`Top-up verified: KES ${r.amount}`);
           setMsg(r.recorded ? "Payment verified and saved to your wallet ledger." : r.message ?? "Payment was already recorded.");
         } else setMsg(r.error ?? `Payment not completed (${r.paystackStatus ?? "unknown"}).`);
@@ -103,6 +104,7 @@ export function PaystackTopUp() {
               try {
                 const result = await verify({ data: { reference: existingReference.trim() } });
                 if (result.paid) {
+                  window.dispatchEvent(new Event("nexora:wallet-refresh"));
                   toast.success(`Top-up verified: KES ${result.amount}`);
                   setMsg(result.recorded ? "Payment verified and saved to your wallet ledger." : result.message ?? "Payment was already recorded.");
                 } else {
