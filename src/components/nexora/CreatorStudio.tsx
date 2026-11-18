@@ -18,6 +18,8 @@ export function CreatorStudio() {
   const [pinnedRow, setPinnedRow] = useState(true);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
   const [mpesaPhone, setMpesaPhone] = useState("");
+  const [confirmMpesaPhone, setConfirmMpesaPhone] = useState("");
+  const [confirmPayoutNumber, setConfirmPayoutNumber] = useState(false);
   const [savingPayoutMethod, setSavingPayoutMethod] = useState(false);
   const [savedDestinationLast4, setSavedDestinationLast4] = useState<string | null>(null);
   const [destinationUnverified, setDestinationUnverified] = useState(false);
@@ -35,6 +37,14 @@ export function CreatorStudio() {
       toast.error("Enter a valid Kenyan M-Pesa number.");
       return;
     }
+    if (!normalizedConfirmation || normalizedPhone !== normalizedConfirmation) {
+      toast.error("The M-Pesa numbers do not match. Check both entries.");
+      return;
+    }
+    if (!confirmPayoutNumber) {
+      toast.error("Please confirm that this is the correct M-Pesa number.");
+      return;
+    }
 
     setSavingPayoutMethod(true);
     try {
@@ -50,6 +60,8 @@ export function CreatorStudio() {
       setSavedDestinationLast4(data.destination_last4);
       setDestinationUnverified(true);
       setMpesaPhone("");
+      setConfirmMpesaPhone("");
+      setConfirmPayoutNumber(false);
       toast.success("M-Pesa payout number saved securely. Verification is still required.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save the payout method.";
@@ -68,8 +80,11 @@ export function CreatorStudio() {
         {showPayoutForm && <form onSubmit={saveMpesaDestination} className="mt-3 space-y-2">
           <label htmlFor="creator-mpesa-phone" className="block text-xs font-medium">Kenyan M-Pesa phone number</label>
           <input id="creator-mpesa-phone" type="tel" inputMode="tel" autoComplete="tel" value={mpesaPhone} onChange={(event) => setMpesaPhone(event.target.value)} placeholder="07XXXXXXXX" maxLength={20} required className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500" />
+          <label htmlFor="creator-mpesa-phone-confirm" className="block text-xs font-medium">Confirm M-Pesa phone number</label>
+          <input id="creator-mpesa-phone-confirm" type="tel" inputMode="tel" autoComplete="off" value={confirmMpesaPhone} onChange={(event) => setConfirmMpesaPhone(event.target.value)} onPaste={(event) => event.preventDefault()} placeholder="Re-enter 07XXXXXXXX" maxLength={20} required className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500" />
+          <label className="flex items-start gap-2 text-[11px] text-muted-foreground"><input type="checkbox" checked={confirmPayoutNumber} onChange={(event) => setConfirmPayoutNumber(event.target.checked)} className="mt-0.5" /><span>I confirm this is the correct M-Pesa number. Payments sent to an incorrect number may not be recoverable.</span></label>
           <p className="text-[11px] text-muted-foreground">Your number is encrypted before it is stored. It is not displayed in full.</p>
-          <button type="submit" disabled={savingPayoutMethod || !mpesaPhone.trim()} className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{savingPayoutMethod ? "Saving securely..." : "Save M-Pesa number"}</button>
+          <button type="submit" disabled={savingPayoutMethod || !mpesaPhone.trim() || !confirmMpesaPhone.trim() || !confirmPayoutNumber} className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{savingPayoutMethod ? "Saving securely..." : "Save M-Pesa number"}</button>
         </form>}
         {savedDestinationLast4 && <p className="mt-2 text-xs text-muted-foreground">Saved destination ending •••• {savedDestinationLast4} — {destinationUnverified ? "Pending verification" : "Saved"}.</p>}
       </div></div>
