@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/learn")({
   head: () => ({ meta: [{ title: "Academy Hub — NEXORA" }, { name: "description", content: "Learn, build, and earn with Nexora Academy." }] }),
@@ -20,11 +21,13 @@ const icons = [Code2, Video, Store];
 
 function Learn() {
   const navigate = useNavigate();
+  const { user } = useSession();
   const [track, setTrack] = useState<Track>("all");
   const [query, setQuery] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [enrollmentStatus, setEnrollmentStatus] = useState<"idle" | "loading" | "enrolling" | "enrolled">("idle");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +86,42 @@ function Learn() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    async function checkEnrollment() {
+      if (!selectedCourse || !user) { setEnrollmentStatus("idle"); return; }
+      setEnrollmentStatus("loading");
+      const { data, error: enrollmentError } = await (supabase as any)
+        .from("edu_enrollments")
+        .select("status")
+        .eq("course_id", selectedCourse.id)
+        .eq("student_id", user.id)
+        .maybeSingle();
+      if (!active) return;
+      setEnrollmentStatus(!enrollmentError && data && ["active", "completed"].includes(data.status) ? "enrolled" : "idle");
+    }
+    void checkEnrollment();
+    return () => { active = false; };
+  }, [selectedCourse, user]);
+
+  async function enrollSelectedCourse() {
+    if (!selectedCourse) return;
+    if (!user) { toast.error("Sign in to enrol in this course."); return; }
+    if (selectedCourse.priceUsd !== 0 || selectedCourse.priceKes !== 0) {
+      toast.info("This course is paid. Secure payment verification will be added before paid enrolment is enabled.");
+      return;
+    }
+    setEnrollmentStatus("enrolling");
+    const { error: enrolError } = await supabase.rpc("enroll_in_free_edu_course", { p_course_id: selectedCourse.id });
+    if (enrolError) {
+      toast.error(enrolError.message);
+      setEnrollmentStatus("idle");
+      return;
+    }
+    setEnrollmentStatus("enrolled");
+    toast.success("You are enrolled. Your course lessons are now unlocked.");
+  }
+
   const filteredCourses = useMemo(() => courses.filter((course) =>
     (track === "all" || course.category === track) &&
     `${course.title} ${course.description}`.toLowerCase().includes(query.toLowerCase())
@@ -118,7 +157,7 @@ function Learn() {
     <div className="flex gap-2 overflow-x-auto pb-1">{([["all", "All tracks"], ["creator", "Creator skills"], ["tech", "Developer & tech"], ["business", "E-commerce & business"]] as const).map(([id, label]) => <button type="button" key={id} onClick={() => setTrack(id)} className={cn("whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium", track === id ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>{label}</button>)}</div>
     {loading ? <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">Loading published courses…</div> : error ? <div className="rounded-2xl border border-destructive/40 bg-card p-6 text-sm text-destructive">Unable to load Academy courses: {error}</div> : filteredCourses.length === 0 ? <div className="rounded-2xl border bg-card p-8 text-center"><BookOpen className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 font-semibold">No published courses yet</p><p className="mt-1 text-sm text-muted-foreground">{query ? "Try another search term." : "Courses published by instructors will appear here."}</p></div> : <div className="grid gap-4 lg:grid-cols-3">{filteredCourses.map((course) => { const Icon = course.icon; return <article key={course.id} className="group overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:border-primary/50"><div className={`flex h-32 items-end bg-gradient-to-br ${course.accent} p-5`}><div className="grid h-11 w-11 place-items-center rounded-2xl border bg-background/70"><Icon className="h-5 w-5 text-primary" /></div></div><div className="space-y-3 p-5"><div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="capitalize">{course.category} track</span><span>{course.level}</span></div><h3 className="font-semibold">{course.title}</h3><p className="min-h-12 text-sm leading-5 text-muted-foreground">{course.description}</p><div className="text-xs text-muted-foreground">{course.lessons} lessons</div><div className="flex items-center justify-between gap-3 pt-1"><span className="text-sm font-semibold">{priceLabel(course)}</span><Button size="sm" variant="outline" onClick={() => setSelectedCourse(course)}>View course<ChevronRight /></Button></div></div></article>; })}</div>}</section>
     <section id="resources" className="scroll-mt-20 space-y-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assignment & resource library</p><h2 className="mt-1 text-2xl font-bold">Course resources</h2><p className="mt-2 text-sm text-muted-foreground">Private files are available only to instructors and eligible enrolled students.</p></div>{resources.length === 0 ? <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">No resources are currently available to your account.</div> : <div className="grid gap-3 md:grid-cols-3">{resources.map((resource) => <button type="button" key={resource.id} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left transition hover:border-primary/50 hover:bg-muted/30" onClick={() => void downloadResource(resource)}><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted"><Layers3 className="h-5 w-5 text-primary" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{resource.name}</p><p className="mt-1 text-xs text-muted-foreground">{resource.type} · {(resource.size / (1024 * 1024)).toFixed(1)} MB</p></div><Download className="h-4 w-4 text-muted-foreground" /></button>)}</div>}</section>
-    {selectedCourse && <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="course-dialog-title"><div className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">{selectedCourse.category} track</p><h2 id="course-dialog-title" className="mt-2 text-2xl font-bold">{selectedCourse.title}</h2></div><Button variant="ghost" size="icon" aria-label="Close course details" onClick={() => setSelectedCourse(null)}><X /></Button></div><p className="mt-4 text-sm leading-6 text-muted-foreground">{selectedCourse.description}</p><div className="mt-5 grid grid-cols-2 gap-2 text-center text-xs"><div className="rounded-xl bg-muted p-3"><BookOpen className="mx-auto mb-1 h-4 w-4" />{selectedCourse.lessons} lessons</div><div className="rounded-xl bg-muted p-3"><LockKeyhole className="mx-auto mb-1 h-4 w-4" />{priceLabel(selectedCourse)}</div></div><Button className="mt-6 w-full" onClick={() => { setSelectedCourse(null); toast.info("Course enrolment and lesson playback are the next Academy features being connected."); }}>Continue <ArrowRight /></Button></div></div>}
+    {selectedCourse && <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="course-dialog-title"><div className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">{selectedCourse.category} track</p><h2 id="course-dialog-title" className="mt-2 text-2xl font-bold">{selectedCourse.title}</h2></div><Button variant="ghost" size="icon" aria-label="Close course details" onClick={() => setSelectedCourse(null)}><X /></Button></div><p className="mt-4 text-sm leading-6 text-muted-foreground">{selectedCourse.description}</p><div className="mt-5 grid grid-cols-2 gap-2 text-center text-xs"><div className="rounded-xl bg-muted p-3"><BookOpen className="mx-auto mb-1 h-4 w-4" />{selectedCourse.lessons} lessons</div><div className="rounded-xl bg-muted p-3"><LockKeyhole className="mx-auto mb-1 h-4 w-4" />{priceLabel(selectedCourse)}</div></div><Button className="mt-6 w-full" disabled={enrollmentStatus === "loading" || enrollmentStatus === "enrolling" || enrollmentStatus === "enrolled"} onClick={() => void enrollSelectedCourse()}>{enrollmentStatus === "loading" ? "Checking enrolment…" : enrollmentStatus === "enrolling" ? "Enrolling…" : enrollmentStatus === "enrolled" ? "You are enrolled" : selectedCourse.priceUsd === 0 && selectedCourse.priceKes === 0 ? "Enrol for free" : "View payment options"} <ArrowRight /></Button></div></div>}
   </div>;
 }
 function Stat({ icon: Icon, label, value, detail }: { icon: typeof BookOpen; label: string; value: string; detail: string }) { return <div className="rounded-2xl border bg-card p-4"><Icon className="h-5 w-5 text-primary" /><p className="mt-4 text-xs text-muted-foreground">{label}</p><p className="mt-1 text-xl font-bold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>; }
