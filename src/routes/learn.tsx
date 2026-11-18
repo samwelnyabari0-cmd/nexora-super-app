@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, ChevronRight, Code2, Download, FileArchive, Layers3, LockKeyhole, Play, Search, Sparkles, Store, Video, X } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronRight, CloudUpload, Code2, Download, FileArchive, Layers3, LockKeyhole, Play, Search, Sparkles, Store, Video, X } from "lucide-react";
 import { PageHeader, DemoBadge } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const accents = ["from-cyan-500/25 to-blue-500/5", "from-violet-500/25 to-fuchsi
 const icons = [Code2, Video, Store];
 
 function Learn() {
+  const navigate = useNavigate();
   const [track, setTrack] = useState<Track>("all");
   const [query, setQuery] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
@@ -111,7 +112,7 @@ function Learn() {
 
   return <div className="space-y-8">
     <PageHeader title="Academy Hub" action={<DemoBadge>Learning workspace</DemoBadge>} />
-    <section className="relative overflow-hidden rounded-3xl border bg-card p-6 md:p-8"><div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" /><div className="relative max-w-2xl"><p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300"><Sparkles className="h-4 w-4" /> Learn, build, earn</p><h1 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Your next skill compounds.</h1><p className="mt-4 max-w-xl text-muted-foreground">Explore courses published by Nexora instructors, with secure learning resources.</p><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => document.getElementById("course-catalog")?.scrollIntoView({ behavior: "smooth" })}>Browse courses <ArrowRight /></Button><Button variant="outline" onClick={() => document.getElementById("resources")?.scrollIntoView({ behavior: "smooth" })}>Resource library</Button></div></div></section>
+    <section className="relative overflow-hidden rounded-3xl border bg-card p-6 md:p-8"><div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" /><div className="relative max-w-2xl"><p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300"><Sparkles className="h-4 w-4" /> Learn, build, earn</p><h1 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Your next skill compounds.</h1><p className="mt-4 max-w-xl text-muted-foreground">Explore courses published by Nexora instructors, with secure learning resources.</p><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => document.getElementById("course-catalog")?.scrollIntoView({ behavior: "smooth" })}>Browse courses <ArrowRight /></Button><Button variant="outline" onClick={() => document.getElementById("resources")?.scrollIntoView({ behavior: "smooth" })}>Resource library</Button><Button variant="secondary" onClick={() => navigate({ to: "/creator/academy" })}><CloudUpload /> Creator Academy</Button></div></div></section>
     <section className="grid gap-3 sm:grid-cols-3"><Stat icon={BookOpen} label="Published courses" value={String(courses.length)} detail="Live from Nexora Academy" /><Stat icon={Video} label="Lessons" value={String(courses.reduce((sum, course) => sum + course.lessons, 0))} detail="Across published courses" /><Stat icon={FileArchive} label="Resources" value={String(resources.length)} detail="Access depends on enrolment" /></section>
     <section id="course-catalog" className="scroll-mt-20 space-y-4"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Curriculum stream</p><h2 className="mt-1 text-2xl font-bold">Find your next course</h2></div><label className="flex min-w-56 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm text-muted-foreground"><Search className="h-4 w-4" /><span className="sr-only">Search courses</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses" className="w-full bg-transparent outline-none placeholder:text-muted-foreground" /></label></div>
     <div className="flex gap-2 overflow-x-auto pb-1">{([["all", "All tracks"], ["creator", "Creator skills"], ["tech", "Developer & tech"], ["business", "E-commerce & business"]] as const).map(([id, label]) => <button type="button" key={id} onClick={() => setTrack(id)} className={cn("whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium", track === id ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>{label}</button>)}</div>
