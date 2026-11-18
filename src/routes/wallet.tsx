@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Send, Globe } from "lucide-react";
-import { useApp } from "@/features/core/store";
 import { DemoBadge, PageHeader, Panel } from "@/components/nexora/ui";
 import { toast } from "sonner";
 import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
@@ -28,7 +27,6 @@ const formatCurrency = (amount: number, currency: (typeof CURRENCIES)[number]) =
 const gatewayFor = (currency: (typeof CURRENCIES)[number]) => ["KES", "NGN", "ZAR"].includes(currency) ? "Paystack / Mobile Money" : "Coming soon — Stripe / international cards";
 
 function WalletPage() {
-  const { txns } = useApp();
   const { user } = useSession();
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>("KES");
   const [walletRows, setWalletRows] = useState<Array<{
