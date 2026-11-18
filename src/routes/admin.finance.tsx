@@ -69,7 +69,7 @@ function AdminFinancePage() {
     if (silent) setRefreshing(true);
     else setLoading(true);
 
-    const { data: result, error } = await supabase.rpc("admin_get_wallet_finance", {
+    const { data: result, error } = await (supabase as any).rpc("admin_get_wallet_finance", {
       p_limit: 50,
       p_offset: 0,
     });
