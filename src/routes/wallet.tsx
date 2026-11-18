@@ -23,7 +23,6 @@ export const Route = createFileRoute("/wallet")({
 });
 
 const CURRENCIES = ["USD", "EUR", "GBP", "KES", "NGN", "ZAR"] as const;
-const FX_TO_USD: Record<(typeof CURRENCIES)[number], number> = { USD: 1, EUR: 1.09, GBP: 1.27, KES: 0.0077, NGN: 0.00062, ZAR: 0.055 };
 const SYMBOLS: Record<(typeof CURRENCIES)[number], string> = { USD: "$", EUR: "€", GBP: "£", KES: "KSh", NGN: "₦", ZAR: "R" };
 const formatCurrency = (amount: number, currency: (typeof CURRENCIES)[number]) => `${SYMBOLS[currency]} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const gatewayFor = (currency: (typeof CURRENCIES)[number]) => ["KES", "NGN", "ZAR"].includes(currency) ? "Paystack / Mobile Money" : "Coming soon — Stripe / international cards";
