@@ -9,6 +9,7 @@ type GeoapifyFeature = {
     name?: string;
     address_line1?: string;
     formatted?: string;
+    country?: string;
     categories?: string[];
     lat?: number;
     lon?: number;
@@ -26,7 +27,20 @@ type GeoapifyGeocodeResponse = {
   message?: string;
 };
 
-const DEFAULT_LOCATION = { lat: -1.286389, lon: 36.817223 };
+const GLOBAL_SEARCH_REGIONS = [
+  { name: "Nairobi", lat: -1.286389, lon: 36.817223 },
+  { name: "Lagos", lat: 6.5244, lon: 3.3792 },
+  { name: "Cairo", lat: 30.0444, lon: 31.2357 },
+  { name: "London", lat: 51.5072, lon: -0.1276 },
+  { name: "Paris", lat: 48.8566, lon: 2.3522 },
+  { name: "New York", lat: 40.7128, lon: -74.006 },
+  { name: "Sao Paulo", lat: -23.5505, lon: -46.6333 },
+  { name: "Dubai", lat: 25.2048, lon: 55.2708 },
+  { name: "Mumbai", lat: 19.076, lon: 72.8777 },
+  { name: "Singapore", lat: 1.3521, lon: 103.8198 },
+  { name: "Tokyo", lat: 35.6762, lon: 139.6503 },
+  { name: "Sydney", lat: -33.8688, lon: 151.2093 },
+];
 
 const categoryFor = (term: string) => {
   const value = term.toLowerCase();
@@ -51,9 +65,56 @@ const categoryFor = (term: string) => {
   return "commercial,catering,accommodation,healthcare,education,entertainment,tourism";
 };
 
+const isCategorySearch = (term: string) =>
+  /restaurant|food|eatery|dining|cafe|coffee|tea|bar|pub|nightlife|fast food|takeaway|pizza|burger|hotel|accommodation|lodging|hospital|clinic|doctor|pharmacy|chemist|school|university|college|bank|atm|fuel|petrol|gas station|supermarket|grocery|mall|shopping centre|shopping center|gym|fitness|park|garden|museum|tourist|attraction|sightseeing/i.test(term);
+
 const categoryLabel = (categories?: string[]) => {
   const category = categories?.[0]?.split(".").pop()?.replaceAll("_", " ");
   return category ? category.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Place";
+};
+
+const toPlace = (feature: GeoapifyFeature, index: number, fallback?: { lat: number; lon: number }) => {
+  const place = feature.properties ?? {};
+  const name = place.name ?? place.address_line1 ?? "Unnamed place";
+  const address = place.formatted ?? place.address_line1 ?? "Address unavailable";
+  const lat = place.lat ?? fallback?.lat;
+  const lon = place.lon ?? fallback?.lon;
+  return {
+    id: place.place_id ?? `geoapify-place-${lat ?? "x"}-${lon ?? "y"}-${index}`,
+    name,
+    category: categoryLabel(place.categories),
+    country: place.country ?? "",
+    distance: typeof place.distance === "number"
+      ? `${(place.distance / 1000).toFixed(1)} km from search area`
+      : place.country ?? address,
+    rating: 0,
+    blurb: address,
+    mapsUrl: typeof lat === "number" && typeof lon === "number"
+      ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`
+      : undefined,
+    lat,
+    lon,
+  };
+};
+
+const fetchPlaces = async (
+  key: string,
+  categories: string,
+  searchTerm: string,
+  center: { lat: number; lon: number },
+) => {
+  const url = new URL("https://api.geoapify.com/v2/places");
+  url.searchParams.set("categories", categories);
+  url.searchParams.set("bias", `proximity:${center.lon},${center.lat}`);
+  url.searchParams.set("limit", "8");
+  url.searchParams.set("lang", "en");
+  if (!isCategorySearch(searchTerm)) url.searchParams.set("name", searchTerm);
+  url.searchParams.set("apiKey", key);
+
+  const response = await fetch(url, { cache: "no-store" });
+  const payload = (await response.json()) as GeoapifyPlacesResponse;
+  if (!response.ok) throw new Error(payload.message ?? "Geoapify places search failed");
+  return payload.features ?? [];
 };
 
 export const searchPlaces = createServerFn({ method: "GET" })
@@ -69,67 +130,77 @@ export const searchPlaces = createServerFn({ method: "GET" })
 
     const parts = data.query.match(/^(.*?)\s+in\s+(.+)$/i);
     const searchTerm = (parts?.[1] ?? data.query).trim();
-    const locationTerm = (parts?.[2] ?? "Nairobi, Kenya").trim();
     const categories = categoryFor(searchTerm);
 
     try {
-      const geocodeUrl = new URL("https://api.geoapify.com/v1/geocode/search");
-      geocodeUrl.searchParams.set("text", locationTerm);
-      geocodeUrl.searchParams.set("format", "json");
-      geocodeUrl.searchParams.set("limit", "1");
-      geocodeUrl.searchParams.set("apiKey", key);
+      if (parts) {
+        const locationTerm = parts[2].trim();
+        const geocodeUrl = new URL("https://api.geoapify.com/v1/geocode/search");
+        geocodeUrl.searchParams.set("text", locationTerm);
+        geocodeUrl.searchParams.set("format", "json");
+        geocodeUrl.searchParams.set("limit", "1");
+        geocodeUrl.searchParams.set("apiKey", key);
 
-      const geocodeResponse = await fetch(geocodeUrl, { cache: "no-store" });
-      const geocodePayload = (await geocodeResponse.json()) as GeoapifyGeocodeResponse;
-      if (!geocodeResponse.ok) {
-        console.error("[Geoapify] Location lookup failed", geocodePayload.message);
-        return { places: [], error: "Could not find that location. Try a city or neighbourhood, such as Nairobi." };
-      }
+        const geocodeResponse = await fetch(geocodeUrl, { cache: "no-store" });
+        const geocodePayload = (await geocodeResponse.json()) as GeoapifyGeocodeResponse;
+        if (!geocodeResponse.ok) {
+          console.error("[Geoapify] Location lookup failed", geocodePayload.message);
+          return { places: [], error: "Could not look up that location. Check the spelling or try a city and country." };
+        }
 
-      const center = geocodePayload.results?.[0];
-      const lat = typeof center?.lat === "number" ? center.lat : DEFAULT_LOCATION.lat;
-      const lon = typeof center?.lon === "number" ? center.lon : DEFAULT_LOCATION.lon;
+        const center = geocodePayload.results?.[0];
+        if (typeof center?.lat !== "number" || typeof center?.lon !== "number") {
+          return { places: [], error: `Could not find "${locationTerm}". Try a city, region, or country name.` };
+        }
 
-      const placesUrl = new URL("https://api.geoapify.com/v2/places");
-      placesUrl.searchParams.set("categories", categories);
-      placesUrl.searchParams.set("bias", `proximity:${lon},${lat}`);
-      placesUrl.searchParams.set("limit", "8");
-      placesUrl.searchParams.set("lang", "en");
-      const isCategorySearch = /restaurant|food|eatery|dining|cafe|coffee|tea|bar|pub|nightlife|fast food|takeaway|pizza|burger|hotel|accommodation|lodging|hospital|clinic|doctor|pharmacy|chemist|school|university|college|bank|atm|fuel|petrol|gas station|supermarket|grocery|mall|shopping centre|shopping center|gym|fitness|park|garden|museum|tourist|attraction|sightseeing/i.test(searchTerm);
-      if (!isCategorySearch) placesUrl.searchParams.set("name", searchTerm);
-      placesUrl.searchParams.set("apiKey", key);
-
-      const response = await fetch(placesUrl, { cache: "no-store" });
-      const payload = (await response.json()) as GeoapifyPlacesResponse;
-      if (!response.ok) {
-        console.error("[Geoapify] Places search failed", payload.message);
+        const features = await fetchPlaces(key, categories, searchTerm, {
+          lat: center.lat,
+          lon: center.lon,
+        });
         return {
-          places: [],
-          error: "Geoapify could not complete that search. Please try another place or search term.",
+          places: features.map((feature, index) => toPlace(feature, index, {
+            lat: center.lat!,
+            lon: center.lon!,
+          })),
+          scope: "local" as const,
         };
       }
 
+      // Category/name-only searches fan out across geographic regions so one
+      // Nairobi-biased request cannot dominate the global result set.
+      const regionResults = await Promise.allSettled(
+        GLOBAL_SEARCH_REGIONS.map(async (region) => ({
+          region,
+          features: await fetchPlaces(key, categories, searchTerm, region),
+        })),
+      );
+
+      const successful = regionResults
+        .filter((result): result is PromiseFulfilledResult<{
+          region: (typeof GLOBAL_SEARCH_REGIONS)[number];
+          features: GeoapifyFeature[];
+        }> => result.status === "fulfilled");
+
+      if (successful.length === 0) {
+        const firstFailure = regionResults.find((result) => result.status === "rejected");
+        console.error("[Geoapify] All global region searches failed", firstFailure);
+        return { places: [], error: "Global place search is temporarily unavailable. Please try again." };
+      }
+
+      const seen = new Set<string>();
+      const places = successful.flatMap(({ region, features }) =>
+        features.map((feature, index) => toPlace(feature, index, region))
+      ).filter((place) => {
+        const key = place.id || `${place.name.toLowerCase()}-${place.lat?.toFixed(4)}-${place.lon?.toFixed(4)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
       return {
-        places: (payload.features ?? []).map((feature, index) => {
-          const place = feature.properties ?? {};
-          const name = place.name ?? place.address_line1 ?? "Unnamed place";
-          const address = place.formatted ?? place.address_line1 ?? "Address unavailable";
-          const placeLat = place.lat ?? lat;
-          const placeLon = place.lon ?? lon;
-          return {
-            id: place.place_id ?? `geoapify-place-${index}`,
-            name,
-            category: categoryLabel(place.categories),
-            distance: typeof place.distance === "number"
-              ? `${(place.distance / 1000).toFixed(1)} km from search area`
-              : address,
-            rating: 0,
-            blurb: address,
-            mapsUrl: `https://www.openstreetmap.org/?mlat=${placeLat}&mlon=${placeLon}#map=17/${placeLat}/${placeLon}`,
-            lat: placeLat,
-            lon: placeLon,
-          };
-        }),
+        places: places.slice(0, 72),
+        scope: "global" as const,
+        partial: successful.length < GLOBAL_SEARCH_REGIONS.length,
       };
     } catch (error) {
       console.error("[Geoapify] Places request error", error);
