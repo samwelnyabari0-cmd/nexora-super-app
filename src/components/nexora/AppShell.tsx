@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       setIsPlatformAdmin(false);
       return () => { active = false; };
     }
-    void supabase.rpc("my_is_platform_admin").then(({ data, error }) => {
+    void (supabase as any).rpc("my_is_platform_admin").then(({ data, error }: { data: unknown; error: unknown }) => {
       if (active) setIsPlatformAdmin(!error && data === true);
     });
     return () => { active = false; };
