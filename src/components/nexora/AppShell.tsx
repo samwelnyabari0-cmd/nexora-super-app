@@ -50,7 +50,6 @@ const nav = [
   { to: "/calls", label: "Calls", icon: Phone },
   { to: "/clubs", label: "Clubs", icon: Trophy },
   { to: "/learn", label: "Academy", icon: GraduationCap },
-  { to: "/creator/academy", label: "Creator Academy", icon: CloudUpload },
   { to: "/live", label: "LIVE", icon: Radio },
   { to: "/platform", label: "Platform", icon: Server },
   { to: "/dashboard", label: "Creator dashboard", icon: BarChart3 },
@@ -59,7 +58,7 @@ const nav = [
   { to: "/help", label: "Help", icon: HelpCircle },
 ] as const;
 
-const mobileNav = ["/", "/explore", "/create", "/messages", "/profile", "/creator/academy"];
+const mobileNav = ["/", "/explore", "/create", "/messages", "/profile"];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
