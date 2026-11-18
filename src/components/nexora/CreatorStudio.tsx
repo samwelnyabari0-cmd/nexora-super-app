@@ -51,7 +51,7 @@ export function CreatorStudio() {
     setSavingPayoutMethod(true);
     try {
       const { data, error } = await supabase.functions.invoke("register-creator-payout-destination", {
-        body: { phone },
+        body: { phone, phoneConfirmation: confirmMpesaPhone, acceptedResponsibility: confirmPayoutNumber },
       });
 
       if (error) throw error;
@@ -64,7 +64,7 @@ export function CreatorStudio() {
       setMpesaPhone("");
       setConfirmMpesaPhone("");
       setConfirmPayoutNumber(false);
-      toast.success("M-Pesa payout number saved securely. Verification is still required.");
+      toast.success("Number entries matched and were confirmed. Provider validation is still unavailable.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save the payout method.";
       toast.error(message);
@@ -88,7 +88,7 @@ export function CreatorStudio() {
           <p className="text-[11px] text-muted-foreground">Your number is encrypted before it is stored. It is not displayed in full.</p>
           <button type="submit" disabled={savingPayoutMethod || !mpesaPhone.trim() || !confirmMpesaPhone.trim() || !confirmPayoutNumber} className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{savingPayoutMethod ? "Saving securely..." : "Save M-Pesa number"}</button>
         </form>}
-        {savedDestinationLast4 && <p className="mt-2 text-xs text-muted-foreground">Saved destination ending •••• {savedDestinationLast4} — {destinationUnverified ? "Pending verification" : "Saved"}.</p>}
+        {savedDestinationLast4 && <p className="mt-2 text-xs text-muted-foreground">Saved destination ending •••• {savedDestinationLast4} — {destinationUnverified ? "Number confirmed · provider validation unavailable · payouts not ready" : "Saved"}.</p>}
       </div></div>
       <div className="rounded-xl border p-3"><p className="mb-2 flex items-center gap-2 text-sm font-semibold"><Zap className="h-4 w-4 text-yellow-300" /> Ecosystem multiplier</p><div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><span className="rounded-lg bg-muted p-2">Starter<br /><b>15% fee</b></span><span className="rounded-lg bg-muted p-2">Catalyst<br /><b>12% fee</b></span><span className="rounded-lg bg-muted p-2">Pro<br /><b>8% fee</b></span><span className="rounded-lg bg-primary/15 p-2 text-primary">VIP<br /><b>5% fee</b></span></div><p className="mt-2 text-xs text-muted-foreground">Cross-format activity earns +10% to +50% feed priority and ad-pool eligibility.</p></div>
       <div className="space-y-2 rounded-xl border p-3"><p className="flex items-center gap-2 text-sm font-semibold"><MessageSquare className="h-4 w-4 text-sky-300" /> Audience management</p><label className="flex items-center justify-between gap-3 text-xs">DM Inbox: Primary, General, Requests<Switch checked={dmSorting} onCheckedChange={setDmSorting} /></label><label className="flex items-center justify-between gap-3 text-xs">Subscriber-only comments<Switch checked={subscriberComments} onCheckedChange={setSubscriberComments} /></label><label className="flex items-center justify-between gap-3 text-xs"><span className="flex items-center gap-1"><Pin className="h-3.5 w-3.5" /> Featured pinned row (up to 3)</span><Switch checked={pinnedRow} onCheckedChange={setPinnedRow} /></label></div>
