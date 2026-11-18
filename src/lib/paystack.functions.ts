@@ -253,7 +253,7 @@ export const verifyCreatorPayment = createServerFn({ method: "POST" })
   });
 
 export type TopUpVerify =
-  | { paid: true; amount: number; recorded: boolean }
+  | { paid: true; amount: number; recorded: boolean; message?: string }
   | { paid: false; paystackStatus?: string; error?: string };
 
 export const verifyTopUp = createServerFn({ method: "POST" })
@@ -265,36 +265,65 @@ export const verifyTopUp = createServerFn({ method: "POST" })
     try {
       const body = await paystack(`/transaction/verify/${encodeURIComponent(data.reference)}`);
       const tx = body.data as
-        | { status?: string; amount?: number; currency?: string; metadata?: Record<string, unknown> }
+        | { reference?: string; status?: string; amount?: number; currency?: string; metadata?: Record<string, unknown> }
         | undefined;
       if (tx?.status !== "success") {
         return { paid: false, paystackStatus: String(tx?.status ?? "unknown") } satisfies TopUpVerify;
       }
-      if (tx.metadata?.user_id && tx.metadata.user_id !== context.userId) {
-        return { paid: false, error: "This payment belongs to a different account." } satisfies TopUpVerify;
+      if (tx.reference !== data.reference || tx.metadata?.user_id !== context.userId) {
+        return { paid: false, error: "Payment reference or account verification failed." } satisfies TopUpVerify;
       }
       if (tx.currency !== "KES") {
         return { paid: false, error: `Unexpected payment currency: ${tx.currency}.` } satisfies TopUpVerify;
       }
-      const amount = Number(tx.amount ?? 0) / 100;
-      // Idempotent: never record the same reference twice.
-      const { data: existing } = await context.supabase
+
+      const amountKobo = Number(tx.amount);
+      if (!Number.isSafeInteger(amountKobo) || amountKobo <= 0) {
+        return { paid: false, error: "Paystack returned an invalid payment amount." } satisfies TopUpVerify;
+      }
+      const amount = amountKobo / 100;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const admin = supabaseAdmin as any;
+
+      // The unique gateway reference makes retries safe without allowing users
+      // to create their own wallet credits through the public Data API.
+      const { data: existing, error: lookupError } = await admin
         .from("wallet_txns")
-        .select("id")
-        .ilike("label", `%${data.reference}%`)
-        .limit(1);
-      if (existing?.length) return { paid: true, amount, recorded: false } satisfies TopUpVerify;
-      const { error } = await context.supabase.from("wallet_txns").insert({
+        .select("id, user_id, amount")
+        .eq("gateway_reference", data.reference)
+        .maybeSingle();
+
+      if (lookupError) throw new Error(lookupError.message);
+      if (existing) {
+        if (existing.user_id !== context.userId || Number(existing.amount) !== amount) {
+          return { paid: false, error: "This payment reference is already linked to a different ledger entry." } satisfies TopUpVerify;
+        }
+        return { paid: true, amount, recorded: false, message: "This payment was already recorded." } satisfies TopUpVerify;
+      }
+
+      const { error: insertError } = await admin.from("wallet_txns").insert({
         user_id: context.userId,
         amount,
         kind: "in",
         label: `Paystack top-up · ${data.reference}`,
-        note: "Card/mobile-money payment via Paystack",
+        note: "Verified mobile-money/card payment via Paystack",
+        gateway_reference: data.reference,
+        currency: "KES",
+        payment_channel: "Paystack",
+        status: "completed",
+        verified_at: new Date().toISOString(),
       });
-      if (error) {
-        console.error("[Paystack] ledger insert failed", error);
-        return { paid: true, amount, recorded: false } satisfies TopUpVerify;
+
+      if (insertError) {
+        console.error("[Paystack] verified top-up ledger insert failed", insertError);
+        return {
+          paid: true,
+          amount,
+          recorded: false,
+          message: "Paystack verified the payment, but Nexora could not save it to the wallet ledger. Contact support with your reference.",
+        } satisfies TopUpVerify;
       }
+
       return { paid: true, amount, recorded: true } satisfies TopUpVerify;
     } catch (e) {
       console.error("[Paystack] verify failed", e);

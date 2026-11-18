@@ -17,6 +17,7 @@ export function PaystackTopUp() {
   const [amt, setAmt] = useState("100");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [existingReference, setExistingReference] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -28,7 +29,7 @@ export function PaystackTopUp() {
       .then((r) => {
         if (r.paid) {
           toast.success(`Top-up verified: KES ${r.amount}`);
-          setMsg(r.recorded ? "Payment verified. Your wallet ledger will update after reconciliation." : "Payment already recorded.");
+          setMsg(r.recorded ? "Payment verified and saved to your wallet ledger." : r.message ?? "Payment was already recorded.");
         } else setMsg(r.error ?? `Payment not completed (${r.paystackStatus ?? "unknown"}).`);
       })
       .catch(() => setMsg("Could not verify the payment."))
@@ -83,6 +84,41 @@ export function PaystackTopUp() {
           </Button>
         </div>
       )}
+      <div className="space-y-2 border-t pt-3">
+        <p className="text-xs text-muted-foreground">Already paid but your top-up did not appear? Enter the Paystack reference to verify and record it again.</p>
+        <div className="flex gap-2">
+          <input
+            aria-label="Existing Paystack payment reference"
+            value={existingReference}
+            onChange={(e) => setExistingReference(e.target.value.trim())}
+            placeholder="Paystack reference"
+            className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm"
+          />
+          <Button
+            variant="outline"
+            disabled={busy || existingReference.trim().length < 3}
+            onClick={async () => {
+              setBusy(true);
+              setMsg("");
+              try {
+                const result = await verify({ data: { reference: existingReference.trim() } });
+                if (result.paid) {
+                  toast.success(`Top-up verified: KES ${result.amount}`);
+                  setMsg(result.recorded ? "Payment verified and saved to your wallet ledger." : result.message ?? "Payment was already recorded.");
+                } else {
+                  setMsg(result.error ?? `Payment not completed (${result.paystackStatus ?? "unknown"}).`);
+                }
+              } catch {
+                setMsg("Could not verify the payment. Please check the reference and try again.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Verify previous payment
+          </Button>
+        </div>
+      </div>
       {msg && <p role="status" className="text-sm text-muted-foreground">{msg}</p>}
     </Panel>
   );

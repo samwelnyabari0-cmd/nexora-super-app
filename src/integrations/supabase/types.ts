@@ -192,29 +192,44 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          currency: string
+          gateway_reference: string | null
           id: string
           kind: string
           label: string
           note: string | null
+          payment_channel: string
+          status: string
           user_id: string
+          verified_at: string | null
         }
         Insert: {
           amount: number
           created_at?: string
+          currency?: string
+          gateway_reference?: string | null
           id?: string
           kind: string
           label: string
           note?: string | null
+          payment_channel?: string
+          status?: string
           user_id: string
+          verified_at?: string | null
         }
         Update: {
           amount?: number
           created_at?: string
+          currency?: string
+          gateway_reference?: string | null
           id?: string
           kind?: string
           label?: string
           note?: string | null
+          payment_channel?: string
+          status?: string
           user_id?: string
+          verified_at?: string | null
         }
         Relationships: []
       }
