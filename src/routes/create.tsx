@@ -58,18 +58,18 @@ function Create() {
   const [note, setNote] = useState("");
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
-  const uploadTier = accountTierFromUser(user);const rawPlan = String(
-  user?.user_metadata?.subscription_tier ??
-  user?.user_metadata?.plan ??
-  user?.user_metadata?.account_tier ??
-  user?.user_metadata?.account_type ??
-  "free"
-).toLowerCase();
+  const uploadTier = accountTierFromUser(user);
+  const appMetadata = user?.app_metadata ?? {};
+  const rawPlan = String(
+    appMetadata.subscription_tier ?? appMetadata.plan ?? "free"
+  ).toLowerCase();
+  const planExpiresAt = Date.parse(String(appMetadata.subscription_expires_at ?? ""));
+  const hasActivePaidPlan =
+    (rawPlan === "pro" || rawPlan === "studio") &&
+    Number.isFinite(planExpiresAt) &&
+    planExpiresAt > Date.now();
 
-const userPlan =
-  rawPlan.includes("studio") ? "studio" :
-  rawPlan.includes("pro") ? "pro" :
-  "free";
+  const userPlan = hasActivePaidPlan ? rawPlan : "free";
   const uploadLimits = UPLOAD_POLICY[uploadTier];
   const tagList = tags
     .split(",")
