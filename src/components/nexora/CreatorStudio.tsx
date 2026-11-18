@@ -33,7 +33,9 @@ export function CreatorStudio() {
     if (savingPayoutMethod) return;
 
     const phone = mpesaPhone.trim();
-    if (!/^(07|01)\d{8}$|^254(7|1)\d{8}$/.test(phone.replace(/[\s()+-]/g, ""))) {
+    const normalizedPhone = phone.replace(/[\s()+-]/g, "");
+    const normalizedConfirmation = confirmMpesaPhone.trim().replace(/[\s()+-]/g, "");
+    if (!/^(07|01)\d{8}$|^254(7|1)\d{8}$/.test(normalizedPhone)) {
       toast.error("Enter a valid Kenyan M-Pesa number.");
       return;
     }
