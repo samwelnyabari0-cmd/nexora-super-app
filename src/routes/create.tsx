@@ -260,7 +260,7 @@ const previewFilter =
                   const editedUrl = URL.createObjectURL(file);
                   setMedia(editedUrl);
                   setMediaFiles([file]);
-                  setMediaType(file.type || "video/webm");
+                  setMediaType(file.type.split(";")[0] || "video/webm");
                   setCover(null);
                   setNote("Your edited video is ready. Publishing will upload the edited copy.");
                   setError("");
