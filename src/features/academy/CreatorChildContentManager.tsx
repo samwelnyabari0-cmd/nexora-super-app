@@ -85,7 +85,7 @@ export function CreatorChildContentManager({ lessons, resources, courseNames, on
       if (uploadError) throw uploadError;
       const { error: insertError } = await (supabase as any).from("edu_resources").insert({
         course_id: item.course_id, resource_name: `${item.resource_name} (Copy)`, file_type: item.file_type,
-        r2_object_key: newPath, file_size_bytes: blob.size, access_tier: "enrolled", publication_status: "draft",
+        r2_object_key: newPath, file_size_bytes: blob.size, access_tier: "enrolled", publication_status: "draft",\n        display_order: Math.max(0, ...resources.filter((row) => row.course_id === item.course_id).map((row) => row.display_order ?? 0)) + 1,
       });
       if (insertError) {
         await supabase.storage.from("academy-resources").remove([newPath]);
