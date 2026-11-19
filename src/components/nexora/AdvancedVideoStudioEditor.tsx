@@ -170,7 +170,13 @@ export default function AdvancedVideoStudioEditor({ videoSrc, onExported }: Prop
 
       const sourceWidth = renderVideo.videoWidth || 1280;
       const sourceHeight = renderVideo.videoHeight || 720;
-      const scale = Math.min(1, 1280 / sourceWidth, 720 / sourceHeight);
+      const maxPixels = 1920 * 1080;
+      const scale = Math.min(
+        1,
+        1920 / sourceWidth,
+        1920 / sourceHeight,
+        Math.sqrt(maxPixels / (sourceWidth * sourceHeight)),
+      );
       canvas.width = Math.max(2, Math.floor(sourceWidth * scale));
       canvas.height = Math.max(2, Math.floor(sourceHeight * scale));
       const context = canvas.getContext("2d");
