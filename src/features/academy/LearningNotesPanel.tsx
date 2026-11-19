@@ -145,6 +145,7 @@ export function LearningNotesPanel({
               <input
                 id={titleInputId}
                 value={title}
+                disabled={saving}
                 maxLength={MAX_LEARNING_NOTE_TITLE_LENGTH * 2}
                 onChange={(event) => { if (Array.from(event.target.value).length <= MAX_LEARNING_NOTE_TITLE_LENGTH) setTitle(event.target.value); }}
                 placeholder="Give this note a title"
@@ -157,6 +158,7 @@ export function LearningNotesPanel({
               <textarea
                 id={bodyInputId}
                 value={body}
+                disabled={saving}
                 maxLength={MAX_LEARNING_NOTE_BODY_LENGTH * 2}
                 onChange={(event) => { if (Array.from(event.target.value).length <= MAX_LEARNING_NOTE_BODY_LENGTH) setBody(event.target.value); }}
                 rows={4}
@@ -166,7 +168,7 @@ export function LearningNotesPanel({
               <p className="mt-1 text-right text-xs text-muted-foreground">{bodyLength}/{MAX_LEARNING_NOTE_BODY_LENGTH}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" size="sm" disabled={saving || !title.trim() || !body.trim()} onClick={() => void handleSave()}>
+              <Button type="button" size="sm" disabled={loading || saving || !title.trim() || !body.trim()} onClick={() => void handleSave()}>
                 {saving ? "Saving…" : editingNoteId ? "Update note" : "Save note"}
               </Button>
               {editingNoteId && (
