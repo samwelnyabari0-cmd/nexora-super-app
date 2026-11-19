@@ -341,3 +341,56 @@ $function$;
 
 revoke all on function private.get_academy_public_resource_metadata_core(uuid, uuid[]) from public, anon;
 grant execute on function private.get_academy_public_resource_metadata_core(uuid, uuid[]) to authenticated;
+
+
+-- Private storage access must follow each lesson/resource's own publication
+-- state as well as the parent course state. This prevents an enrolled learner
+-- from retrieving an unpublished child's file through a known storage path.
+drop policy if exists academy_video_read_preview_enrolled_or_owner on storage.objects;
+create policy academy_video_read_preview_enrolled_or_owner
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'academy-videos'
+    and exists (
+      select 1
+      from public.edu_lessons l
+      join public.edu_courses c on c.id = l.course_id
+      where l.video_url = objects.name
+        and l.publication_status = 'published'
+        and c.is_published is true
+        and (
+          c.instructor_id = (select auth.uid())
+          or l.is_preview is true
+          or exists (
+            select 1 from public.edu_enrollments e
+            where e.course_id = c.id
+              and e.student_id = (select auth.uid())
+              and e.status in ('active', 'completed')
+          )
+        )
+    )
+  );
+
+drop policy if exists academy_resource_read_enrolled_or_owner on storage.objects;
+create policy academy_resource_read_enrolled_or_owner
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'academy-resources'
+    and exists (
+      select 1
+      from public.edu_resources r
+      join public.edu_courses c on c.id = r.course_id
+      where r.r2_object_key = objects.name
+        and r.publication_status = 'published'
+        and c.is_published is true
+        and (
+          c.instructor_id = (select auth.uid())
+          or exists (
+            select 1 from public.edu_enrollments e
+            where e.course_id = c.id
+              and e.student_id = (select auth.uid())
+              and e.status in ('active', 'completed')
+          )
+        )
+    )
+  );
