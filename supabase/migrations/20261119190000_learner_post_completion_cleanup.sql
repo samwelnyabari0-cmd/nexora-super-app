@@ -202,11 +202,19 @@ end;
 $$;
 
 drop trigger if exists edu_lesson_progress_capture_completion on public.edu_lesson_progress;
+drop trigger if exists edu_lesson_progress_capture_completion_insert on public.edu_lesson_progress;
+drop trigger if exists edu_lesson_progress_capture_completion_update on public.edu_lesson_progress;
 
-create trigger edu_lesson_progress_capture_completion
-  after insert or update on public.edu_lesson_progress
+create trigger edu_lesson_progress_capture_completion_insert
+  after insert on public.edu_lesson_progress
   for each row
   when (new.completed is true)
+  execute function private.capture_edu_completion_history();
+
+create trigger edu_lesson_progress_capture_completion_update
+  after update of completed on public.edu_lesson_progress
+  for each row
+  when (new.completed is true and old.completed is distinct from new.completed)
   execute function private.capture_edu_completion_history();
 
 revoke all on function private.capture_edu_completion_history() from public, anon, authenticated;
