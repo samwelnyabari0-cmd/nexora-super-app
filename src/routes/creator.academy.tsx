@@ -42,14 +42,14 @@ function InstructorAcademy() {
         const path = `${user.id}/${course.id}/lessons/${crypto.randomUUID()}-${lesson.file.name}`;
         const { error: uploadError } = await supabase.storage.from("academy-videos").upload(path, lesson.file, { contentType: lesson.file.type, upsert: false });
         if (uploadError) throw uploadError;
-        const { error: lessonError } = await (supabase as any).from("edu_lessons").insert({ course_id: course.id, title: lesson.title, lesson_order: index + 1, video_url: path, duration_seconds: 0, is_preview: index < 2 });
+        const { error: lessonError } = await (supabase as any).from("edu_lessons").insert({ course_id: course.id, title: lesson.title, lesson_order: index + 1, video_url: path, duration_seconds: 0, is_preview: index < 2, publication_status: "published" });
         if (lessonError) throw lessonError;
       }
       for (const resource of resources) {
         const path = `${user.id}/${course.id}/resources/${crypto.randomUUID()}-${resource.name}`;
         const { error: uploadError } = await supabase.storage.from("academy-resources").upload(path, resource, { contentType: resource.type, upsert: false });
         if (uploadError) throw uploadError;
-        const { error: resourceError } = await (supabase as any).from("edu_resources").insert({ course_id: course.id, resource_name: resource.name, file_type: resource.name.split(".").pop()?.toLowerCase() ?? "file", r2_object_key: path, file_size_bytes: resource.size, access_tier: "enrolled" });
+        const { error: resourceError } = await (supabase as any).from("edu_resources").insert({ course_id: course.id, resource_name: resource.name, file_type: resource.name.split(".").pop()?.toLowerCase() ?? "file", r2_object_key: path, file_size_bytes: resource.size, access_tier: "enrolled", publication_status: "published" });
         if (resourceError) throw resourceError;
       }
       const { error: publishError } = await (supabase as any)
