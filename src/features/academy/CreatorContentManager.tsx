@@ -63,6 +63,8 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
 }
 
+function plural(value: number, singular: string, pluralForm = `${singular}s`) { return `${value} ${value === 1 ? singular : pluralForm}`; }
+
 function formatBytes(value: number) {
   if (!value) return "File size unavailable";
   if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
@@ -260,9 +262,9 @@ export function CreatorContentManager() {
                   </div>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{course.description || "No course description yet."}</p>
                   <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                    <span><Video className="mr-1 inline h-3.5 w-3.5" />{course.lessonCount} lessons</span>
-                    <span><FileArchive className="mr-1 inline h-3.5 w-3.5" />{course.resourceCount} resources</span>
-                    <span><GraduationCap className="mr-1 inline h-3.5 w-3.5" />{course.learnerCount} learners</span>
+                    <span><Video className="mr-1 inline h-3.5 w-3.5" />{plural(course.lessonCount, "lesson")}</span>
+                    <span><FileArchive className="mr-1 inline h-3.5 w-3.5" />{plural(course.resourceCount, "resource")}</span>
+                    <span><GraduationCap className="mr-1 inline h-3.5 w-3.5" />{plural(course.learnerCount, "learner")}</span>
                     <span>Updated {formatDate(course.updated_at)}</span>
                   </div>
                   <PublicationNotice publishedAt={course.published_at} status={course.publication_status} />
