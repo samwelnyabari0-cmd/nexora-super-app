@@ -46,6 +46,7 @@ export default function AdvancedVideoStudioEditor({ videoSrc, onExported }: Prop
   const micChunksRef = useRef<Blob[]>([]);
   const musicUrlRef = useRef<string | null>(null);
   const voiceUrlRef = useRef<string | null>(null);
+  const exportedUrlRef = useRef<string | null>(null);
 
   const [tab, setTab] = useState<EditorTab>("trim");
   const [duration, setDuration] = useState(0);
@@ -82,9 +83,9 @@ export default function AdvancedVideoStudioEditor({ videoSrc, onExported }: Prop
   useEffect(() => () => {
     if (musicUrlRef.current) URL.revokeObjectURL(musicUrlRef.current);
     if (voiceUrlRef.current) URL.revokeObjectURL(voiceUrlRef.current);
-    if (exportedUrl) URL.revokeObjectURL(exportedUrl);
+    if (exportedUrlRef.current) URL.revokeObjectURL(exportedUrlRef.current);
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
-  }, [exportedUrl]);
+  }, []);
 
   function chooseMusic(file?: File) {
     if (!file) return;
@@ -256,11 +257,10 @@ export default function AdvancedVideoStudioEditor({ videoSrc, onExported }: Prop
         animationFrame = requestAnimationFrame(drawFrame);
       };
 
-      renderVideo.currentTime = start;
       await new Promise<void>((resolve) => {
-        if (!renderVideo) return resolve();
-        if (Math.abs(renderVideo.currentTime - start) < 0.05) return resolve();
-        renderVideo.onseeked = () => resolve();
+        if (!renderVideo || start <= 0.01) return resolve();
+        renderVideo.addEventListener("seeked", () => resolve(), { once: true });
+        renderVideo.currentTime = start;
       });
       await audioContext.resume();
       recorder.start(250);
@@ -275,12 +275,14 @@ export default function AdvancedVideoStudioEditor({ videoSrc, onExported }: Prop
       const nextUrl = URL.createObjectURL(output);
       setExportedUrl((previous) => {
         if (previous) URL.revokeObjectURL(previous);
+        exportedUrlRef.current = nextUrl;
         return nextUrl;
       });
       onExported(output);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not export this video.");
     } finally {
+      if (recorder?.state === "recording") recorder.stop();
       cancelAnimationFrame(animationFrame);
       renderVideo?.pause();
       musicAudio?.pause();
