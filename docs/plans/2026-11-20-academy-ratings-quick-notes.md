@@ -61,9 +61,9 @@
   - Assert the eligibility helper and trigger functions cannot be directly executed by anon/public.
   - Assert existing Academy and Storage policies have not been dropped or altered by this migration.
 
-- [ ] **Step 2: Verify the current migration baseline**
-  - Inspect the Supabase migration list before applying. If `20261120120000` is not later than the remote head or is already used, choose the next unused timestamp and update the filename in this plan/branch before proceeding.
-  - Inspect the existing `edu_enrollments` RLS policy and current grants to confirm each learner can read only their own enrolment row; keep the existing policies unchanged.
+- [x] **Step 2: Verify the current migration baseline**
+  - Inspected the remote migration list and matched each repository migration filename to the exact applied Supabase version.
+  - Confirmed the existing `edu_enrollments` policies allow learners to read their own rows; the existing policies remain unchanged.
 
 - [ ] **Step 3: Implement the migration**
   - Revoke broad privileges before granting only required operations.
