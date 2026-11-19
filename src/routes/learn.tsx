@@ -18,6 +18,7 @@ type Course = { id: string; title: string; description: string; category: Exclud
 type Resource = { id: string; name: string; type: string; size: number; key: string };
 type Lesson = { id: string; title: string; lessonOrder: number; videoPath: string; durationSeconds: number; isPreview: boolean };
 type LessonProgress = { completed: boolean; lastPositionSeconds: number };
+type StudentCourseProgress = { course: Course; completed: number; total: number; percent: number; status: string };
 const accents = ["from-cyan-500/25 to-blue-500/5", "from-violet-500/25 to-fuchsia-500/5", "from-amber-500/25 to-orange-500/5"];
 const icons = [Code2, Video, Store];
 
@@ -28,6 +29,8 @@ function Learn() {
   const [query, setQuery] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [myLearning, setMyLearning] = useState<StudentCourseProgress[]>([]);
+  const [myLearningLoading, setMyLearningLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [enrollmentStatus, setEnrollmentStatus] = useState<"idle" | "loading" | "enrolling" | "enrolled">("idle");
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -94,6 +97,39 @@ function Learn() {
     void loadAcademy();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadMyLearning() {
+      if (!user) { setMyLearning([]); setMyLearningLoading(false); return; }
+      if (!courses.length) return;
+      setMyLearningLoading(true);
+      const { data: enrollments, error: enrollmentError } = await (supabase as any)
+        .from("edu_enrollments").select("course_id,status").eq("student_id", user.id).in("status", ["active", "completed"]);
+      if (!active) return;
+      if (enrollmentError || !enrollments?.length) { setMyLearning([]); setMyLearningLoading(false); return; }
+      const enrolledIds = enrollments.map((row: any) => row.course_id);
+      const enrolledCourses = courses.filter((course) => enrolledIds.includes(course.id));
+      const [{ data: lessonRows }, { data: progressRows }] = await Promise.all([
+        (supabase as any).from("edu_lessons").select("id,course_id").in("course_id", enrolledIds),
+        (supabase as any).from("edu_lesson_progress").select("lesson_id,completed").eq("student_id", user.id),
+      ]);
+      if (!active) return;
+      const lessonsByCourse: Record<string, string[]> = {};
+      (lessonRows ?? []).forEach((row: any) => { (lessonsByCourse[row.course_id] ??= []).push(row.id); });
+      const completedIds = new Set((progressRows ?? []).filter((row: any) => row.completed).map((row: any) => row.lesson_id));
+      const statusByCourse = Object.fromEntries(enrollments.map((row: any) => [row.course_id, row.status]));
+      setMyLearning(enrolledCourses.map((course) => {
+        const lessonIds = lessonsByCourse[course.id] ?? [];
+        const completed = lessonIds.filter((id) => completedIds.has(id)).length;
+        const total = lessonIds.length;
+        return { course, completed, total, percent: total ? Math.round((completed / total) * 100) : 0, status: statusByCourse[course.id] };
+      }));
+      setMyLearningLoading(false);
+    }
+    void loadMyLearning();
+    return () => { active = false; };
+  }, [user?.id, courses]);
 
   useEffect(() => {
     let active = true;
@@ -260,6 +296,10 @@ function Learn() {
     <PageHeader title="Academy Hub" action={<div className="flex flex-wrap items-center justify-end gap-2"><DemoBadge>Learning workspace</DemoBadge><Button size="sm" onClick={() => navigate({ to: "/creator/academy" })} className="group relative overflow-hidden border border-cyan-300/30 bg-gradient-to-r from-cyan-500 via-blue-600 to-violet-600 font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:-translate-y-0.5 hover:shadow-cyan-500/40"><span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" /><CloudUpload className="relative mr-1 h-4 w-4" /><span className="relative">Creator Academy</span><Sparkles className="relative ml-1 h-3.5 w-3.5" /></Button></div>} />
     <section className="relative overflow-hidden rounded-3xl border bg-card p-6 md:p-8"><div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" /><div className="relative max-w-2xl"><p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300"><Sparkles className="h-4 w-4" /> Learn, build, earn</p><h1 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Your next skill compounds.</h1><p className="mt-4 max-w-xl text-muted-foreground">Explore courses published by Nexora instructors, with secure learning resources.</p><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => document.getElementById("course-catalog")?.scrollIntoView({ behavior: "smooth" })}>Browse courses <ArrowRight /></Button><Button variant="outline" onClick={() => document.getElementById("resources")?.scrollIntoView({ behavior: "smooth" })}>Resource library</Button></div></div></section>
     <section className="grid gap-3 sm:grid-cols-3"><Stat icon={BookOpen} label="Published courses" value={String(courses.length)} detail="Live from Nexora Academy" /><Stat icon={Video} label="Lessons" value={String(courses.reduce((sum, course) => sum + course.lessons, 0))} detail="Across published courses" /><Stat icon={FileArchive} label="Resources" value={String(resources.length)} detail="Access depends on enrolment" /></section>
+    <section className="space-y-4">
+      <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Your student dashboard</p><h2 className="mt-1 text-2xl font-bold">My Learning</h2><p className="mt-1 text-sm text-muted-foreground">Track your progress and continue where you left off.</p></div>
+      {!user ? <div className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">Sign in to see your enrolled courses and learning progress.</div> : myLearningLoading ? <div className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">Loading your learning dashboard…</div> : myLearning.length === 0 ? <div className="rounded-2xl border bg-card p-5"><p className="font-semibold">Your learning journey starts here</p><p className="mt-1 text-sm text-muted-foreground">Enrol in a course to see it here and track your progress.</p></div> : <div className="grid gap-3 md:grid-cols-2">{myLearning.map((item) => <article key={item.course.id} className="rounded-2xl border bg-card p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs capitalize text-muted-foreground">{item.course.category} track</p><h3 className="mt-1 truncate font-semibold">{item.course.title}</h3></div><span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{item.percent}%</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 transition-all" style={{ width: item.percent + "%" }} /></div><div className="mt-2 flex items-center justify-between text-xs text-muted-foreground"><span>{item.completed} of {item.total} lessons completed</span><span className="capitalize">{item.status}</span></div><Button size="sm" variant="outline" className="mt-4 w-full" onClick={() => setSelectedCourse(item.course)}>{item.percent === 100 ? "Review course" : item.completed > 0 ? "Continue learning" : "Start learning"} <ArrowRight /></Button></article>)}</div>}
+    </section>
     <section id="course-catalog" className="scroll-mt-20 space-y-4"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Curriculum stream</p><h2 className="mt-1 text-2xl font-bold">Find your next course</h2></div><label className="flex min-w-56 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm text-muted-foreground"><Search className="h-4 w-4" /><span className="sr-only">Search courses</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses" className="w-full bg-transparent outline-none placeholder:text-muted-foreground" /></label></div>
     <div className="flex gap-2 overflow-x-auto pb-1">{([["all", "All tracks"], ["creator", "Creator skills"], ["tech", "Developer & tech"], ["business", "E-commerce & business"]] as const).map(([id, label]) => <button type="button" key={id} onClick={() => setTrack(id)} className={cn("whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium", track === id ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>{label}</button>)}</div>
     {loading ? <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">Loading published courses…</div> : error ? <div className="rounded-2xl border border-destructive/40 bg-card p-6 text-sm text-destructive">Unable to load Academy courses: {error}</div> : filteredCourses.length === 0 ? <div className="rounded-2xl border bg-card p-8 text-center"><BookOpen className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 font-semibold">No published courses yet</p><p className="mt-1 text-sm text-muted-foreground">{query ? "Try another search term." : "Courses published by instructors will appear here."}</p></div> : <div className="grid gap-4 lg:grid-cols-3">{filteredCourses.map((course) => { const Icon = course.icon; return <article key={course.id} className="group overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:border-primary/50"><div className={`flex h-32 items-end bg-gradient-to-br ${course.accent} p-5`}><div className="grid h-11 w-11 place-items-center rounded-2xl border bg-background/70"><Icon className="h-5 w-5 text-primary" /></div></div><div className="space-y-3 p-5"><div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="capitalize">{course.category} track</span><span>{course.level}</span></div><h3 className="font-semibold">{course.title}</h3><p className="min-h-12 text-sm leading-5 text-muted-foreground">{course.description}</p><div className="text-xs text-muted-foreground">{course.lessons} lessons</div><div className="flex items-center justify-between gap-3 pt-1"><span className="text-sm font-semibold">{priceLabel(course)}</span><Button size="sm" variant="outline" onClick={() => setSelectedCourse(course)}>View course<ChevronRight /></Button></div></div></article>; })}</div>}</section>
