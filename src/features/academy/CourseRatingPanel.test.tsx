@@ -83,7 +83,12 @@ describe("CourseRatingPanel", () => {
     render(<CourseRatingPanel courseId="course-1" isSignedIn={false} canRate={false} />);
 
     expect(await screen.findByText("4.5 / 5")).toBeInTheDocument();
-    expect(screen.getByText(/12\s+ratings/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.textContent?.replace(/\s+/g, " ").trim() === "12 ratings",
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/student|learner id/i)).not.toBeInTheDocument();
   });
 
