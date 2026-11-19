@@ -85,7 +85,10 @@ export function CreatorContentManager() {
   const [tab, setTab] = useState<ManagerTab>("courses");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [deleteCourse, setDeleteCourse] = useState<CourseSummary | null>(null);
-  const [confirmation, setConfirmation] = useState("");\n  const [editingTagsCourseId, setEditingTagsCourseId] = useState<string | null>(null);\n  const [tagDraft, setTagDraft] = useState<string[]>([]);\n  const [newCourseTag, setNewCourseTag] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [editingTagsCourseId, setEditingTagsCourseId] = useState<string | null>(null);
+  const [tagDraft, setTagDraft] = useState<string[]>([]);
+  const [newCourseTag, setNewCourseTag] = useState("");
 
   const loadContent = useCallback(async () => {
     if (!user) { setCourses([]); setLessons([]); setResources([]); setLoading(false); return; }
@@ -319,7 +322,8 @@ export function CreatorContentManager() {
                     <span><GraduationCap className="mr-1 inline h-3.5 w-3.5" />{plural(course.learnerCount, "learner")}</span>
                     <span>Updated {formatDate(course.updated_at)}</span>
                   </div>
-                  <PublicationNotice publishedAt={course.published_at} status={course.publication_status} />\n                  <div className="mt-3 space-y-2">
+                  <PublicationNotice publishedAt={course.published_at} status={course.publication_status} />
+                  <div className="mt-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Tag className="h-3.5 w-3.5" /> Course skill tags</p>
                       {editingTagsCourseId !== course.id && <Button size="sm" variant="ghost" onClick={() => beginEditingTags(course)}>Edit tags</Button>}
