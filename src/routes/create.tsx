@@ -1,7 +1,7 @@
 import TierGatedCreatorStudio from "@/components/nexora/src/components/nexora/src/components/nexora/TierGatedCreatorStudio";
 import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles, Music2, LockKeyhole } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/create")({
 function Create() {
   const { createPost, online, relay } = useApp();
   const { user } = useSession();
-  const { drafts, saveDraft, removeDraft, notify, preferences } = useWorkspace();
+  const { drafts, saveDraft, removeDraft, notify, preferences, replaceDrafts } = useWorkspace();
   const nav = useNavigate();
   const [id, setId] = useState("");
   const [caption, setCaption] = useState("");
@@ -57,6 +57,7 @@ function Create() {
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
   const [note, setNote] = useState("");
+  const [savingDraft, setSavingDraft] = useState(false);
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
   const uploadTier = accountTierFromUser(user);
@@ -85,7 +86,44 @@ function Create() {
     audience,
     filter,
     format,
+    mediaPath: drafts.find((item) => item.id === key)?.mediaPath,
   });
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) {
+      replaceDrafts([]);
+      return () => {
+        active = false;
+      };
+    }
+    void (async () => {
+      const { data, error: loadError } = await (supabase as any)
+        .from("creator_drafts")
+        .select("id, caption, media_path, media_type, tags, audience, filter, format")
+        .order("updated_at", { ascending: false });
+      if (!active) return;
+      if (loadError) {
+        setError("Your saved drafts could not be loaded. Please refresh and try again.");
+        return;
+      }
+      replaceDrafts(
+        (data ?? []).map((row: any) => ({
+          id: row.id,
+          caption: row.caption ?? "",
+          mediaType: row.media_type ?? undefined,
+          mediaPath: row.media_path ?? undefined,
+          tags: Array.isArray(row.tags) ? row.tags : [],
+          audience: row.audience === "private" ? "private" : "public",
+          filter: row.filter ?? "original",
+          format: row.format ?? "square",
+        })),
+      );
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, replaceDrafts]);
+
   const queued = relay.some(
     (item) => item.kind === "post" && (item.payload as { draftId?: string }).draftId === id,
   );
@@ -415,18 +453,68 @@ const previewFilter =
             type="button"
             variant="outline"
             className="w-full"
-            disabled={(!caption.trim() && !media) || queued}
-            onClick={() => {
+            disabled={(!caption.trim() && !media) || queued || savingDraft}
+            onClick={async () => {
+              if (!user?.id) {
+                notify("Sign in required", "Sign in to save drafts to your account.");
+                void nav({ to: "/auth" });
+                return;
+              }
               const key = id || crypto.randomUUID();
-              setId(key);
-              saveDraft(draft(key));
+              const existing = drafts.find((item) => item.id === key);
+              let mediaPath = media ? existing?.mediaPath ?? null : null;
+              let uploadedPath: string | null = null;
+              setSavingDraft(true);
+              setError("");
+              try {
+                const file = mediaFiles[0];
+                if (file) {
+                  const extension = file.type.split(";")[0].split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+                  uploadedPath = `${user.id}/${key}/${crypto.randomUUID()}.${extension}`;
+                  const { error: uploadError } = await supabase.storage
+                    .from("creator-drafts")
+                    .upload(uploadedPath, file, { contentType: file.type, upsert: false });
+                  if (uploadError) throw uploadError;
+                  mediaPath = uploadedPath;
+                }
+                const draftData = {
+                  id: key,
+                  user_id: user.id,
+                  caption: caption.trim(),
+                  media_path: mediaPath,
+                  media_type: mediaType ?? null,
+                  tags: tagList,
+                  audience,
+                  filter,
+                  format,
+                  updated_at: new Date().toISOString(),
+                };
+                const { error: saveError } = await (supabase as any)
+                  .from("creator_drafts")
+                  .upsert(draftData, { onConflict: "id" });
+                if (saveError) throw saveError;
+                if (existing?.mediaPath && existing.mediaPath !== mediaPath) {
+                  await supabase.storage.from("creator-drafts").remove([existing.mediaPath]);
+                }
+                setId(key);
+                saveDraft({ ...draft(key), mediaPath: mediaPath ?? undefined });
+                setNote("Draft saved securely to your account.");
+              } catch (saveError) {
+                if (uploadedPath) {
+                  await supabase.storage.from("creator-drafts").remove([uploadedPath]);
+                }
+                console.error("Draft save failed:", saveError);
+                setError("Draft could not be saved. Please check your connection and try again.");
+              } finally {
+                setSavingDraft(false);
+              }
             }}
           >
             <Save />
-            Save draft
+            {savingDraft ? "Saving…" : "Save draft"}
           </Button>
           <p className="text-xs text-muted-foreground">
-Drafts remain on this device until published. Published captions, media, tags, and visibility are saved to your account.
+Draft captions, media, tags and audience are saved privately to your account.
           </p>
         </form>
       </div>
@@ -442,16 +530,31 @@ Drafts remain on this device until published. Published captions, media, tags, a
               <Button
                 variant="ghost"
                 className="h-auto min-w-0 flex-1 justify-start whitespace-normal text-left"
-                onClick={() => {
+                onClick={async () => {
                   setId(d.id);
                   setCaption(d.caption);
                   setTags(d.tags.join(", "));
-                  setMedia(d.media);
-                  setOriginalMedia(d.media);
+                  setMedia(undefined);
+                  setOriginalMedia(undefined);
+                  setMediaFiles([]);
                   setMediaType(d.mediaType);
                   setAudience(d.audience);
                   setFilter(d.filter || "original");
                   setFormat(d.format || "landscape");
+                  setError("");
+                  if (d.mediaPath) {
+                    const { data: file, error: downloadError } = await supabase.storage
+                      .from("creator-drafts")
+                      .download(d.mediaPath);
+                    if (downloadError || !file) {
+                      setError("This draft's video could not be restored. Please try again.");
+                      return;
+                    }
+                    const url = URL.createObjectURL(file);
+                    setMedia(url);
+                    setOriginalMedia(url);
+                    setMediaFiles([file]);
+                  }
                 }}
               >
                 {d.caption || "Untitled draft"}
@@ -462,7 +565,21 @@ Drafts remain on this device until published. Published captions, media, tags, a
                 size="icon"
                 aria-label="Delete draft"
                 disabled={pending}
-                onClick={() => removeDraft(d.id)}
+                onClick={async () => {
+                  const { error: deleteError } = await (supabase as any)
+                    .from("creator_drafts")
+                    .delete()
+                    .eq("id", d.id);
+                  if (deleteError) {
+                    setError("Draft could not be deleted. Please try again.");
+                    return;
+                  }
+                  if (d.mediaPath) {
+                    await supabase.storage.from("creator-drafts").remove([d.mediaPath]);
+                  }
+                  removeDraft(d.id);
+                  if (id === d.id) reset();
+                }}
               >
                 <Trash2 />
               </Button>
