@@ -14,7 +14,7 @@ import { SaveLearningButton } from "@/features/academy/SaveLearningButton";
 import { LearningCompletionCleanup } from "@/features/academy/LearningCompletionCleanup";
 import { importLegacySavedCourses, saveLearningItem, unsaveLearningItem } from "@/features/academy/savedLearning";
 import { getResumeLessonId } from "@/features/academy/courseProgress";
-import { canAccessAcademyResource } from "@/features/academy/resourceAccess";
+import { canAccessAcademyResource, mapAcademyResourcePreview } from "@/features/academy/resourceAccess";
 
 export const Route = createFileRoute("/learn")({
   head: () => ({ meta: [{ title: "Academy Hub — NEXORA" }, { name: "description", content: "Learn, build, and earn with Nexora Academy." }] }),
@@ -204,10 +204,7 @@ function Learn() {
             progress: 0, accent: accents[index % accents.length], icon: icons[index % icons.length],
           };
         }));
-        setResources(resourceRows.map((row: any) => ({
-          id: row.id, courseId: row.course_id, name: row.resource_name, type: String(row.file_type ?? "FILE").toUpperCase(),
-          size: Number(row.file_size_bytes ?? 0), accessTier: String(row.access_tier ?? "enrolled"),
-        })));
+        setResources(resourceRows.map((row: any) => mapAcademyResourcePreview(row)));
         setLoading(false);
       }
     }
