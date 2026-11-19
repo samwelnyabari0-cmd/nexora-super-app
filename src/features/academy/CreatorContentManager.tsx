@@ -379,6 +379,7 @@ export function CreatorContentManager() {
           lessons={lessons}
           resources={resources}
           filter={filter}
+          activeTab={tab}
           courseNames={courseNames}
           onChanged={loadContent}
         />
