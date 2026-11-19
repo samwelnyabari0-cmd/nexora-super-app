@@ -40,9 +40,11 @@ const itemIcons = {
 export function SavedLearningPanel({
   onOpenCourse,
   onOpenEducator,
+  refreshKey = 0,
 }: {
   onOpenCourse: (courseId: string) => void;
   onOpenEducator: (educatorId: string) => void;
+  refreshKey?: number;
 }) {
   const { user } = useSession();
   const [items, setItems] = useState<SavedDisplayItem[]>([]);
@@ -153,7 +155,7 @@ export function SavedLearningPanel({
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
 
   const visibleItems = useMemo(
     () => filter === "all" ? items : items.filter((item) => item.itemType === filter),
