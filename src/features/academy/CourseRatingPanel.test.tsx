@@ -25,7 +25,9 @@ describe("CourseRatingPanel", () => {
     render(<CourseRatingPanel courseId="course-1" isSignedIn={false} canRate={false} />);
 
     expect(await screen.findByText("No ratings yet · 0 ratings")).toBeInTheDocument();
-    expect(screen.getByText("Sign in and enrol in this course to leave a rating.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sign in and enrol in this course to leave a rating."),
+    ).toBeInTheDocument();
   });
 
   it("lets an eligible learner save a selected rating", async () => {
@@ -66,7 +68,9 @@ describe("CourseRatingPanel", () => {
     render(<CourseRatingPanel courseId="course-1" isSignedIn={true} canRate={false} />);
 
     expect(await screen.findByText(/Enrol in this course to rate it/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Rate [1-5] out of 5 stars/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Rate [1-5] out of 5 stars/ }),
+    ).not.toBeInTheDocument();
     expect(myRatingMock).not.toHaveBeenCalled();
   });
 });
