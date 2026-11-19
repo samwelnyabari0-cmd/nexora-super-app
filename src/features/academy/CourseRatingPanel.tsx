@@ -31,6 +31,7 @@ export function CourseRatingPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const loadRating = useCallback(async () => {
     setLoading(true);
@@ -40,6 +41,7 @@ export function CourseRatingPanel({
       : { data: null, error: null };
 
     setSummary(summaryResult.data ?? emptySummary);
+    setSummaryError(summaryResult.error?.message ?? null);
     setMyRating(myRatingResult.data?.rating ?? null);
     setSelectedRating(myRatingResult.data?.rating ?? null);
     setError(summaryResult.error?.message ?? myRatingResult.error?.message ?? null);
@@ -75,6 +77,8 @@ export function CourseRatingPanel({
           <h3 id="course-rating-heading" className="font-semibold">Course rating</h3>
           {loading ? (
             <p className="mt-1 text-sm text-muted-foreground">Loading rating…</p>
+          ) : summaryError ? (
+            <p className="mt-1 text-sm text-muted-foreground">Rating summary unavailable.</p>
           ) : summary.averageRating === null ? (
             <p className="mt-1 text-sm text-muted-foreground">No ratings yet · 0 ratings</p>
           ) : (
@@ -86,7 +90,7 @@ export function CourseRatingPanel({
           )}
         </div>
         {summary.averageRating !== null && (
-          <div className="flex items-center gap-1" aria-label={`Average rating ${summary.averageRating.toFixed(1)} out of 5`}>
+          <div role="img" className="flex items-center gap-1" aria-label={`Average rating ${summary.averageRating.toFixed(1)} out of 5`}>
             {Array.from({ length: 5 }, (_, index) => (
               <Star
                 key={index}
