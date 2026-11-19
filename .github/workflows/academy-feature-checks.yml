@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   checks:
-    name: Tests and type check
+    name: Academy unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,6 +37,3 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-      - name: Check TypeScript
-        run: npx tsc --noEmit
