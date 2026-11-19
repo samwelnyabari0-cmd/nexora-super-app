@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bookmark, BookOpen, FileArchive, GraduationCap, Trash2, UserRound, Video } from "lucide-react";
+import { Bookmark, BookOpen, FileArchive, GraduationCap, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
