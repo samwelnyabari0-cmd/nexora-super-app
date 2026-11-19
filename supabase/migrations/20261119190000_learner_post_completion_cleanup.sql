@@ -100,6 +100,27 @@ join public.edu_courses c on c.id = l.course_id
 where p.completed is true
 on conflict do nothing;
 
+-- Reconcile older courses whose lesson progress is complete but whose
+-- enrollment status was never advanced by the earlier learner UI.
+update public.edu_enrollments e
+set status = 'completed',
+    completed_at = coalesce(e.completed_at, now())
+where e.status = 'active'
+  and exists (
+    select 1 from public.edu_lessons l where l.course_id = e.course_id
+  )
+  and not exists (
+    select 1
+    from public.edu_lessons l
+    where l.course_id = e.course_id
+      and not exists (
+        select 1 from public.edu_lesson_progress p
+        where p.lesson_id = l.id
+          and p.student_id = e.student_id
+          and p.completed is true
+      )
+  );
+
 insert into public.edu_completion_history (
   user_id, item_type, course_id, lesson_id, item_title, course_title, completed_at
 )
