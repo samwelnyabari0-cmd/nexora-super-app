@@ -60,7 +60,12 @@ export function mapLearningNote(row: LearningNoteRow): LearningNote {
 async function getCurrentStudentId(): Promise<{ studentId: string | null; error: Error | null }> {
   const { data, error } = await supabase.auth.getUser();
   if (error) return { studentId: null, error: toError(error) };
-  if (!data.user) return { studentId: null, error: new Error("Sign in to use your learning notes.") };
+  if (!data.user) {
+    return {
+      studentId: null,
+      error: new Error("Sign in to use your learning notes."),
+    };
+  }
   return { studentId: data.user.id, error: null };
 }
 
