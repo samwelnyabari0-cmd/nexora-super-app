@@ -41,6 +41,29 @@ describe("CourseRatingPanel", () => {
     await waitFor(() => expect(saveMock).toHaveBeenCalledWith("course-1", 5));
   });
 
+  it("exposes the selected star through its pressed state", async () => {
+    render(<CourseRatingPanel courseId="course-1" isSignedIn={true} canRate={true} />);
+
+    const fiveStars = await screen.findByRole("button", { name: "Rate 5 out of 5 stars" });
+    await waitFor(() => expect(fiveStars).not.toBeDisabled());
+    fireEvent.click(fiveStars);
+
+    expect(fiveStars).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows a clear error when saving a rating fails", async () => {
+    saveMock.mockResolvedValue({ error: new Error("Enrolment is no longer active.") });
+
+    render(<CourseRatingPanel courseId="course-1" isSignedIn={true} canRate={true} />);
+
+    const fiveStars = await screen.findByRole("button", { name: "Rate 5 out of 5 stars" });
+    await waitFor(() => expect(fiveStars).not.toBeDisabled());
+    fireEvent.click(fiveStars);
+    fireEvent.click(screen.getByRole("button", { name: "Save rating" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enrolment is no longer active.");
+  });
+
   it("allows an eligible learner to update an existing rating", async () => {
     myRatingMock.mockResolvedValue({ data: { courseId: "course-1", rating: 4 }, error: null });
 
