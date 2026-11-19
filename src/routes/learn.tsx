@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, BookOpen, Bookmark, BookmarkCheck, ChevronRight, CloudUpload, Code2, Download, FileArchive, GraduationCap, Layers3, LockKeyhole, Play, Search, Sparkles, CheckCircle2, Store, Video, X, Clock3 } from "lucide-react";
 import { PageHeader, DemoBadge } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
@@ -342,17 +342,7 @@ function Learn() {
     return () => { active = false; };
   }, [selectedCourse?.id, enrollmentStatus, user?.id, hiddenRefreshKey]);
 
-  useEffect(() => {
-    if (!pendingResume || !selectedCourse || selectedCourse.id !== pendingResume.courseId || lessonsLoading || enrollmentStatus !== "enrolled") return;
-    if (lessons.length === 0) { setPendingResume(null); return; }
-    const lesson = lessons.find((item) => item.id === pendingResume.lessonId)
-      ?? lessons.find((item) => !lessonProgress[item.id]?.completed)
-      ?? lessons[0];
-    setPendingResume(null);
-    void openLesson(lesson);
-  }, [pendingResume, selectedCourse?.id, lessons, lessonsLoading, enrollmentStatus, lessonProgress, openLesson]);
-
-  async function openLesson(lesson: Lesson) {
+  const openLesson = useCallback(async (lesson: Lesson) => {
     setVideoLoading(true);
     setActiveLesson(lesson);
     setVideoUrl(null);
@@ -366,7 +356,17 @@ function Learn() {
     }
     setVideoUrl(data.signedUrl);
     setVideoLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingResume || !selectedCourse || selectedCourse.id !== pendingResume.courseId || lessonsLoading || enrollmentStatus !== "enrolled") return;
+    if (lessons.length === 0) { setPendingResume(null); return; }
+    const lesson = lessons.find((item) => item.id === pendingResume.lessonId)
+      ?? lessons.find((item) => !lessonProgress[item.id]?.completed)
+      ?? lessons[0];
+    setPendingResume(null);
+    void openLesson(lesson);
+  }, [pendingResume, selectedCourse?.id, lessons, lessonsLoading, enrollmentStatus, lessonProgress, openLesson]);
 
   async function saveLessonProgress(lesson: Lesson, position: number, completed = false) {
     if (!user || enrollmentStatus !== "enrolled") return;
