@@ -1410,6 +1410,68 @@ export type Database = {
           },
         ]
       }
+      edu_saved_items: {
+        Row: {
+          course_id: string | null
+          educator_id: string | null
+          id: string
+          item_type: string
+          lesson_id: string | null
+          resource_id: string | null
+          saved_at: string
+          user_id: string
+        }
+        Insert: {
+          course_id?: string | null
+          educator_id?: string | null
+          id?: string
+          item_type: string
+          lesson_id?: string | null
+          resource_id?: string | null
+          saved_at?: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string | null
+          educator_id?: string | null
+          id?: string
+          item_type?: string
+          lesson_id?: string | null
+          resource_id?: string | null
+          saved_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_saved_items_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_saved_items_educator_id_fkey"
+            columns: ["educator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_saved_items_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "edu_lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_saved_items_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "edu_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_ledger: {
         Row: {
           created_at: string
