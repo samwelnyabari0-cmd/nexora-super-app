@@ -316,7 +316,7 @@ const previewFilter =
             if (mediaFiles.length) {
               const uploadedPaths: string[] = [];
               for (const file of mediaFiles) {
-                const extension = file.type.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+                const extension = file.type.split(";")[0].split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
                 const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
                 const { error: uploadError } = await supabase.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
                 if (uploadError) {
