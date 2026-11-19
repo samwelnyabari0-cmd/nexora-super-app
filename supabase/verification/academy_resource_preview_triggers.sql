@@ -42,7 +42,7 @@ begin
   end if;
 
   update public.edu_courses
-  set publication_status = 'published'
+  set publication_status = 'published', is_published = true
   where id = v_course_id;
 
   if not exists (
@@ -86,7 +86,7 @@ begin
   end if;
 
   update public.edu_courses
-  set publication_status = 'draft'
+  set publication_status = 'draft', is_published = false
   where id = v_course_id;
 
   if exists (
