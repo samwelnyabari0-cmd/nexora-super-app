@@ -117,6 +117,8 @@ export function LearningNotesPanel({
     setDeletingNoteId(null);
   }
 
+  const titleLength = Array.from(title).length;
+  const bodyLength = Array.from(body).length;
   const heading = lessonId ? "My lesson notes" : "My course notes";
 
   return (
@@ -144,11 +146,12 @@ export function LearningNotesPanel({
                 id={titleInputId}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                maxLength={MAX_LEARNING_NOTE_TITLE_LENGTH}
+                maxLength={MAX_LEARNING_NOTE_TITLE_LENGTH * 2}
+                onChange={(event) => { if (Array.from(event.target.value).length <= MAX_LEARNING_NOTE_TITLE_LENGTH) setTitle(event.target.value); }}
                 placeholder="Give this note a title"
                 className="w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="mt-1 text-right text-xs text-muted-foreground">{title.length}/{MAX_LEARNING_NOTE_TITLE_LENGTH}</p>
+              <p className="mt-1 text-right text-xs text-muted-foreground">{titleLength}/{MAX_LEARNING_NOTE_TITLE_LENGTH}</p>
             </div>
             <div>
               <label htmlFor={bodyInputId} className="mb-1 block text-sm font-medium">Note text</label>
@@ -156,12 +159,13 @@ export function LearningNotesPanel({
                 id={bodyInputId}
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
-                maxLength={MAX_LEARNING_NOTE_BODY_LENGTH}
+                maxLength={MAX_LEARNING_NOTE_BODY_LENGTH * 2}
+                onChange={(event) => { if (Array.from(event.target.value).length <= MAX_LEARNING_NOTE_BODY_LENGTH) setBody(event.target.value); }}
                 rows={4}
                 placeholder="Write something you want to remember…"
                 className="w-full resize-y rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="mt-1 text-right text-xs text-muted-foreground">{body.length}/{MAX_LEARNING_NOTE_BODY_LENGTH}</p>
+              <p className="mt-1 text-right text-xs text-muted-foreground">{bodyLength}/{MAX_LEARNING_NOTE_BODY_LENGTH}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" size="sm" disabled={saving || !title.trim() || !body.trim()} onClick={() => void handleSave()}>
