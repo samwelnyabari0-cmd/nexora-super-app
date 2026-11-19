@@ -8,8 +8,6 @@ type Props = {
   onFilterChange: (value: string) => void;
   filterIntensity: number;
   onFilterIntensityChange: (value: number) => void;
-  music: string;
-  onMusicChange: (value: string) => void;
   onNavigateToSubscriptions: () => void;
 };
 
@@ -19,8 +17,6 @@ export default function TierGatedCreatorStudio({
   onFilterChange,
   filterIntensity,
   onFilterIntensityChange,
-  music,
-  onMusicChange,
   onNavigateToSubscriptions,
 }: Props) {
   const isPro = userPlan === "pro" || userPlan === "studio";
@@ -87,31 +83,13 @@ export default function TierGatedCreatorStudio({
         </div>
       </div>
 
-      <div className="space-y-3 border-t pt-4">
-        <h2 className="text-sm font-semibold">Music</h2>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm"
-            variant={music === "none" ? "default" : "outline"}
-            onClick={() => onMusicChange("none")}>
-            Original audio
-          </Button>
-          <Button type="button" size="sm"
-            variant={music === "pulse" ? "default" : "outline"}
-            onClick={() => onMusicChange("pulse")}>
-            Pulse free beat
-          </Button>
-          <Button type="button" size="sm" variant="outline" disabled
-            title="Pro music catalogue is not connected yet">
-            {!isPro && <Lock className="mr-1 h-3 w-3" />}
-            Pro music library
-          </Button>
-        </div>
-        {isPro && (
-          <p className="text-xs text-muted-foreground">
-            Pro music access is reserved for paid plans. The music catalogue
-            still needs to be connected.
-          </p>
-        )}
+      <div className="space-y-2 border-t pt-4">
+        <h2 className="text-sm font-semibold">Audio</h2>
+        <p className="text-xs text-muted-foreground">
+          Add your own background track and record a voiceover in the Advanced
+          Studio Editor below. The Nexora licensed music catalogue is not
+          connected yet.
+        </p>
       </div>
 
       <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/[0.03] p-3">
