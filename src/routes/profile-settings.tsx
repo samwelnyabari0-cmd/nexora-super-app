@@ -11,6 +11,7 @@ import { BusinessSuite } from "@/components/nexora/BusinessSuite";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
+import { normalizeEducationSkills } from "@/features/academy/educatorDirectory";
 
 export const Route = createFileRoute("/profile-settings")({
   head: () => ({ meta: [{ title: "Profile settings — NEXORA" }] }),
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/profile-settings")({
 type BioLink = { title: string; url: string };
 
 const interests = ["city", "food", "tech", "music", "dance", "travel", "nature", "creators"];
+const suggestedEducationSkills = ["React", "WebGL", "UI/UX", "Video Editing", "JavaScript", "Python", "Graphic Design", "Mathematics", "Science", "AI Tools", "Data Analysis", "Writing", "Photography", "Music", "Language Learning"];
 const categories = [
   ["tech", "Tech & Gaming"], ["sports", "Sports & Health"], ["arts", "Arts & Creative"],
   ["business", "Business / Sales"], ["music", "Music & Audio"], ["education", "Education & Lifestyle"],
@@ -40,6 +42,9 @@ function ProfileSettings() {
   const [category, setCategory] = useState("");
   const [privateProfile, setPrivateProfile] = useState(false);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [educationSkills, setEducationSkills] = useState<string[]>([]);
+  const [newEducationSkill, setNewEducationSkill] = useState("");
+  const [discoverable, setDiscoverable] = useState(false);
   const [bioLinks, setBioLinks] = useState<BioLink[]>([]);
   const [bioLinksOpen, setBioLinksOpen] = useState(false);
   const [share, setShare] = useState<typeof passport.share>(passport.share);
@@ -49,7 +54,7 @@ function ProfileSettings() {
     let active = true;
     void (async () => {
       const { data, error } = await (supabase as any).from("profiles")
-        .select("display_name, handle, bio, avatar_url, account_type, profile_category, private_profile, interests, bio_links")
+        .select("display_name, handle, bio, avatar_url, account_type, profile_category, private_profile, discoverable, education_skills, interests, bio_links")
         .eq("id", user.id).maybeSingle();
       if (!active) return;
       if (error) {
@@ -64,6 +69,8 @@ function ProfileSettings() {
         setAccountType(data?.account_type ?? metadata.account_type ?? "personal");
         setCategory(data?.profile_category ?? metadata.profile_category ?? "");
         setPrivateProfile(Boolean(data?.private_profile ?? metadata.private_profile));
+        setDiscoverable(Boolean(data?.discoverable));
+        setEducationSkills(normalizeEducationSkills(data?.education_skills));
         setSelectedInterests(Array.isArray(data?.interests) ? data.interests : passport.interests ?? []);
         setBioLinks(Array.isArray(data?.bio_links) ? data.bio_links.filter((item: any) => item && typeof item.title === "string" && typeof item.url === "string").slice(0, 5) : []);
       }
@@ -73,32 +80,36 @@ function ProfileSettings() {
   }, [user?.id]);
 
   async function save() {
-    if (!user) return toast.error("Sign in to update your profile.");
+    if (!user) { toast.error("Sign in to update your profile."); return; }
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
     const cleanBioLinks = bioLinks.map(link => ({ title: link.title.trim(), url: link.url.trim() })).filter(link => link.title || link.url);
+    const cleanEducationSkills = normalizeEducationSkills(educationSkills);
     for (const link of cleanBioLinks) {
       try {
         const parsed = new URL(link.url);
         if (!link.title || !["http:", "https:"].includes(parsed.protocol)) throw new Error();
       } catch {
         setSaving(false);
-        return toast.error("Each bio link needs a title and a valid http:// or https:// URL.");
+        toast.error("Each bio link needs a title and a valid http:// or https:// URL.");
+        return;
       }
     }
     if (cleanBioLinks.length > 5) {
       setSaving(false);
-      return toast.error("You can add up to 5 bio links.");
+      toast.error("You can add up to 5 bio links.");
+      return;
     }
     const { error } = await (supabase as any).from("profiles").upsert({
       id: user.id, display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
       account_type: accountType, profile_category: category || null,
-      private_profile: privateProfile, interests: selectedInterests, bio_links: cleanBioLinks,
+      private_profile: privateProfile, discoverable, education_skills: cleanEducationSkills, interests: selectedInterests, bio_links: cleanBioLinks,
     });
     if (!error) {
       const { error: authError } = await supabase.auth.updateUser({ data: {
         display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
         account_type: accountType, profile_category: category || null, private_profile: privateProfile,
+        discoverable, education_skills: cleanEducationSkills,
       } });
       if (authError) console.error("Auth metadata sync warning:", authError);
       updatePassport({ name: name.trim(), handle: cleanHandle, bio: bio.trim(), interests: selectedInterests, share });
@@ -202,6 +213,59 @@ function ProfileSettings() {
         {(accountType==="creator" || accountType==="business") && <div className="space-y-2"><p className="text-sm font-medium">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{categories.map(([value,label])=><button key={value} type="button" onClick={()=>setCategory(value)} className={`rounded-lg border p-2 text-xs ${category===value?"border-primary bg-primary/10":"hover:bg-muted"}`}>{label}</button>)}</div></div>}
         <ProfileBadges accountType={accountType} industryTag={categories.find(([v])=>v===category)?.[1] ?? "Tech & Gaming"} isVerified />
       </Panel>
+
+      {(accountType === "creator" || accountType === "business") && category === "education" && (
+        <Panel className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Education profile</h2>
+            <p className="text-xs text-muted-foreground">Add the subjects and skills you teach. These help learners find you in Academy.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestedEducationSkills.map(skill => (
+              <Chip key={skill} active={educationSkills.some(item => item.toLowerCase() === skill.toLowerCase())}
+                onClick={() => setEducationSkills(current => current.some(item => item.toLowerCase() === skill.toLowerCase())
+                  ? current.filter(item => item.toLowerCase() !== skill.toLowerCase())
+                  : current.length < 20 ? [...current, skill] : current)}>
+                {skill}
+              </Chip>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input value={newEducationSkill} onChange={event => setNewEducationSkill(event.target.value)}
+              maxLength={32} placeholder="Add another skill" className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm" />
+            <Button type="button" variant="outline" disabled={!newEducationSkill.trim() || educationSkills.length >= 20}
+              onClick={() => {
+                const skill = newEducationSkill.trim().replace(/\s+/g, " ");
+                if (!skill) return;
+                if (educationSkills.some(item => item.toLowerCase() === skill.toLowerCase())) {
+                  toast.error("That skill is already added.");
+                  return;
+                }
+                setEducationSkills(current => [...current, skill].slice(0, 20));
+                setNewEducationSkill("");
+              }}>
+              Add
+            </Button>
+          </div>
+          {educationSkills.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {educationSkills.map(skill => (
+                <button key={skill} type="button" onClick={() => setEducationSkills(current => current.filter(item => item !== skill))}
+                  className="rounded-full border px-3 py-1 text-xs hover:bg-muted" aria-label={"Remove " + skill}>
+                  {skill} ×
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3 border-t pt-3">
+            <div>
+              <p className="text-sm font-medium">Make my profile discoverable</p>
+              <p className="text-xs text-muted-foreground">This shared Nexora setting controls profile discovery, including Academy. Private profiles are never listed.</p>
+            </div>
+            <Switch checked={discoverable} onCheckedChange={setDiscoverable} />
+          </div>
+        </Panel>
+      )}
 
       <Panel className="space-y-3">
         <h2 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-5 w-5" /> Privacy</h2>
