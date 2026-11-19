@@ -115,7 +115,7 @@ export function CreatorContentManager() {
         (supabase as any).from("edu_resources")
           .select("id,course_id,resource_name,file_type,file_size_bytes,r2_object_key,display_order,publication_status,published_at")
           .in("course_id", ids)
-          .order("created_at", { ascending: false }),
+          .order("display_order", { ascending: true }),
         (supabase as any).from("edu_enrollments")
           .select("course_id,student_id,status")
           .in("course_id", ids)
