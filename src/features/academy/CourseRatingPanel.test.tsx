@@ -86,7 +86,8 @@ describe("CourseRatingPanel", () => {
     expect(
       screen.getByText(
         (_, element) =>
-          element?.textContent?.replace(/\s+/g, " ").trim() === "12 ratings",
+          element?.tagName === "P" &&
+          /12\s+ratings/.test(element.textContent ?? ""),
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/student|learner id/i)).not.toBeInTheDocument();
