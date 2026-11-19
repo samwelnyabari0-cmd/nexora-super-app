@@ -11,6 +11,7 @@ import { BusinessSuite } from "@/components/nexora/BusinessSuite";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
+import { normalizeEducationSkills } from "@/features/academy/educatorDirectory";
 
 export const Route = createFileRoute("/profile-settings")({
   head: () => ({ meta: [{ title: "Profile settings — NEXORA" }] }),
@@ -69,7 +70,7 @@ function ProfileSettings() {
         setCategory(data?.profile_category ?? metadata.profile_category ?? "");
         setPrivateProfile(Boolean(data?.private_profile ?? metadata.private_profile));
         setDiscoverable(Boolean(data?.discoverable));
-        setEducationSkills(Array.isArray(data?.education_skills) ? data.education_skills.filter((skill: unknown) => typeof skill === "string").slice(0, 20) : []);
+        setEducationSkills(normalizeEducationSkills(data?.education_skills));
         setSelectedInterests(Array.isArray(data?.interests) ? data.interests : passport.interests ?? []);
         setBioLinks(Array.isArray(data?.bio_links) ? data.bio_links.filter((item: any) => item && typeof item.title === "string" && typeof item.url === "string").slice(0, 5) : []);
       }
@@ -83,6 +84,7 @@ function ProfileSettings() {
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
     const cleanBioLinks = bioLinks.map(link => ({ title: link.title.trim(), url: link.url.trim() })).filter(link => link.title || link.url);
+    const cleanEducationSkills = normalizeEducationSkills(educationSkills);
     for (const link of cleanBioLinks) {
       try {
         const parsed = new URL(link.url);
@@ -99,13 +101,13 @@ function ProfileSettings() {
     const { error } = await (supabase as any).from("profiles").upsert({
       id: user.id, display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
       account_type: accountType, profile_category: category || null,
-      private_profile: privateProfile, discoverable, education_skills: educationSkills, interests: selectedInterests, bio_links: cleanBioLinks,
+      private_profile: privateProfile, discoverable, education_skills: cleanEducationSkills, interests: selectedInterests, bio_links: cleanBioLinks,
     });
     if (!error) {
       const { error: authError } = await supabase.auth.updateUser({ data: {
         display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
         account_type: accountType, profile_category: category || null, private_profile: privateProfile,
-        discoverable, education_skills: educationSkills,
+        discoverable, education_skills: cleanEducationSkills,
       } });
       if (authError) console.error("Auth metadata sync warning:", authError);
       updatePassport({ name: name.trim(), handle: cleanHandle, bio: bio.trim(), interests: selectedInterests, share });
