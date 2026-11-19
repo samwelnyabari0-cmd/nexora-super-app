@@ -1,4 +1,5 @@
 import TierGatedCreatorStudio from "@/components/nexora/src/components/nexora/src/components/nexora/TierGatedCreatorStudio";
+import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles, Music2, LockKeyhole } from "lucide-react";
@@ -46,13 +47,13 @@ function Create() {
     preferences.privateProfile ? "private" : "public",
   );
   const [media, setMedia] = useState<string>();
+  const [originalMedia, setOriginalMedia] = useState<string>();
   const [mediaFiles, setMediaFiles] = useState<Blob[]>([]);
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("original");
   const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
-  const [music, setMusic] = useState("none");
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
   const [note, setNote] = useState("");
@@ -93,6 +94,7 @@ function Create() {
     setCaption("");
     setTags("creators");
     setMedia(undefined);
+    setOriginalMedia(undefined);
     setMediaFiles([]);
     setMediaType(undefined);
     setCover(null);
@@ -149,6 +151,7 @@ const previewFilter =
           <StudioCapture
             onCapture={(url, type) => {
   setMedia(url);
+  setOriginalMedia(url);
   setMediaType(type);
   setError("");
   void fetch(url)
@@ -193,7 +196,10 @@ const previewFilter =
                 aria-label="Remove media"
                 onClick={() => {
                   setMedia(undefined);
+                  setOriginalMedia(undefined);
+                  setMediaFiles([]);
                   setMediaType(undefined);
+                  setCover(null);
                 }}
               >
                 <Trash2 />
@@ -220,6 +226,7 @@ const previewFilter =
                 setNote,
                 accept: (url, files, type) => {
                   setMedia(url);
+                  setOriginalMedia(url);
                   setMediaFiles(files);
                   setMediaType(type);
                 },
@@ -242,10 +249,31 @@ const previewFilter =
             onFilterChange={setFilter}
             filterIntensity={filterIntensity}
             onFilterIntensityChange={setFilterIntensity}
-            music={music}
-            onMusicChange={setMusic}
             onNavigateToSubscriptions={() => void nav({ to: "/subscriptions" })}
           />
+          {media && mediaType?.startsWith("video/") && (
+            userPlan === "studio" ? (
+              <AdvancedVideoStudioEditor
+                key={originalMedia || media}
+                videoSrc={originalMedia || media}
+                onExported={(file) => {
+                  const editedUrl = URL.createObjectURL(file);
+                  setMedia(editedUrl);
+                  setMediaFiles([file]);
+                  setMediaType(file.type.split(";")[0] || "video/webm");
+                  setCover(null);
+                  setNote("Your edited video is ready. Publishing will upload the edited copy.");
+                  setError("");
+                }}
+              />
+            ) : (
+              <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/[0.03] p-4">
+                <h2 className="text-sm font-semibold">Advanced video export</h2>
+                <p className="text-xs text-muted-foreground">Trim, mix audio, record voiceovers and add creator branding, then export a downloadable video with the Studio plan.</p>
+                <Button type="button" size="sm" className="w-full" onClick={() => void nav({ to: "/subscriptions" })}>Explore Studio plan</Button>
+              </section>
+            )
+          )}
           <section className="space-y-3 rounded-xl border p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Frame</h2>
@@ -285,7 +313,7 @@ const previewFilter =
             if (mediaFiles.length) {
               const uploadedPaths: string[] = [];
               for (const file of mediaFiles) {
-                const extension = file.type.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+                const extension = file.type.split(";")[0].split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
                 const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
                 const { error: uploadError } = await supabase.storage.from("post-media").upload(path, file, { contentType: file.type, upsert: false });
                 if (uploadError) {
@@ -419,6 +447,7 @@ Drafts remain on this device until published. Published captions, media, tags, a
                   setCaption(d.caption);
                   setTags(d.tags.join(", "));
                   setMedia(d.media);
+                  setOriginalMedia(d.media);
                   setMediaType(d.mediaType);
                   setAudience(d.audience);
                   setFilter(d.filter || "original");
