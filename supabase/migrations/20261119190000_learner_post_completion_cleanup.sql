@@ -67,8 +67,7 @@ create table if not exists public.edu_completion_history (
   completed_at timestamptz not null default now(),
   constraint edu_completion_history_matching_reference check (
     (item_type = 'course' and lesson_id is null)
-    or
-    (item_type = 'lesson' and lesson_id is not null)
+    or item_type = 'lesson'
   )
 );
 
