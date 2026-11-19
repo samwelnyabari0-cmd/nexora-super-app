@@ -82,6 +82,35 @@ describe("LearningNotesPanel", () => {
     });
   });
 
+  it("keeps the note draft when saving fails", async () => {
+    createMock.mockResolvedValue({
+      data: null,
+      error: new Error("Network unavailable."),
+    });
+
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId={null}
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
+
+    await screen.findByText("No notes yet. Add your first note above.");
+    fireEvent.change(screen.getByLabelText("Note title"), {
+      target: { value: "Keep this draft" },
+    });
+    fireEvent.change(screen.getByLabelText("Note text"), {
+      target: { value: "Do not lose this note." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Network unavailable.");
+    expect(screen.getByLabelText("Note title")).toHaveValue("Keep this draft");
+    expect(screen.getByLabelText("Note text")).toHaveValue("Do not lose this note.");
+  });
+
   it("displays multiple saved notes in the selected scope", async () => {
     listMock.mockResolvedValue({
       data: [
