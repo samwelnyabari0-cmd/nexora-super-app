@@ -6,6 +6,7 @@ import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { toast } from "sonner";
 import type { AcademyEducator } from "./educatorDirectory";
+import { SaveLearningButton } from "./SaveLearningButton";
 
 type EducatorCourse = {
   id: string;
@@ -204,12 +205,15 @@ export function EducatorShowcase({
             {educator.handle && <p className="text-sm text-muted-foreground">@{educator.handle.replace(/^@/, "")}</p>}
             {educator.bio && <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{educator.bio}</p>}
           </div>
-          {!isOwner && (
-            <Button type="button" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading}
-              onClick={() => void graph.toggleFollow()}>
-              {graph.loading ? "Loading…" : graph.isFollowing ? "Following" : "Follow"}
-            </Button>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {!isOwner && (
+              <Button type="button" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading}
+                onClick={() => void graph.toggleFollow()}>
+                {graph.loading ? "Loading…" : graph.isFollowing ? "Following" : "Follow"}
+              </Button>
+            )}
+            <SaveLearningButton itemType="educator" itemId={educator.id} />
+          </div>
         </div>
 
         {educator.education_skills.length > 0 && (
