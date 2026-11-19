@@ -145,7 +145,6 @@ export function LearningNotesPanel({
               <input
                 id={titleInputId}
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
                 maxLength={MAX_LEARNING_NOTE_TITLE_LENGTH * 2}
                 onChange={(event) => { if (Array.from(event.target.value).length <= MAX_LEARNING_NOTE_TITLE_LENGTH) setTitle(event.target.value); }}
                 placeholder="Give this note a title"
@@ -158,7 +157,6 @@ export function LearningNotesPanel({
               <textarea
                 id={bodyInputId}
                 value={body}
-                onChange={(event) => setBody(event.target.value)}
                 maxLength={MAX_LEARNING_NOTE_BODY_LENGTH * 2}
                 onChange={(event) => { if (Array.from(event.target.value).length <= MAX_LEARNING_NOTE_BODY_LENGTH) setBody(event.target.value); }}
                 rows={4}
