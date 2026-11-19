@@ -52,6 +52,7 @@ export function SavedLearningPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -171,6 +172,27 @@ export function SavedLearningPanel({
       setError(removeError.message || "Could not remove this saved item.");
     } else {
       setItems((current) => current.filter((saved) => saved.key !== item.key));
+      setSelectedKeys((current) => current.filter((key) => key !== item.key));
+    }
+    setRemoving(null);
+  }
+
+  async function removeSelected() {
+    if (!user || !selectedKeys.length) return;
+    if (!window.confirm(`Remove ${selectedKeys.length} saved learning item(s) from your list?`)) return;
+    setRemoving("bulk");
+    setError(null);
+    const { error: removeError } = await (supabase as any)
+      .from("edu_saved_items")
+      .delete()
+      .eq("user_id", user.id)
+      .in("id", selectedKeys);
+    if (removeError) {
+      setError(removeError.message || "Could not remove the selected saved items.");
+    } else {
+      const removed = new Set(selectedKeys);
+      setItems((current) => current.filter((item) => !removed.has(item.key)));
+      setSelectedKeys([]);
     }
     setRemoving(null);
   }
@@ -196,6 +218,22 @@ export function SavedLearningPanel({
         ))}
       </div>
 
+      {!loading && !error && visibleItems.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">{selectedKeys.length} selected</p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" disabled={removing !== null}
+              onClick={() => setSelectedKeys(selectedKeys.length === visibleItems.length ? [] : visibleItems.map((item) => item.key))}>
+              {selectedKeys.length === visibleItems.length ? "Clear selection" : "Select all"}
+            </Button>
+            <Button type="button" size="sm" variant="destructive" disabled={!selectedKeys.length || removing !== null}
+              onClick={() => void removeSelected()}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="rounded-2xl border p-6 text-center text-sm text-muted-foreground">Loading your saved learning…</div>
       ) : error ? (
@@ -212,6 +250,10 @@ export function SavedLearningPanel({
             const Icon = itemIcons[item.itemType];
             return (
               <article key={item.key} className="flex min-w-0 items-start gap-3 rounded-2xl border bg-background p-3">
+                <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-primary"
+                  aria-label={"Select saved " + item.itemType}
+                  checked={selectedKeys.includes(item.key)}
+                  onChange={(event) => setSelectedKeys((current) => event.target.checked ? [...current, item.key] : current.filter((key) => key !== item.key))} />
                 {item.thumbnailUrl ? (
                   <img src={item.thumbnailUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
                 ) : (
