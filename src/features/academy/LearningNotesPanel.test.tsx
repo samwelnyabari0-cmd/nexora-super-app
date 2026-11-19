@@ -67,6 +67,7 @@ describe("LearningNotesPanel", () => {
       />,
     );
 
+    await screen.findByText("No notes yet. Add your first note above.");
     fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Lesson insight" } });
     fireEvent.change(screen.getByLabelText("Note text"), { target: { value: "Remember this." } });
     fireEvent.click(screen.getByRole("button", { name: "Save note" }));
