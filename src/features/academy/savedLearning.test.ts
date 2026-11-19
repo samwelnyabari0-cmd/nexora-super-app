@@ -18,7 +18,7 @@ const savedItems = [
   { item_type: "lesson" },
   { item_type: "resource" },
   { item_type: "educator" },
-] as SavedLearningItem[];
+] as unknown as SavedLearningItem[];
 
 describe("buildSavedLearningInsert", () => {
   it.each(["course", "lesson", "resource", "educator"] as const)(
