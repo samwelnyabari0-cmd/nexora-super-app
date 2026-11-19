@@ -19,6 +19,8 @@ vi.mock("@/features/social/useSocialGraph", () => ({
   }),
 }));
 
+vi.mock("./SaveLearningButton", () => ({ SaveLearningButton: () => null }));
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { rpc: vi.fn(), from: vi.fn() },
 }));
