@@ -8,9 +8,9 @@ import { getContentDeletionEligibility, type PublicationStatus } from "./creator
 
 type Lesson = { id: string; course_id: string; title: string; lesson_order: number; video_url?: string; publication_status: PublicationStatus; published_at: string | null };
 type Resource = { id: string; course_id: string; resource_name: string; file_type: string; file_size_bytes: number; r2_object_key?: string; display_order?: number; publication_status: PublicationStatus; published_at: string | null };
-type Props = { lessons: Lesson[]; resources: Resource[]; courseNames: Map<string, string>; onChanged: () => Promise<void> };
+type Props = { lessons: Lesson[]; resources: Resource[]; filter: "all" | PublicationStatus; courseNames: Map<string, string>; onChanged: () => Promise<void> };
 
-export function CreatorChildContentManager({ lessons, resources, courseNames, onChanged }: Props) {
+export function CreatorChildContentManager({ lessons, resources, filter, courseNames, onChanged }: Props) {\n  const visibleLessons = lessons.filter((item) => filter === "all" || item.publication_status === filter);\n  const visibleResources = resources.filter((item) => filter === "all" || item.publication_status === filter);
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; kind: "lesson" | "resource"; title: string } | null>(null);
 
@@ -157,7 +157,7 @@ export function CreatorChildContentManager({ lessons, resources, courseNames, on
   return <div className="space-y-6">
     <section className="space-y-3">
       <h3 className="font-semibold">Lesson controls</h3>
-      {lessons.length ? lessons.map((item) => {
+      {visibleLessons.length ? visibleLessons.map((item) => {
         const protectedItem = !getContentDeletionEligibility(item).eligible;
         const ordered = lessons.filter((row) => row.course_id === item.course_id).sort((a, b) => a.lesson_order - b.lesson_order);
         const index = ordered.findIndex((row) => row.id === item.id);
@@ -183,7 +183,7 @@ export function CreatorChildContentManager({ lessons, resources, courseNames, on
     </section>
     <section className="space-y-3">
       <h3 className="font-semibold">Resource controls</h3>
-      {resources.length ? resources.map((item) => {
+      {visibleResources.length ? visibleResources.map((item) => {
         const protectedItem = !getContentDeletionEligibility(item).eligible;
         const ordered = resources.filter((row) => row.course_id === item.course_id).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
         const index = ordered.findIndex((row) => row.id === item.id);
