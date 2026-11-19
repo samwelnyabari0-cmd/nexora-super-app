@@ -92,19 +92,31 @@ function Learn() {
         legacyIds = [];
       }
 
-      if (legacyIds.length === 0) {
-        legacyImportUser.current = user.id;
-        return;
+      if (legacyIds.length > 0) {
+        const result = await importLegacySavedCourses(user.id, legacyIds);
+        if (!active) return;
+        if (result.error) {
+          toast.error("Your saved courses are still on this device. We could not sync them yet.");
+        } else {
+          localStorage.removeItem("nexora-academy-saved-courses");
+        }
       }
 
-      const result = await importLegacySavedCourses(user.id, legacyIds);
+      const { data: savedRows, error: savedError } = await (supabase as any)
+        .from("edu_saved_items")
+        .select("course_id")
+        .eq("user_id", user.id)
+        .eq("item_type", "course");
       if (!active) return;
-      if (result.error) {
-        toast.error("Your saved courses are still on this device. We could not sync them yet.");
-        return;
+      if (!savedError) {
+        const databaseCourseIds = (savedRows ?? []).flatMap((item: { course_id: string | null }) =>
+          item.course_id ? [item.course_id] : [],
+        );
+        setSavedCourseIds((current) => [...new Set([...current, ...databaseCourseIds])]);
+        if (legacyIds.length === 0 || !localStorage.getItem("nexora-academy-saved-courses")) {
+          legacyImportUser.current = user.id;
+        }
       }
-      localStorage.removeItem("nexora-academy-saved-courses");
-      legacyImportUser.current = user.id;
     })();
 
     return () => {
