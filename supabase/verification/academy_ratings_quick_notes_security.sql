@@ -93,6 +93,10 @@ begin
   if to_regprocedure('public.get_edu_course_rating_summary(uuid)') is not null then
     raise exception 'The public SECURITY DEFINER aggregate RPC must not exist';
   end if;
+  if position('public.edu_courses' in pg_get_functiondef('private.sync_edu_course_rating_summary()'::regprocedure)) = 0 then
+    raise exception 'Aggregate trigger must verify the parent course still exists before rebuilding summaries';
+  end if;
+
   if has_function_privilege('anon','private.sync_edu_course_rating_summary()','execute')
      or has_function_privilege('authenticated','private.sync_edu_course_rating_summary()','execute')
      or has_function_privilege('anon','private.set_edu_ratings_notes_updated_at()','execute')
