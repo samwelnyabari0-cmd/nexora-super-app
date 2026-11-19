@@ -1,4 +1,5 @@
 import TierGatedCreatorStudio from "@/components/nexora/src/components/nexora/src/components/nexora/TierGatedCreatorStudio";
+import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles, Music2, LockKeyhole } from "lucide-react";
@@ -46,6 +47,7 @@ function Create() {
     preferences.privateProfile ? "private" : "public",
   );
   const [media, setMedia] = useState<string>();
+  const [originalMedia, setOriginalMedia] = useState<string>();
   const [mediaFiles, setMediaFiles] = useState<Blob[]>([]);
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
@@ -93,6 +95,7 @@ function Create() {
     setCaption("");
     setTags("creators");
     setMedia(undefined);
+    setOriginalMedia(undefined);
     setMediaFiles([]);
     setMediaType(undefined);
     setCover(null);
@@ -149,6 +152,7 @@ const previewFilter =
           <StudioCapture
             onCapture={(url, type) => {
   setMedia(url);
+  setOriginalMedia(url);
   setMediaType(type);
   setError("");
   void fetch(url)
@@ -193,6 +197,7 @@ const previewFilter =
                 aria-label="Remove media"
                 onClick={() => {
                   setMedia(undefined);
+                  setOriginalMedia(undefined);
                   setMediaType(undefined);
                 }}
               >
@@ -220,6 +225,7 @@ const previewFilter =
                 setNote,
                 accept: (url, files, type) => {
                   setMedia(url);
+                  setOriginalMedia(url);
                   setMediaFiles(files);
                   setMediaType(type);
                 },
@@ -246,6 +252,29 @@ const previewFilter =
             onMusicChange={setMusic}
             onNavigateToSubscriptions={() => void nav({ to: "/subscriptions" })}
           />
+          {media && mediaType?.startsWith("video/") && (
+            userPlan === "studio" ? (
+              <AdvancedVideoStudioEditor
+                key={originalMedia || media}
+                videoSrc={originalMedia || media}
+                onExported={(file) => {
+                  const editedUrl = URL.createObjectURL(file);
+                  setMedia(editedUrl);
+                  setMediaFiles([file]);
+                  setMediaType(file.type || "video/webm");
+                  setCover(null);
+                  setNote("Your edited video is ready. Publishing will upload the edited copy.");
+                  setError("");
+                }}
+              />
+            ) : (
+              <section className="space-y-2 rounded-xl border border-primary/20 bg-primary/[0.03] p-4">
+                <h2 className="text-sm font-semibold">Advanced video export</h2>
+                <p className="text-xs text-muted-foreground">Trim, mix audio, record voiceovers and add creator branding, then export a downloadable video with the Studio plan.</p>
+                <Button type="button" size="sm" className="w-full" onClick={() => void nav({ to: "/subscriptions" })}>Explore Studio plan</Button>
+              </section>
+            )
+          )}
           <section className="space-y-3 rounded-xl border p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Frame</h2>
@@ -419,6 +448,7 @@ Drafts remain on this device until published. Published captions, media, tags, a
                   setCaption(d.caption);
                   setTags(d.tags.join(", "));
                   setMedia(d.media);
+                  setOriginalMedia(d.media);
                   setMediaType(d.mediaType);
                   setAudience(d.audience);
                   setFilter(d.filter || "original");
