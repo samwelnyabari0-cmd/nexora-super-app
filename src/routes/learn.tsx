@@ -33,6 +33,7 @@ function Learn() {
   const [myLearningLoading, setMyLearningLoading] = useState(false);
   const [showMyLearning, setShowMyLearning] = useState(false);
   const [savedCourseIds, setSavedCourseIds] = useState<string[]>([]);
+  const [savedCoursesLoaded, setSavedCoursesLoaded] = useState(false);
   const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [showResourceLibrary, setShowResourceLibrary] = useState(false);
   const [resourceQuery, setResourceQuery] = useState("");
@@ -49,12 +50,20 @@ function Learn() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try { setSavedCourseIds(JSON.parse(localStorage.getItem("nexora-academy-saved-courses") ?? "[]")); } catch { setSavedCourseIds([]); }
+    try {
+      const stored = JSON.parse(localStorage.getItem("nexora-academy-saved-courses") ?? "[]");
+      setSavedCourseIds(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : []);
+    } catch {
+      setSavedCourseIds([]);
+    } finally {
+      setSavedCoursesLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
+    if (!savedCoursesLoaded) return;
     localStorage.setItem("nexora-academy-saved-courses", JSON.stringify(savedCourseIds));
-  }, [savedCourseIds]);
+  }, [savedCourseIds, savedCoursesLoaded]);
 
   function toggleSavedCourse(courseId: string) {
     setSavedCourseIds((current) => current.includes(courseId) ? current.filter((id) => id !== courseId) : [...current, courseId]);
