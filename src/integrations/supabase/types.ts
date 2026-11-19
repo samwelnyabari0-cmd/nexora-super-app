@@ -3167,6 +3167,27 @@ export type Database = {
         Args: { p_course_id: string }
         Returns: string
       }
+      get_academy_educator: {
+        Args: { p_educator_id: string }
+        Returns: {
+          account_type: string
+          avatar_url: string
+          bio: string
+          display_name: string
+          education_skills: string[]
+          handle: string
+          id: string
+          profile_category: string
+        }[]
+      }
+      get_academy_educator_stats: {
+        Args: { p_educator_id: string }
+        Returns: {
+          total_courses: number
+          total_lessons: number
+          total_students: number
+        }[]
+      }
       get_chat_presence_status: {
         Args: { p_user_id: string }
         Returns: {
