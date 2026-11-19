@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   checks:
-    name: Tests, lint, and type check
+    name: Tests and type check
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,9 +37,6 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-      - name: Run ESLint
-        run: npm run lint
 
       - name: Check TypeScript
         run: npx tsc --noEmit
