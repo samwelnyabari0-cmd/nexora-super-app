@@ -64,8 +64,8 @@ describe("CreatorContentManager", () => {
 
     expect(await screen.findByText("React Bootcamp")).toBeInTheDocument();
     expect(screen.getByText("2 lessons")).toBeInTheDocument();
-    expect(screen.getByText("1 resources")).toBeInTheDocument();
-    expect(screen.getByText("1 learners")).toBeInTheDocument();
+    expect(screen.getByText("1 resource")).toBeInTheDocument();
+    expect(screen.getByText("1 learner")).toBeInTheDocument();
     expect(supabase.from).toHaveBeenCalledWith("edu_courses");
   });
 
