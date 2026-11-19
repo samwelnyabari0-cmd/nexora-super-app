@@ -8,9 +8,11 @@ import { getContentDeletionEligibility, type PublicationStatus } from "./creator
 
 type Lesson = { id: string; course_id: string; title: string; lesson_order: number; video_url?: string; publication_status: PublicationStatus; published_at: string | null };
 type Resource = { id: string; course_id: string; resource_name: string; file_type: string; file_size_bytes: number; r2_object_key?: string; display_order?: number; publication_status: PublicationStatus; published_at: string | null };
-type Props = { lessons: Lesson[]; resources: Resource[]; filter: "all" | PublicationStatus; courseNames: Map<string, string>; onChanged: () => Promise<void> };
+type Props = { lessons: Lesson[]; resources: Resource[]; filter: "all" | PublicationStatus; activeTab: "lessons" | "resources"; courseNames: Map<string, string>; onChanged: () => Promise<void> };
 
-export function CreatorChildContentManager({ lessons, resources, filter, courseNames, onChanged }: Props) {\n  const visibleLessons = lessons.filter((item) => filter === "all" || item.publication_status === filter);\n  const visibleResources = resources.filter((item) => filter === "all" || item.publication_status === filter);
+export function CreatorChildContentManager({ lessons, resources, filter, activeTab, courseNames, onChanged }: Props) {
+  const visibleLessons = lessons.filter((item) => filter === "all" || item.publication_status === filter);
+  const visibleResources = resources.filter((item) => filter === "all" || item.publication_status === filter);
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; kind: "lesson" | "resource"; title: string } | null>(null);
 
@@ -85,7 +87,8 @@ export function CreatorChildContentManager({ lessons, resources, filter, courseN
       if (uploadError) throw uploadError;
       const { error: insertError } = await (supabase as any).from("edu_resources").insert({
         course_id: item.course_id, resource_name: `${item.resource_name} (Copy)`, file_type: item.file_type,
-        r2_object_key: newPath, file_size_bytes: blob.size, access_tier: "enrolled", publication_status: "draft",\n        display_order: Math.max(0, ...resources.filter((row) => row.course_id === item.course_id).map((row) => row.display_order ?? 0)) + 1,
+        r2_object_key: newPath, file_size_bytes: blob.size, access_tier: "enrolled", publication_status: "draft",
+        display_order: Math.max(0, ...resources.filter((row) => row.course_id === item.course_id).map((row) => row.display_order ?? 0)) + 1,
       });
       if (insertError) {
         await supabase.storage.from("academy-resources").remove([newPath]);
