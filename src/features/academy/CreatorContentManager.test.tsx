@@ -20,7 +20,8 @@ function queryResult(data: unknown) {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     order: vi.fn(() => query),
-    in: vi.fn(() => query),\n    update: vi.fn(() => query),
+    in: vi.fn(() => query),
+    update: vi.fn(() => query),
     then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
       Promise.resolve({ data, error: null }).then(resolve, reject),
   };
