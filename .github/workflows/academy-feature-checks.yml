@@ -45,13 +45,15 @@ jobs:
         # check focused on the new feature code and enforce other ESLint rules.
         run: >-
           npx eslint
-          src/features/academy/CreatorChildContentManager.tsx
-          src/features/academy/CreatorContentManager.tsx
-          src/features/academy/CreatorContentManager.test.tsx
-          src/features/academy/creatorContent.ts
-          src/features/academy/creatorContent.test.ts
-          src/routes/creator.academy.tsx
-          src/routes/profile-settings.tsx
+          src/features/academy/CourseRatingPanel.tsx
+          src/features/academy/CourseRatingPanel.test.tsx
+          src/features/academy/LearningNotesPanel.tsx
+          src/features/academy/LearningNotesPanel.test.tsx
+          src/features/academy/courseRatings.ts
+          src/features/academy/courseRatings.test.ts
+          src/features/academy/learningNotes.ts
+          src/features/academy/learningNotes.test.ts
+          src/routes/learn.tsx
           --rule "prettier/prettier: off"
           --rule "@typescript-eslint/no-explicit-any: off"
 
