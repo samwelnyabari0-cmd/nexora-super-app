@@ -17,7 +17,7 @@ export function normalizeEducationSkills(values: unknown): string[] {
 
   for (const value of values) {
     if (typeof value !== "string") continue;
-    const skill = value.trim().replace(/\\s+/g, " ").slice(0, 32);
+    const skill = value.trim().replace(/\s+/g, " ").slice(0, 32);
     const key = skill.toLocaleLowerCase();
     if (!skill || seen.has(key)) continue;
     seen.add(key);
