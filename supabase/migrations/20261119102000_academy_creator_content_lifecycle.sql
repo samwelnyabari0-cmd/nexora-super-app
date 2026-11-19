@@ -356,16 +356,20 @@ create policy academy_video_read_preview_enrolled_or_owner
       from public.edu_lessons l
       join public.edu_courses c on c.id = l.course_id
       where l.video_url = objects.name
-        and l.publication_status = 'published'
-        and c.is_published is true
         and (
           c.instructor_id = (select auth.uid())
-          or l.is_preview is true
-          or exists (
-            select 1 from public.edu_enrollments e
-            where e.course_id = c.id
-              and e.student_id = (select auth.uid())
-              and e.status in ('active', 'completed')
+          or (
+            l.publication_status = 'published'
+            and c.is_published is true
+            and (
+              l.is_preview is true
+              or exists (
+                select 1 from public.edu_enrollments e
+                where e.course_id = c.id
+                  and e.student_id = (select auth.uid())
+                  and e.status in ('active', 'completed')
+              )
+            )
           )
         )
     )
@@ -381,15 +385,17 @@ create policy academy_resource_read_enrolled_or_owner
       from public.edu_resources r
       join public.edu_courses c on c.id = r.course_id
       where r.r2_object_key = objects.name
-        and r.publication_status = 'published'
-        and c.is_published is true
         and (
           c.instructor_id = (select auth.uid())
-          or exists (
-            select 1 from public.edu_enrollments e
-            where e.course_id = c.id
-              and e.student_id = (select auth.uid())
-              and e.status in ('active', 'completed')
+          or (
+            r.publication_status = 'published'
+            and c.is_published is true
+            and exists (
+              select 1 from public.edu_enrollments e
+              where e.course_id = c.id
+                and e.student_id = (select auth.uid())
+                and e.status in ('active', 'completed')
+            )
           )
         )
     )
