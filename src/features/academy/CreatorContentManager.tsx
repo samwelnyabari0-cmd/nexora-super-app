@@ -257,6 +257,12 @@ export function CreatorContentManager() {
     }
   }
 
+  const protectedChildCount = (courseId: string) =>
+    lessons.filter((item) => item.course_id === courseId && !getContentDeletionEligibility(item).eligible).length +
+    resources.filter((item) => item.course_id === courseId && !getContentDeletionEligibility(item).eligible).length;
+  const isCourseDeletionBlocked = (course: CourseSummary) =>
+    !getContentDeletionEligibility(course).eligible || protectedChildCount(course.id) > 0;
+
   const tabs: { id: ManagerTab; label: string; count: number; icon: typeof BookOpen }[] = [
     { id: "courses", label: "Courses", count: courses.length, icon: BookOpen },
     { id: "lessons", label: "Lessons", count: lessons.length, icon: Video },
@@ -323,6 +329,11 @@ export function CreatorContentManager() {
                     <span>Updated {formatDate(course.updated_at)}</span>
                   </div>
                   <PublicationNotice publishedAt={course.published_at} status={course.publication_status} />
+                  {protectedChildCount(course.id) > 0 && (
+                    <p className="mt-2 text-xs text-amber-600">
+                      {plural(protectedChildCount(course.id), "lesson or resource")} still has active 30-day protection. Unpublish or archive those items before deleting this course.
+                    </p>
+                  )}
                   <div className="mt-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Tag className="h-3.5 w-3.5" /> Course skill tags</p>
@@ -365,7 +376,7 @@ export function CreatorContentManager() {
                     {course.publication_status !== "archived" && (
                       <Button size="sm" variant="outline" disabled={busyId === course.id} onClick={() => void setCourseStatus(course, "archived")}><Archive className="mr-1 h-3.5 w-3.5" />Archive</Button>
                     )}
-                    <Button size="sm" variant="destructive" disabled={busyId === course.id || (course.publication_status === "published" && !getContentDeletionEligibility(course).eligible)} onClick={() => { setDeleteCourse(course); setConfirmation(""); }}>
+                    <Button size="sm" variant="destructive" disabled={busyId === course.id || isCourseDeletionBlocked(course)} onClick={() => { setDeleteCourse(course); setConfirmation(""); }}>
                       <X className="mr-1 h-3.5 w-3.5" />Delete
                     </Button>
                   </div>
@@ -395,6 +406,11 @@ export function CreatorContentManager() {
               {!getContentDeletionEligibility(deleteCourse, new Date()).eligible && (
                 <p className="mt-2 text-sm text-amber-600">This course is still inside its 30-day publication protection period. Unpublish or archive it first, or wait until {formatDate(getContentDeletionEligibility(deleteCourse, new Date()).eligibleAt)}.</p>
               )}
+              {protectedChildCount(deleteCourse.id) > 0 && (
+                <p className="mt-2 text-sm text-amber-600">
+                  {plural(protectedChildCount(deleteCourse.id), "lesson or resource")} still has active 30-day protection. Unpublish or archive each protected item before deleting the course.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label htmlFor="confirm-course-title" className="text-sm font-medium">Type the exact course title to confirm</label>
@@ -402,7 +418,7 @@ export function CreatorContentManager() {
             </div>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={() => setDeleteCourse(null)}>Cancel</Button>
-              <Button type="button" variant="destructive" disabled={confirmation !== deleteCourse.title || busyId === deleteCourse.id} onClick={() => void permanentlyDeleteCourse()}>
+              <Button type="button" variant="destructive" disabled={confirmation !== deleteCourse.title || busyId === deleteCourse.id || isCourseDeletionBlocked(deleteCourse)} onClick={() => void permanentlyDeleteCourse()}>
                 {busyId === deleteCourse.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Delete permanently
               </Button>
             </div>
