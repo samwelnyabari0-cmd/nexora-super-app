@@ -209,6 +209,7 @@ export function SavedLearningPanel({
 
   return (
     <section className="space-y-4" aria-label="Saved learning items">
+      <p className="text-xs text-muted-foreground">Removing an item here removes its saved bookmark from Nexora. Files already downloaded to your phone remain in your Downloads folder and must be deleted there.</p>
       <div className="flex flex-wrap gap-2">
         {filters.map((item) => (
           <button type="button" key={item.id} aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}
