@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { getContentDeletionEligibility, type PublicationStatus } from "./creatorContent";
+import { CreatorChildContentManager } from "./CreatorChildContentManager";
 
 type CourseRow = {
   id: string;
@@ -31,6 +32,7 @@ type LessonRow = {
   lesson_order: number;
   publication_status: PublicationStatus;
   published_at: string | null;
+  video_url?: string;
 };
 
 type ResourceRow = {
@@ -41,6 +43,8 @@ type ResourceRow = {
   file_size_bytes: number;
   publication_status: PublicationStatus;
   published_at: string | null;
+  r2_object_key?: string;
+  display_order?: number;
 };
 
 type CourseSummary = CourseRow & {
@@ -105,11 +109,11 @@ export function CreatorContentManager() {
 
       const [lessonResult, resourceResult, enrollmentResult] = await Promise.all([
         (supabase as any).from("edu_lessons")
-          .select("id,course_id,title,lesson_order,publication_status,published_at")
+          .select("id,course_id,title,lesson_order,video_url,publication_status,published_at")
           .in("course_id", ids)
           .order("lesson_order", { ascending: true }),
         (supabase as any).from("edu_resources")
-          .select("id,course_id,resource_name,file_type,file_size_bytes,publication_status,published_at")
+          .select("id,course_id,resource_name,file_type,file_size_bytes,r2_object_key,display_order,publication_status,published_at")
           .in("course_id", ids)
           .order("created_at", { ascending: false }),
         (supabase as any).from("edu_enrollments")
@@ -286,19 +290,14 @@ export function CreatorContentManager() {
             </article>
           )) : <EmptyState title="No courses in this view" description="Your courses will appear here after you create them." />}
         </div>
-      ) : tab === "lessons" ? (
-        <div className="space-y-2">
-          {visibleLessons.length ? visibleLessons.map((lesson) => (
-            <ContentLine key={lesson.id} icon={Video} title={lesson.title} subtitle={courseNames.get(lesson.course_id) || "Course"} status={lesson.publication_status} detail={`Lesson ${lesson.lesson_order}`} />
-          )) : <EmptyState title="No lessons in this view" description="Lessons from your courses will appear here." />}
-        </div>
       ) : (
-        <div className="space-y-2">
-          {visibleResources.length ? visibleResources.map((resource) => (
-            <ContentLine key={resource.id} icon={FileArchive} title={resource.resource_name} subtitle={courseNames.get(resource.course_id) || "Course"} status={resource.publication_status} detail={`${resource.file_type.toUpperCase()} · ${formatBytes(resource.file_size_bytes)}`} />
-          )) : <EmptyState title="No resources in this view" description="Study files attached to your courses will appear here." />}
-        </div>
-      )}
+        <CreatorChildContentManager
+          lessons={visibleLessons}
+          resources={visibleResources}
+          courseNames={courseNames}
+          onChanged={loadContent}
+        />
+      )
 
       {deleteCourse && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteCourse(null); }}>
