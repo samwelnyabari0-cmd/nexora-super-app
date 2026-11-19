@@ -1,10 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 export type Draft = {
   id: string;
   caption: string;
   media?: string;
   mediaType?: string;
+  mediaPath?: string;
   tags: string[];
   audience: "public" | "private";
   filter?: string;
@@ -27,6 +28,7 @@ export type Preferences = {
 };
 function useWorkspaceState() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const replaceDrafts = useCallback((next: Draft[]) => setDrafts(next), []);
   const [collections, setCollections] = useState<Record<string, string[]>>({ Favorites: ["p4"] });
   const [following, setFollowing] = useState(["c1", "c3", "c5"]);
   const [muted, setMuted] = useState<string[]>([]);
@@ -48,6 +50,7 @@ function useWorkspaceState() {
   };
   return {
     drafts,
+    replaceDrafts,
     collections,
     following,
     muted,
@@ -58,7 +61,7 @@ function useWorkspaceState() {
     saveDraft: (d: Draft) => {
       setDrafts((ds) => [d, ...ds.filter((x) => x.id !== d.id)]);
       notify("Draft saved", d.caption || "Untitled draft");
-      toast.success("Draft saved for this session");
+      toast.success("Draft saved to your account");
     },
     removeDraft: (id: string) => setDrafts((ds) => ds.filter((d) => d.id !== id)),
     addCollection: (name: string) => {
