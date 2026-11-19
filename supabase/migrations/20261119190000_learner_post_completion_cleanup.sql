@@ -130,7 +130,7 @@ join public.edu_courses c on c.id = e.course_id
 where e.status = 'completed'
 on conflict do nothing;
 
-create or replace function public.capture_edu_completion_history()
+create or replace function private.capture_edu_completion_history()
 returns trigger
 language plpgsql
 security definer
@@ -207,6 +207,6 @@ create trigger edu_lesson_progress_capture_completion
   after insert or update on public.edu_lesson_progress
   for each row
   when (new.completed is true)
-  execute function public.capture_edu_completion_history();
+  execute function private.capture_edu_completion_history();
 
-revoke all on function public.capture_edu_completion_history() from public, anon, authenticated;
+revoke all on function private.capture_edu_completion_history() from public, anon, authenticated;
