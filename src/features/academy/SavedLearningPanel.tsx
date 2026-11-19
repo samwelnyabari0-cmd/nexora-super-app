@@ -268,7 +268,7 @@ export function SavedLearningPanel({
                     <Button size="sm" variant="outline" onClick={() => item.itemType === "educator" ? onOpenEducator(item.itemId) : item.courseId && onOpenCourse(item.courseId)}>
                       {item.itemType === "educator" ? "View educator" : "Open course"}
                     </Button>
-                    <Button size="sm" variant="ghost" disabled={removing === item.key} onClick={() => void removeItem(item)} aria-label={"Remove saved " + item.itemType}>
+                    <Button size="sm" variant="ghost" disabled={removing !== null} onClick={() => void removeItem(item)} aria-label={"Remove saved " + item.itemType}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
