@@ -112,7 +112,10 @@ function Learn() {
         const databaseCourseIds = (savedRows ?? []).flatMap((item: { course_id: string | null }) =>
           item.course_id ? [item.course_id] : [],
         );
-        setSavedCourseIds((current) => [...new Set([...current, ...databaseCourseIds])]);
+        setSavedCourseIds((current) => {
+          const next = [...new Set([...current, ...databaseCourseIds])];
+          return current.length === next.length && current.every((id, index) => id === next[index]) ? current : next;
+        });
         if (legacyIds.length === 0 || !localStorage.getItem("nexora-academy-saved-courses")) {
           legacyImportUser.current = user.id;
         }
