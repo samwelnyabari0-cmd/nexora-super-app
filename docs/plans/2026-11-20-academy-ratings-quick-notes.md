@@ -54,11 +54,11 @@
 - Add an updated_at trigger for note and rating updates.
 
 - [ ] **Step 1: Add migration-level verification expectations**
-  - Write SQL assertions that both tables exist, have RLS enabled, and expose no anon privileges.
+  - Write SQL assertions that rating and note tables have RLS and no anon access; the aggregate table allows anon SELECT only for published courses and grants no client writes.
   - Assert ratings are unique by course/student and constrained to 1–5.
   - Assert note lesson/course matching is enforced.
   - Assert the aggregate projection has exactly course_id, average_rating, rating_count, and updated_at; inspect read-only grants and RLS.
-  - Assert the eligibility helper and trigger functions cannot be directly executed by anon/public.
+  - Assert private trigger functions cannot be directly executed by anon/public and use the required fixed search_path and ownership.
   - Assert existing Academy and Storage policies have not been dropped or altered by this migration.
 
 - [x] **Step 2: Verify the current migration baseline**
@@ -67,11 +67,11 @@
 
 - [ ] **Step 3: Implement the migration**
   - Revoke broad privileges before granting only required operations.
-  - Ratings: grant authenticated SELECT/INSERT/UPDATE only; RLS SELECT/UPDATE use `student_id = auth.uid()`; INSERT requires matching auth.uid and the eligibility helper. UPDATE must check both the existing row owner and the new row owner/eligibility. Do not grant DELETE.
+  - Ratings: grant authenticated SELECT, INSERT of course_id/student_id/rating, and UPDATE of rating only; RLS SELECT/UPDATE use `student_id = auth.uid()`; INSERT and UPDATE checks require matching auth.uid and an active/completed enrolment. Do not grant DELETE.
   - Notes: grant authenticated SELECT/INSERT/UPDATE/DELETE only; every policy binds `student_id` to auth.uid and checks course eligibility. Ensure lesson/course matching is enforced in the database independently of the UI.
   - Keep raw rating rows inaccessible to anon and unrelated authenticated users.
   - Maintain `edu_course_rating_summaries` with a private SECURITY DEFINER trigger function using an empty search_path and fully qualified references. The public table is SELECT-only for anon/authenticated, with RLS limited to published courses. It contains no learner IDs or individual rating rows.
-  - Implement the private eligibility helper with a fixed search path and fully qualified references. Grant only the minimum schema/function privileges required for authenticated RLS policy evaluation.
+  - Use inline enrolment EXISTS checks in the RLS policies; do not add a separate eligibility function or alter existing enrolment policies.
   - Add updated_at triggers and indexes for course/student rating lookup and learner/course/lesson note listing.
   - Do not alter existing enrolment or Storage policies.
 
@@ -115,7 +115,7 @@
   - Summary mapping preserves null average for zero ratings and converts count/average safely.
   - Notes mapping preserves nullable lesson_id and timestamps.
   - Note editor validation rejects blank title/body after trimming; test the agreed maximum lengths once confirmed.
-  - Test course-note filtering separately from lesson-note filtering.
+  - Verify the helper uses `lesson_id IS NULL` for course notes and an exact lesson_id filter for lesson notes; the transactional SQL checks both note scopes.
 
 - [ ] **Step 2: Verify the focused failures**
   - Run: `npm test -- src/features/academy/courseRatings.test.ts src/features/academy/learningNotes.test.ts`
@@ -125,7 +125,7 @@
   - Use the existing Supabase client and explicit column selections.
   - Fetch aggregate data only from `edu_course_rating_summaries`; never query raw rating rows for averages.
   - Fetch a learner's own rating with a query filtered by course_id; RLS remains the authority.
-  - Upsert rating on the unique course/student key, relying on RLS to enforce identity and eligibility.
+  - Read the learner's existing rating, update only the rating column when it exists, otherwise insert; handle a unique-key race by retrying the rating-only update.
   - List notes by course; when lessonId is supplied, scope to that lesson; when omitted, scope to course-level notes only (`lesson_id IS NULL`).
   - Create/update/delete notes with explicit selected fields and map database errors into stable Error results.
   - Keep authentication and authorization in database policies; client-side checks are for presentation only.
@@ -154,8 +154,8 @@
 - Create: `src/features/academy/LearningNotesPanel.test.tsx`
 
 **Interfaces:**
-- `CourseRatingPanel({ courseId, canRate }: { courseId: string; canRate: boolean })`
-- `LearningNotesPanel({ courseId, lessonId, canUseNotes }: { courseId: string; lessonId: string | null; canUseNotes: boolean })`
+- `CourseRatingPanel({ courseId, isSignedIn, canRate }: { courseId: string; isSignedIn: boolean; canRate: boolean })`
+- `LearningNotesPanel({ courseId, lessonId, isSignedIn, canUseNotes }: { courseId: string; lessonId: string | null; isSignedIn: boolean; canUseNotes: boolean })`
 - Components consume the Task 2 helpers; they do not accept a user ID as authority and never bypass RLS.
 
 - [ ] **Step 1: Add failing component tests**
@@ -178,7 +178,7 @@
   - Notes panel loads only notes for its supplied course/lesson scope. Support multiple note entries, editor title/body, edit, save, cancel, and confirmed delete.
   - Keep editor state after a failed save and refresh the list after successful create/update/delete.
   - Do not render another user's notes or individual ratings.
-  - Proposed initial note limits: title up to 100 characters and body up to 5,000 characters. These are recommendations pending confirmation; align database constraints and UI counters if adopted.
+  - Enforce the approved limits: title up to 100 Unicode characters and body up to 5,000 Unicode characters; keep UI counters and database constraints aligned.
 
 - [ ] **Step 4: Verify focused component tests**
   - Run: `npm test -- src/features/academy/CourseRatingPanel.test.tsx src/features/academy/LearningNotesPanel.test.tsx`
