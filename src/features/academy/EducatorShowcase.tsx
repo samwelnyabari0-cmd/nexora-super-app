@@ -272,7 +272,7 @@ export function EducatorShowcase({
                 <p className="text-xs capitalize text-muted-foreground">{course.category} · {course.level}</p>
                 <h3 className="mt-1 font-semibold">{course.title}</h3>
                 <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
-                <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => onOpenCourse(course.id)}>View course</Button>
+                <div className="mt-4 flex items-center gap-2"><Button type="button" variant="outline" className="min-w-0 flex-1" onClick={() => onOpenCourse(course.id)}>View course</Button><SaveLearningButton itemType="course" itemId={course.id} /></div>
               </div>
             </article>
           ))}
@@ -290,7 +290,7 @@ export function EducatorShowcase({
                 <p className="truncate text-sm font-medium">{lesson.title}</p>
                 <p className="text-xs text-muted-foreground">{lesson.is_preview ? "Free preview" : "Available to enrolled students"} · {Math.max(1, Math.round(lesson.duration_seconds / 60))} min</p>
               </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => onOpenCourse(lesson.course_id)}>Open course</Button>
+              <div className="flex shrink-0 items-center gap-1"><SaveLearningButton itemType="lesson" itemId={lesson.id} /><Button type="button" size="sm" variant="outline" onClick={() => onOpenCourse(lesson.course_id)}>Open course</Button></div>
             </article>
           ))}
         </div>
@@ -307,7 +307,7 @@ export function EducatorShowcase({
                 <p className="truncate text-sm font-medium">{resource.resource_name}</p>
                 <p className="text-xs text-muted-foreground">{resource.file_type}</p>
               </div>
-              <span className="rounded-full bg-muted px-2 py-1 text-[10px]">Public</span>
+              <div className="flex shrink-0 items-center gap-1"><span className="rounded-full bg-muted px-2 py-1 text-[10px]">Public</span><SaveLearningButton itemType="resource" itemId={resource.id} /></div>
             </article>
           ))}
         </div>
