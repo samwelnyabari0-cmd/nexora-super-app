@@ -54,7 +54,6 @@ function Create() {
   const [filter, setFilter] = useState("original");
   const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
-  const [music, setMusic] = useState("none");
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
   const [note, setNote] = useState("");
@@ -250,8 +249,6 @@ const previewFilter =
             onFilterChange={setFilter}
             filterIntensity={filterIntensity}
             onFilterIntensityChange={setFilterIntensity}
-            music={music}
-            onMusicChange={setMusic}
             onNavigateToSubscriptions={() => void nav({ to: "/subscriptions" })}
           />
           {media && mediaType?.startsWith("video/") && (
