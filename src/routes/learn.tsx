@@ -350,7 +350,7 @@ function Learn() {
       ?? lessons[0];
     setPendingResume(null);
     void openLesson(lesson);
-  }, [pendingResume, selectedCourse?.id, lessons, lessonsLoading, enrollmentStatus, lessonProgress]);
+  }, [pendingResume, selectedCourse?.id, lessons, lessonsLoading, enrollmentStatus, lessonProgress, openLesson]);
 
   async function openLesson(lesson: Lesson) {
     setVideoLoading(true);
