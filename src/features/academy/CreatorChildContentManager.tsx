@@ -57,7 +57,7 @@ export function CreatorChildContentManager({ lessons, resources, courseNames, on
         if (uploadError) throw uploadError;
       }
       const { error } = await (supabase as any).from("edu_lessons").insert({
-        course_id: item.course_id, title: `${item.title} (Copy)`, lesson_order: item.lesson_order + 1,
+        course_id: item.course_id, title: `${item.title} (Copy)`, lesson_order: Math.max(0, ...lessons.filter((row) => row.course_id === item.course_id).map((row) => row.lesson_order)) + 1,
         video_url: newPath, duration_seconds: 0, is_preview: false, publication_status: "draft",
       });
       if (error) {
