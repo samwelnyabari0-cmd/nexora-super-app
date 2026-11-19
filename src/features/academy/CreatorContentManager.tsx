@@ -346,14 +346,6 @@ function PublicationNotice({ publishedAt, status }: { publishedAt: string | null
   return <p className="mt-2 text-xs text-muted-foreground">30-day protection period completed</p>;
 }
 
-function ContentLine({ icon: Icon, title, subtitle, status, detail }: { icon: typeof BookOpen; title: string; subtitle: string; status: PublicationStatus; detail: string }) {
-  return <article className="flex items-center gap-3 rounded-xl border bg-card p-3 sm:p-4">
-    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-primary"><Icon className="h-5 w-5" /></div>
-    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{title}</p><p className="truncate text-xs text-muted-foreground">{subtitle} · {detail}</p></div>
-    <StatusPill status={status} />
-  </article>;
-}
-
 function EmptyState({ title, description }: { title: string; description: string }) {
   return <div className="rounded-2xl border border-dashed p-8 text-center"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-muted-foreground">{description}</p></div>;
 }
