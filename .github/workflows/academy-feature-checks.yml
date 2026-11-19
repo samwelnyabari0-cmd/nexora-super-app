@@ -37,3 +37,7 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: TypeScript baseline audit (non-blocking)
+        run: npx tsc --noEmit
+        continue-on-error: true
