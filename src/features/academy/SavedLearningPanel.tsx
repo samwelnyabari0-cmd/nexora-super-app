@@ -87,9 +87,10 @@ export function SavedLearningPanel({
                 .in("id", lessonIds)
             : Promise.resolve({ data: [], error: null }),
           resourceIds.length
-            ? (supabase as any).from("edu_resources")
-                .select("id, resource_name, file_type, course_id, access_tier")
-                .in("id", resourceIds)
+            ? (supabase as any).rpc("get_academy_public_resource_metadata", {
+                p_educator_id: null,
+                p_resource_ids: resourceIds,
+              })
             : Promise.resolve({ data: [], error: null }),
           ...educatorIds.map((id) => (supabase as any).rpc("get_academy_educator", { p_educator_id: id })),
         ]);
