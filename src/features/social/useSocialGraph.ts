@@ -9,6 +9,7 @@ export function useSocialGraph(profileId?: string) {
   const [following, setFollowing] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!targetId) {
@@ -52,27 +53,36 @@ export function useSocialGraph(profileId?: string) {
   const toggleFollow = useCallback(async () => {
     if (!user || !targetId || user.id === targetId) return;
     setLoading(true);
+    setError(null);
     if (isFollowing) {
-      await (supabase as any)
+      const { error: deleteError } = await (supabase as any)
         .from("follows")
         .delete()
         .eq("follower_id", user.id)
         .eq("following_id", targetId);
+      if (deleteError) {
+        setError(deleteError.message || "Could not update follow status.");
+        setLoading(false);
+        return;
+      }
     } else {
-      const { error } = await (supabase as any)
+      const { error: insertError } = await (supabase as any)
         .from("follows")
         .insert({ follower_id: user.id, following_id: targetId });
-      if (!error) {
-        await (supabase as any).from("notifications").insert({
-          recipient_id: targetId,
-          actor_id: user.id,
-          kind: "follow",
-          body: "started following you",
-        });
+      if (insertError) {
+        setError(insertError.message || "Could not update follow status.");
+        setLoading(false);
+        return;
       }
+      await (supabase as any).from("notifications").insert({
+        recipient_id: targetId,
+        actor_id: user.id,
+        kind: "follow",
+        body: "started following you",
+      });
     }
     await refresh();
   }, [isFollowing, refresh, targetId, user]);
 
-  return { followers, following, isFollowing, loading, toggleFollow, refresh };
+  return { followers, following, isFollowing, loading, error, toggleFollow, refresh };
 }
