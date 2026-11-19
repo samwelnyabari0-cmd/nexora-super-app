@@ -29,6 +29,7 @@ declare
   v_note_id uuid;
   v_average numeric;
   v_count bigint;
+  v_course_note_count_before bigint;
 begin
   select e.course_id into v_course_id
   from public.edu_enrollments e
@@ -43,6 +44,10 @@ begin
   if v_course_id is null then
     raise exception 'No eligible published course fixture exists';
   end if;
+
+  select count(*) into v_course_note_count_before
+  from public.edu_learning_notes
+  where student_id=auth.uid() and course_id=v_course_id and lesson_id is null;
 
   select l.id into v_lesson_id
   from public.edu_lessons l
@@ -76,12 +81,21 @@ begin
   end if;
 
   insert into public.edu_learning_notes(student_id, course_id, lesson_id, title, body)
-  values (auth.uid(), v_course_id, null, 'Course note', 'Course note body')
+  values (auth.uid(), v_course_id, null, 'Course note one', 'Course note body')
   returning id into v_note_id;
+
+  insert into public.edu_learning_notes(student_id, course_id, lesson_id, title, body)
+  values (auth.uid(), v_course_id, null, 'Course note two', 'Another course note body');
 
   if v_lesson_id is not null then
     insert into public.edu_learning_notes(student_id, course_id, lesson_id, title, body)
     values (auth.uid(), v_course_id, v_lesson_id, 'Lesson note', 'Lesson note body');
+  end if;
+
+  if (select count(*) from public.edu_learning_notes
+      where student_id=auth.uid() and course_id=v_course_id and lesson_id is null)
+      <> v_course_note_count_before + 2 then
+    raise exception 'Multiple notes for one course were not preserved';
   end if;
 
   update public.edu_learning_notes
@@ -101,8 +115,21 @@ begin
   end;
 
   begin
+    insert into public.edu_learning_notes(student_id, course_id, title, body)
+    values (auth.uid(), v_course_id, 'Body too long', repeat('y',5001));
+    raise exception '5,001-character note body unexpectedly accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
     insert into public.edu_learning_notes(student_id, course_id, lesson_id, title, body)
-    values (auth.uid(), v_course_id, gen_random_uuid(), 'Invalid lesson', 'Invalid lesson reference');
+    values (
+      auth.uid(),
+      v_course_id,
+      coalesce(v_other_lesson_id, gen_random_uuid()),
+      'Invalid lesson',
+      'Invalid lesson reference'
+    );
     raise exception 'Unknown or mismatched lesson reference unexpectedly accepted';
   exception when foreign_key_violation then null;
   end;
@@ -175,5 +202,45 @@ $ineligible$;
 
 rollback;
 
--- Anonymous aggregate visibility and raw-data denial are covered by the
--- structural check (grants/RLS) and by the aggregate-only table column list.
+-- Anonymous visitors can see only the aggregate projection.
+begin;
+
+insert into public.edu_course_ratings(course_id, student_id, rating)
+select e.course_id, e.student_id, 4
+from public.edu_enrollments e
+join public.edu_courses c on c.id=e.course_id
+where e.status in ('active','completed')
+  and c.is_published is true
+  and c.publication_status='published'
+order by e.enrolled_at desc
+limit 1
+on conflict (course_id, student_id) do update set rating=excluded.rating;
+
+set local role anon;
+
+do $anonymous$
+begin
+  if not exists (
+    select 1
+    from public.edu_course_rating_summaries s
+    join public.edu_courses c on c.id=s.course_id
+    where c.is_published is true and c.publication_status='published'
+  ) then
+    raise exception 'Anonymous role cannot see a published course aggregate';
+  end if;
+
+  begin
+    execute 'select count(*) from public.edu_course_ratings';
+    raise exception 'Anonymous role unexpectedly read raw ratings';
+  exception when insufficient_privilege then null;
+  end;
+
+  begin
+    execute 'select count(*) from public.edu_learning_notes';
+    raise exception 'Anonymous role unexpectedly read private notes';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$anonymous$;
+
+rollback;
