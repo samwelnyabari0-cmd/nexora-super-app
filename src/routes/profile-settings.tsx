@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, ShieldCheck, UserRound, BriefcaseBusiness, Sparkles, Link2, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Camera, ShieldCheck, UserRound, BriefcaseBusiness, Sparkles, Link2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -248,12 +248,24 @@ function ProfileSettings() {
             </Button>
           </div>
           {educationSkills.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {educationSkills.map(skill => (
-                <button key={skill} type="button" onClick={() => setEducationSkills(current => current.filter(item => item !== skill))}
-                  className="rounded-full border px-3 py-1 text-xs hover:bg-muted" aria-label={"Remove " + skill}>
-                  {skill} ×
-                </button>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Your skills · drag order using the arrows</p>
+              {educationSkills.map((skill, index) => (
+                <div key={skill} className="flex items-center gap-2 rounded-xl border px-3 py-2">
+                  <span className="min-w-0 flex-1 text-sm">{skill}</span>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={"Move " + skill + " up"} disabled={index === 0}
+                    onClick={() => setEducationSkills(current => { const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })}>
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={"Move " + skill + " down"} disabled={index === educationSkills.length - 1}
+                    onClick={() => setEducationSkills(current => { const next = [...current]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; return next; })}>
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label={"Remove " + skill}
+                    onClick={() => setEducationSkills(current => current.filter(item => item !== skill))}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               ))}
             </div>
           )}

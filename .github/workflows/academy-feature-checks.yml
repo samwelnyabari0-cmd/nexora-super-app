@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - feature/academy-educator-discovery
+      - feat/academy-creator-content-management
 
 permissions:
   contents: read
@@ -17,9 +18,9 @@ concurrency:
 
 jobs:
   checks:
-    name: Academy unit tests
+    name: Academy tests, targeted lint and build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,6 +38,25 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Lint Academy files changed by this feature
+        # The repository-wide lint currently reports thousands of pre-existing
+        # formatting and explicit-any findings in unrelated files. Keep this
+        # check focused on the new feature code and enforce other ESLint rules.
+        run: >-
+          npx eslint
+          src/features/academy/CreatorChildContentManager.tsx
+          src/features/academy/CreatorContentManager.tsx
+          src/features/academy/CreatorContentManager.test.tsx
+          src/features/academy/creatorContent.ts
+          src/features/academy/creatorContent.test.ts
+          src/routes/creator.academy.tsx
+          src/routes/profile-settings.tsx
+          --rule "prettier/prettier: off"
+          --rule "@typescript-eslint/no-explicit-any: off"
+
+      - name: Build production bundle
+        run: npm run build
 
       - name: TypeScript baseline audit (non-blocking)
         run: npx tsc --noEmit
