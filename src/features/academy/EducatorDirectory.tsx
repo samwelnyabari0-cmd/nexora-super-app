@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { filterEducators, type AcademyEducator } from "./educatorDirectory";
+import { SaveLearningButton } from "./SaveLearningButton";
 
 const skillFilters = ["React", "WebGL", "UI/UX", "Video Editing"];
 
@@ -160,9 +161,9 @@ export function EducatorDirectory({
                   ))}
                 </div>
               )}
-              <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => onSelectEducator(educator.id)}>
+              <div className="mt-4 flex items-center gap-2"><Button type="button" variant="outline" className="min-w-0 flex-1" onClick={() => onSelectEducator(educator.id)}>
                 View educator showcase
-              </Button>
+              </Button><SaveLearningButton itemType="educator" itemId={educator.id} /></div>
             </article>
           ))}
         </div>
