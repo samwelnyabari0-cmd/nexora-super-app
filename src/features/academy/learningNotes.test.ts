@@ -8,8 +8,12 @@ import {
 
 describe("learning note helpers", () => {
   it("rejects a blank title or body after trimming", () => {
-    expect(validateLearningNoteDraft({ title: "  ", body: "A note" })).toBe("Add a title for this note.");
-    expect(validateLearningNoteDraft({ title: "A title", body: " \n " })).toBe("Write something in your note.");
+    expect(
+      validateLearningNoteDraft({ title: "  ", body: "A note" }),
+    ).toBe("Add a title for this note.");
+    expect(
+      validateLearningNoteDraft({ title: "A title", body: " \n " }),
+    ).toBe("Write something in your note.");
   });
 
   it("enforces the approved title and body limits", () => {
