@@ -107,7 +107,14 @@ describe("LearningNotesPanel", () => {
   it("allows a learner to edit an existing note", async () => {
     listMock.mockResolvedValue({ data: [note], error: null });
 
-    render(<LearningNotesPanel courseId="course-1" lessonId={null} isSignedIn={true} canUseNotes={true} />);
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId={null}
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
 
     fireEvent.click(await screen.findByRole("button", { name: "Edit Revision point" }));
     fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Updated title" } });
@@ -124,7 +131,14 @@ describe("LearningNotesPanel", () => {
   it("requires confirmation before deleting a note", async () => {
     listMock.mockResolvedValue({ data: [note], error: null });
 
-    render(<LearningNotesPanel courseId="course-1" lessonId={null} isSignedIn={true} canUseNotes={true} />);
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId={null}
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
 
     fireEvent.click(await screen.findByRole("button", { name: "Delete Revision point" }));
     expect(deleteMock).not.toHaveBeenCalled();
