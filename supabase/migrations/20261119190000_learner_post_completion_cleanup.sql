@@ -88,6 +88,28 @@ create policy "edu_completion_history_select_own"
 
 grant select on public.edu_completion_history to authenticated;
 
+-- Backfill completion history for achievements recorded before this feature.
+insert into public.edu_completion_history (
+  user_id, item_type, course_id, lesson_id, item_title, course_title, completed_at
+)
+select
+  p.student_id, 'lesson', l.course_id, l.id, l.title, c.title, coalesce(p.updated_at, now())
+from public.edu_lesson_progress p
+join public.edu_lessons l on l.id = p.lesson_id
+join public.edu_courses c on c.id = l.course_id
+where p.completed is true
+on conflict do nothing;
+
+insert into public.edu_completion_history (
+  user_id, item_type, course_id, lesson_id, item_title, course_title, completed_at
+)
+select
+  e.student_id, 'course', e.course_id, null, c.title, c.title, coalesce(e.completed_at, now())
+from public.edu_enrollments e
+join public.edu_courses c on c.id = e.course_id
+where e.status = 'completed'
+on conflict do nothing;
+
 create or replace function public.capture_edu_completion_history()
 returns trigger
 language plpgsql
