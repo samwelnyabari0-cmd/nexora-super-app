@@ -87,7 +87,7 @@ export function LearningCompletionCleanup({
     }));
     const { error: saveError } = await (supabase as any)
       .from("edu_learning_hidden_items")
-      .upsert(rows, { onConflict: "user_id,item_type,course_id,lesson_id" });
+      .insert(rows);
     if (saveError) {
       setError(saveError.message || "Could not hide the selected completed items.");
     } else {
