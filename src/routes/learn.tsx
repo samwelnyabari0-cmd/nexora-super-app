@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, ChevronRight, CloudUpload, Code2, Download, FileArchive, Layers3, LockKeyhole, Play, Search, Sparkles, Store, Video, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, BookOpen, ChevronRight, CloudUpload, Code2, Download, FileArchive, Layers3, LockKeyhole, Play, Search, Sparkles, CheckCircle2, Store, Video, X } from "lucide-react";
 import { PageHeader, DemoBadge } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ export const Route = createFileRoute("/learn")({
 type Track = "all" | "creator" | "tech" | "business";
 type Course = { id: string; title: string; description: string; category: Exclude<Track, "all">; level: string; lessons: number; priceUsd: number; priceKes: number; currency: string; progress: number; accent: string; icon: typeof Video };
 type Resource = { id: string; name: string; type: string; size: number; key: string };
+type Lesson = { id: string; title: string; lessonOrder: number; videoPath: string; durationSeconds: number; isPreview: boolean };
+type LessonProgress = { completed: boolean; lastPositionSeconds: number };
 const accents = ["from-cyan-500/25 to-blue-500/5", "from-violet-500/25 to-fuchsia-500/5", "from-amber-500/25 to-orange-500/5"];
 const icons = [Code2, Video, Store];
 
@@ -28,6 +30,13 @@ function Learn() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [enrollmentStatus, setEnrollmentStatus] = useState<"idle" | "loading" | "enrolling" | "enrolled">("idle");
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [lessonProgress, setLessonProgress] = useState<Record<string, LessonProgress>>({});
+  const [lessonsLoading, setLessonsLoading] = useState(false);
+  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const lastProgressSave = useRef<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,6 +113,104 @@ function Learn() {
     return () => { active = false; };
   }, [selectedCourse, user]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadCourseLessons() {
+      if (!selectedCourse) {
+        setLessons([]);
+        setLessonProgress({});
+        setActiveLesson(null);
+        setVideoUrl(null);
+        return;
+      }
+      setLessonsLoading(true);
+      setLessons([]);
+      setLessonProgress({});
+      setActiveLesson(null);
+      setVideoUrl(null);
+      const { data, error: lessonError } = await (supabase as any)
+        .from("edu_lessons")
+        .select("id,title,lesson_order,video_url,duration_seconds,is_preview")
+        .eq("course_id", selectedCourse.id)
+        .order("lesson_order", { ascending: true });
+      if (!active) return;
+      if (lessonError) {
+        toast.error("Unable to load course lessons: " + lessonError.message);
+        setLessonsLoading(false);
+        return;
+      }
+      const lessonRows: Lesson[] = (data ?? []).map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        lessonOrder: Number(row.lesson_order),
+        videoPath: row.video_url,
+        durationSeconds: Number(row.duration_seconds ?? 0),
+        isPreview: Boolean(row.is_preview),
+      }));
+      setLessons(lessonRows);
+      if (user && enrollmentStatus === "enrolled" && lessonRows.length) {
+        const { data: progressRows, error: progressError } = await (supabase as any)
+          .from("edu_lesson_progress")
+          .select("lesson_id,completed,last_position_seconds")
+          .eq("student_id", user.id)
+          .in("lesson_id", lessonRows.map((lesson) => lesson.id));
+        if (!active) return;
+        if (!progressError) {
+          const progressMap: Record<string, LessonProgress> = {};
+          (progressRows ?? []).forEach((row: any) => {
+            progressMap[row.lesson_id] = {
+              completed: Boolean(row.completed),
+              lastPositionSeconds: Number(row.last_position_seconds ?? 0),
+            };
+          });
+          setLessonProgress(progressMap);
+        }
+      }
+      setLessonsLoading(false);
+    }
+    void loadCourseLessons();
+    return () => { active = false; };
+  }, [selectedCourse?.id, enrollmentStatus, user?.id]);
+
+  async function openLesson(lesson: Lesson) {
+    setVideoLoading(true);
+    setActiveLesson(lesson);
+    setVideoUrl(null);
+    const { data, error: signedError } = await supabase.storage
+      .from("academy-videos")
+      .createSignedUrl(lesson.videoPath, 300);
+    if (signedError || !data?.signedUrl) {
+      setVideoLoading(false);
+      toast.error(signedError?.message ?? "This lesson is not available to your account.");
+      return;
+    }
+    setVideoUrl(data.signedUrl);
+    setVideoLoading(false);
+  }
+
+  async function saveLessonProgress(lesson: Lesson, position: number, completed = false) {
+    if (!user || enrollmentStatus !== "enrolled") return;
+    const safePosition = Math.max(0, Math.floor(position || 0));
+    const nextProgress = {
+      completed: completed || Boolean(lessonProgress[lesson.id]?.completed),
+      lastPositionSeconds: safePosition,
+    };
+    const { error: saveError } = await (supabase as any)
+      .from("edu_lesson_progress")
+      .upsert({
+        lesson_id: lesson.id,
+        student_id: user.id,
+        completed: nextProgress.completed,
+        last_position_seconds: safePosition,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "lesson_id,student_id" });
+    if (saveError) {
+      toast.error("Could not save lesson progress: " + saveError.message);
+      return;
+    }
+    setLessonProgress((current) => ({ ...current, [lesson.id]: nextProgress }));
+  }
+
   async function enrollSelectedCourse() {
     if (!selectedCourse) return;
     if (!user) { toast.error("Sign in to enrol in this course."); return; }
@@ -157,7 +264,7 @@ function Learn() {
     <div className="flex gap-2 overflow-x-auto pb-1">{([["all", "All tracks"], ["creator", "Creator skills"], ["tech", "Developer & tech"], ["business", "E-commerce & business"]] as const).map(([id, label]) => <button type="button" key={id} onClick={() => setTrack(id)} className={cn("whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium", track === id ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>{label}</button>)}</div>
     {loading ? <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">Loading published courses…</div> : error ? <div className="rounded-2xl border border-destructive/40 bg-card p-6 text-sm text-destructive">Unable to load Academy courses: {error}</div> : filteredCourses.length === 0 ? <div className="rounded-2xl border bg-card p-8 text-center"><BookOpen className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 font-semibold">No published courses yet</p><p className="mt-1 text-sm text-muted-foreground">{query ? "Try another search term." : "Courses published by instructors will appear here."}</p></div> : <div className="grid gap-4 lg:grid-cols-3">{filteredCourses.map((course) => { const Icon = course.icon; return <article key={course.id} className="group overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:border-primary/50"><div className={`flex h-32 items-end bg-gradient-to-br ${course.accent} p-5`}><div className="grid h-11 w-11 place-items-center rounded-2xl border bg-background/70"><Icon className="h-5 w-5 text-primary" /></div></div><div className="space-y-3 p-5"><div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="capitalize">{course.category} track</span><span>{course.level}</span></div><h3 className="font-semibold">{course.title}</h3><p className="min-h-12 text-sm leading-5 text-muted-foreground">{course.description}</p><div className="text-xs text-muted-foreground">{course.lessons} lessons</div><div className="flex items-center justify-between gap-3 pt-1"><span className="text-sm font-semibold">{priceLabel(course)}</span><Button size="sm" variant="outline" onClick={() => setSelectedCourse(course)}>View course<ChevronRight /></Button></div></div></article>; })}</div>}</section>
     <section id="resources" className="scroll-mt-20 space-y-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Assignment & resource library</p><h2 className="mt-1 text-2xl font-bold">Course resources</h2><p className="mt-2 text-sm text-muted-foreground">Private files are available only to instructors and eligible enrolled students.</p></div>{resources.length === 0 ? <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">No resources are currently available to your account.</div> : <div className="grid gap-3 md:grid-cols-3">{resources.map((resource) => <button type="button" key={resource.id} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left transition hover:border-primary/50 hover:bg-muted/30" onClick={() => void downloadResource(resource)}><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted"><Layers3 className="h-5 w-5 text-primary" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{resource.name}</p><p className="mt-1 text-xs text-muted-foreground">{resource.type} · {(resource.size / (1024 * 1024)).toFixed(1)} MB</p></div><Download className="h-4 w-4 text-muted-foreground" /></button>)}</div>}</section>
-    {selectedCourse && <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="course-dialog-title"><div className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">{selectedCourse.category} track</p><h2 id="course-dialog-title" className="mt-2 text-2xl font-bold">{selectedCourse.title}</h2></div><Button variant="ghost" size="icon" aria-label="Close course details" onClick={() => setSelectedCourse(null)}><X /></Button></div><p className="mt-4 text-sm leading-6 text-muted-foreground">{selectedCourse.description}</p><div className="mt-5 grid grid-cols-2 gap-2 text-center text-xs"><div className="rounded-xl bg-muted p-3"><BookOpen className="mx-auto mb-1 h-4 w-4" />{selectedCourse.lessons} lessons</div><div className="rounded-xl bg-muted p-3"><LockKeyhole className="mx-auto mb-1 h-4 w-4" />{priceLabel(selectedCourse)}</div></div><Button className="mt-6 w-full" disabled={enrollmentStatus === "loading" || enrollmentStatus === "enrolling" || enrollmentStatus === "enrolled"} onClick={() => void enrollSelectedCourse()}>{enrollmentStatus === "loading" ? "Checking enrolment…" : enrollmentStatus === "enrolling" ? "Enrolling…" : enrollmentStatus === "enrolled" ? "You are enrolled" : selectedCourse.priceUsd === 0 && selectedCourse.priceKes === 0 ? "Enrol for free" : "View payment options"} <ArrowRight /></Button></div></div>}
+    {selectedCourse && <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-3 backdrop-blur-sm sm:p-5" role="dialog" aria-modal="true" aria-labelledby="course-dialog-title"><div className="my-auto w-full max-w-5xl rounded-3xl border bg-card p-4 shadow-2xl sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">{selectedCourse.category} track</p><h2 id="course-dialog-title" className="mt-2 text-2xl font-bold">{selectedCourse.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{selectedCourse.description}</p></div><Button variant="ghost" size="icon" aria-label="Close course details" onClick={() => { setSelectedCourse(null); setVideoUrl(null); setActiveLesson(null); }}><X /></Button></div><div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.8fr)]"><div className="space-y-4"><div className="overflow-hidden rounded-2xl border bg-black">{videoUrl && activeLesson ? <video key={videoUrl} className="aspect-video w-full" src={videoUrl} controls playsInline preload="metadata" onLoadedMetadata={(event) => { const saved = lessonProgress[activeLesson.id]; if (saved && saved.lastPositionSeconds > 0 && !saved.completed) event.currentTarget.currentTime = saved.lastPositionSeconds; }} onPause={(event) => { void saveLessonProgress(activeLesson, event.currentTarget.currentTime); }} onEnded={(event) => { void saveLessonProgress(activeLesson, event.currentTarget.duration || event.currentTarget.currentTime, true); toast.success("Lesson completed!"); }} onTimeUpdate={(event) => { if (enrollmentStatus !== "enrolled") return; const currentTime = Math.floor(event.currentTarget.currentTime); const previous = lastProgressSave.current[activeLesson.id] ?? 0; if (currentTime >= previous + 15) { lastProgressSave.current[activeLesson.id] = currentTime; void saveLessonProgress(activeLesson, currentTime); } }} /> : <div className="grid aspect-video place-items-center p-6 text-center text-white">{videoLoading ? <div className="space-y-2"><div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-white/30 border-t-white" /><p className="text-sm">Preparing secure lesson video…</p></div> : <div><Play className="mx-auto h-10 w-10 text-cyan-300" /><p className="mt-3 font-semibold">{activeLesson ? "Video is being prepared" : "Choose a lesson to start learning"}</p><p className="mt-1 text-xs text-white/60">Private course video · secure access</p></div>}</div>}</div><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs text-muted-foreground">Now learning</p><p className="font-semibold">{activeLesson?.title ?? "No lesson selected"}</p></div>{activeLesson && lessonProgress[activeLesson.id]?.completed && <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">Completed</span>}</div></div><aside className="space-y-3"><div className="grid grid-cols-2 gap-2 text-center text-xs"><div className="rounded-xl bg-muted p-3"><BookOpen className="mx-auto mb-1 h-4 w-4" />{selectedCourse.lessons} lessons</div><div className="rounded-xl bg-muted p-3"><LockKeyhole className="mx-auto mb-1 h-4 w-4" />{priceLabel(selectedCourse)}</div></div><Button className="w-full" disabled={enrollmentStatus === "loading" || enrollmentStatus === "enrolling" || enrollmentStatus === "enrolled"} onClick={() => void enrollSelectedCourse()}>{enrollmentStatus === "loading" ? "Checking enrolment…" : enrollmentStatus === "enrolling" ? "Enrolling…" : enrollmentStatus === "enrolled" ? "You are enrolled" : selectedCourse.priceUsd === 0 && selectedCourse.priceKes === 0 ? "Enrol for free" : "View payment options"} <ArrowRight /></Button><div className="flex items-center justify-between pt-2"><h3 className="font-semibold">Course lessons</h3><span className="text-xs text-muted-foreground">{lessons.length} available</span></div>{lessonsLoading ? <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">Loading lessons…</p> : lessons.length === 0 ? <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">No preview lessons are available yet.</p> : <div className="max-h-[42vh] space-y-2 overflow-y-auto pr-1">{lessons.map((lesson) => { const locked = !lesson.isPreview && enrollmentStatus !== "enrolled"; const completed = Boolean(lessonProgress[lesson.id]?.completed); return <button key={lesson.id} type="button" disabled={locked} onClick={() => void openLesson(lesson)} className={cn("flex w-full items-center gap-3 rounded-xl border p-3 text-left transition", activeLesson?.id === lesson.id ? "border-primary bg-primary/10" : "hover:border-primary/50", locked && "cursor-not-allowed opacity-60")}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted">{locked ? <LockKeyhole className="h-4 w-4" /> : completed ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Play className="h-4 w-4 text-primary" />}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{lesson.lessonOrder}. {lesson.title}</span><span className="mt-1 block text-xs text-muted-foreground">{locked ? "Enrolment required" : lesson.isPreview ? "Free preview" : completed ? "Completed" : "Tap to play"}</span></span></button>; })}</div>}</aside></div></div></div>}
   </div>;
 }
 function Stat({ icon: Icon, label, value, detail }: { icon: typeof BookOpen; label: string; value: string; detail: string }) { return <div className="rounded-2xl border bg-card p-4"><Icon className="h-5 w-5 text-primary" /><p className="mt-4 text-xs text-muted-foreground">{label}</p><p className="mt-1 text-xl font-bold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>; }
