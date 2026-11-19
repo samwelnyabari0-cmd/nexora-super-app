@@ -31,8 +31,23 @@ describe("CourseRatingPanel", () => {
   it("lets an eligible learner save a selected rating", async () => {
     render(<CourseRatingPanel courseId="course-1" isSignedIn={true} canRate={true} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Rate 5 out of 5 stars" }));
+    const fiveStars = await screen.findByRole("button", { name: "Rate 5 out of 5 stars" });
+    await waitFor(() => expect(fiveStars).not.toBeDisabled());
+    fireEvent.click(fiveStars);
     fireEvent.click(screen.getByRole("button", { name: "Save rating" }));
+
+    await waitFor(() => expect(saveMock).toHaveBeenCalledWith("course-1", 5));
+  });
+
+  it("allows an eligible learner to update an existing rating", async () => {
+    myRatingMock.mockResolvedValue({ data: { courseId: "course-1", rating: 4 }, error: null });
+
+    render(<CourseRatingPanel courseId="course-1" isSignedIn={true} canRate={true} />);
+
+    const fiveStars = await screen.findByRole("button", { name: "Rate 5 out of 5 stars" });
+    await waitFor(() => expect(fiveStars).not.toBeDisabled());
+    fireEvent.click(fiveStars);
+    fireEvent.click(screen.getByRole("button", { name: "Update rating" }));
 
     await waitFor(() => expect(saveMock).toHaveBeenCalledWith("course-1", 5));
   });
