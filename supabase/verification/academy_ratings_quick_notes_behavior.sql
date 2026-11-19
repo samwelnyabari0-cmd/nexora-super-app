@@ -202,6 +202,99 @@ $ineligible$;
 
 rollback;
 
+-- A rating remains in the public aggregate after a learner becomes ineligible,
+-- but the learner cannot edit it or read their notes while the enrolment is cancelled.
+begin;
+
+select set_config(
+  'academy_test.student_id',
+  (
+    select e.student_id::text
+    from public.edu_enrollments e
+    where e.status in ('active','completed')
+    order by e.enrolled_at desc
+    limit 1
+  ),
+  true
+);
+select set_config(
+  'academy_test.course_id',
+  (
+    select e.course_id::text
+    from public.edu_enrollments e
+    where e.student_id=current_setting('academy_test.student_id')::uuid
+      and e.status in ('active','completed')
+    order by e.enrolled_at desc
+    limit 1
+  ),
+  true
+);
+
+insert into public.edu_course_ratings(course_id, student_id, rating)
+values (
+  current_setting('academy_test.course_id')::uuid,
+  current_setting('academy_test.student_id')::uuid,
+  4
+)
+on conflict (course_id, student_id) do update set rating=excluded.rating;
+
+insert into public.edu_learning_notes(student_id, course_id, title, body)
+values (
+  current_setting('academy_test.student_id')::uuid,
+  current_setting('academy_test.course_id')::uuid,
+  'Status transition test',
+  'This note should become inaccessible when enrolment is cancelled.'
+);
+
+update public.edu_enrollments
+set status='cancelled'
+where student_id=current_setting('academy_test.student_id')::uuid
+  and course_id=current_setting('academy_test.course_id')::uuid;
+
+select set_config(
+  'request.jwt.claim.sub',
+  current_setting('academy_test.student_id'),
+  true
+);
+set local role authenticated;
+
+do $cancelled$
+declare
+  v_course_id uuid := current_setting('academy_test.course_id')::uuid;
+begin
+  if not exists (
+    select 1 from public.edu_course_ratings
+    where course_id=v_course_id and student_id=auth.uid()
+  ) then
+    raise exception 'Learner cannot see their own retained rating after cancellation';
+  end if;
+
+  if exists (
+    select 1 from public.edu_learning_notes
+    where course_id=v_course_id and student_id=auth.uid()
+  ) then
+    raise exception 'Cancelled learner can still read private notes';
+  end if;
+
+  if not exists (
+    select 1 from public.edu_course_rating_summaries
+    where course_id=v_course_id and rating_count > 0
+  ) then
+    raise exception 'Retained rating disappeared from the public aggregate';
+  end if;
+
+  begin
+    update public.edu_course_ratings
+    set rating=1
+    where course_id=v_course_id and student_id=auth.uid();
+    raise exception 'Cancelled learner unexpectedly edited their rating';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$cancelled$;
+
+rollback;
+
 -- Anonymous visitors can see only the aggregate projection.
 begin;
 
