@@ -198,7 +198,9 @@ const previewFilter =
                 onClick={() => {
                   setMedia(undefined);
                   setOriginalMedia(undefined);
+                  setMediaFiles([]);
                   setMediaType(undefined);
+                  setCover(null);
                 }}
               >
                 <Trash2 />
