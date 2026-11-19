@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import {
   listSavedLearningItems,
-  importLegacySavedCourses,
   unsaveLearningItem,
   type SavedItemFilter,
   type SavedItemType,
@@ -41,11 +40,9 @@ const itemIcons = {
 export function SavedLearningPanel({
   onOpenCourse,
   onOpenEducator,
-  onLegacyImported,
 }: {
   onOpenCourse: (courseId: string) => void;
   onOpenEducator: (educatorId: string) => void;
-  onLegacyImported: () => void;
 }) {
   const { user } = useSession();
   const [items, setItems] = useState<SavedDisplayItem[]>([]);
@@ -67,24 +64,6 @@ export function SavedLearningPanel({
 
     void (async () => {
       try {
-        const legacyIds = (() => {
-          try {
-            const parsed = JSON.parse(localStorage.getItem("nexora-academy-saved-courses") ?? "[]");
-            return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
-          } catch {
-            return [];
-          }
-        })();
-
-        if (legacyIds.length > 0) {
-          const imported = await importLegacySavedCourses(user.id, legacyIds);
-          if (imported.error) {
-            throw new Error(imported.error.message || "Could not import your saved courses.");
-          }
-          localStorage.removeItem("nexora-academy-saved-courses");
-          onLegacyImported();
-        }
-
         const { data: rows, error: listError } = await listSavedLearningItems(user.id);
         if (listError) throw listError;
         const savedRows = (Array.isArray(rows) ? rows : []) as SavedLearningItem[];
@@ -174,7 +153,7 @@ export function SavedLearningPanel({
     return () => {
       active = false;
     };
-  }, [user?.id, onLegacyImported]);
+  }, [user?.id]);
 
   const visibleItems = useMemo(
     () => filter === "all" ? items : items.filter((item) => item.itemType === filter),
