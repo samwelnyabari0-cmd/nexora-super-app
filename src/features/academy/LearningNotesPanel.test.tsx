@@ -42,14 +42,30 @@ describe("LearningNotesPanel", () => {
   });
 
   it("shows a sign-in and enrolment explanation when notes are unavailable", () => {
-    render(<LearningNotesPanel courseId="course-1" lessonId={null} isSignedIn={false} canUseNotes={false} />);
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId={null}
+        isSignedIn={false}
+        canUseNotes={false}
+      />,
+    );
 
-    expect(screen.getByText("Sign in and enrol in this course to create private notes.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sign in and enrol in this course to create private notes."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save note" })).not.toBeInTheDocument();
   });
 
   it("creates multiple notes in the selected course or lesson scope", async () => {
-    render(<LearningNotesPanel courseId="course-1" lessonId="lesson-9" isSignedIn={true} canUseNotes={true} />);
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId="lesson-9"
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
 
     fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Lesson insight" } });
     fireEvent.change(screen.getByLabelText("Note text"), { target: { value: "Remember this." } });
@@ -74,7 +90,14 @@ describe("LearningNotesPanel", () => {
       error: null,
     });
 
-    render(<LearningNotesPanel courseId="course-1" lessonId={null} isSignedIn={true} canUseNotes={true} />);
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId={null}
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
 
     expect(await screen.findByText("Revision point")).toBeInTheDocument();
     expect(screen.getByText("Second note")).toBeInTheDocument();
