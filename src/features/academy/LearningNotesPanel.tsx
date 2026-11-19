@@ -251,7 +251,7 @@ export function LearningNotesPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h4 className="break-words font-medium">{note.title}</h4>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                      <p\n                        className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground"\n                      >
                         {note.body}
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">
