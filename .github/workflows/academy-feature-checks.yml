@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - feature/academy-educator-discovery
+      - feat/academy-creator-content-management
 
 permissions:
   contents: read
@@ -17,9 +18,9 @@ concurrency:
 
 jobs:
   checks:
-    name: Academy unit tests
+    name: Academy tests, lint and build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,6 +38,12 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build production bundle
+        run: npm run build
 
       - name: TypeScript baseline audit (non-blocking)
         run: npx tsc --noEmit
