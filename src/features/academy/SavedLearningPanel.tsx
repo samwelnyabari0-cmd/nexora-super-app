@@ -27,7 +27,7 @@ const filters: { id: SavedItemFilter; label: string }[] = [
   { id: "course", label: "Courses" },
   { id: "lesson", label: "Lessons" },
   { id: "resource", label: "Resources" },
-  { id: "educator", label: "Educators" },
+  { id: "educator", label: "Creators" },
 ];
 
 const itemIcons = {
