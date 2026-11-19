@@ -8,7 +8,11 @@ import {
 describe("course rating helpers", () => {
   it("accepts only integer ratings from one to five", () => {
     expect([1, 2, 3, 4, 5].every(isValidCourseRating)).toBe(true);
-    expect([0, 6, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "5", null].some(isValidCourseRating)).toBe(false);
+    expect(
+      [0, 6, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "5", null].some(
+        isValidCourseRating,
+      ),
+    ).toBe(false);
   });
 
   it("maps a course with no aggregate row to an empty summary", () => {
