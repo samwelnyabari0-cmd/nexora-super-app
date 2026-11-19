@@ -129,11 +129,10 @@ export function EducatorShowcase({
             .select("id, course_id, title, description, lesson_order, duration_seconds, is_preview")
             .in("course_id", courseIds)
             .order("lesson_order", { ascending: true }),
-          (supabase as any)
-            .from("edu_resources")
-            .select("id, course_id, resource_name, file_type, access_tier")
-            .in("course_id", courseIds)
-            .eq("access_tier", "public"),
+          (supabase as any).rpc("get_academy_public_resource_metadata", {
+            p_educator_id: educatorId,
+            p_resource_ids: null,
+          }),
         ]);
 
         if (!active) return;
