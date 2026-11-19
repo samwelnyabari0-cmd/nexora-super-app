@@ -65,6 +65,22 @@ describe("LearningNotesPanel", () => {
     });
   });
 
+  it("displays multiple saved notes in the selected scope", async () => {
+    listMock.mockResolvedValue({
+      data: [
+        note,
+        { ...note, id: "note-2", title: "Second note", body: "Another thought." },
+      ],
+      error: null,
+    });
+
+    render(<LearningNotesPanel courseId="course-1" lessonId={null} isSignedIn={true} canUseNotes={true} />);
+
+    expect(await screen.findByText("Revision point")).toBeInTheDocument();
+    expect(screen.getByText("Second note")).toBeInTheDocument();
+    expect(screen.getByText("2 notes")).toBeInTheDocument();
+  });
+
   it("allows a learner to edit an existing note", async () => {
     listMock.mockResolvedValue({ data: [note], error: null });
 
