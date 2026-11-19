@@ -50,6 +50,38 @@ begin
     raise exception 'anon and authenticated must have SELECT on preview metadata';
   end if;
 
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'edu_resource_previews'
+      and policyname = 'edu_resource_previews_public_read'
+      and cmd = 'SELECT'
+      and roles @> array['anon', 'authenticated']::name[]
+      and qual = 'true'
+  ) then
+    raise exception 'Expected a SELECT-only public metadata policy for anon and authenticated';
+  end if;
+
+  if has_function_privilege('anon', 'private.sync_edu_resource_preview_row()', 'EXECUTE')
+     or has_function_privilege('authenticated', 'private.sync_edu_resource_preview_row()', 'EXECUTE')
+     or has_function_privilege('anon', 'private.sync_edu_course_resource_previews()', 'EXECUTE')
+     or has_function_privilege('authenticated', 'private.sync_edu_course_resource_previews()', 'EXECUTE') then
+    raise exception 'Client roles must not be able to execute internal preview trigger functions';
+  end if;
+
+  if not exists (
+    select 1 from pg_trigger
+    where tgname = 'edu_resources_sync_public_preview'
+      and not tgisinternal
+  ) or not exists (
+    select 1 from pg_trigger
+    where tgname = 'edu_courses_sync_public_preview'
+      and not tgisinternal
+  ) then
+    raise exception 'Both resource and course preview synchronization triggers must exist';
+  end if;
+
   if has_table_privilege('anon', 'public.edu_resource_previews', 'INSERT')
      or has_table_privilege('anon', 'public.edu_resource_previews', 'UPDATE')
      or has_table_privilege('anon', 'public.edu_resource_previews', 'DELETE')
