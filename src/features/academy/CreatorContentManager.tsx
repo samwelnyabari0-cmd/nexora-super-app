@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Archive, BookOpen, Clock3, FileArchive, GraduationCap, Loader2,
-  RefreshCw, Video, X,
+  Archive, ArrowDown, ArrowUp, BookOpen, Clock3, FileArchive, GraduationCap, Loader2,
+  Plus, RefreshCw, Tag, Video, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ export function CreatorContentManager() {
   const [tab, setTab] = useState<ManagerTab>("courses");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [deleteCourse, setDeleteCourse] = useState<CourseSummary | null>(null);
-  const [confirmation, setConfirmation] = useState("");
+  const [confirmation, setConfirmation] = useState("");\n  const [editingTagsCourseId, setEditingTagsCourseId] = useState<string | null>(null);\n  const [tagDraft, setTagDraft] = useState<string[]>([]);\n  const [newCourseTag, setNewCourseTag] = useState("");
 
   const loadContent = useCallback(async () => {
     if (!user) { setCourses([]); setLessons([]); setResources([]); setLoading(false); return; }
@@ -186,6 +186,54 @@ export function CreatorContentManager() {
     }
   }
 
+  function beginEditingTags(course: CourseSummary) {
+    setEditingTagsCourseId(course.id);
+    setTagDraft([...new Set((course.skill_tags ?? []).map((tag) => tag.trim()).filter(Boolean))]);
+    setNewCourseTag("");
+  }
+
+  function addCourseTag() {
+    const tag = newCourseTag.trim().replace(/\\s+/g, " ");
+    if (!tag) return;
+    if (tagDraft.some((item) => item.toLowerCase() === tag.toLowerCase())) {
+      toast.error("That course tag is already added.");
+      return;
+    }
+    if (tagDraft.length >= 20) {
+      toast.error("A course can have up to 20 skill tags.");
+      return;
+    }
+    setTagDraft((current) => [...current, tag]);
+    setNewCourseTag("");
+  }
+
+  function moveCourseTag(index: number, direction: -1 | 1) {
+    setTagDraft((current) => {
+      const next = [...current];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  async function saveCourseTags(course: CourseSummary) {
+    setBusyId(course.id);
+    try {
+      const cleanTags = [...new Set(tagDraft.map((tag) => tag.trim()).filter(Boolean))].slice(0, 20);
+      const { error } = await (supabase as any).from("edu_courses")
+        .update({ skill_tags: cleanTags }).eq("id", course.id).eq("instructor_id", user?.id);
+      if (error) throw error;
+      setEditingTagsCourseId(null);
+      toast.success("Course skill tags saved.");
+      await loadContent();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save course skill tags.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function permanentlyDeleteCourse() {
     if (!deleteCourse || confirmation !== deleteCourse.title) return;
     setBusyId(deleteCourse.id);
@@ -271,7 +319,39 @@ export function CreatorContentManager() {
                     <span><GraduationCap className="mr-1 inline h-3.5 w-3.5" />{plural(course.learnerCount, "learner")}</span>
                     <span>Updated {formatDate(course.updated_at)}</span>
                   </div>
-                  <PublicationNotice publishedAt={course.published_at} status={course.publication_status} />
+                  <PublicationNotice publishedAt={course.published_at} status={course.publication_status} />\n                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Tag className="h-3.5 w-3.5" /> Course skill tags</p>
+                      {editingTagsCourseId !== course.id && <Button size="sm" variant="ghost" onClick={() => beginEditingTags(course)}>Edit tags</Button>}
+                    </div>
+                    {editingTagsCourseId === course.id ? (
+                      <div className="space-y-2 rounded-xl border p-3">
+                        <div className="flex flex-wrap gap-2">
+                          {tagDraft.map((tag, index) => (
+                            <span key={tag} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs">
+                              {tag}
+                              <button type="button" aria-label={`Move ${tag} up`} disabled={index === 0} onClick={() => moveCourseTag(index, -1)}><ArrowUp className="h-3 w-3" /></button>
+                              <button type="button" aria-label={`Move ${tag} down`} disabled={index === tagDraft.length - 1} onClick={() => moveCourseTag(index, 1)}><ArrowDown className="h-3 w-3" /></button>
+                              <button type="button" aria-label={`Remove ${tag}`} onClick={() => setTagDraft((current) => current.filter((item) => item !== tag))}>×</button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input value={newCourseTag} onChange={(event) => setNewCourseTag(event.target.value)} maxLength={32} placeholder="Add a course skill tag" />
+                          <Button size="sm" type="button" variant="outline" disabled={!newCourseTag.trim() || tagDraft.length >= 20} onClick={addCourseTag}><Plus className="mr-1 h-3.5 w-3.5" />Add</Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" disabled={busyId === course.id} onClick={() => void saveCourseTags(course)}>Save tags</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingTagsCourseId(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(course.skill_tags ?? []).length ? course.skill_tags.map((tag) => <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-xs">{tag}</span>) : <span className="text-xs text-muted-foreground">No skill tags yet.</span>}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mt-4 flex flex-wrap gap-2">
                     {course.publication_status === "published" ? (
                       <Button size="sm" variant="outline" disabled={busyId === course.id} onClick={() => void setCourseStatus(course, "draft")}>Unpublish</Button>
