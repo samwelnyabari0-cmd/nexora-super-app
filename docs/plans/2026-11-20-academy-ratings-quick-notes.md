@@ -39,14 +39,16 @@
 ## Task 1: Add secure rating and notes database primitives
 
 **Files:**
-- Create: `supabase/migrations/20261120120000_academy_ratings_quick_notes.sql` (proposed timestamp; confirm it is later than the current remote migration head before applying)
+- Create: `supabase/migrations/20261119212938_academy_ratings_quick_notes.sql`
+- Create: `supabase/migrations/20261119213012_academy_course_rating_aggregate_projection.sql`
+- Create: `supabase/migrations/20261119213526_academy_course_rating_summary_delete_safety.sql`
 - Create: `supabase/verification/academy_ratings_quick_notes_security.sql`
 - Create: `supabase/verification/academy_ratings_quick_notes_behavior.sql`
 
 **Interfaces:**
 - Create `public.edu_course_ratings`: UUID id, course_id FK, student_id FK to auth.users, smallint rating constrained to 1–5, created_at, updated_at, unique(course_id, student_id).
 - Create `public.edu_learning_notes`: UUID id, student_id FK, course_id FK, nullable lesson_id FK, title, body, created_at, updated_at. Multiple rows per learner/course/lesson are supported.
-- Create private helper `private.is_edu_course_learner(p_course_id uuid, p_student_id uuid)` returning boolean; true only when `auth.uid() = p_student_id` and an enrolment for that learner/course has status active or completed.
+- Enforce eligibility in each RLS policy with an `EXISTS` check against the learner's own `public.edu_enrollments` row (`student_id = auth.uid()` and status `active` or `completed`). The existing enrolment RLS policy already allows learners to read their own enrolment rows, so no additional eligibility helper or policy change is needed.
 - Create public aggregate-only table `public.edu_course_rating_summaries` with `course_id`, `average_rating`, `rating_count`, and `updated_at`. Courses with no ratings have no summary row; the UI maps that to `averageRating: null` and `ratingCount: 0`.
 - Add a database guard ensuring a non-null note.lesson_id belongs to note.course_id.
 - Add an updated_at trigger for note and rating updates.
@@ -61,7 +63,7 @@
 
 - [ ] **Step 2: Verify the current migration baseline**
   - Inspect the Supabase migration list before applying. If `20261120120000` is not later than the remote head or is already used, choose the next unused timestamp and update the filename in this plan/branch before proceeding.
-  - Inspect the existing `edu_enrollments` RLS policy and current grants to confirm the private helper can read enrolment rows as its owner without changing those policies.
+  - Inspect the existing `edu_enrollments` RLS policy and current grants to confirm each learner can read only their own enrolment row; keep the existing policies unchanged.
 
 - [ ] **Step 3: Implement the migration**
   - Revoke broad privileges before granting only required operations.
@@ -83,7 +85,7 @@
 
 - [ ] **Step 5: Commit the database deliverable**
   ```bash
-  git add supabase/migrations/20261120120000_academy_ratings_quick_notes.sql supabase/verification/academy_ratings_quick_notes_security.sql supabase/verification/academy_ratings_quick_notes_behavior.sql
+  git add supabase/migrations/20261119212938_academy_ratings_quick_notes.sql supabase/migrations/20261119213012_academy_course_rating_aggregate_projection.sql supabase/migrations/20261119213526_academy_course_rating_summary_delete_safety.sql supabase/verification/academy_ratings_quick_notes_security.sql supabase/verification/academy_ratings_quick_notes_behavior.sql
   git commit -m "feat(academy): add secure ratings and learning notes schema"
   ```
 
@@ -196,7 +198,7 @@
 
 **Files:**
 - Modify: `src/routes/learn.tsx`
-- Test: `src/routes/learn.test.tsx` (proposed; first inspect whether route-level tests already exist and follow the established test harness)
+- Test: `src/features/academy/CourseRatingPanel.test.tsx` and `src/features/academy/LearningNotesPanel.test.tsx` (component-level coverage)
 - Modify: `src/integrations/supabase/types.ts` only if final generated types need route integration adjustments
 
 **Interfaces:**
@@ -238,7 +240,7 @@
 
 - [ ] **Step 6: Commit the integration deliverable**
   ```bash
-  git add src/routes/learn.tsx src/routes/learn.test.tsx
+  git add src/routes/learn.tsx src/features/academy/CourseRatingPanel.tsx src/features/academy/CourseRatingPanel.test.tsx src/features/academy/LearningNotesPanel.tsx src/features/academy/LearningNotesPanel.test.tsx
   git commit -m "feat(academy): integrate ratings and notes into learning"
   ```
 
