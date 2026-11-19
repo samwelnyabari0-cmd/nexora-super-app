@@ -1192,6 +1192,118 @@ export type Database = {
         }
         Relationships: []
       }
+      edu_completion_history: {
+        Row: {
+          completed_at: string
+          course_id: string | null
+          course_title: string
+          id: string
+          item_title: string
+          item_type: string
+          lesson_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          course_id?: string | null
+          course_title: string
+          id?: string
+          item_title: string
+          item_type: string
+          lesson_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          course_id?: string | null
+          course_title?: string
+          id?: string
+          item_title?: string
+          item_type?: string
+          lesson_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_completion_history_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_completion_history_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "edu_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_course_rating_summaries: {
+        Row: {
+          average_rating: number
+          course_id: string
+          rating_count: number
+          updated_at: string
+        }
+        Insert: {
+          average_rating: number
+          course_id: string
+          rating_count: number
+          updated_at?: string
+        }
+        Update: {
+          average_rating?: number
+          course_id?: string
+          rating_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_course_rating_summaries_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: true
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_course_ratings: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          rating: number
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_course_ratings_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       edu_courses: {
         Row: {
           category: string
@@ -1201,9 +1313,13 @@ export type Database = {
           id: string
           instructor_id: string
           is_published: boolean
+          last_published_at: string | null
           level: string
           price_kes: number
           price_usd: number
+          publication_status: string
+          published_at: string | null
+          skill_tags: string[]
           slug: string
           thumbnail_url: string | null
           title: string
@@ -1217,9 +1333,13 @@ export type Database = {
           id?: string
           instructor_id: string
           is_published?: boolean
+          last_published_at?: string | null
           level?: string
           price_kes?: number
           price_usd?: number
+          publication_status?: string
+          published_at?: string | null
+          skill_tags?: string[]
           slug: string
           thumbnail_url?: string | null
           title: string
@@ -1233,9 +1353,13 @@ export type Database = {
           id?: string
           instructor_id?: string
           is_published?: boolean
+          last_published_at?: string | null
           level?: string
           price_kes?: number
           price_usd?: number
+          publication_status?: string
+          published_at?: string | null
+          skill_tags?: string[]
           slug?: string
           thumbnail_url?: string | null
           title?: string
@@ -1290,6 +1414,96 @@ export type Database = {
           },
         ]
       }
+      edu_learning_hidden_items: {
+        Row: {
+          course_id: string | null
+          hidden_at: string
+          id: string
+          item_type: string
+          lesson_id: string | null
+          user_id: string
+        }
+        Insert: {
+          course_id?: string | null
+          hidden_at?: string
+          id?: string
+          item_type: string
+          lesson_id?: string | null
+          user_id: string
+        }
+        Update: {
+          course_id?: string | null
+          hidden_at?: string
+          id?: string
+          item_type?: string
+          lesson_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_learning_hidden_items_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_learning_hidden_items_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "edu_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_learning_notes: {
+        Row: {
+          body: string
+          course_id: string
+          created_at: string
+          id: string
+          lesson_id: string | null
+          student_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          course_id: string
+          created_at?: string
+          id?: string
+          lesson_id?: string | null
+          student_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          course_id?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string | null
+          student_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_learning_notes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_learning_notes_lesson_course_fkey"
+            columns: ["lesson_id", "course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_lessons"
+            referencedColumns: ["id", "course_id"]
+          },
+        ]
+      }
       edu_lesson_progress: {
         Row: {
           completed: boolean
@@ -1333,7 +1547,10 @@ export type Database = {
           duration_seconds: number
           id: string
           is_preview: boolean
+          last_published_at: string | null
           lesson_order: number
+          publication_status: string
+          published_at: string | null
           title: string
           video_url: string | null
         }
@@ -1344,7 +1561,10 @@ export type Database = {
           duration_seconds?: number
           id?: string
           is_preview?: boolean
+          last_published_at?: string | null
           lesson_order: number
+          publication_status?: string
+          published_at?: string | null
           title: string
           video_url?: string | null
         }
@@ -1355,7 +1575,10 @@ export type Database = {
           duration_seconds?: number
           id?: string
           is_preview?: boolean
+          last_published_at?: string | null
           lesson_order?: number
+          publication_status?: string
+          published_at?: string | null
           title?: string
           video_url?: string | null
         }
@@ -1369,14 +1592,60 @@ export type Database = {
           },
         ]
       }
+      edu_resource_previews: {
+        Row: {
+          access_tier: string
+          course_id: string
+          file_size_bytes: number
+          file_type: string
+          id: string
+          resource_name: string
+        }
+        Insert: {
+          access_tier: string
+          course_id: string
+          file_size_bytes: number
+          file_type: string
+          id: string
+          resource_name: string
+        }
+        Update: {
+          access_tier?: string
+          course_id?: string
+          file_size_bytes?: number
+          file_type?: string
+          id?: string
+          resource_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_resource_previews_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edu_resource_previews_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "edu_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       edu_resources: {
         Row: {
           access_tier: string
           course_id: string
           created_at: string
+          display_order: number
           file_size_bytes: number
           file_type: string
           id: string
+          last_published_at: string | null
+          publication_status: string
+          published_at: string | null
           r2_object_key: string
           resource_name: string
         }
@@ -1384,9 +1653,13 @@ export type Database = {
           access_tier?: string
           course_id: string
           created_at?: string
+          display_order?: number
           file_size_bytes?: number
           file_type?: string
           id?: string
+          last_published_at?: string | null
+          publication_status?: string
+          published_at?: string | null
           r2_object_key: string
           resource_name: string
         }
@@ -1394,9 +1667,13 @@ export type Database = {
           access_tier?: string
           course_id?: string
           created_at?: string
+          display_order?: number
           file_size_bytes?: number
           file_type?: string
           id?: string
+          last_published_at?: string | null
+          publication_status?: string
+          published_at?: string | null
           r2_object_key?: string
           resource_name?: string
         }
@@ -3225,6 +3502,10 @@ export type Database = {
         Args: { p_payout_id: string }
         Returns: Json
       }
+      delete_academy_course: {
+        Args: { p_confirmation_title: string; p_course_id: string }
+        Returns: number
+      }
       enroll_in_free_edu_course: {
         Args: { p_course_id: string }
         Returns: string
@@ -3248,6 +3529,16 @@ export type Database = {
           total_courses: number
           total_lessons: number
           total_students: number
+        }[]
+      }
+      get_academy_public_resource_metadata: {
+        Args: { p_educator_id?: string; p_resource_ids?: string[] }
+        Returns: {
+          access_tier: string
+          course_id: string
+          file_type: string
+          id: string
+          resource_name: string
         }[]
       }
       get_chat_presence_status: {
