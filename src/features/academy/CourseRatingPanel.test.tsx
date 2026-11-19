@@ -83,14 +83,18 @@ describe("CourseRatingPanel", () => {
     render(<CourseRatingPanel courseId="course-1" isSignedIn={false} canRate={false} />);
 
     expect(await screen.findByText("4.5 / 5")).toBeInTheDocument();
-    expect(screen.getByText("12 ratings")).toBeInTheDocument();
+    expect(screen.getByText(/12\s+ratings/)).toBeInTheDocument();
     expect(screen.queryByText(/student|learner id/i)).not.toBeInTheDocument();
   });
 
   it("does not render an enabled rating control for an ineligible learner", async () => {
     render(<CourseRatingPanel courseId="course-1" isSignedIn={true} canRate={false} />);
 
-    expect(await screen.findByText(/Enrol in this course to rate it/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Active or completed enrolment is required to rate this course.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Rate [1-5] out of 5 stars/ }),
     ).not.toBeInTheDocument();
