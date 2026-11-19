@@ -7,6 +7,8 @@ vi.mock("@/lib/session", () => ({
   useSession: () => ({ user: { id: "viewer-1" } }),
 }));
 
+vi.mock("./SaveLearningButton", () => ({ SaveLearningButton: () => null }));
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { rpc: vi.fn() },
 }));
