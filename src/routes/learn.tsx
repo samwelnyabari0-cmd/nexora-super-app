@@ -9,6 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { EducatorDirectory } from "@/features/academy/EducatorDirectory";
 import { EducatorShowcase } from "@/features/academy/EducatorShowcase";
+import { SavedLearningPanel } from "@/features/academy/SavedLearningPanel";
+import { SaveLearningButton } from "@/features/academy/SaveLearningButton";
+import { importLegacySavedCourses, saveLearningItem, unsaveLearningItem } from "@/features/academy/savedLearning";
 
 export const Route = createFileRoute("/learn")({
   head: () => ({ meta: [{ title: "Academy Hub — NEXORA" }, { name: "description", content: "Learn, build, and earn with Nexora Academy." }] }),
@@ -36,6 +39,7 @@ function Learn() {
   const [myLearning, setMyLearning] = useState<StudentCourseProgress[]>([]);
   const [myLearningLoading, setMyLearningLoading] = useState(false);
   const [showMyLearning, setShowMyLearning] = useState(false);
+  const [myLearningView, setMyLearningView] = useState<"courses" | "saved">("courses");
   const [savedCourseIds, setSavedCourseIds] = useState<string[]>([]);
   const [savedCoursesLoaded, setSavedCoursesLoaded] = useState(false);
   const [showSavedOnly, setShowSavedOnly] = useState(false);
@@ -50,6 +54,7 @@ function Learn() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
   const lastProgressSave = useRef<Record<string, number>>({});
+  const legacyImportUser = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,13 +70,61 @@ function Learn() {
   }, []);
 
   useEffect(() => {
-    if (!savedCoursesLoaded) return;
+    if (!savedCoursesLoaded || user) return;
     localStorage.setItem("nexora-academy-saved-courses", JSON.stringify(savedCourseIds));
-  }, [savedCourseIds, savedCoursesLoaded]);
+  }, [savedCourseIds, savedCoursesLoaded, user?.id]);
 
-  function toggleSavedCourse(courseId: string) {
-    setSavedCourseIds((current) => current.includes(courseId) ? current.filter((id) => id !== courseId) : [...current, courseId]);
-    toast.success(savedCourseIds.includes(courseId) ? "Removed from saved courses." : "Course saved to your list.");
+  useEffect(() => {
+    if (!savedCoursesLoaded) return;
+    if (!user) {
+      legacyImportUser.current = null;
+      return;
+    }
+    if (legacyImportUser.current === user.id) return;
+
+    let active = true;
+    void (async () => {
+      let legacyIds: string[] = [];
+      try {
+        const stored = JSON.parse(localStorage.getItem("nexora-academy-saved-courses") ?? "[]");
+        legacyIds = Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [];
+      } catch {
+        legacyIds = [];
+      }
+
+      if (legacyIds.length === 0) {
+        legacyImportUser.current = user.id;
+        return;
+      }
+
+      const result = await importLegacySavedCourses(user.id, legacyIds);
+      if (!active) return;
+      if (result.error) {
+        toast.error("Your saved courses are still on this device. We could not sync them yet.");
+        return;
+      }
+      localStorage.removeItem("nexora-academy-saved-courses");
+      legacyImportUser.current = user.id;
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [savedCoursesLoaded, savedCourseIds, user?.id]);
+
+  async function toggleSavedCourse(courseId: string) {
+    const isSaved = savedCourseIds.includes(courseId);
+    if (user) {
+      const result = isSaved
+        ? await unsaveLearningItem(user.id, "course", courseId)
+        : await saveLearningItem(user.id, "course", courseId);
+      if (result.error) {
+        toast.error(result.error.message || "Could not update your saved courses.");
+        return;
+      }
+    }
+    setSavedCourseIds((current) => isSaved ? current.filter((id) => id !== courseId) : [...current, courseId]);
+    toast.success(isSaved ? "Removed from saved courses." : "Course saved to your list.");
   }
 
   useEffect(() => {
