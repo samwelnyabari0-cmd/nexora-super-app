@@ -65,6 +65,61 @@ begin
       and conname='edu_learning_notes_body_length'
   ) then raise exception 'Approved note length constraints missing'; end if;
 
+  if exists (
+    select 1 from pg_policies
+    where schemaname='public' and tablename='edu_course_ratings' and cmd='DELETE'
+  ) then
+    raise exception 'Learners must not have a rating DELETE policy';
+  end if;
+
+  if (
+    select count(*) from pg_policies
+    where schemaname='public' and tablename='edu_course_ratings'
+      and cmd in ('INSERT','UPDATE')
+      and coalesce(qual,'') || coalesce(with_check,'') like '%active%'
+      and coalesce(qual,'') || coalesce(with_check,'') like '%completed%'
+  ) <> 2 then
+    raise exception 'Rating writes must require active/completed enrolment';
+  end if;
+
+  if (
+    select count(*) from pg_policies
+    where schemaname='public' and tablename='edu_learning_notes'
+      and coalesce(qual,'') || coalesce(with_check,'') like '%active%'
+      and coalesce(qual,'') || coalesce(with_check,'') like '%completed%'
+  ) <> 4 then
+    raise exception 'Every note operation must require active/completed enrolment';
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname='public' and tablename='edu_course_rating_summaries'
+      and cmd='SELECT'
+      and qual like '%is_published%'
+      and qual like '%publication_status%'
+  ) then
+    raise exception 'Aggregate summaries must be restricted to published courses';
+  end if;
+
+  if not exists (
+    select 1 from pg_proc p
+    where p.oid='private.sync_edu_course_rating_summary()'::regprocedure
+      and p.prosecdef is true
+      and p.proconfig @> array['search_path=""']
+      and pg_get_userbyid(p.proowner)='postgres'
+  ) then
+    raise exception 'Aggregate trigger must be a postgres-owned SECURITY DEFINER with empty search_path';
+  end if;
+
+  if not exists (
+    select 1 from pg_proc p
+    where p.oid='private.set_edu_ratings_notes_updated_at()'::regprocedure
+      and p.proconfig @> array['search_path=""']
+      and pg_get_userbyid(p.proowner)='postgres'
+  ) then
+    raise exception 'Updated_at trigger must use an empty search_path and postgres ownership';
+  end if;
+
   select count(*) into v_rating_policy_count
   from pg_policies
   where schemaname='public' and tablename='edu_course_ratings';
