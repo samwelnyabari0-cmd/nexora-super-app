@@ -23,7 +23,7 @@ export const Route = createFileRoute("/learn")({
 
 type Track = "all" | "creator" | "tech" | "business";
 type Course = { id: string; title: string; description: string; instructorId: string; category: Exclude<Track, "all">; level: string; lessons: number; durationSeconds: number; priceUsd: number; priceKes: number; currency: string; thumbnailUrl: string | null; instructorName: string; instructorAvatar: string | null; progress: number; accent: string; icon: typeof Video };
-type Resource = { id: string; courseId: string; name: string; type: string; size: number; key: string; accessTier: string };
+type Resource = { id: string; courseId: string; name: string; type: string; size: number; accessTier: string };
 type Lesson = { id: string; title: string; lessonOrder: number; videoPath: string; durationSeconds: number; isPreview: boolean };
 type LessonProgress = { completed: boolean; lastPositionSeconds: number };
 type StudentCourseProgress = { course: Course; completed: number; total: number; percent: number; status: string; resumeLessonId: string | null };
@@ -172,7 +172,7 @@ function Learn() {
       if (ids.length) {
         const [lessonsResult, resourcesResult] = await Promise.all([
           (supabase as any).from("edu_lessons").select("course_id,duration_seconds").in("course_id", ids),
-          (supabase as any).from("edu_resources").select("id,course_id,resource_name,file_type,file_size_bytes,r2_object_key,access_tier,publication_status").in("course_id", ids).eq("publication_status", "published"),
+          (supabase as any).from("edu_resource_previews").select("id,course_id,resource_name,file_type,file_size_bytes,access_tier").in("course_id", ids),
         ]);
         if (lessonsResult.error) {
           if (active) { setError(lessonsResult.error.message); setLoading(false); }
@@ -206,7 +206,7 @@ function Learn() {
         }));
         setResources(resourceRows.map((row: any) => ({
           id: row.id, courseId: row.course_id, name: row.resource_name, type: String(row.file_type ?? "FILE").toUpperCase(),
-          size: Number(row.file_size_bytes ?? 0), key: row.r2_object_key, accessTier: String(row.access_tier ?? "enrolled"),
+          size: Number(row.file_size_bytes ?? 0), accessTier: String(row.access_tier ?? "enrolled"),
         })));
         setLoading(false);
       }
@@ -475,7 +475,15 @@ function Learn() {
     }
     try {
       toast.info("Preparing your secure download…");
-      const { data, error: signedError } = await supabase.storage.from("academy-resources").createSignedUrl(resource.key, 60);
+      const { data: resourceRow, error: resourceError } = await (supabase as any)
+        .from("edu_resources")
+        .select("r2_object_key")
+        .eq("id", resource.id)
+        .maybeSingle();
+      if (resourceError || !resourceRow?.r2_object_key) {
+        throw resourceError ?? new Error("This resource is not available to your account.");
+      }
+      const { data, error: signedError } = await supabase.storage.from("academy-resources").createSignedUrl(resourceRow.r2_object_key, 60);
       if (signedError || !data?.signedUrl) throw signedError ?? new Error("This resource is not available to your account.");
       const link = document.createElement("a");
       link.href = data.signedUrl;
