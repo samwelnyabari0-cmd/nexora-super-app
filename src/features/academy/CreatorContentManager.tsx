@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive, BookOpen, Clock3, FileArchive, GraduationCap, Loader2,
-  MoreHorizontal, RefreshCw, Video, X,
+  RefreshCw, Video, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/lib/session";
 import { getContentDeletionEligibility, type PublicationStatus } from "./creatorContent";
 
 type CourseRow = {
@@ -69,6 +70,7 @@ function formatBytes(value: number) {
 }
 
 export function CreatorContentManager() {
+  const { user } = useSession();
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [resources, setResources] = useState<ResourceRow[]>([]);
@@ -80,11 +82,13 @@ export function CreatorContentManager() {
   const [confirmation, setConfirmation] = useState("");
 
   const loadContent = useCallback(async () => {
+    if (!user) { setCourses([]); setLessons([]); setResources([]); setLoading(false); return; }
     setLoading(true);
     try {
       const { data: courseRows, error: courseError } = await (supabase as any)
         .from("edu_courses")
         .select("id,title,description,category,is_published,publication_status,published_at,last_published_at,skill_tags,created_at,updated_at")
+        .eq("instructor_id", user.id)
         .order("updated_at", { ascending: false });
       if (courseError) throw courseError;
 
@@ -137,7 +141,7 @@ export function CreatorContentManager() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { void loadContent(); }, [loadContent]);
 
@@ -219,7 +223,7 @@ export function CreatorContentManager() {
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryTile icon={BookOpen} label="Courses" value={courses.length} />
         <SummaryTile icon={Video} label="Lessons" value={lessons.length} />
-        <SummaryTile icon={GraduationCap} label="Learners" value={courses.reduce((sum, course) => sum + course.learnerCount, 0)} />
+        <SummaryTile icon={GraduationCap} label="Course enrolments" value={courses.reduce((sum, course) => sum + course.learnerCount, 0)} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -271,7 +275,7 @@ export function CreatorContentManager() {
                     {course.publication_status !== "archived" && (
                       <Button size="sm" variant="outline" disabled={busyId === course.id} onClick={() => void setCourseStatus(course, "archived")}><Archive className="mr-1 h-3.5 w-3.5" />Archive</Button>
                     )}
-                    <Button size="sm" variant="destructive" disabled={busyId === course.id} onClick={() => { setDeleteCourse(course); setConfirmation(""); }}>
+                    <Button size="sm" variant="destructive" disabled={busyId === course.id || (course.publication_status === "published" && !getContentDeletionEligibility(course).eligible)} onClick={() => { setDeleteCourse(course); setConfirmation(""); }}>
                       <X className="mr-1 h-3.5 w-3.5" />Delete
                     </Button>
                   </div>
