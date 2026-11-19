@@ -292,8 +292,9 @@ export function CreatorContentManager() {
         </div>
       ) : (
         <CreatorChildContentManager
-          lessons={visibleLessons}
-          resources={visibleResources}
+          lessons={lessons}
+          resources={resources}
+          filter={filter}
           courseNames={courseNames}
           onChanged={loadContent}
         />
