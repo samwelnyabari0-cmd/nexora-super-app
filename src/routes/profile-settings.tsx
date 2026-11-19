@@ -80,7 +80,7 @@ function ProfileSettings() {
   }, [user?.id]);
 
   async function save() {
-    if (!user) return toast.error("Sign in to update your profile.");
+    if (!user) { toast.error("Sign in to update your profile."); return; }
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
     const cleanBioLinks = bioLinks.map(link => ({ title: link.title.trim(), url: link.url.trim() })).filter(link => link.title || link.url);
@@ -91,12 +91,14 @@ function ProfileSettings() {
         if (!link.title || !["http:", "https:"].includes(parsed.protocol)) throw new Error();
       } catch {
         setSaving(false);
-        return toast.error("Each bio link needs a title and a valid http:// or https:// URL.");
+        toast.error("Each bio link needs a title and a valid http:// or https:// URL.");
+        return;
       }
     }
     if (cleanBioLinks.length > 5) {
       setSaving(false);
-      return toast.error("You can add up to 5 bio links.");
+      toast.error("You can add up to 5 bio links.");
+      return;
     }
     const { error } = await (supabase as any).from("profiles").upsert({
       id: user.id, display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
@@ -257,8 +259,8 @@ function ProfileSettings() {
           )}
           <div className="flex items-center justify-between gap-3 border-t pt-3">
             <div>
-              <p className="text-sm font-medium">Show me in Academy educator search</p>
-              <p className="text-xs text-muted-foreground">Only public, discoverable Education profiles appear. You can change this anytime.</p>
+              <p className="text-sm font-medium">Make my profile discoverable</p>
+              <p className="text-xs text-muted-foreground">This shared Nexora setting controls profile discovery, including Academy. Private profiles are never listed.</p>
             </div>
             <Switch checked={discoverable} onCheckedChange={setDiscoverable} />
           </div>
