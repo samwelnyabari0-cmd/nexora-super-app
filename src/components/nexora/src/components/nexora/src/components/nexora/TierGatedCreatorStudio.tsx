@@ -133,14 +133,14 @@ export default function TierGatedCreatorStudio({
               <Scissors className="h-4 w-4" />
               Trim timeline
               <span className="ml-auto text-muted-foreground">
-                Editor integration pending
+                Open the editor below
               </span>
             </div>
             <div className="flex items-center gap-2 rounded-lg border p-2">
               <Volume2 className="h-4 w-4" />
               Voiceover & audio mix
               <span className="ml-auto text-muted-foreground">
-                Integration pending
+                Available in editor below
               </span>
             </div>
             <div className="flex items-center gap-2 rounded-lg border p-2">
