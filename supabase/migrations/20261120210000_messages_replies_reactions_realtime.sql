@@ -40,6 +40,18 @@ create index if not exists direct_message_reactions_message_idx
 create index if not exists chat_group_message_reactions_message_idx
   on public.chat_group_message_reactions(message_id);
 
+-- Enable Postgres Changes for reaction updates without changing existing publication members.
+do $
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'direct_message_reactions') then
+    alter publication supabase_realtime add table public.direct_message_reactions;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'chat_group_message_reactions') then
+    alter publication supabase_realtime add table public.chat_group_message_reactions;
+  end if;
+end;
+$;
+
 alter table public.direct_message_reactions enable row level security;
 alter table public.chat_group_message_reactions enable row level security;
 
@@ -128,7 +140,7 @@ using (
   realtime.messages.extension in ('broadcast', 'presence')
   and (
     (
-      realtime.topic() ~ '^dm:[0-9a-f-]{36}:[0-9a-f-]{36}$'
+      realtime.topic() ~ '^dm:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       and (
         split_part(realtime.topic(), ':', 2) = (select auth.uid())::text
         or split_part(realtime.topic(), ':', 3) = (select auth.uid())::text
@@ -146,7 +158,7 @@ using (
       )
     )
     or (
-      realtime.topic() ~ '^group:[0-9a-f-]{36}$'
+      realtime.topic() ~ '^group:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       and private.is_group_member(split_part(realtime.topic(), ':', 2)::uuid)
     )
   )
@@ -158,7 +170,7 @@ with check (
   realtime.messages.extension in ('broadcast', 'presence')
   and (
     (
-      realtime.topic() ~ '^dm:[0-9a-f-]{36}:[0-9a-f-]{36}$'
+      realtime.topic() ~ '^dm:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       and (
         split_part(realtime.topic(), ':', 2) = (select auth.uid())::text
         or split_part(realtime.topic(), ':', 3) = (select auth.uid())::text
@@ -176,7 +188,7 @@ with check (
       )
     )
     or (
-      realtime.topic() ~ '^group:[0-9a-f-]{36}$'
+      realtime.topic() ~ '^group:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       and private.is_group_member(split_part(realtime.topic(), ':', 2)::uuid)
     )
   )
