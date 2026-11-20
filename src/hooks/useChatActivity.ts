@@ -23,6 +23,8 @@ export function useChatActivity({
   const [remoteActivity, setRemoteActivity] = useState<ChatActivity[]>([]);
   const channelRef = useRef<any>(null);
   const idleTimerRef = useRef<number | null>(null);
+  const subscribedRef = useRef(false);
+  const currentActivityRef = useRef<ChatActivityKind | null>(null);
 
   useEffect(() => {
     if (!enabled || !userId || !topic) {
@@ -53,7 +55,12 @@ export function useChatActivity({
       .on("presence", { event: "sync" }, syncPresence)
       .on("presence", { event: "join" }, syncPresence)
       .on("presence", { event: "leave" }, syncPresence)
-      .subscribe();
+      .subscribe((status) => {
+        subscribedRef.current = status === "SUBSCRIBED";
+        if (subscribedRef.current && currentActivityRef.current) {
+          void channel.track({ user_id: userId, activity: currentActivityRef.current, updated_at: new Date().toISOString() });
+        }
+      });
 
     return () => {
       active = false;
@@ -62,6 +69,8 @@ export function useChatActivity({
         idleTimerRef.current = null;
       }
       channelRef.current = null;
+      subscribedRef.current = false;
+      currentActivityRef.current = null;
       void channel.untrack();
       void supabase.removeChannel(channel);
       setRemoteActivity([]);
@@ -77,20 +86,24 @@ export function useChatActivity({
       idleTimerRef.current = null;
     }
 
+    currentActivityRef.current = activity;
     if (!activity) {
-      void channel.untrack();
+      if (subscribedRef.current) void channel.untrack();
       return;
     }
 
-    void channel.track({
-      user_id: userId,
-      activity,
-      updated_at: new Date().toISOString(),
-    });
+    if (subscribedRef.current) {
+      void channel.track({
+        user_id: userId,
+        activity,
+        updated_at: new Date().toISOString(),
+      });
+    }
 
     if (activity === "typing") {
       idleTimerRef.current = window.setTimeout(() => {
-        void channel.untrack();
+        currentActivityRef.current = null;
+        if (subscribedRef.current) void channel.untrack();
         idleTimerRef.current = null;
       }, 3000);
     }
