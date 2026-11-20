@@ -11,7 +11,8 @@ import { validMessage, type Attachment } from "./tools";
 import { useWorkspace } from "./workspace";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { cleanupR2MediaObjects, createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
+import { cleanupR2MediaObjects } from "@/lib/r2-media.functions";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { getR2PostObjectKeys } from "@/lib/r2-post-cleanup";
 import { useSession } from "@/lib/session";
 import {
@@ -216,12 +217,7 @@ if (bookmarkError) {
             let image: string | undefined;
             const media = row.media_url ?? undefined;
             if (row.media_storage_provider === "r2") {
-              try {
-                const result = await createR2MediaPlaybackUrl({ data: { postId: row.id, asset: "media" } });
-                image = result.url;
-              } catch {
-                image = undefined;
-              }
+              image = await getFreshR2MediaPlaybackUrl(row.id, "media");
             } else if (media) {
               if (/^https?:\/\//i.test(media)) {
                 image = media;
@@ -232,6 +228,8 @@ if (bookmarkError) {
             }
             return {
               id: row.id,
+              mediaPostId: row.id,
+              mediaStorageProvider: row.media_storage_provider ?? "supabase",
               creatorId: row.user_id === user.id ? "me" : (row.user_id ?? "me"),
               caption: row.caption ?? "",
               image,
