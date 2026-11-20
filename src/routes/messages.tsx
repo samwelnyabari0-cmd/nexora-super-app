@@ -35,6 +35,7 @@ type InboxConversation = {
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
+  isOnline: boolean;
 };
 type GroupInboxConversation = {
   groupId: string;
@@ -213,6 +214,15 @@ function Messages() {
         const profile = Array.isArray(profileData)
           ? profileData[0]
           : profileData;
+        const { data: presenceData } = await (supabase as any).rpc(
+          "get_chat_presence_status",
+          { p_user_id: userId },
+        );
+        const presence = Array.isArray(presenceData) ? presenceData[0] : presenceData;
+        const isOnline = Boolean(
+          presence?.show_online && presence?.last_seen &&
+          Date.now() - new Date(presence.last_seen).getTime() < 90000
+        );
 
         return {
           userId,
@@ -222,6 +232,7 @@ function Messages() {
           lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : ""),
           lastMessageAt: message.created_at,
           unreadCount: unreadByUser.get(userId) ?? 0,
+          isOnline,
         };
       })
     );
@@ -660,7 +671,7 @@ if (group) {
 
 if (!recipient && !group) {
   const combinedInbox = [
-    ...groupInbox.map((item) => ({ kind: "group" as const, ...item })),
+    ...groupInbox.map((item) => ({ kind: "group" as const, ...item, unreadCount: 0, isOnline: false })),
     ...inbox.map((item) => ({
       kind: "direct" as const,
       userId: item.userId,
@@ -670,6 +681,7 @@ if (!recipient && !group) {
       lastMessage: item.lastMessage,
       lastMessageAt: item.lastMessageAt,
       unreadCount: item.unreadCount,
+      isOnline: item.isOnline,
     })),
   ].sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
 
@@ -750,7 +762,7 @@ if (!recipient && !group) {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{title}</p>
+                  <p className="flex items-center gap-2 font-semibold">{title}{!isGroup && conversation.isOnline && <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-label="Online" />}</p>
                   <p className="truncate text-sm text-muted-foreground">
                     {conversation.lastMessage}
                   </p>
