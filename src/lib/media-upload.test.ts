@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { uploadFileWithProgress } from "./media-upload";
 
+function stubXMLHttpRequest(request: MockUploadRequest) {
+  vi.stubGlobal("XMLHttpRequest", class {
+    constructor() {
+      return request;
+    }
+  });
+}
+
 class MockUploadRequest {
   upload = { addEventListener: vi.fn() };
   status = 0;
@@ -21,7 +29,7 @@ describe("uploadFileWithProgress diagnostics", () => {
 
   it("reports a browser-level network or CORS failure with transport details", async () => {
     const request = new MockUploadRequest();
-    vi.stubGlobal("XMLHttpRequest", vi.fn(() => request));
+    stubXMLHttpRequest(request)
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(
@@ -42,7 +50,7 @@ describe("uploadFileWithProgress diagnostics", () => {
     request.responseText = "SignatureDoesNotMatch";
     request.send = vi.fn(() => request.listeners.get("load")?.());
 
-    vi.stubGlobal("XMLHttpRequest", vi.fn(() => request));
+    stubXMLHttpRequest(request)
 
     await expect(
       uploadFileWithProgress("https://storage.example/signed-upload", new Blob(["video"]), {}, vi.fn()),
