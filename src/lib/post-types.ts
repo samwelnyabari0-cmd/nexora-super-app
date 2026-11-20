@@ -1,13 +1,14 @@
 import { validateUpload, type UploadAccountTier } from "@/lib/upload-policy";
 import { aspectRatioLabel, classifyUpload } from "@/lib/media-classification";
 
-export type ContentType = "reel" | "post" | "carousel" | "video" | "story" | "live" | "ad";
+export type ContentType = "reel" | "post" | "carousel" | "video" | "collab" | "story" | "live" | "ad";
 
 export const CONTENT_TYPES: { id: ContentType; label: string; hint: string; accept: string }[] = [
   { id: "reel", label: "Reel", hint: "Vertical short video, up to 90 seconds", accept: "video/*" },
   { id: "post", label: "Post", hint: "A photo or text update", accept: "image/*,video/*" },
   { id: "carousel", label: "Carousel", hint: "Several photos to swipe through", accept: "image/*" },
   { id: "video", label: "Video", hint: "Horizontal or long-form video", accept: "video/*" },
+  { id: "collab", label: "Collab", hint: "Co-created post or video", accept: "image/*,video/*" },
   { id: "story", label: "Story", hint: "A quick photo or video moment", accept: "image/*,video/*" },
   { id: "live", label: "Live", hint: "Go live right now", accept: "" },
   { id: "ad", label: "Ad", hint: "Sponsored content", accept: "image/*,video/*" },
@@ -26,6 +27,7 @@ export function typeFromTags(tags: string[]): ContentType | undefined {
 export function kindFor(type: ContentType, isVideo: boolean): "short" | "video" | "post" {
   if (type === "reel") return "short";
   if (type === "video") return "video";
+  if (type === "collab") return isVideo ? "video" : "post";
   return isVideo ? "video" : "post";
 }
 
