@@ -10,14 +10,6 @@ type R2HeadObject = {
   Metadata?: Record<string, string>;
 };
 
-export function canReadR2Media(input: {
-  ownerId: string;
-  requesterId?: string | null;
-  audience: string | null;
-}): boolean {
-  return input.requesterId === input.ownerId || input.audience === "public";
-}
-
 export function isValidR2PostObjectKey(ownerId: string, key: string): boolean {
   return key.startsWith(`${ownerId}/posts/`) && !key.includes("..");
 }
