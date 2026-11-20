@@ -101,10 +101,12 @@ export function WatchPlayer({
     }, 12_000);
     const save = () => void saveProgress(video);
     video.addEventListener("pause", save);
+    video.addEventListener("seeked", save);
     video.addEventListener("ended", save);
     return () => {
       window.clearInterval(timer);
       video.removeEventListener("pause", save);
+      video.removeEventListener("seeked", save);
       video.removeEventListener("ended", save);
     };
   }, [saveProgress, userId]);
