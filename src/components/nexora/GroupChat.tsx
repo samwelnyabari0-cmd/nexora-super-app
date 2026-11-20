@@ -71,6 +71,29 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [profiles, setProfiles] = useState<Record<string, SenderProfile>>({});
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   useEffect(() => {
+    let cancelled = false;
+    const refreshMediaUrls = async () => {
+      const mediaMessages = messages.filter((message) => message.media_path && !isMessageExpired(message.expires_at));
+      const entries = await Promise.all(mediaMessages.map(async (message) => {
+        const { data } = await supabase.storage.from("chat-media").createSignedUrl(message.media_path!, 60);
+        return [message.id, data?.signedUrl ?? ""] as const;
+      }));
+      if (!cancelled) {
+        setMediaUrls((current) => ({
+          ...current,
+          ...Object.fromEntries(entries.filter(([, url]) => Boolean(url))),
+        }));
+      }
+    };
+    void refreshMediaUrls();
+    const refreshTimer = window.setInterval(() => void refreshMediaUrls(), 45_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshTimer);
+    };
+  }, [messages]);
+
+  useEffect(() => {
     const timers = messages.flatMap((message) => {
       const delay = messageExpiryDelay(message.expires_at);
       if (delay === null) return [];
@@ -203,7 +226,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         rows.filter((message) => message.media_path).map(async (message) => {
           const { data } = await supabase.storage
             .from("chat-media")
-            .createSignedUrl(message.media_path!, 3600);
+            .createSignedUrl(message.media_path!, 60);
           return [message.id, data?.signedUrl ?? ""] as const;
         }),
       );
@@ -298,7 +321,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         const entries = await Promise.all(newMedia.map(async (message) => {
           const { data: signed } = await supabase.storage
             .from("chat-media")
-            .createSignedUrl(message.media_path!, 3600);
+            .createSignedUrl(message.media_path!, 60);
           return [message.id, signed?.signedUrl ?? ""] as const;
         }));
         setMediaUrls((current) => ({
