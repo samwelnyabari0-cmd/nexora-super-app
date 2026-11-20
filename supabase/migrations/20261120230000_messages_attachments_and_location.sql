@@ -813,3 +813,28 @@ revoke all on function public.apply_chat_message_expiry() from public, anon;
 grant execute on function public.get_chat_disappearing_setting(text, uuid) to authenticated;
 grant execute on function public.set_chat_disappearing_setting(text, uuid, integer) to authenticated;
 grant execute on function public.apply_chat_message_expiry() to authenticated;
+
+
+create or replace function public.keep_chat_message_expiry_immutable()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  new.expires_at := old.expires_at;
+  return new;
+end;
+$$;
+
+drop trigger if exists direct_messages_expiry_immutable on public.direct_messages;
+create trigger direct_messages_expiry_immutable
+before update of expires_at on public.direct_messages
+for each row execute function public.keep_chat_message_expiry_immutable();
+
+drop trigger if exists chat_group_messages_expiry_immutable on public.chat_group_messages;
+create trigger chat_group_messages_expiry_immutable
+before update of expires_at on public.chat_group_messages
+for each row execute function public.keep_chat_message_expiry_immutable();
+
+revoke all on function public.keep_chat_message_expiry_immutable() from public, anon;
+grant execute on function public.keep_chat_message_expiry_immutable() to authenticated;
