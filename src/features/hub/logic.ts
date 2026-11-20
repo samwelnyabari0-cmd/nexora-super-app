@@ -76,6 +76,35 @@ export function taskCompletion(tasks: readonly { done: boolean }[]) {
   return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
 }
 
+export function focusProgress(remainingSeconds: number, totalSeconds = 25 * 60) {
+  if (!Number.isFinite(remainingSeconds) || !Number.isFinite(totalSeconds) || totalSeconds <= 0) return 0;
+  const remaining = Math.min(totalSeconds, Math.max(0, remainingSeconds));
+  return Math.round(((totalSeconds - remaining) / totalSeconds) * 100);
+}
+
+export function hubSyncLabel(status: "off" | "syncing" | "synced" | "error") {
+  return status === "syncing"
+    ? "Syncing"
+    : status === "synced"
+      ? "Cloud synced"
+      : status === "error"
+        ? "Sync issue"
+        : "Device saved";
+}
+
+export function subscriptionBreakdown(subscriptions: readonly { amount: number; cycle: Cycle }[]) {
+  const weekly = subscriptions
+    .filter((item) => item.cycle === "weekly")
+    .reduce((sum, item) => sum + monthlyCost(item.amount, "weekly"), 0);
+  const monthly = subscriptions
+    .filter((item) => item.cycle === "monthly")
+    .reduce((sum, item) => sum + monthlyCost(item.amount, "monthly"), 0);
+  const yearly = subscriptions
+    .filter((item) => item.cycle === "yearly")
+    .reduce((sum, item) => sum + monthlyCost(item.amount, "yearly"), 0);
+  return { weekly, monthly, yearly, total: weekly + monthly + yearly };
+}
+
 export type Cycle = "weekly" | "monthly" | "yearly";
 export function monthlyCost(amount: number, cycle: Cycle) {
   return cycle === "weekly" ? (amount * 52) / 12 : cycle === "yearly" ? amount / 12 : amount;
