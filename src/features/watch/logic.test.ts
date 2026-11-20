@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canOpenWatchTitle,
   clampWatchProgress,
   matchesWatchCategory,
   normalizeWatchCategory,
@@ -8,6 +9,36 @@ import {
 } from "./logic";
 
 describe("Watch domain rules", () => {
+  it("allows episode selection for live series even when the series manifest is pending", () => {
+    expect(canOpenWatchTitle({
+      isDemo: false,
+      contentType: "series",
+      status: "pending",
+      manifestUrl: null,
+    })).toBe(true);
+  });
+
+  it("requires a ready manifest for single titles and blocks demo entries", () => {
+    expect(canOpenWatchTitle({
+      isDemo: false,
+      contentType: "single",
+      status: "pending",
+      manifestUrl: null,
+    })).toBe(false);
+    expect(canOpenWatchTitle({
+      isDemo: false,
+      contentType: "single",
+      status: "ready",
+      manifestUrl: "https://cdn.example/master.m3u8",
+    })).toBe(true);
+    expect(canOpenWatchTitle({
+      isDemo: true,
+      contentType: "series",
+      status: "ready",
+      manifestUrl: "https://cdn.example/master.m3u8",
+    })).toBe(false);
+  });
+
   it("normalizes unknown category query values to All", () => {
     expect(normalizeWatchCategory("Food")).toBe("Food");
     expect(normalizeWatchCategory("premium")).toBe("All");
