@@ -41,6 +41,9 @@ jobs:
           npx eslint
           src/routes/messages.tsx
           src/components/nexora/GroupChat.tsx
+          src/components/nexora/MessageAttachment.tsx
+          src/components/nexora/message-attachments.ts
+          src/components/nexora/message-attachments.test.ts
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
           src/hooks/useChatActivity.ts
