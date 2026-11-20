@@ -47,6 +47,10 @@ jobs:
           src/components/nexora/LocationShareCard.tsx
           src/components/nexora/location-sharing.ts
           src/components/nexora/location-sharing.test.ts
+          src/components/nexora/ShareContentDialog.tsx
+          src/components/nexora/SharedContentCard.tsx
+          src/components/nexora/shared-content.ts
+          src/components/nexora/shared-content.test.ts
           src/hooks/useChatLocationSharing.ts
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
