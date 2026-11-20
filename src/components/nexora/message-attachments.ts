@@ -44,6 +44,15 @@ export function safeAttachmentName(name: string): string {
   return (leaf || "Shared document").slice(0, 120);
 }
 
+export function documentTypeLabel(mimeType?: string | null): string {
+  if (!mimeType) return "Document";
+  if (mimeType === "application/pdf") return "PDF";
+  if (mimeType === "application/msword" || mimeType.includes("wordprocessingml")) return "Word";
+  if (mimeType === "application/vnd.ms-excel" || mimeType.includes("spreadsheetml")) return "Excel";
+  if (mimeType === "application/vnd.ms-powerpoint" || mimeType.includes("presentationml")) return "PowerPoint";
+  return "Document";
+}
+
 export function formatAttachmentSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "Size unavailable";
   if (bytes < 1024) return `${Math.floor(bytes)} B`;
