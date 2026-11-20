@@ -367,7 +367,8 @@ alter table public.chat_group_messages
   check (
     (location_latitude is null and location_longitude is null and location_accuracy_m is null and location_captured_at is null)
     or
-    (location_latitude between -90 and 90 and location_longitude between -180 and 180
+    (location_latitude is not null and location_longitude is not null
+      and location_latitude between -90 and 90 and location_longitude between -180 and 180
       and location_captured_at is not null
       and (location_accuracy_m is null or location_accuracy_m >= 0))
   );
