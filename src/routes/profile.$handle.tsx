@@ -51,6 +51,9 @@ type SocialTab = "followers" | "following";
 type Presentation = "social" | "media" | "studio";
 
 export const Route = createFileRoute("/profile/$handle")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    post: typeof search.post === "string" ? search.post : "",
+  }),
   head: () => ({
     meta: [
       { title: "Profile & Pulse Passport — NEXORA" },
@@ -70,6 +73,7 @@ const contentTabs: { id: Tab; label: string; Icon: typeof Grid3X3 }[] = [
 
 function PublicProfile() {
   const { handle } = Route.useParams();
+  const { post: requestedPostId } = Route.useSearch();
   const { user } = useSession();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -88,6 +92,12 @@ function PublicProfile() {
     profile?.settings?.privateProfile === true || profile?.settings?.private_profile === true,
   );
   const graph = useSocialGraph(profile?.id);
+
+  useEffect(() => {
+    if (!requestedPostId || loading) return;
+    const match = posts.find((post) => post.id === requestedPostId);
+    if (match) setSelectedPost(match);
+  }, [loading, posts, requestedPostId]);
 
   useEffect(() => {
     let cancelled = false;
