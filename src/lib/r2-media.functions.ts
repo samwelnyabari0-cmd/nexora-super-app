@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -124,4 +124,48 @@ export const verifyR2MediaUpload = createServerFn({ method: "POST" })
       size: object.ContentLength,
       verified: true as const,
     };
+  });
+
+
+const playbackInputSchema = z.object({
+  postId: z.string().uuid(),
+  asset: z.enum(["media", "thumbnail"]),
+});
+
+export const createR2MediaPlaybackUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => playbackInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    // Query through the caller's Supabase session so existing RLS policies apply.
+    const { data: post, error } = await (context.supabase as any)
+      .from("user_media_posts")
+      .select("id, user_id, audience, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key")
+      .eq("id", data.postId)
+      .maybeSingle();
+
+    if (error || !post) throw new Error("Media post is unavailable.");
+
+    const isOwner = post.user_id === context.userId;
+    if (!isOwner && post.audience !== "public") {
+      throw new Error("You do not have permission to view this media.");
+    }
+
+    const provider = data.asset === "media"
+      ? post.media_storage_provider
+      : post.thumbnail_storage_provider;
+    const key = data.asset === "media"
+      ? post.media_storage_key
+      : post.thumbnail_storage_key;
+
+    if (provider !== "r2" || typeof key !== "string" || !key.startsWith(`${post.user_id}/posts/`)) {
+      throw new Error("R2 media reference is invalid.");
+    }
+
+    const { client, bucket } = getR2MediaConfig();
+    const url = await getSignedUrl(
+      client,
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      { expiresIn: 900 },
+    );
+    return { url, expiresInSeconds: 900 };
   });
