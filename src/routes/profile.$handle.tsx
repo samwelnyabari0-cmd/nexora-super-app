@@ -29,10 +29,14 @@ type ProfileRecord = {
 };
 type ProfilePost = {
   id: string;
-  author_id: string;
+  user_id: string;
   caption: string | null;
   media_url: string | null;
   media_type: string | null;
+  thumbnail_url: string | null;
+  content_type: "post" | "reel" | "video" | "collab";
+  aspect_ratio: string | null;
+  duration_seconds: number | null;
   audience: string | null;
   tags: string[] | null;
   created_at: string;
@@ -127,9 +131,9 @@ const row = profileRows?.[0] ?? null;
         }
 
         const { data: rows, error: postsError } = await (supabase as any)
-          .from("posts")
-          .select("id, author_id, caption, media_url, media_type, audience, tags, created_at")
-          .eq("author_id", found.id)
+          .from("user_media_posts")
+          .select("id, user_id, caption, media_url, media_type, thumbnail_url, content_type, aspect_ratio, duration_seconds, audience, tags, created_at, like_count, comment_count, share_count, view_count")
+          .eq("user_id", found.id)
           .order("created_at", { ascending: false })
           .limit(60);
         if (cancelled) return;
@@ -139,40 +143,28 @@ const row = profileRows?.[0] ?? null;
           return;
         }
 
-        const visibleRows = (rows ?? []).filter(
-          (post: ProfilePost) => isOwner || post.audience !== "private",
-        );
-        const postIds = visibleRows.map((post: ProfilePost) => post.id);
-        let interactionRows: Array<{ post_id: string; kind: string }> = [];
-        if (postIds.length) {
-          const { data } = await (supabase as any)
-            .from("post_interactions")
-            .select("post_id, kind")
-            .in("post_id", postIds);
-          interactionRows = data ?? [];
-        }
+        let queryRows = rows ?? [];
+        if (!isOwner) queryRows = queryRows.filter((post: ProfilePost) => post.audience === "public");
 
         const hydrated = await Promise.all(
-          visibleRows.map(async (post: ProfilePost) => {
-            let mediaSrc: string | undefined;
-            if (post.media_url) {
-              if (/^https?:\/\//i.test(post.media_url)) {
-                mediaSrc = post.media_url;
-              } else {
-                const { data } = await supabase.storage
-                  .from("post-media")
-                  .createSignedUrl(post.media_url, 900);
-                mediaSrc = data?.signedUrl ?? undefined;
-              }
-            }
-            const events = interactionRows.filter((event) => event.post_id === post.id);
+          queryRows.map(async (post: ProfilePost) => {
+            const resolveUrl = async (value: string | null) => {
+              if (!value) return undefined;
+              if (/^https?:\/\//i.test(value)) return value;
+              const { data } = await supabase.storage.from("post-media").createSignedUrl(value, 900);
+              return data?.signedUrl ?? undefined;
+            };
+            const [mediaSrc, thumbnailSrc] = await Promise.all([
+              resolveUrl(post.media_url),
+              resolveUrl(post.thumbnail_url),
+            ]);
             return {
               ...post,
-              mediaSrc,
-              likes: events.filter((event) => event.kind === "like").length,
-              comments: null,
-              shares: events.filter((event) => event.kind === "share").length,
-              views: null,
+              mediaSrc: mediaSrc ?? thumbnailSrc,
+              likes: Number((post as any).like_count ?? 0),
+              comments: Number((post as any).comment_count ?? 0),
+              shares: Number((post as any).share_count ?? 0),
+              views: Number((post as any).view_count ?? 0),
             };
           }),
         );
@@ -227,19 +219,15 @@ const row = profileRows?.[0] ?? null;
   }, [profile?.id, socialTab, owner]);
 
   const visiblePosts = useMemo(() => {
-    const isVideo = (post: ProfilePost) => post.media_type?.startsWith("video/") === true;
-    const isReel = (post: ProfilePost) =>
-      isVideo(post) && post.tags?.some((tag) => ["reel", "short"].includes(tag.toLowerCase()));
-
     switch (tab) {
       case "posts":
-        return posts.filter((post) => !isVideo(post));
+        return posts.filter((post) => post.content_type === "post");
       case "reels":
-        return posts.filter(isReel);
+        return posts.filter((post) => post.content_type === "reel");
       case "videos":
-        return posts.filter((post) => isVideo(post) && !isReel(post));
+        return posts.filter((post) => post.content_type === "video");
       case "collabs":
-        return posts.filter((post) => post.tags?.some((tag) => tag.toLowerCase() === "collab"));
+        return posts.filter((post) => post.content_type === "collab");
       case "reposts":
         return [];
       default:
@@ -249,7 +237,7 @@ const row = profileRows?.[0] ?? null;
 
   const totalLikes = posts.reduce((total, post) => total + post.likes, 0);
   const totalShares = posts.reduce((total, post) => total + post.shares, 0);
-  const totalCollabs = posts.filter((post) => post.tags?.some((tag) => tag.toLowerCase() === "collab")).length;
+  const totalCollabs = posts.filter((post) => post.content_type === "collab").length;
 
   if (loading) {
     return <div className="mx-auto max-w-3xl p-4 text-sm text-muted-foreground" role="status">Loading Pulse Passport…</div>;
