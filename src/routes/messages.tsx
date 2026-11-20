@@ -414,14 +414,14 @@ if (recipient === user.id) {
         await Promise.all([
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
             .eq("sender_id", user.id)
             .eq("recipient_id", recipient)
             .order("created_at", { ascending: true }),
 
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
             .eq("sender_id", recipient)
             .eq("recipient_id", user.id)
             .order("created_at", { ascending: true }),
