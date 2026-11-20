@@ -505,6 +505,7 @@ export type Database = {
           shared_content_source: string | null
           shared_content_id: string | null
           shared_content_type: string | null
+          expires_at: string | null
           media_type: string | null
           sender_id: string
         }
@@ -526,6 +527,7 @@ export type Database = {
           shared_content_source?: string | null
           shared_content_id?: string | null
           shared_content_type?: string | null
+          expires_at?: string | null
           media_type?: string | null
           sender_id: string
         }
@@ -547,6 +549,7 @@ export type Database = {
           shared_content_source?: string | null
           shared_content_id?: string | null
           shared_content_type?: string | null
+          expires_at?: string | null
           media_type?: string | null
           sender_id?: string
         }
@@ -2613,6 +2616,7 @@ export type Database = {
           shared_content_source: string | null
           shared_content_id: string | null
           shared_content_type: string | null
+          expires_at: string | null
           media_type: string | null
           recipient_id: string
           seen_at: string | null
@@ -2636,6 +2640,7 @@ export type Database = {
           shared_content_source?: string | null
           shared_content_id?: string | null
           shared_content_type?: string | null
+          expires_at?: string | null
           media_type?: string | null
           recipient_id: string
           seen_at?: string | null
@@ -2659,6 +2664,7 @@ export type Database = {
           shared_content_source?: string | null
           shared_content_id?: string | null
           shared_content_type?: string | null
+          expires_at?: string | null
           media_type?: string | null
           recipient_id?: string
           seen_at?: string | null
