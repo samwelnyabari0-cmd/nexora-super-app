@@ -45,3 +45,16 @@ export function canOpenWatchTitle(title: {
   if (title.contentType === "series") return true;
   return title.status === "ready" && Boolean(title.manifestUrl?.trim());
 }
+
+export function shouldSaveWatchProgress(
+  positionSeconds: number,
+  lastSavedSeconds: number,
+  totalSeconds: number,
+  force = false,
+): boolean {
+  if (![positionSeconds, lastSavedSeconds, totalSeconds].every(Number.isFinite) || totalSeconds <= 0) {
+    return false;
+  }
+  if (force) return true;
+  return !(Math.abs(positionSeconds - lastSavedSeconds) < 3 && positionSeconds < totalSeconds - 2);
+}
