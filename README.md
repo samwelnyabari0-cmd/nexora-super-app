@@ -34,7 +34,7 @@ The repository's lockfile should be refreshed with `npm install` (or `bun instal
 
 The first rollout sends a single video selected in Creator Studio to the existing private R2 bucket. Images and multi-file posts continue using the existing Supabase `post-media` bucket. Existing posts are not migrated.
 
-Supabase remains the source of truth for post ownership and visibility. The migration `20261121010000_hybrid_media_storage_metadata.sql` adds storage-provider and object-key metadata; existing rows default to `supabase`. Apply this migration only after reviewing the branch and confirming the target Supabase project.
+Supabase remains the source of truth for post ownership and visibility. The migration `20261120170000_hybrid_media_storage_metadata.sql` adds storage-provider and object-key metadata; existing rows default to `supabase`. Apply this migration only after reviewing the branch and confirming the target Supabase project.
 
 R2 media uploads use authenticated five-minute presigned PUT URLs. The server verifies the object metadata and exact byte size before the post is saved. Playback URLs are short-lived and are issued only after the signed-in user's Supabase session can read the post under RLS; private posts are limited to their owner. Failed publish attempts trigger owner-scoped cleanup for uploaded media.
 
@@ -44,4 +44,4 @@ The existing R2 bucket must remain private because it also stores KYC documents.
 - `x-amz-meta-purpose`
 - `x-amz-meta-expected_size`
 
-Allow the `PUT` method. The app uses signed `GET` URLs for playback, so browser playback requests go directly to the signed R2 URL. Test upload, verification, playback, private-post denial, and failed-publish cleanup in a preview environment before production rollout. Single-part upload is currently capped at 5 GiB; multipart uploads are not yet implemented.
+Allow both `PUT` and `GET` methods. The app uses signed `GET` URLs for playback, so browser playback requests go directly to the signed R2 URL. Test upload, verification, playback, private-post denial, and failed-publish cleanup in a preview environment before production rollout. Single-part upload is currently capped at 5 GiB; multipart uploads are not yet implemented.
