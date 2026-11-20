@@ -80,7 +80,8 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
   }
 
   return (
-    <div className="flex min-w-[210px] max-w-[280px] items-center gap-2.5 py-1">
+    <>
+    <div className="flex min-w-[210px] max-w-[320px] items-center gap-2.5 py-1">
       <audio
         ref={audioRef}
         src={src}
@@ -142,7 +143,8 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
         {SPEEDS[speedIndex]}x
       </button>
     </div>
-    {transcribeError && <p role="alert" className="max-w-[280px] text-[10px] text-destructive">{transcribeError}</p>}
+    <p className="max-w-[320px] text-[10px] text-muted-foreground">Transcribing sends this audio to the configured AI provider.</p>
+    {transcribeError && <p role="alert" className="max-w-[320px] text-[10px] text-destructive">{transcribeError}</p>
     {transcript && (
       <details className="max-w-[280px] rounded-lg border border-current/10 p-2 text-xs">
         <summary className="cursor-pointer font-medium">Transcript and summary</summary>
@@ -150,5 +152,6 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
         {summary && <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{summary}</p>}
       </details>
     )}
+    </>
   );
 }
