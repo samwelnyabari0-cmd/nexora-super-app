@@ -632,12 +632,12 @@ if (recipient === user.id) {
     let cancelled = false;
 
     async function loadMediaUrls() {
-      const mediaMessages = messages.filter((message) => message.media_path);
+      const mediaMessages = messages.filter((message) => message.media_path && !isMessageExpired(message.expires_at));
       const entries = await Promise.all(
         mediaMessages.map(async (message) => {
           const { data } = await supabase.storage
             .from("chat-media")
-            .createSignedUrl(message.media_path!, 3600);
+            .createSignedUrl(message.media_path!, 60);
           return [message.id, data?.signedUrl || ""] as const;
         })
       );
@@ -651,8 +651,10 @@ if (recipient === user.id) {
     }
 
     void loadMediaUrls();
+    const refreshTimer = window.setInterval(() => void loadMediaUrls(), 45_000);
     return () => {
       cancelled = true;
+      window.clearInterval(refreshTimer);
     };
   }, [messages]);
 
