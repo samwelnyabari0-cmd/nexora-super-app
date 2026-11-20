@@ -56,6 +56,7 @@ jobs:
           src/components/nexora/call-media.ts
           src/components/nexora/call-media.test.ts
           src/hooks/useChatLocationSharing.ts
+          src/hooks/useChatLocationSharing.test.tsx
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
           src/hooks/useChatActivity.ts
