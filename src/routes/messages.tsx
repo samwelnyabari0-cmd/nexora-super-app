@@ -1,7 +1,7 @@
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2, Phone, Video, Sparkles, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2, Phone, Video, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -357,7 +357,7 @@ function Messages() {
           displayName: profile?.display_name || "NEXORA User",
           handle: profile?.handle || "",
           avatarUrl: profile?.avatar_url || null,
-          lastMessage: hasStoredChatLock(user.id, "direct", userId) ? "🔒 Locked chat" : message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
+          lastMessage: hasStoredChatLock(user.id, "direct", userId) ? "🔒 Locked chat" : message.deleted_at ? "This message was deleted" : message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
           lastMessageAt: message.created_at,
           unreadCount: unreadByUser.get(userId) ?? 0,
           isOnline,
@@ -386,7 +386,7 @@ function Messages() {
           .in("id", groupIds),
         (supabase as any)
           .from("chat_group_messages")
-          .select("id, group_id, body, media_type, created_at, location_latitude, location_session_id")
+          .select("id, group_id, body, media_type, created_at, location_latitude, location_session_id, deleted_at")
           .in("group_id", groupIds)
           .order("created_at", { ascending: false }),
       ]);
@@ -411,7 +411,7 @@ function Messages() {
           groupId: item.id,
           name: item.name,
           avatarUrl: signedAvatar,
-          lastMessage: hasStoredChatLock(user.id, "group", item.id) ? "🔒 Locked group" : latest?.body || (
+          lastMessage: hasStoredChatLock(user.id, "group", item.id) ? "🔒 Locked group" : latest?.deleted_at ? "This message was deleted" : latest?.body || (
             latest?.media_type === "video" ? "🎥 Video" :
             latest?.media_type === "image" ? "📷 Photo" :
             latest?.media_type === "audio" ? "🎤 Voice message" :
@@ -628,7 +628,7 @@ if (recipient === user.id) {
 
   async function editMessage(message: DirectMessage) {
     const nextBody = window.prompt("Edit your message", message.body);
-    if (nextBody === null || nextBody.trim() === message.body) return;
+    if (nextBody === null || !nextBody.trim() || nextBody.trim() === message.body) return;
     const { data, error: editError } = await (supabase as any).rpc("edit_direct_message", {
       p_message_id: message.id,
       p_body: nextBody.trim(),
