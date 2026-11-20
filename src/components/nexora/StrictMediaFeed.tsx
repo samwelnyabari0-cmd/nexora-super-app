@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Film, Play, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
+import { createPublicR2MediaPlaybackUrl, createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
 
 export type StrictFeedType = "post" | "reel" | "video" | "collab";
 export type StrictMediaItem = {
@@ -39,7 +39,12 @@ async function resolveStorageUrl(
       const result = await createR2MediaPlaybackUrl({ data: { postId, asset } });
       return result.url;
     } catch {
-      return undefined;
+      try {
+        const result = await createPublicR2MediaPlaybackUrl({ data: { postId, asset } });
+        return result.url;
+      } catch {
+        return undefined;
+      }
     }
   }
   if (!value) return undefined;
