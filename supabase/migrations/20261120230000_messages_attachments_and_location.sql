@@ -91,7 +91,7 @@ begin
         'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
       ]::text[]
-    ) as allowed_type
+    ) as mime_types(allowed_type)
     order by allowed_type
   )
   where id = 'chat-media'
