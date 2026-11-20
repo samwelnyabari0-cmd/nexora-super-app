@@ -10,6 +10,7 @@ import { toast } from "sonner";
   Bookmark,
   Grid3X3,
   Film,
+  Video,
   CheckCircle2,
   Share2,
   Pencil,
@@ -97,7 +98,7 @@ function Profile() {
     Boolean(user?.user_metadata?.private_profile),
   );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
-  const [socialTab, setSocialTab] = useState<"posts" | "reels" | "collabs" | "saved" | "followers" | "following">("posts");
+  const [socialTab, setSocialTab] = useState<"posts" | "reels" | "videos" | "collabs" | "saved" | "followers" | "following">("posts");
   const [exploreOpen, setExploreOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   const [accountType, setAccountType] = useState<"personal" | "creator" | "business">(user?.user_metadata?.account_type ?? "personal");
@@ -392,6 +393,7 @@ useEffect(() => {
               { value: "saved", label: "Saved", Icon: Bookmark },
               { value: "posts", label: "Posts", Icon: Grid3X3 },
               { value: "reels", label: "Reels", Icon: Film },
+              { value: "videos", label: "Videos", Icon: Video },
               { value: "collabs", label: "Collabs", Icon: Users },
             ] as const
           ).map(({ value, label, Icon: IconComponent }) => (
@@ -405,7 +407,7 @@ useEffect(() => {
             </Button>
           ))}
         </div>
-        {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs" || socialTab === "saved") && (
+        {(socialTab === "posts" || socialTab === "reels" || socialTab === "videos" || socialTab === "collabs" || socialTab === "saved") && (
           <ProfileMediaExperience tab={socialTab} />
         )}
         {(socialTab === "followers" || socialTab === "following") && (
@@ -437,7 +439,7 @@ useEffect(() => {
   );
 }
 
-type ProfileMediaTab = "posts" | "reels" | "collabs" | "saved";
+type ProfileMediaTab = "posts" | "reels" | "videos" | "collabs" | "saved";
 
 function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   const {
@@ -463,6 +465,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
     if (post.creatorId !== "me") return false;
 
     if (tab === "reels") return post.kind === "short";
+    if (tab === "videos") return post.kind === "video";
 
     if (tab === "collabs") {
       return (
@@ -471,7 +474,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
       );
     }
 
-    return post.kind !== "short" &&
+    return post.kind === "post" &&
       !(post.tags ?? []).some((tag) => tag.toLowerCase() === "collab");
   });
 
@@ -549,8 +552,8 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                 <button
                   key={post.id}
                   type="button"
-                  onClick={() => setViewerIndex(index)}
-                  className="group relative aspect-square overflow-hidden rounded-xl border bg-muted text-left"
+                  onClick={() => tab === "videos" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : setViewerIndex(index)}
+                  className={`group relative ${tab === "reels" ? "aspect-[9/16]" : tab === "videos" ? "aspect-video" : "aspect-square"} overflow-hidden rounded-xl border bg-muted text-left`}
                   aria-label={`Open ${post.caption || "profile content"}`}
                 >
                   {post.image ? (
