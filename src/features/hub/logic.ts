@@ -1,14 +1,64 @@
 // Pure helpers for the Hub mini-apps. No network, no AI.
 export type ModuleId =
   "tasks" | "notes" | "budget" | "deals" | "tools" | "focus" | "workflow";
+export type ModuleAccent = "emerald" | "cyan" | "violet" | "indigo" | "slate" | "amber";
+
+export const moduleBranding: Record<
+  ModuleId,
+  { name: string; feature: string; accent: ModuleAccent; description: string }
+> = {
+  budget: {
+    name: "PesaVault",
+    feature: "Subscriptions & bills",
+    accent: "emerald",
+    description: "Keep recurring costs visible and organised.",
+  },
+  tools: {
+    name: "ShareTab",
+    feature: "Split bills",
+    accent: "cyan",
+    description: "Share a bill and calculate fair contributions.",
+  },
+  focus: {
+    name: "DeepPulse",
+    feature: "Focus timer",
+    accent: "violet",
+    description: "Protect focused time, one session at a time.",
+  },
+  workflow: {
+    name: "TaskForge",
+    feature: "Micro-workflows",
+    accent: "indigo",
+    description: "Turn a big goal into manageable steps.",
+  },
+  notes: {
+    name: "MindGrid",
+    feature: "Notes",
+    accent: "slate",
+    description: "Capture thoughts and turn useful notes into actions.",
+  },
+  tasks: {
+    name: "MindGrid",
+    feature: "Tasks",
+    accent: "slate",
+    description: "Keep your next actions clear and organised.",
+  },
+  deals: {
+    name: "TrustSpot",
+    feature: "Deals & services",
+    accent: "amber",
+    description: "Browse local services and clearly labelled listings.",
+  },
+};
+
 export const allModules: { id: ModuleId; label: string }[] = [
-  { id: "tasks", label: "Tasks" },
-  { id: "notes", label: "Notes" },
-  { id: "budget", label: "Budget & subscriptions" },
-  { id: "deals", label: "Deals & services" },
-  { id: "tools", label: "Quick tools" },
-  { id: "focus", label: "Focus timer" },
-  { id: "workflow", label: "Micro-Split workflows" },
+  { id: "tasks", label: "MindGrid · Tasks" },
+  { id: "notes", label: "MindGrid · Notes" },
+  { id: "budget", label: "PesaVault" },
+  { id: "deals", label: "TrustSpot" },
+  { id: "tools", label: "ShareTab" },
+  { id: "focus", label: "DeepPulse" },
+  { id: "workflow", label: "TaskForge" },
 ];
 
 /** Split an amount in KES cents fairly; leftover cents go to the first people. */
@@ -18,6 +68,41 @@ export function splitBill(total: number, people: number): number[] {
   const base = Math.floor(cents / people),
     rest = cents % people;
   return Array.from({ length: people }, (_, i) => (base + (i < rest ? 1 : 0)) / 100);
+}
+
+export function taskCompletion(tasks: readonly { done: boolean }[]) {
+  const total = tasks.length;
+  const done = tasks.filter((task) => task.done).length;
+  return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+}
+
+export function focusProgress(remainingSeconds: number, totalSeconds = 25 * 60) {
+  if (!Number.isFinite(remainingSeconds) || !Number.isFinite(totalSeconds) || totalSeconds <= 0) return 0;
+  const remaining = Math.min(totalSeconds, Math.max(0, remainingSeconds));
+  return Math.round(((totalSeconds - remaining) / totalSeconds) * 100);
+}
+
+export function hubSyncLabel(status: "off" | "syncing" | "synced" | "error") {
+  return status === "syncing"
+    ? "Syncing"
+    : status === "synced"
+      ? "Cloud synced"
+      : status === "error"
+        ? "Sync issue"
+        : "Device saved";
+}
+
+export function subscriptionBreakdown(subscriptions: readonly { amount: number; cycle: Cycle }[]) {
+  const weekly = subscriptions
+    .filter((item) => item.cycle === "weekly")
+    .reduce((sum, item) => sum + monthlyCost(item.amount, "weekly"), 0);
+  const monthly = subscriptions
+    .filter((item) => item.cycle === "monthly")
+    .reduce((sum, item) => sum + monthlyCost(item.amount, "monthly"), 0);
+  const yearly = subscriptions
+    .filter((item) => item.cycle === "yearly")
+    .reduce((sum, item) => sum + monthlyCost(item.amount, "yearly"), 0);
+  return { weekly, monthly, yearly, total: weekly + monthly + yearly };
 }
 
 export type Cycle = "weekly" | "monthly" | "yearly";

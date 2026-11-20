@@ -27,6 +27,12 @@ import {
   extractTags,
   type Cycle,
   type ModuleId,
+  moduleBranding,
+  taskCompletion,
+  focusProgress,
+  hubSyncLabel,
+  subscriptionBreakdown,
+  type ModuleAccent,
 } from "@/features/hub/logic";
 import { useHub, newId, type HubData } from "@/features/hub/useHub";
 
@@ -83,8 +89,10 @@ function HubPage() {
         ...data.notes.map((n) => ({ k: "Note", t: n.text })),
       ].filter((r) => r.t.toLowerCase().includes(q))
     : [];
-  const doneTasks = data.tasks.filter((t) => t.done).length;
-  const monthly = data.subs.reduce((a, s) => a + monthlyCost(s.amount, s.cycle), 0);
+  const taskProgress = taskCompletion(data.tasks);
+  const doneTasks = taskProgress.done;
+  const spend = subscriptionBreakdown(data.subs);
+  const monthly = spend.total;
 
   const blocks: Record<ModuleId, ReactElement> = {
     tasks: <Tasks data={data} update={update} />,
@@ -100,25 +108,29 @@ function HubPage() {
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title={hour === null ? "Hub" : `${greeting(hour)}, ${passport.name.split(" ")[0]}`}
-        subtitle="Your mini-apps. Saved on this device only — not synced to a cloud account."
-        action={<DemoBadge>Device only</DemoBadge>}
+        subtitle="Your tools, routines and everyday workspace."
+        action={
+          <DemoBadge className="normal-case tracking-normal">
+            {hubSyncLabel(hub.cloud)}
+          </DemoBadge>
+        }
       />
       <div
         className={`mb-4 flex flex-wrap items-center gap-3 rounded-2xl border p-3 ${hub.ghostOn ? "border-warning/60 bg-warning/10" : ""}`}
       >
-        <Ghost className="h-5 w-5" aria-hidden />
-        <p className="flex-1 text-sm">
+        <Ghost className="h-5 w-5 text-violet-400" aria-hidden />
+        <div className="flex-1"><p className="text-sm font-semibold">ShadowBox</p><p className="text-sm text-muted-foreground">
           {hub.ghostOn
-            ? "Ghost State on: changes are temporary and not saved until you commit."
-            : "Ghost State: try changes in a temporary sandbox, then commit or discard."}
-        </p>
+            ? "ShadowBox is active: changes are temporary until you commit them."
+            : "ShadowBox: safely test changes in a temporary sandbox, then commit or discard."}
+        </p></div>
         {hub.ghostOn ? (
           <>
             <Button
               size="sm"
               onClick={() => {
                 hub.commitGhost();
-                toast.success("Ghost changes committed to this device");
+                toast.success("ShadowBox changes committed");
               }}
             >
               Commit
@@ -128,7 +140,7 @@ function HubPage() {
               variant="outline"
               onClick={() => {
                 hub.discardGhost();
-                toast("Ghost changes discarded");
+                toast("ShadowBox changes discarded");
               }}
             >
               Discard
@@ -136,7 +148,7 @@ function HubPage() {
           </>
         ) : (
           <Button size="sm" variant="outline" onClick={hub.enterGhost}>
-            Enter Ghost State
+            Open ShadowBox
           </Button>
         )}
         <span className="text-xs text-muted-foreground">
@@ -186,8 +198,41 @@ function HubPage() {
             <p className="text-muted-foreground">subscriptions / month</p>
           </div>
         </div>
+        <div className="mt-4">
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="font-medium">Task completion</span>
+            <span className="tabular-nums text-muted-foreground">{taskProgress.percent}% · {doneTasks}/{taskProgress.total}</span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-label="Task completion"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={taskProgress.percent}
+          >
+            <div
+              className="h-full rounded-full bg-violet-400 motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:transition-none"
+              style={{ width: `${taskProgress.percent}%` }}
+            />
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+          <div className="rounded-lg bg-muted/50 p-2">
+            <p className="text-muted-foreground">Weekly plans</p>
+            <p className="font-semibold tabular-nums">{fmtKES(spend.weekly)}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-2">
+            <p className="text-muted-foreground">Monthly plans</p>
+            <p className="font-semibold tabular-nums">{fmtKES(spend.monthly)}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-2">
+            <p className="text-muted-foreground">Yearly plans</p>
+            <p className="font-semibold tabular-nums">{fmtKES(spend.yearly)}</p>
+          </div>
+        </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Counted only from what you entered here.
+          Monthly-equivalent totals are based only on your manual entries; no budget allowance is assumed.
         </p>
       </Panel>
       <details className="mb-6 rounded-2xl border p-3">
@@ -245,10 +290,31 @@ function HubPage() {
   );
 }
 
-function Title({ children, badge }: { children: string; badge?: string }) {
+const brandAccent: Record<ModuleAccent, string> = {
+  emerald: "text-emerald-400",
+  cyan: "text-cyan-400",
+  violet: "text-violet-400",
+  indigo: "text-indigo-400",
+  slate: "text-slate-300",
+  amber: "text-amber-400",
+};
+
+function Title({
+  children,
+  badge,
+  brandId,
+}: {
+  children: string;
+  badge?: string;
+  brandId?: ModuleId;
+}) {
+  const brand = brandId ? moduleBranding[brandId] : null;
   return (
     <div className="mb-3 flex items-center justify-between">
-      <h2 className="font-display font-semibold">{children}</h2>
+      <div>
+        <h2 className={`font-display font-semibold ${brand ? brandAccent[brand.accent] : ""}`}>{brand?.name ?? children}</h2>
+        {brand && <p className="text-xs text-muted-foreground">{brand.feature} · {brand.description}</p>}
+      </div>
       {badge && <DemoBadge>{badge}</DemoBadge>}
     </div>
   );
@@ -263,7 +329,7 @@ function Tasks({ data, update }: { data: HubData; update: Update }) {
   };
   return (
     <>
-      <Title>Tasks</Title>
+      <Title brandId="tasks">Tasks</Title>
       <form
         className="mb-2 flex gap-2"
         onSubmit={(e) => {
@@ -295,7 +361,7 @@ function Tasks({ data, update }: { data: HubData; update: Update }) {
                   }))
                 }
               />
-              <span className={`flex-1 ${x.done ? "line-through text-muted-foreground" : ""}`}>
+              <span className={`flex-1 transition-colors motion-reduce:transition-none ${x.done ? "line-through text-muted-foreground" : ""}`}>
                 {x.text}
               </span>
               <Button
@@ -324,7 +390,7 @@ function Notes({ data, update }: { data: HubData; update: Update }) {
     tags = extractTags(t);
   return (
     <>
-      <Title>Notes</Title>
+      <Title brandId="notes">Notes</Title>
       <textarea
         aria-label="Note"
         value={t}
@@ -409,7 +475,7 @@ function Budget({ data, update }: { data: HubData; update: Update }) {
   const shares = splitBill(Number(total), Number(people));
   return (
     <>
-      <Title badge="Manual entries">Budget & subscriptions</Title>
+      <Title brandId="budget" badge="Manual entries">Subscriptions & bills</Title>
       <form
         className="grid grid-cols-2 gap-2"
         onSubmit={(e) => {
@@ -556,7 +622,7 @@ function Deals({ data, update }: { data: HubData; update: Update }) {
   };
   return (
     <>
-      <Title badge="Sample listings">Deals & verified services</Title>
+      <Title brandId="deals" badge="Sample listings">Deals & services</Title>
       <div className="flex gap-2">
         <select
           aria-label="City"
@@ -598,7 +664,7 @@ function QuickTools() {
   const [tip, setTip] = useState("10");
   return (
     <>
-      <Title>Quick tools</Title>
+      <Title brandId="tools">Bill split & tip calculator</Title>
            <label className="text-sm">Tip calculator</label>
       <div className="flex gap-2">
         <input
@@ -643,12 +709,30 @@ function Focus({ update }: { update: Update }) {
       toast.success("Focus session done — 25 minutes logged");
     }
   }, [left, update]);
+  const progressPercent = focusProgress(left);
+  const progress = progressPercent / 100;
+  const circumference = 2 * Math.PI * 54;
   return (
     <>
-      <Title badge="Solo, local">Focus timer</Title>
-      <p className="text-center font-display text-5xl font-bold tabular-nums" aria-live="polite">
-        {String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}
-      </p>
+      <Title brandId="focus" badge="Solo, local">Focus timer</Title>
+      <div className="relative mx-auto my-3 grid h-40 w-40 place-items-center">
+        <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" role="img" aria-label={`Focus session ${progressPercent} percent complete`}>
+          <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeOpacity=".12" strokeWidth="8" />
+          <circle
+            cx="60" cy="60" r="54" fill="none" stroke="currentColor"
+            className="text-violet-400 motion-safe:transition-[stroke-dashoffset] motion-safe:duration-500"
+            strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - progress)}
+          />
+        </svg>
+        <div className="text-center">
+          <p className="font-display text-4xl font-bold tabular-nums" aria-live="polite">
+            {String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}
+          </p>
+          <p className="text-xs text-muted-foreground">{progressPercent}% complete</p>
+        </div>
+      </div>
       <div className="mt-3 flex justify-center gap-2">
         <Button onClick={() => setRun(!run)}>
           <Timer className="h-4 w-4" />
@@ -676,7 +760,7 @@ function Workflow({ update }: { update: Update }) {
   const [out, setOut] = useState<string[] | null>(null);
   return (
     <>
-      <Title>Micro-Split workflow</Title>
+      <Title brandId="workflow">Micro-workflows</Title>
       <p className="mb-2 text-xs text-muted-foreground">
         Voice or text → Extract action items → Tasks. Runs locally; nothing saves until you commit.
       </p>

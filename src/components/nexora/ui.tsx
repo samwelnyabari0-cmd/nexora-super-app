@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FlaskConical } from "lucide-react";
+import { CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Avatar({
@@ -52,11 +52,11 @@ export function DemoBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-warning",
+        "inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 text-[11px] font-medium tracking-normal text-muted-foreground",
         className,
       )}
     >
-      <FlaskConical className="h-3 w-3" aria-hidden /> {children}
+      <CircleDot className="h-3 w-3" aria-hidden /> {children}
     </span>
   );
 }

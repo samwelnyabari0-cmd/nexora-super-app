@@ -1,0 +1,59 @@
+name: Hub polish checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/routes/hub.tsx"
+      - "src/components/nexora/ui.tsx"
+      - "src/features/hub/**"
+      - ".github/workflows/hub-polish-checks.yml"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hub-polish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Hub tests, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Lint Hub files
+        run: >-
+          npx eslint
+          src/routes/hub.tsx
+          src/components/nexora/ui.tsx
+          src/features/hub/logic.ts
+          src/features/hub/logic.test.ts
+          src/features/hub/useHub.ts
+          --rule "prettier/prettier: off"
+          --rule "@typescript-eslint/no-explicit-any: off"
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: TypeScript audit (non-blocking baseline)
+        run: npx tsc --noEmit
+        continue-on-error: true
