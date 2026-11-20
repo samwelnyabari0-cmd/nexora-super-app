@@ -540,3 +540,276 @@ revoke all on function public.validate_shared_message_content() from public, ano
 revoke all on function public.validate_chat_location_message() from public, anon;
 grant execute on function public.validate_shared_message_content() to authenticated;
 grant execute on function public.validate_chat_location_message() to authenticated;
+
+
+-- Server-enforced per-chat expiry. Default is Off (retention_seconds = 0).
+-- pg_cron is not installed in this project, so expired rows are hidden by RLS but are not automatically physically deleted.
+create table if not exists public.chat_message_settings (
+  id uuid primary key default gen_random_uuid(),
+  chat_kind text not null check (chat_kind in ('direct', 'group')),
+  user_a_id uuid references auth.users(id) on delete cascade,
+  user_b_id uuid references auth.users(id) on delete cascade,
+  group_id uuid references public.chat_groups(id) on delete cascade,
+  chat_key text generated always as (
+    case
+      when chat_kind = 'direct' then user_a_id::text || ':' || user_b_id::text
+      else group_id::text
+    end
+  ) stored,
+  retention_seconds integer not null default 0
+    check (retention_seconds in (0, 86400, 604800, 2592000)),
+  updated_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint chat_message_settings_target_check check (
+    (chat_kind = 'direct' and user_a_id is not null and user_b_id is not null
+      and user_a_id < user_b_id and group_id is null)
+    or
+    (chat_kind = 'group' and group_id is not null and user_a_id is null and user_b_id is null)
+  ),
+  constraint chat_message_settings_chat_unique unique (chat_kind, chat_key)
+);
+
+alter table public.chat_message_settings enable row level security;
+revoke all on public.chat_message_settings from public, anon, authenticated;
+grant select on public.chat_message_settings to authenticated;
+
+drop policy if exists chat_message_settings_participants_select on public.chat_message_settings;
+create policy chat_message_settings_participants_select
+on public.chat_message_settings
+for select to authenticated
+using (
+  (chat_kind = 'direct' and (auth.uid() = user_a_id or auth.uid() = user_b_id))
+  or (chat_kind = 'group' and private.is_group_member(group_id))
+);
+
+create or replace function public.get_chat_disappearing_setting(
+  p_chat_kind text,
+  p_chat_id uuid
+)
+returns table (retention_seconds integer, updated_at timestamptz)
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_a uuid;
+  v_b uuid;
+  v_group uuid;
+  v_retention integer := 0;
+  v_updated_at timestamptz;
+begin
+  if v_user_id is null then raise exception 'Authentication required'; end if;
+
+  if p_chat_kind = 'direct' then
+    if p_chat_id is null or p_chat_id = v_user_id then raise exception 'Invalid direct chat'; end if;
+    if not exists (
+      select 1 from public.direct_messages dm
+      where (dm.sender_id = v_user_id and dm.recipient_id = p_chat_id)
+         or (dm.sender_id = p_chat_id and dm.recipient_id = v_user_id)
+    ) then raise exception 'Direct conversation not found'; end if;
+    v_a := least(v_user_id, p_chat_id);
+    v_b := greatest(v_user_id, p_chat_id);
+    select s.retention_seconds, s.updated_at
+      into v_retention, v_updated_at
+    from public.chat_message_settings s
+    where s.chat_kind = 'direct' and s.user_a_id = v_a and s.user_b_id = v_b;
+  elsif p_chat_kind = 'group' then
+    v_group := p_chat_id;
+    if v_group is null or not private.is_group_member(v_group) then
+      raise exception 'Current group membership is required';
+    end if;
+    select s.retention_seconds, s.updated_at
+      into v_retention, v_updated_at
+    from public.chat_message_settings s
+    where s.chat_kind = 'group' and s.group_id = v_group;
+  else
+    raise exception 'Unsupported chat kind';
+  end if;
+
+  return query select coalesce(v_retention, 0), v_updated_at;
+end;
+$$;
+
+create or replace function public.set_chat_disappearing_setting(
+  p_chat_kind text,
+  p_chat_id uuid,
+  p_retention_seconds integer
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_a uuid;
+  v_b uuid;
+  v_group uuid;
+begin
+  if v_user_id is null then raise exception 'Authentication required'; end if;
+  if p_retention_seconds not in (0, 86400, 604800, 2592000) then
+    raise exception 'Unsupported disappearing-message duration';
+  end if;
+
+  if p_chat_kind = 'direct' then
+    if p_chat_id is null or p_chat_id = v_user_id then raise exception 'Invalid direct chat'; end if;
+    if not exists (
+      select 1 from public.direct_messages dm
+      where (dm.sender_id = v_user_id and dm.recipient_id = p_chat_id)
+         or (dm.sender_id = p_chat_id and dm.recipient_id = v_user_id)
+    ) then raise exception 'Direct conversation not found'; end if;
+    v_a := least(v_user_id, p_chat_id);
+    v_b := greatest(v_user_id, p_chat_id);
+    insert into public.chat_message_settings (
+      chat_kind, user_a_id, user_b_id, retention_seconds, updated_by, updated_at
+    )
+    values ('direct', v_a, v_b, p_retention_seconds, v_user_id, now())
+    on conflict (chat_kind, chat_key)
+    do update set retention_seconds = excluded.retention_seconds,
+                  updated_by = v_user_id,
+                  updated_at = now();
+  elsif p_chat_kind = 'group' then
+    v_group := p_chat_id;
+    if v_group is null or not private.is_group_member(v_group) then
+      raise exception 'Current group membership is required';
+    end if;
+    insert into public.chat_message_settings (
+      chat_kind, group_id, retention_seconds, updated_by, updated_at
+    )
+    values ('group', v_group, p_retention_seconds, v_user_id, now())
+    on conflict (chat_kind, chat_key)
+    do update set retention_seconds = excluded.retention_seconds,
+                  updated_by = v_user_id,
+                  updated_at = now();
+  else
+    raise exception 'Unsupported chat kind';
+  end if;
+
+  return p_retention_seconds;
+end;
+$$;
+
+create or replace function public.apply_chat_message_expiry()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_retention integer := 0;
+  v_a uuid;
+  v_b uuid;
+begin
+  if tg_table_name = 'direct_messages' then
+    v_a := least(new.sender_id, new.recipient_id);
+    v_b := greatest(new.sender_id, new.recipient_id);
+    select s.retention_seconds into v_retention
+    from public.chat_message_settings s
+    where s.chat_kind = 'direct' and s.user_a_id = v_a and s.user_b_id = v_b;
+  elsif tg_table_name = 'chat_group_messages' then
+    select s.retention_seconds into v_retention
+    from public.chat_message_settings s
+    where s.chat_kind = 'group' and s.group_id = new.group_id;
+  else
+    raise exception 'Unsupported chat message table';
+  end if;
+
+  if coalesce(v_retention, 0) > 0 then
+    new.expires_at := now() + make_interval(secs => v_retention);
+  else
+    new.expires_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+alter table public.direct_messages
+  add column if not exists expires_at timestamptz;
+alter table public.chat_group_messages
+  add column if not exists expires_at timestamptz;
+
+drop trigger if exists direct_messages_apply_expiry on public.direct_messages;
+create trigger direct_messages_apply_expiry
+before insert on public.direct_messages
+for each row execute function public.apply_chat_message_expiry();
+
+drop trigger if exists chat_group_messages_apply_expiry on public.chat_group_messages;
+create trigger chat_group_messages_apply_expiry
+before insert on public.chat_group_messages
+for each row execute function public.apply_chat_message_expiry();
+
+drop policy if exists messages_participant_select on public.direct_messages;
+create policy messages_participant_select
+on public.direct_messages
+for select to authenticated
+using (
+  (auth.uid() = sender_id or auth.uid() = recipient_id)
+  and (expires_at is null or expires_at > now())
+);
+
+drop policy if exists messages_recipient_update_receipts on public.direct_messages;
+create policy messages_recipient_update_receipts
+on public.direct_messages
+for update to authenticated
+using (
+  auth.uid() = recipient_id
+  and (expires_at is null or expires_at > now())
+)
+with check (
+  auth.uid() = recipient_id
+  and (expires_at is null or expires_at > now())
+);
+
+drop policy if exists group_members_can_view_messages on public.chat_group_messages;
+create policy group_members_can_view_messages
+on public.chat_group_messages
+for select to authenticated
+using (
+  private.is_group_member(group_id)
+  and (expires_at is null or expires_at > now())
+);
+
+drop policy if exists "Chat participants view media" on storage.objects;
+create policy "Chat participants view media"
+on storage.objects
+for select to authenticated
+using (
+  bucket_id = 'chat-media'
+  and exists (
+    select 1
+    from public.direct_messages dm
+    where dm.media_path = objects.name
+      and (dm.sender_id = auth.uid() or dm.recipient_id = auth.uid())
+      and (dm.expires_at is null or dm.expires_at > now())
+  )
+);
+
+drop policy if exists "Group members view group media" on storage.objects;
+create policy "Group members view group media"
+on storage.objects
+for select to authenticated
+using (
+  bucket_id = 'chat-media'
+  and (
+    exists (
+      select 1 from public.chat_groups g
+      where g.avatar_url = objects.name
+        and private.is_group_member(g.id)
+    )
+    or exists (
+      select 1 from public.chat_group_messages gm
+      where gm.media_path = objects.name
+        and private.is_group_member(gm.group_id)
+        and (gm.expires_at is null or gm.expires_at > now())
+    )
+  )
+);
+
+revoke all on function public.get_chat_disappearing_setting(text, uuid) from public, anon;
+revoke all on function public.set_chat_disappearing_setting(text, uuid, integer) from public, anon;
+revoke all on function public.apply_chat_message_expiry() from public, anon;
+grant execute on function public.get_chat_disappearing_setting(text, uuid) to authenticated;
+grant execute on function public.set_chat_disappearing_setting(text, uuid, integer) to authenticated;
+grant execute on function public.apply_chat_message_expiry() to authenticated;
