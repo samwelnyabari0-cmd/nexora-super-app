@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
 import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
 import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
-import { createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
+import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -352,6 +352,7 @@ const previewFilter =
             let mediaStorageKey: string | null = null;
             let thumbnailStorageProvider: "supabase" | "r2" = "supabase";
             let thumbnailStorageKey: string | null = null;
+            const pendingR2Keys: string[] = [];
             if (mediaFiles.length) {
               // First rollout: route a single video to R2. Images and multi-file posts
               // retain the existing Supabase Storage path until their flows are migrated.
@@ -364,6 +365,7 @@ const previewFilter =
                     const signed = await createR2MediaUploadUrl({
                       data: { contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
                     });
+                    pendingR2Keys.push(signed.key);
                     const uploadResponse = await fetch(signed.uploadUrl, {
                       method: "PUT",
                       headers: signed.uploadHeaders,
@@ -383,6 +385,7 @@ const previewFilter =
                       const coverSigned = await createR2MediaUploadUrl({
                         data: { contentType: "image/jpeg", size: cover.size },
                       });
+                      pendingR2Keys.push(coverSigned.key);
                       const coverResponse = await fetch(coverSigned.uploadUrl, {
                         method: "PUT",
                         headers: coverSigned.uploadHeaders,
@@ -398,6 +401,9 @@ const previewFilter =
                     }
                   } catch (uploadFailure) {
                     console.error("R2 media upload failed:", uploadFailure);
+                    if (pendingR2Keys.length) {
+                      await cleanupR2MediaObjects({ data: { keys: pendingR2Keys } }).catch(() => undefined);
+                    }
                     setError(uploadFailure instanceof Error ? uploadFailure.message : "Video upload failed. Please try again.");
                     return;
                   }
@@ -450,6 +456,11 @@ const previewFilter =
               .single();
 
             if (publishError || !savedPost?.id) {
+              if (pendingR2Keys.length) {
+                await cleanupR2MediaObjects({ data: { keys: pendingR2Keys } }).catch((cleanupError) =>
+                  console.error("Could not clean up unlinked R2 media:", cleanupError),
+                );
+              }
               console.error("Post publishing failed:", publishError);
               setError(
   publishError?.message ?? "Post was not saved: no post ID returned.",
