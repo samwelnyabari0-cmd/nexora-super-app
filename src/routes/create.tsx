@@ -169,7 +169,7 @@ const previewFilter =
           setMediaFiles(files);
           setMediaType(mimeType);
           setMediaClassification(classification);
-          if (mimeType.startsWith("video/")) setContentType(classification.contentType);
+          if (mimeType.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
         },
       });
     })
@@ -246,7 +246,7 @@ const previewFilter =
                   setMediaFiles(files);
                   setMediaType(type);
                   setMediaClassification(classification);
-                  if (type.startsWith("video/")) setContentType(classification.contentType);
+                  if (type.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
                 },
               });
             }}
@@ -357,7 +357,7 @@ const previewFilter =
               mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
                         const typedTags = [...tagList, typeTag(contentType)];
-            const strictContentType = tagList.some((tag) => tag.toLowerCase() === "collab")
+            const strictContentType = contentType === "collab" || tagList.some((tag) => tag.toLowerCase() === "collab")
               ? "collab"
               : mediaClassification.contentType;
             const { data: savedPost, error: publishError } = await (supabase as any)
