@@ -174,11 +174,12 @@ begin
       raise exception 'Invalid direct conversation target';
     end if;
     if not exists (
-      select 1 from public.direct_messages dm
-      where (dm.sender_id = v_user_id and dm.recipient_id = p_recipient_id)
-         or (dm.sender_id = p_recipient_id and dm.recipient_id = v_user_id)
+      select 1 from public.contacts c
+      where c.status = 'accepted'
+        and ((c.requester = v_user_id and c.addressee = p_recipient_id)
+          or (c.requester = p_recipient_id and c.addressee = v_user_id))
     ) then
-      raise exception 'A direct conversation must exist before sharing location';
+      raise exception 'Accepted contact status is required to share live location';
     end if;
   elsif p_chat_kind = 'group' then
     if p_group_id is null or p_recipient_id is not null
@@ -605,10 +606,11 @@ begin
   if p_chat_kind = 'direct' then
     if p_chat_id is null or p_chat_id = v_user_id then raise exception 'Invalid direct chat'; end if;
     if not exists (
-      select 1 from public.direct_messages dm
-      where (dm.sender_id = v_user_id and dm.recipient_id = p_chat_id)
-         or (dm.sender_id = p_chat_id and dm.recipient_id = v_user_id)
-    ) then raise exception 'Direct conversation not found'; end if;
+      select 1 from public.contacts c
+      where c.status = 'accepted'
+        and ((c.requester = v_user_id and c.addressee = p_chat_id)
+          or (c.requester = p_chat_id and c.addressee = v_user_id))
+    ) then raise exception 'Accepted contact status is required'; end if;
     v_a := least(v_user_id, p_chat_id);
     v_b := greatest(v_user_id, p_chat_id);
     select s.retention_seconds, s.updated_at
@@ -656,10 +658,11 @@ begin
   if p_chat_kind = 'direct' then
     if p_chat_id is null or p_chat_id = v_user_id then raise exception 'Invalid direct chat'; end if;
     if not exists (
-      select 1 from public.direct_messages dm
-      where (dm.sender_id = v_user_id and dm.recipient_id = p_chat_id)
-         or (dm.sender_id = p_chat_id and dm.recipient_id = v_user_id)
-    ) then raise exception 'Direct conversation not found'; end if;
+      select 1 from public.contacts c
+      where c.status = 'accepted'
+        and ((c.requester = v_user_id and c.addressee = p_chat_id)
+          or (c.requester = p_chat_id and c.addressee = v_user_id))
+    ) then raise exception 'Accepted contact status is required'; end if;
     v_a := least(v_user_id, p_chat_id);
     v_b := greatest(v_user_id, p_chat_id);
     insert into public.chat_message_settings (
