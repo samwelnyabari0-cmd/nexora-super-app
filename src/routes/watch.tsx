@@ -5,7 +5,7 @@ import { catalog } from "@/features/core/data";
 import { Chip, DemoBadge, PageHeader } from "@/components/nexora/ui";
 import { useSession } from "@/lib/session";
 import { fetchWatchEpisodes, fetchWatchProgress, fetchWatchTitles, type WatchEpisode, type WatchProgress, type WatchTitle } from "@/features/watch/data";
-import { normalizeWatchCategory, resolveWatchStatus, matchesWatchCategory, watchProgressPercent, type WatchCategory } from "@/features/watch/logic";
+import { canOpenWatchTitle, normalizeWatchCategory, resolveWatchStatus, matchesWatchCategory, watchProgressPercent, type WatchCategory } from "@/features/watch/logic";
 import { WatchPlayer } from "@/features/watch/WatchPlayer";
 
 export const Route = createFileRoute("/watch")({
@@ -192,11 +192,11 @@ function Watch() {
             <p className="mt-1 text-sm text-white/75">{hero.category} · {hero.year ?? "Year pending"} · {hero.length}</p>
             <button
               onClick={() => play(hero)}
-              disabled={hero.status !== "ready" || hero.isDemo}
+              disabled={!canOpenWatchTitle(hero)}
               className="mt-3 flex items-center gap-2 rounded-full bg-white px-5 py-2 font-semibold text-black disabled:cursor-not-allowed disabled:opacity-75"
             >
               <Play className="h-4 w-4 fill-current" />
-              {hero.isDemo ? "Demo preview" : hero.status === "ready" ? "Play" : "Stream assets pending"}
+              {hero.isDemo ? "Demo preview" : hero.contentType === "series" ? "Choose episode" : hero.status === "ready" ? "Play" : "Stream assets pending"}
             </button>
           </div>
         </div>
@@ -227,7 +227,7 @@ function Watch() {
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {visibleTitles.map((item) => (
-            <button key={item.id} onClick={() => play(item)} disabled={item.status !== "ready" || item.isDemo} className="group text-left disabled:cursor-default">
+            <button key={item.id} onClick={() => play(item)} disabled={!canOpenWatchTitle(item)} className="group text-left disabled:cursor-default">
               <div className="relative aspect-video overflow-hidden rounded-2xl bg-muted">
                 <img src={item.image} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
                 {item.isDemo ? (
@@ -287,7 +287,7 @@ function Watch() {
           manifestUrl={activeTitle.manifestUrl ?? ""}
           episodeId={activeEpisodeId}
           userId={session.user.id}
-          initialProgress={progress.find((item) => item.title_id === activeTitle.id)?.progress_seconds ?? 0}
+          initialProgress={progress.find((item) => item.title_id === activeTitle.id && (item.episode_id ?? null) === (activeEpisodeId ?? null))?.progress_seconds ?? 0}
           onClose={() => { setActiveTitle(null); setActiveEpisodeId(null); }}
         />
       )}
@@ -297,7 +297,7 @@ function Watch() {
           title={activeTitle.title}
           manifestUrl={activeTitle.manifestUrl ?? ""}
           episodeId={activeEpisodeId}
-          onClose={() => setActiveTitle(null)}
+          onClose={() => { setActiveTitle(null); setActiveEpisodeId(null); }}
         />
       )}
     </div>
