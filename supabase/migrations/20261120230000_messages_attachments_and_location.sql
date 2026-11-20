@@ -33,6 +33,7 @@ alter table public.direct_messages
       media_path is not null
       and attachment_name is not null
       and length(btrim(attachment_name)) > 0
+      and attachment_mime_type is not null
       and attachment_mime_type = any (array[
         'application/pdf',
         'application/msword',
@@ -42,6 +43,7 @@ alter table public.direct_messages
         'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
       ]::text[])
+      and attachment_size_bytes is not null
       and attachment_size_bytes between 1 and 52428800
     )
   );
