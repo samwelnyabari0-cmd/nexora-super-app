@@ -7,6 +7,7 @@ type WatchPlayerProps = {
   titleId: string;
   title: string;
   manifestUrl: string;
+  episodeId?: string | null;
   userId?: string;
   initialProgress?: number;
   onClose: () => void;
@@ -16,6 +17,7 @@ export function WatchPlayer({
   titleId,
   title,
   manifestUrl,
+  episodeId,
   userId,
   initialProgress = 0,
   onClose,
@@ -35,11 +37,12 @@ export function WatchPlayer({
     const result = await saveWatchProgress({
       userId,
       titleId,
+      episodeId,
       progressSeconds: position,
       totalSeconds: Math.floor(video.duration),
     });
     if (result.error) setError("Playback continues, but progress could not sync.");
-  }, [titleId, userId]);
+  }, [episodeId, titleId, userId]);
 
   useEffect(() => {
     const video = videoRef.current;
