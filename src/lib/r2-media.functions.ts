@@ -76,6 +76,13 @@ export const createR2MediaUploadUrl = createServerFn({ method: "POST" })
       key,
       uploadUrl,
       contentType: data.contentType,
+      // The browser must send these exact headers with the PUT request.
+      uploadHeaders: {
+        "Content-Type": data.contentType,
+        "x-amz-meta-owner": context.userId,
+        "x-amz-meta-purpose": "post-media",
+        "x-amz-meta-expected_size": String(data.size),
+      },
       expiresInSeconds: 300,
     };
   });
