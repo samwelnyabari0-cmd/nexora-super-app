@@ -53,6 +53,7 @@ describe("strictContentTypeFromLegacy", () => {
 
   it("classifies images and text-only items as Posts", () => {
     expect(strictContentTypeFromLegacy([], "image/jpeg")).toBe("post");
+    expect(strictContentTypeFromLegacy(["nx-type-reel"], "image/jpeg")).toBe("post");
     expect(strictContentTypeFromLegacy([], null)).toBe("post");
   });
 });
