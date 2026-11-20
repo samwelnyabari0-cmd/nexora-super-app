@@ -242,6 +242,1408 @@ export type Database = {
           },
         ]
       }
+      type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
+  public: {
+    Tables: {
+      account_strikes: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string | null
+          reason: string
+          strike_level: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reason: string
+          strike_level?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reason?: string
+          strike_level?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_strikes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_studio_history: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          prompt: string
+          result_preview: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode?: string
+          prompt: string
+          result_preview?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          prompt?: string
+          result_preview?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      brand_campaigns: {
+        Row: {
+          budget_per_creator: number
+          business_id: string | null
+          campaign_title: string
+          created_at: string | null
+          description: string
+          id: string
+          status: string | null
+          total_slots: number
+        }
+        Insert: {
+          budget_per_creator: number
+          business_id?: string | null
+          campaign_title: string
+          created_at?: string | null
+          description: string
+          id?: string
+          status?: string | null
+          total_slots: number
+        }
+        Update: {
+          budget_per_creator?: number
+          business_id?: string | null
+          campaign_title?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          status?: string | null
+          total_slots?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_deliverables: {
+        Row: {
+          agreed_amount: number
+          campaign_id: string | null
+          created_at: string | null
+          creator_id: string | null
+          creator_payout: number
+          id: string
+          nexora_escrow_fee: number
+          post_id: string | null
+          submission_status: string | null
+        }
+        Insert: {
+          agreed_amount: number
+          campaign_id?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          creator_payout: number
+          id?: string
+          nexora_escrow_fee: number
+          post_id?: string | null
+          submission_status?: string | null
+        }
+        Update: {
+          agreed_amount?: number
+          campaign_id?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          creator_payout?: number
+          id?: string
+          nexora_escrow_fee?: number
+          post_id?: string | null
+          submission_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_deliverables_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "brand_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_deliverables_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          business_id: string
+          buyer_id: string
+          customer_tag: string
+          id: string
+          last_message: string | null
+          last_message_at: string
+        }
+        Insert: {
+          business_id: string
+          buyer_id: string
+          customer_tag?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string
+        }
+        Update: {
+          business_id?: string
+          buyer_id?: string
+          customer_tag?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_group_messages: {
+        Row: {
+          body: string
+          created_at: string
+          group_id: string
+          id: string
+          media_path: string | null
+          media_type: string | null
+          sender_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          group_id: string
+          id?: string
+          media_path?: string | null
+          media_type?: string | null
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          media_path?: string | null
+          media_type?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_group_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_groups: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          media_url: string | null
+          message_text: string | null
+          order_id: string | null
+          payment_request_amount: number | null
+          payment_request_currency: string
+          sender_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          media_url?: string | null
+          message_text?: string | null
+          order_id?: string | null
+          payment_request_amount?: number | null
+          payment_request_currency?: string
+          sender_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          media_url?: string | null
+          message_text?: string | null
+          order_id?: string | null
+          payment_request_amount?: number | null
+          payment_request_currency?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_dues: {
+        Row: {
+          amount_kes: number
+          club_id: string
+          created_at: string
+          id: string
+          payer_id: string
+          paystack_reference: string
+          status: string
+        }
+        Insert: {
+          amount_kes: number
+          club_id: string
+          created_at?: string
+          id?: string
+          payer_id: string
+          paystack_reference: string
+          status?: string
+        }
+        Update: {
+          amount_kes?: number
+          club_id?: string
+          created_at?: string
+          id?: string
+          payer_id?: string
+          paystack_reference?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      club_events: {
+        Row: {
+          club_id: string
+          created_at: string
+          created_by: string
+          event_date: string
+          event_time: string
+          id: string
+          kind: string
+          title: string
+          venue: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          created_by: string
+          event_date: string
+          event_time: string
+          id?: string
+          kind: string
+          title: string
+          venue: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          created_by?: string
+          event_date?: string
+          event_time?: string
+          id?: string
+          kind?: string
+          title?: string
+          venue?: string
+        }
+        Relationships: []
+      }
+      club_membership_activity: {
+        Row: {
+          actor_user_id: string | null
+          club_id: string
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          club_id: string
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          club_id?: string
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      club_memberships: {
+        Row: {
+          appointed_by: string | null
+          club_id: string
+          created_at: string
+          id: string
+          role: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          appointed_by?: string | null
+          club_id: string
+          created_at?: string
+          id?: string
+          role?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          appointed_by?: string | null
+          club_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      club_messages: {
+        Row: {
+          body: string
+          club_id: string
+          created_at: string
+          id: string
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          body: string
+          club_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          sender_name: string
+        }
+        Update: {
+          body?: string
+          club_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          sender_name?: string
+        }
+        Relationships: []
+      }
+      creator_earnings_ledger: {
+        Row: {
+          created_at: string
+          creator_amount_kes: number
+          creator_id: string
+          gross_amount_kes: number
+          id: string
+          payment_id: string
+          platform_fee_kes: number
+        }
+        Insert: {
+          created_at?: string
+          creator_amount_kes: number
+          creator_id: string
+          gross_amount_kes: number
+          id?: string
+          payment_id: string
+          platform_fee_kes?: number
+        }
+        Update: {
+          created_at?: string
+          creator_amount_kes?: number
+          creator_id?: string
+          gross_amount_kes?: number
+          id?: string
+          payment_id?: string
+          platform_fee_kes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_earnings_ledger_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_earnings_ledger_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "creator_monetization_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_monetization_applications: {
+        Row: {
+          age_confirmed_18_plus: boolean
+          age_confirmed_at: string | null
+          age_confirmed_by: string | null
+          created_at: string
+          creator_id: string
+          id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          age_confirmed_18_plus?: boolean
+          age_confirmed_at?: string | null
+          age_confirmed_by?: string | null
+          created_at?: string
+          creator_id: string
+          id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          age_confirmed_18_plus?: boolean
+          age_confirmed_at?: string | null
+          age_confirmed_by?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_monetization_applications_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_monetization_payments: {
+        Row: {
+          amount_kes: number
+          amount_usd: number | null
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          exchange_rate: number | null
+          fx_source: string | null
+          fx_timestamp: string | null
+          gateway_reference: string | null
+          id: string
+          payment_type: string
+          status: string
+          subscriber_id: string
+          tier_name: string | null
+          transaction_reference: string
+        }
+        Insert: {
+          amount_kes: number
+          amount_usd?: number | null
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          exchange_rate?: number | null
+          fx_source?: string | null
+          fx_timestamp?: string | null
+          gateway_reference?: string | null
+          id?: string
+          payment_type: string
+          status?: string
+          subscriber_id: string
+          tier_name?: string | null
+          transaction_reference: string
+        }
+        Update: {
+          amount_kes?: number
+          amount_usd?: number | null
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          exchange_rate?: number | null
+          fx_source?: string | null
+          fx_timestamp?: string | null
+          gateway_reference?: string | null
+          id?: string
+          payment_type?: string
+          status?: string
+          subscriber_id?: string
+          tier_name?: string | null
+          transaction_reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_monetization_payments_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_monetization_payments_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_monetization_platform_config: {
+        Row: {
+          id: boolean
+          platform_fee_percent: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          platform_fee_percent?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          platform_fee_percent?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      creator_monetization_settings: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          is_enabled: boolean
+          monthly_price_usd: number
+          tier_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          is_enabled?: boolean
+          monthly_price_usd: number
+          tier_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          is_enabled?: boolean
+          monthly_price_usd?: number
+          tier_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_monetization_settings_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_payout_destination_reviews: {
+        Row: {
+          created_at: string
+          creator_id: string
+          decision: string
+          destination_id: string
+          id: string
+          ownership_confirmed: boolean
+          review_note: string
+          reviewer_id: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          decision: string
+          destination_id: string
+          id?: string
+          ownership_confirmed?: boolean
+          review_note: string
+          reviewer_id: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          decision?: string
+          destination_id?: string
+          id?: string
+          ownership_confirmed?: boolean
+          review_note?: string
+          reviewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_payout_destination_reviews_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_payout_destination_reviews_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_destinations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_payout_destinations: {
+        Row: {
+          created_at: string
+          creator_id: string
+          destination_last4: string
+          encrypted_account: string
+          encryption_key_version: string
+          id: string
+          is_default: boolean
+          is_verified: boolean
+          number_confirmed_at: string | null
+          provider: string
+          provider_validation_checked_at: string | null
+          provider_validation_error_code: string | null
+          provider_validation_status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          destination_last4: string
+          encrypted_account: string
+          encryption_key_version: string
+          id?: string
+          is_default?: boolean
+          is_verified?: boolean
+          number_confirmed_at?: string | null
+          provider: string
+          provider_validation_checked_at?: string | null
+          provider_validation_error_code?: string | null
+          provider_validation_status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          destination_last4?: string
+          encrypted_account?: string
+          encryption_key_version?: string
+          id?: string
+          is_default?: boolean
+          is_verified?: boolean
+          number_confirmed_at?: string | null
+          provider?: string
+          provider_validation_checked_at?: string | null
+          provider_validation_error_code?: string | null
+          provider_validation_status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_payout_destinations_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_payout_jobs: {
+        Row: {
+          attempts: number
+          available_at: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          locked_at: string | null
+          locked_by: string | null
+          payout_id: string
+          provider_conversation_id: string | null
+          provider_originator_conversation_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          available_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          payout_id: string
+          provider_conversation_id?: string | null
+          provider_originator_conversation_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          available_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          payout_id?: string
+          provider_conversation_id?: string | null
+          provider_originator_conversation_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_payout_jobs_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: true
+            referencedRelation: "creator_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_payout_provider_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload: Json
+          payout_id: string | null
+          processed_at: string | null
+          processing_error: string | null
+          provider: string
+          provider_event_id: string
+          received_at: string
+          result_code: string | null
+          result_description: string | null
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload?: Json
+          payout_id?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          provider: string
+          provider_event_id: string
+          received_at?: string
+          result_code?: string | null
+          result_description?: string | null
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload?: Json
+          payout_id?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          provider?: string
+          provider_event_id?: string
+          received_at?: string
+          result_code?: string | null
+          result_description?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_payout_provider_events_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_payouts: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string
+          creator_id: string
+          currency: string
+          destination_last4: string | null
+          fee: number
+          id: string
+          payout_channel: string
+          provider_reference: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id: string
+          currency?: string
+          destination_last4?: string | null
+          fee?: number
+          id?: string
+          payout_channel: string
+          provider_reference?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          destination_last4?: string | null
+          fee?: number
+          id?: string
+          payout_channel?: string
+          provider_reference?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_payouts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_subscriptions: {
+        Row: {
+          created_at: string
+          creator_id: string
+          currency: string
+          current_period_end: string | null
+          gateway_subscription_id: string | null
+          id: string
+          last_payment_id: string | null
+          monthly_amount: number
+          status: string
+          subscriber_id: string
+          tier_name: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          currency?: string
+          current_period_end?: string | null
+          gateway_subscription_id?: string | null
+          id?: string
+          last_payment_id?: string | null
+          monthly_amount: number
+          status?: string
+          subscriber_id: string
+          tier_name: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          current_period_end?: string | null
+          gateway_subscription_id?: string | null
+          id?: string
+          last_payment_id?: string | null
+          monthly_amount?: number
+          status?: string
+          subscriber_id?: string
+          tier_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_subscriptions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_subscriptions_last_payment_id_fkey"
+            columns: ["last_payment_id"]
+            isOneToOne: false
+            referencedRelation: "creator_monetization_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_subscriptions_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_verifications: {
+        Row: {
+          id: string
+          id_number: string
+          id_type: string
+          reviewed_at: string | null
+          submitted_at: string | null
+          user_id: string | null
+          verification_status: string | null
+        }
+        Insert: {
+          id?: string
+          id_number: string
+          id_type: string
+          reviewed_at?: string | null
+          submitted_at?: string | null
+          user_id?: string | null
+          verification_status?: string | null
+        }
+        Update: {
+          id?: string
+          id_number?: string
+          id_type?: string
+          reviewed_at?: string | null
+          submitted_at?: string | null
+          user_id?: string | null
+          verification_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_wallets: {
+        Row: {
+          available_balance: number
+          creator_id: string
+          currency: string
+          id: string
+          pending_balance: number
+          updated_at: string
+        }
+        Insert: {
+          available_balance?: number
+          creator_id: string
+          currency?: string
+          id?: string
+          pending_balance?: number
+          updated_at?: string
+        }
+        Update: {
+          available_balance?: number
+          creator_id?: string
+          currency?: string
+          id?: string
+          pending_balance?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_wallets_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
+  public: {
+    Tables: {
+      account_strikes: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string | null
+          reason: string
+          strike_level: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reason: string
+          strike_level?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reason?: string
+          strike_level?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_strikes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_studio_history: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          prompt: string
+          result_preview: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode?: string
+          prompt: string
+          result_preview?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          prompt?: string
+          result_preview?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      brand_campaigns: {
+        Row: {
+          budget_per_creator: number
+          business_id: string | null
+          campaign_title: string
+          created_at: string | null
+          description: string
+          id: string
+          status: string | null
+          total_slots: number
+        }
+        Insert: {
+          budget_per_creator: number
+          business_id?: string | null
+          campaign_title: string
+          created_at?: string | null
+          description: string
+          id?: string
+          status?: string | null
+          total_slots: number
+        }
+        Update: {
+          budget_per_creator?: number
+          business_id?: string | null
+          campaign_title?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          status?: string | null
+          total_slots?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_deliverables: {
+        Row: {
+          agreed_amount: number
+          campaign_id: string | null
+          created_at: string | null
+          creator_id: string | null
+          creator_payout: number
+          id: string
+          nexora_escrow_fee: number
+          post_id: string | null
+          submission_status: string | null
+        }
+        Insert: {
+          agreed_amount: number
+          campaign_id?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          creator_payout: number
+          id?: string
+          nexora_escrow_fee: number
+          post_id?: string | null
+          submission_status?: string | null
+        }
+        Update: {
+          agreed_amount?: number
+          campaign_id?: string | null
+          created_at?: string | null
+          creator_id?: string | null
+          creator_payout?: number
+          id?: string
+          nexora_escrow_fee?: number
+          post_id?: string | null
+          submission_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_deliverables_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "brand_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_deliverables_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          business_id: string
+          buyer_id: string
+          customer_tag: string
+          id: string
+          last_message: string | null
+          last_message_at: string
+        }
+        Insert: {
+          business_id: string
+          buyer_id: string
+          customer_tag?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string
+        }
+        Update: {
+          business_id?: string
+          buyer_id?: string
+          customer_tag?: string
+          id?: string
+          last_message?: string | null
+          last_message_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_group_messages: {
         Row: {
           body: string
