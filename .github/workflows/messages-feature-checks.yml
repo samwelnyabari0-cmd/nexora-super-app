@@ -47,12 +47,15 @@ jobs:
           src/components/nexora/message-attachments.ts
           src/components/nexora/message-attachments.test.ts
           src/components/nexora/LocationShareCard.tsx
+          src/components/nexora/DisappearingSettingsControl.tsx
           src/components/nexora/location-sharing.ts
           src/components/nexora/location-sharing.test.ts
           src/components/nexora/ShareContentDialog.tsx
           src/components/nexora/SharedContentCard.tsx
           src/components/nexora/shared-content.ts
           src/components/nexora/shared-content.test.ts
+          src/components/nexora/message-expiry.ts
+          src/components/nexora/message-expiry.test.ts
           src/components/nexora/call-media.ts
           src/components/nexora/call-media.test.ts
           src/hooks/useChatLocationSharing.ts
