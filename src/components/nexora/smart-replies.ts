@@ -1,6 +1,11 @@
 export type SmartReplyContextMessage = {
   sender: "You" | "Them" | "Member";
   body: string;
+  media_path?: string | null;
+  media_type?: string | null;
+  location_latitude?: number | null;
+  location_session_id?: string | null;
+  shared_content_id?: string | null;
 };
 
 export function buildSmartReplyPrompt(messages: SmartReplyContextMessage[]): string {
