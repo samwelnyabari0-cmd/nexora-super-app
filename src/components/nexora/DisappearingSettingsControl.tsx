@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,11 +19,14 @@ export function DisappearingSettingsControl({ chatKind, chatId }: DisappearingSe
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const requestRef = useRef(0);
 
   useEffect(() => {
     if (!chatId) return;
     let cancelled = false;
+    const requestId = ++requestRef.current;
     setLoading(true);
+    setSaving(false);
     setError("");
     void (supabase as any).rpc("get_chat_disappearing_setting", {
       p_chat_kind: chatKind,
@@ -47,19 +50,28 @@ export function DisappearingSettingsControl({ chatKind, chatId }: DisappearingSe
   }, [chatId, chatKind]);
 
   async function changeRetention(value: number) {
+    const requestId = requestRef.current;
     setSaving(true);
     setError("");
-    const { error: saveError } = await (supabase as any).rpc("set_chat_disappearing_setting", {
-      p_chat_kind: chatKind,
-      p_chat_id: chatId,
-      p_retention_seconds: value,
-    });
-    if (saveError) {
-      setError(saveError.message || "Expiry setting could not be saved.");
-    } else {
-      setRetentionSeconds(value);
+    try {
+      const { error: saveError } = await (supabase as any).rpc("set_chat_disappearing_setting", {
+        p_chat_kind: chatKind,
+        p_chat_id: chatId,
+        p_retention_seconds: value,
+      });
+      if (requestId !== requestRef.current) return;
+      if (saveError) {
+        setError(saveError.message || "Expiry setting could not be saved.");
+      } else {
+        setRetentionSeconds(value);
+      }
+    } catch {
+      if (requestId === requestRef.current) {
+        setError("Expiry setting could not be saved. Check your connection and try again.");
+      }
+    } finally {
+      if (requestId === requestRef.current) setSaving(false);
     }
-    setSaving(false);
   }
 
   const selected = OPTIONS.find((option) => option.value === retentionSeconds)?.label ?? "Off";
