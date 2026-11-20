@@ -519,6 +519,10 @@ export type Database = {
           group_id?: string
           id?: string
           media_path?: string | null
+          attachment_name?: string | null
+          attachment_mime_type?: string | null
+          attachment_size_bytes?: number | null
+          reply_to_message_id?: string | null
           media_type?: string | null
           sender_id?: string
         }
@@ -2603,6 +2607,10 @@ export type Database = {
           delivered_at?: string | null
           id?: string
           media_path?: string | null
+          attachment_name?: string | null
+          attachment_mime_type?: string | null
+          attachment_size_bytes?: number | null
+          reply_to_message_id?: string | null
           media_type?: string | null
           recipient_id?: string
           seen_at?: string | null
