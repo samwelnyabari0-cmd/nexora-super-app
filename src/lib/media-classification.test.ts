@@ -44,6 +44,7 @@ describe("strictContentTypeFromLegacy", () => {
   it("preserves legacy Reel and Collab tags", () => {
     expect(strictContentTypeFromLegacy(["nx-type-reel"], "video/mp4")).toBe("reel");
     expect(strictContentTypeFromLegacy(["collab"], "image/jpeg")).toBe("collab");
+    expect(strictContentTypeFromLegacy(["nx-type-collab", "nx-type-reel"], "video/mp4")).toBe("collab");
   });
 
   it("defaults untagged legacy videos to Videos, never guessed Reels", () => {
