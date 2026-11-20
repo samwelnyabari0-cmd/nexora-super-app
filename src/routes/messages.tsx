@@ -1,7 +1,7 @@
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2 } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2, Phone, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -84,6 +84,7 @@ export const Route = createFileRoute("/messages")({
 });
 
 function Messages() {
+  const navigate = useNavigate();
   const { recipient, group, returnTo } = Route.useSearch();
   const { user, ready } = useSession();
 
@@ -688,6 +689,19 @@ if (recipient === user.id) {
     }
   }
 
+  async function startDirectCall(kind: "audio" | "video") {
+    if (!user?.id || !recipient || group) return;
+    setError("");
+    const { error: callError } = await supabase
+      .from("call_invites")
+      .insert({ caller: user.id, callee: recipient, kind });
+    if (callError) {
+      setError("Calls are available only with accepted contacts. Add this person as a contact in Calls first.");
+      return;
+    }
+    await navigate({ to: "/calls" });
+  }
+
   async function sendMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -965,6 +979,14 @@ if (recipient === user.id) {
                 ? "Typing…"
                 : recipientStatus}</span>
           </p>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Button type="button" variant="outline" size="icon" aria-label="Start voice call" disabled={!user?.id || !recipient} onClick={() => void startDirectCall("audio")}>
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Start video call" disabled={!user?.id || !recipient} onClick={() => void startDirectCall("video")}>
+            <Video className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
