@@ -166,6 +166,20 @@ function Watch() {
     setActiveTitle(item);
   };
 
+  const closePlayer = () => {
+    setActiveTitle(null);
+    setActiveEpisodeId(null);
+    if (session.user?.id) {
+      void fetchWatchProgress(session.user.id)
+        .then((saved) => {
+          if (!saved.error) setProgress(saved.data ?? []);
+        })
+        .catch(() => {
+          /* Keep the last known progress visible if refresh fails. */
+        });
+    }
+  };
+
   const playEpisode = (episode: WatchEpisode) => {
     if (episode.status !== "ready" || !episode.hls_manifest_url?.trim() || !seriesTitle) return;
     setActiveEpisodeId(episode.id);
@@ -288,7 +302,7 @@ function Watch() {
           episodeId={activeEpisodeId}
           userId={session.user.id}
           initialProgress={progress.find((item) => item.title_id === activeTitle.id && (item.episode_id ?? null) === (activeEpisodeId ?? null))?.progress_seconds ?? 0}
-          onClose={() => { setActiveTitle(null); setActiveEpisodeId(null); }}
+          onClose={closePlayer}
         />
       )}
       {activeTitle && !session.user && (
