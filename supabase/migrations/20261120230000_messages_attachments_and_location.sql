@@ -518,3 +518,5 @@ for each row execute function public.validate_chat_location_message();
 
 revoke all on function public.validate_shared_message_content() from public, anon;
 revoke all on function public.validate_chat_location_message() from public, anon;
+grant execute on function public.validate_shared_message_content() to authenticated;
+grant execute on function public.validate_chat_location_message() to authenticated;
