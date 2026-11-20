@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2, Sparkles, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
@@ -400,7 +400,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
 
   async function editMessage(message: GroupMessage) {
     const nextBody = window.prompt("Edit your message", message.body);
-    if (nextBody === null || nextBody.trim() === message.body) return;
+    if (nextBody === null || !nextBody.trim() || nextBody.trim() === message.body) return;
     const { data, error: editError } = await (supabase as any).rpc("edit_group_message", {
       p_message_id: message.id,
       p_body: nextBody.trim(),
