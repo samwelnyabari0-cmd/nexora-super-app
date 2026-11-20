@@ -44,6 +44,10 @@ jobs:
           src/components/nexora/MessageAttachment.tsx
           src/components/nexora/message-attachments.ts
           src/components/nexora/message-attachments.test.ts
+          src/components/nexora/LocationShareCard.tsx
+          src/components/nexora/location-sharing.ts
+          src/components/nexora/location-sharing.test.ts
+          src/hooks/useChatLocationSharing.ts
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
           src/hooks/useChatActivity.ts
