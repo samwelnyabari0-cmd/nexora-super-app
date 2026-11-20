@@ -94,6 +94,9 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [messages]);
   const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
+  useEffect(() => {
+    if (replyTarget && isMessageExpired(replyTarget.expires_at)) setReplyTarget(null);
+  }, [replyTarget]);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
