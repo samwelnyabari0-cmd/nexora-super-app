@@ -89,10 +89,15 @@ export function ShareContentDialog({ open, onOpenChange, onShare }: ShareContent
 
   async function share(reference: SharedContentReference) {
     setSharingId(reference.contentId);
-    const sent = await onShare(reference);
-    setSharingId("");
-    if (sent) onOpenChange(false);
-    else setError("This content could not be shared. Please try again.");
+    try {
+      const sent = await onShare(reference);
+      if (sent) onOpenChange(false);
+      else setError("This content could not be shared. Please try again.");
+    } catch {
+      setError("This content could not be shared. Please try again.");
+    } finally {
+      setSharingId("");
+    }
   }
 
   return (
