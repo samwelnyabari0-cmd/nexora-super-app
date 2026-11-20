@@ -14,6 +14,21 @@ describe("smart reply suggestions", () => {
     expect(prompt).not.toContain("Samwel");
   });
 
+  it("excludes attachments, media, location and shared-content messages", () => {
+    const prompt = buildSmartReplyPrompt([
+      { sender: "Them", body: "Can we meet tomorrow?" },
+      { sender: "You", body: "Shared a location", location_latitude: -1.2 },
+      { sender: "Them", body: "See this video", media_type: "video", media_path: "clip.mp4" },
+      { sender: "You", body: "Shared a post", shared_content_id: "post-123" },
+      { sender: "Them", body: "I can meet at 3." },
+    ]);
+    expect(prompt).toContain("Can we meet tomorrow?");
+    expect(prompt).toContain("I can meet at 3.");
+    expect(prompt).not.toContain("Shared a location");
+    expect(prompt).not.toContain("See this video");
+    expect(prompt).not.toContain("Shared a post");
+  });
+
   it("does not send empty chat context", () => {
     expect(buildSmartReplyPrompt([])).toBe("");
     expect(buildSmartReplyPrompt([{ sender: "Them", body: "  " }])).toBe("");
