@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitBill, nextRenewal, monthlyCost, extractTasks, moduleBranding } from "./logic";
+import { splitBill, nextRenewal, monthlyCost, extractTasks, moduleBranding, taskCompletion } from "./logic";
 
 describe("hub rules", () => {
   it("splits a bill so shares add up exactly", () => {
@@ -38,6 +38,23 @@ describe("Hub mini-app branding", () => {
       notes: { name: "MindGrid", feature: "Notes", accent: "slate" },
       tasks: { name: "MindGrid", feature: "Tasks", accent: "slate" },
       deals: { name: "TrustSpot", accent: "amber" },
+    });
+  });
+});
+
+
+describe("Hub progress helpers", () => {
+  it("reports task completion accurately, including an empty list", () => {
+    expect(taskCompletion([])).toEqual({ done: 0, total: 0, percent: 0 });
+    expect(taskCompletion([{ done: true }, { done: false }, { done: true }])).toEqual({
+      done: 2,
+      total: 3,
+      percent: 67,
+    });
+    expect(taskCompletion([{ done: true }, { done: true }])).toEqual({
+      done: 2,
+      total: 2,
+      percent: 100,
     });
   });
 });
