@@ -66,6 +66,10 @@ jobs:
           src/components/nexora/smart-replies.test.ts
           src/components/nexora/TranscribeVoiceMessageButton.tsx
           src/components/nexora/VoiceNotePlayer.tsx
+          src/components/nexora/chat-lock.ts
+          src/components/nexora/chat-lock.test.ts
+          src/components/nexora/ChatLockPanel.tsx
+          src/hooks/useChatLock.ts
           src/components/nexora/MessageReactions.tsx
           src/hooks/useChatActivity.ts
           --rule "prettier/prettier: off"
