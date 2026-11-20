@@ -183,7 +183,7 @@ function Messages() {
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -272,11 +272,11 @@ function Messages() {
       const [{ data: groups }, { data: groupMessages }] = await Promise.all([
         (supabase as any)
           .from("chat_groups")
-          .select("id, name, avatar_url, created_at")
+          .select("id, name, avatar_url, created_at, reply_to_message_id")
           .in("id", groupIds),
         (supabase as any)
           .from("chat_group_messages")
-          .select("id, group_id, body, media_type, created_at")
+          .select("id, group_id, body, media_type, created_at, reply_to_message_id")
           .in("group_id", groupIds)
           .order("created_at", { ascending: false }),
       ]);
@@ -331,14 +331,14 @@ if (recipient === user.id) {
         await Promise.all([
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id")
             .eq("sender_id", user.id)
             .eq("recipient_id", recipient)
             .order("created_at", { ascending: true }),
 
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id")
             .eq("sender_id", recipient)
             .eq("recipient_id", user.id)
             .order("created_at", { ascending: true }),
