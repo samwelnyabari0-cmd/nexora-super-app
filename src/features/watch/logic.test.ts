@@ -5,6 +5,7 @@ import {
   matchesWatchCategory,
   normalizeWatchCategory,
   resolveWatchStatus,
+  shouldSaveWatchProgress,
   watchProgressPercent,
 } from "./logic";
 
@@ -68,4 +69,15 @@ describe("Watch domain rules", () => {
     expect(clampWatchProgress(-5, 100)).toBe(0);
     expect(clampWatchProgress(Number.NaN, 100)).toBe(0);
   });
+  it("saves progress when forced on player close", () => {
+    expect(shouldSaveWatchProgress(1, 0, 300, true)).toBe(true);
+  });
+
+  it("throttles tiny progress changes but saves meaningful and completed progress", () => {
+    expect(shouldSaveWatchProgress(2, 0, 300)).toBe(false);
+    expect(shouldSaveWatchProgress(4, 0, 300)).toBe(true);
+    expect(shouldSaveWatchProgress(299, 297, 300)).toBe(true);
+    expect(shouldSaveWatchProgress(10, 0, 0)).toBe(false);
+  });
+
 });
