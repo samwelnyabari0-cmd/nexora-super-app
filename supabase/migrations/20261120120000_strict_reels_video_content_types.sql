@@ -9,11 +9,13 @@ alter table public.user_media_posts
 -- are safely treated as Videos rather than guessed to be vertical Reels.
 update public.user_media_posts
 set content_type = case
+  when collab_partner_id is not null
+    or original_author_id is not null
+    or tags @> array['nx-type-collab']::text[]
+    or tags @> array['collab']::text[] then 'collab'
   when tags @> array['nx-type-reel']::text[]
     or tags @> array['reel']::text[]
     or tags @> array['short']::text[] then 'reel'
-  when tags @> array['nx-type-collab']::text[]
-    or tags @> array['collab']::text[] then 'collab'
   when tags @> array['nx-type-video']::text[] then 'video'
   when coalesce(media_type, '') like 'video/%' then 'video'
   else 'post'
