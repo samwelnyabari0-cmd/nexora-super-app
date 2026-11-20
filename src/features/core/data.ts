@@ -12,6 +12,8 @@ export type Post = {
   kind: "short" | "video" | "post";
   image?: string;
   mediaType?: string;
+  mediaPostId?: string;
+  mediaStorageProvider?: "supabase" | "r2" | null;
   filter?: string;
   format?: string;
   audience?: "public" | "private";
