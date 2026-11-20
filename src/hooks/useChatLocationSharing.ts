@@ -217,7 +217,7 @@ export function useChatLocationSharing({
     if (sessionId) {
       void (supabase as any).rpc("stop_chat_location_share", { p_session_id: sessionId });
     }
-  }, [clearTracking]);
+  }, [chatId, chatKind, userId, clearTracking]);
 
   return {
     activeSessionId,
