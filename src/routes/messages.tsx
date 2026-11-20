@@ -12,7 +12,7 @@ import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 import { MessageAttachment } from "@/components/nexora/MessageAttachment";
-import { uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
+import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
 
 type DirectMessage = {
   id: string;
@@ -663,7 +663,6 @@ if (recipient === user.id) {
     let attachmentName: string | null = null;
     let attachmentMimeType: string | null = null;
     let attachmentSizeBytes: number | null = null;
-    let uploadErrorMessage = "Media upload failed. Please try again.";
 
     if (attachment) {
       const isImage = attachment.type.startsWith("image/");
@@ -689,10 +688,9 @@ if (recipient === user.id) {
         : attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
       mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
       if (mediaType === "document") {
-        attachmentName = attachment.name.split(/[\\/]/).pop()?.slice(0, 120) || "Shared document";
+        attachmentName = safeAttachmentName(attachment.name);
         attachmentMimeType = attachment.type;
         attachmentSizeBytes = attachment.size;
-        uploadErrorMessage = "Document upload failed. Please try again.";
       }
     }
 
@@ -728,7 +726,7 @@ if (recipient === user.id) {
       : await insertMessage();
 
     if (result.error) {
-      setError(mediaPath ? uploadErrorMessage : "Message could not be sent. Please try again.");
+      setError(mediaPath ? "Attachment could not be sent. Please try again." : "Message could not be sent. Please try again.");
       setSending(false);
       return;
     }
