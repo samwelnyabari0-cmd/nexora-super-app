@@ -462,7 +462,7 @@ const previewFilter =
             createPost(
               {
                 caption: caption.trim(),
-                image: mediaPath ?? undefined,
+                image: mediaStorageProvider === "r2" ? media : mediaPath ?? undefined,
                 mediaType,
                 audience,
                 filter,
