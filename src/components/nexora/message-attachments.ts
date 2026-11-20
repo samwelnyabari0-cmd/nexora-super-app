@@ -56,9 +56,11 @@ export async function uploadThenInsertAttachment(
   insert: () => Promise<{ error: unknown | null }>,
   rollback: () => Promise<unknown>,
 ): Promise<{ error: unknown | null }> {
+  let uploadedSuccessfully = false;
   try {
     const uploaded = await upload();
     if (uploaded.error) return { error: uploaded.error };
+    uploadedSuccessfully = true;
     const inserted = await insert();
     if (inserted.error) {
       try { await rollback(); } catch { /* best-effort cleanup */ }
@@ -66,6 +68,9 @@ export async function uploadThenInsertAttachment(
     }
     return { error: null };
   } catch (error) {
+    if (uploadedSuccessfully) {
+      try { await rollback(); } catch { /* best-effort cleanup */ }
+    }
     return { error };
   }
 }
