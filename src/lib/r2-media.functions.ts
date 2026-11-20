@@ -4,6 +4,7 @@ import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectComm
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { canReadR2Media, isValidR2PostObjectKey, isVerifiedR2Upload } from "@/lib/r2-media-policy";
 
 // A single R2 PutObject upload supports files up to 5 GB.
 // Multipart upload will be a separate implementation before larger files are enabled.
@@ -99,7 +100,7 @@ export const verifyR2MediaUpload = createServerFn({ method: "POST" })
   .validator((input: unknown) => completeInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const ownerPrefix = `${context.userId}/posts/`;
-    if (!data.key.startsWith(ownerPrefix) || data.key.includes("..")) {
+    if (!isValidR2PostObjectKey(context.userId, data.key)) {
       throw new Error("Invalid media object key.");
     }
 
@@ -108,13 +109,11 @@ export const verifyR2MediaUpload = createServerFn({ method: "POST" })
       new HeadObjectCommand({ Bucket: bucket, Key: data.key }),
     );
 
-    if (
-      object.ContentLength !== data.size ||
-      object.ContentType !== data.contentType ||
-      object.Metadata?.owner !== context.userId ||
-      object.Metadata?.purpose !== "post-media" ||
-      object.Metadata?.expected_size !== String(data.size)
-    ) {
+    if (!isVerifiedR2Upload({
+      ownerId: context.userId,
+      contentType: data.contentType,
+      size: data.size,
+    }, object)) {
       throw new Error("Uploaded media failed server-side verification.");
     }
 
@@ -146,8 +145,11 @@ export const createR2MediaPlaybackUrl = createServerFn({ method: "POST" })
 
     if (error || !post) throw new Error("Media post is unavailable.");
 
-    const isOwner = post.user_id === context.userId;
-    if (!isOwner && post.audience !== "public") {
+    if (!canReadR2Media({
+      ownerId: post.user_id,
+      requesterId: context.userId,
+      audience: post.audience,
+    })) {
       throw new Error("You do not have permission to view this media.");
     }
 
@@ -158,7 +160,7 @@ export const createR2MediaPlaybackUrl = createServerFn({ method: "POST" })
       ? post.media_storage_key
       : post.thumbnail_storage_key;
 
-    if (provider !== "r2" || typeof key !== "string" || !key.startsWith(`${post.user_id}/posts/`)) {
+    if (provider !== "r2" || typeof key !== "string" || !isValidR2PostObjectKey(post.user_id, key)) {
       throw new Error("R2 media reference is invalid.");
     }
 
