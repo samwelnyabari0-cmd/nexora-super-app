@@ -303,7 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={to}
                   to={to}
                   aria-label="Create"
-                  className="bg-brand -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-primary-foreground shadow-glow sm:w-12"
+                  className="bg-brand -mt-1 grid h-11 w-10 shrink-0 place-items-center rounded-2xl text-primary-foreground shadow-glow sm:w-11"
                 >
                   <PlusSquare className="h-5 w-5" />
                 </Link>
@@ -314,7 +314,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex w-11 shrink-0 flex-col items-center gap-0.5 text-[10px] sm:w-12 sm:text-[11px]",
+                  "relative flex w-10 shrink-0 flex-col items-center gap-0.5 text-[10px] sm:w-11 sm:text-[11px]",
                   active ? "text-foreground" : "text-muted-foreground",
                 )}
               >
