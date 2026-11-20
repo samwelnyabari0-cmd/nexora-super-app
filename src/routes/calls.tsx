@@ -498,6 +498,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   const [connected, setConnected] = useState(false);
   const [err, setErr] = useState("");
   const [muted, setMuted] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [cameraOn, setCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const local = useRef<HTMLVideoElement>(null);
@@ -531,6 +532,8 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   }, [cleanup]);
 
   const attach = (localStream: MediaStream, remoteStream?: MediaStream) => {
+    localStream.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    localStream.getVideoTracks().forEach((track) => { track.enabled = cameraOn; });
     if (local.current) local.current.srcObject = localStream;
     if (remoteStream) {
       if (remote.current) remote.current.srcObject = remoteStream;
@@ -570,6 +573,8 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   };
 
   const accept = async () => {
+    if (accepting) return;
+    setAccepting(true);
     setErr("");
     try {
       const localStream = await mediaFor(invite.kind);
@@ -609,6 +614,8 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
             : "Camera and microphone permission are needed to answer.",
         );
       }
+    } finally {
+      if (mounted.current) setAccepting(false);
     }
   };
 
@@ -719,8 +726,8 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
             <Button variant="destructive" onClick={decline}>
               <PhoneOff className="h-4 w-4" /> Decline
             </Button>
-            <Button onClick={() => void accept()}>
-              <PhoneCall className="h-4 w-4" /> Accept
+            <Button disabled={accepting} onClick={() => void accept()}>{accepting ? "Connecting…" : <PhoneCall className="h-4 w-4" />}
+              {!accepting && "Accept"}
             </Button>
           </>
         ) : (
