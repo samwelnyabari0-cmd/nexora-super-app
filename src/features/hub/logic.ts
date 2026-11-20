@@ -1,6 +1,56 @@
 // Pure helpers for the Hub mini-apps. No network, no AI.
 export type ModuleId =
   "tasks" | "notes" | "budget" | "deals" | "tools" | "focus" | "workflow";
+export type ModuleAccent = "emerald" | "cyan" | "violet" | "indigo" | "slate" | "amber";
+
+export const moduleBranding: Record<
+  ModuleId,
+  { name: string; feature: string; accent: ModuleAccent; description: string }
+> = {
+  budget: {
+    name: "PesaVault",
+    feature: "Subscriptions & bills",
+    accent: "emerald",
+    description: "Keep recurring costs visible and organised.",
+  },
+  tools: {
+    name: "ShareTab",
+    feature: "Split bills",
+    accent: "cyan",
+    description: "Share a bill and calculate fair contributions.",
+  },
+  focus: {
+    name: "DeepPulse",
+    feature: "Focus timer",
+    accent: "violet",
+    description: "Protect focused time, one session at a time.",
+  },
+  workflow: {
+    name: "TaskForge",
+    feature: "Micro-workflows",
+    accent: "indigo",
+    description: "Turn a big goal into manageable steps.",
+  },
+  notes: {
+    name: "MindGrid",
+    feature: "Notes",
+    accent: "slate",
+    description: "Capture thoughts and turn useful notes into actions.",
+  },
+  tasks: {
+    name: "MindGrid",
+    feature: "Tasks",
+    accent: "slate",
+    description: "Keep your next actions clear and organised.",
+  },
+  deals: {
+    name: "TrustSpot",
+    feature: "Deals & services",
+    accent: "amber",
+    description: "Browse local services and clearly labelled listings.",
+  },
+};
+
 export const allModules: { id: ModuleId; label: string }[] = [
   { id: "tasks", label: "Tasks" },
   { id: "notes", label: "Notes" },
