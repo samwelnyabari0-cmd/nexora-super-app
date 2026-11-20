@@ -66,7 +66,7 @@ setPeople(
 
   return () => window.clearTimeout(timer);
 }, [query, q]);
-  const r = posts.filter((p) => p.kind === "post" && canDiscover(p, muted) && matchesPost(p, q));
+  const r = posts.filter((p) => p.kind === "post" && !(p.tags ?? []).some((tag) => ["collab", "nx-type-collab"].includes(tag.toLowerCase())) && canDiscover(p, muted) && matchesPost(p, q));
   
   const locations = places.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query));
   const titles = catalog.filter((t) => `${t.title} ${t.genre}`.toLowerCase().includes(query));
@@ -190,7 +190,7 @@ setPeople(
             </div>
           </section>
         )}
-        {!count && (
+        {!count && tab !== "All" && (
           <EmptyState icon={<SearchX />} title="No matches" body="Try a different keyword." />
         )}
       </div>
