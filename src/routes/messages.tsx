@@ -181,7 +181,7 @@ function Messages() {
     chatKind: "direct",
     chatId: recipient,
     userId: user?.id ?? "",
-    enabled: Boolean(user?.id && recipient && !group),
+    enabled: Boolean(user?.id && recipient && !group && chatLock.status === "unlocked"),
     onShareOnce: async (payload: ChatLocationPayload) => {
       if (!user?.id || !recipient) return false;
       const { error: insertError } = await (supabase as any).from("direct_messages").insert({
@@ -915,6 +915,9 @@ if (recipient === user.id) {
       </div>
     );
   }
+if (recipient && chatLock.status !== "unlocked") {
+  return <ChatLockPanel lock={chatLock} />;
+}
 if (group) {
   return (
     <GroupChat
