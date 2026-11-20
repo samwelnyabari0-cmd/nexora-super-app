@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
@@ -188,4 +189,62 @@ export const cleanupR2MediaObjects = createServerFn({ method: "POST" })
       client.send(new DeleteObjectCommand({ Bucket: bucket, Key }))
     ));
     return { deleted: data.keys.length };
+  });
+
+
+function createPublicSupabaseClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Supabase is not configured.");
+
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => {
+        const headers = new Headers(
+          typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
+        );
+        if (init?.headers) new Headers(init.headers).forEach((value, name) => headers.set(name, value));
+        if ((key.startsWith("sb_publishable_") || key.startsWith("sb_secret_")) && headers.get("Authorization") === `Bearer ${key}`) {
+          headers.delete("Authorization");
+        }
+        headers.set("apikey", key);
+        return fetch(input, { ...init, headers });
+      },
+    },
+  });
+}
+
+export const createPublicR2MediaPlaybackUrl = createServerFn({ method: "POST" })
+  .validator((input: unknown) => playbackInputSchema.parse(input))
+  .handler(async ({ data }) => {
+    // Anonymous callers may receive URLs only for posts explicitly marked public.
+    const publicSupabase = createPublicSupabaseClient();
+    const { data: post, error } = await (publicSupabase as any)
+      .from("user_media_posts")
+      .select("id, user_id, audience, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key")
+      .eq("id", data.postId)
+      .eq("audience", "public")
+      .maybeSingle();
+
+    if (error || !post) throw new Error("Public media post is unavailable.");
+
+    const provider = data.asset === "media"
+      ? post.media_storage_provider
+      : post.thumbnail_storage_provider;
+    const key = data.asset === "media"
+      ? post.media_storage_key
+      : post.thumbnail_storage_key;
+
+    if (provider !== "r2" || typeof key !== "string" || !key.startsWith(`${post.user_id}/posts/`)) {
+      throw new Error("Public R2 media reference is invalid.");
+    }
+
+    const { client, bucket } = getR2MediaConfig();
+    const url = await getSignedUrl(
+      client,
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      { expiresIn: 900 },
+    );
+    return { url, expiresInSeconds: 900 };
   });
