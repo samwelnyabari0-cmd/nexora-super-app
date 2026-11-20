@@ -43,7 +43,7 @@ function Videos() {
             {items.filter((item) => item.id !== active?.id).map((item) => (
               <button key={item.id} type="button" onClick={() => setActiveId(item.id)} className="flex min-w-0 gap-3 rounded-xl border p-2 text-left transition hover:bg-muted/50">
                 <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-lg bg-black">
-                  {item.thumbnailSrc || item.mediaSrc ? <img src={item.thumbnailSrc || item.mediaSrc} alt="" className="h-full w-full object-cover" /> : null}
+                  {item.thumbnailSrc ? <img src={item.thumbnailSrc} alt="" className="h-full w-full object-cover" /> : item.mediaSrc ? <video src={item.mediaSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : null}
                   <Play className="absolute bottom-2 right-2 h-4 w-4 fill-white text-white" />
                 </div>
                 <span className="line-clamp-3 min-w-0 text-sm font-medium">{item.caption || "NEXORA Video"}</span>
