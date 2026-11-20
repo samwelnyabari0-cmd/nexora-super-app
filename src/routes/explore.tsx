@@ -9,6 +9,7 @@ import { matchesPost, canDiscover } from "@/features/core/tools";
 import { PostCard } from "@/components/nexora/PostCard";
 import { Avatar, DemoBadge, EmptyState, PageHeader } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
+import { StrictMediaGrid } from "@/components/nexora/StrictMediaFeed";
 export const Route = createFileRoute("/explore")({
   head: () => ({
     meta: [
@@ -65,16 +66,18 @@ setPeople(
 
   return () => window.clearTimeout(timer);
 }, [query, q]);
-  const r = posts.filter((p) => canDiscover(p, muted) && matchesPost(p, q));
+  const r = posts.filter((p) => p.kind === "post" && !(p.tags ?? []).some((tag) => ["collab", "nx-type-collab"].includes(tag.toLowerCase())) && canDiscover(p, muted) && matchesPost(p, q));
   
   const locations = places.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query));
   const titles = catalog.filter((t) => `${t.title} ${t.genre}`.toLowerCase().includes(query));
   const show = (type: string) => tab === "All" || tab === type;
+  const strictMediaTab = ["Reels", "Videos", "Collabs"].includes(tab);
   const count =
     (show("Posts") ? r.length : 0) +
     (show("Creators") ? people.length : 0) +
     (show("Places") ? locations.length : 0) +
-    (show("Watch") ? titles.length : 0);
+    (show("Watch") ? titles.length : 0) +
+    (strictMediaTab ? 1 : 0);
   return (
     <div>
       <PageHeader title="Explore" />
@@ -89,7 +92,7 @@ setPeople(
         />
       </label>
       <div className="mb-6 flex flex-wrap gap-2">
-        {["All", "Posts", "Creators", "Places", "Watch"].map((t) => (
+        {["All", "Posts", "Reels", "Videos", "Collabs", "Creators", "Places", "Watch"].map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -101,6 +104,9 @@ setPeople(
         ))}
       </div>
       <div className="space-y-7" aria-live="polite">
+        {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
+        {show("Videos") && <section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section>}
+        {show("Collabs") && <section><h2 className="mb-3 text-lg font-semibold">Collabs</h2><StrictMediaGrid contentType="collab" /></section>}
         {show("Creators") && query.length >= 2 && (
           <section>
             <h2 className="mb-3 text-lg font-semibold">People</h2>
@@ -184,7 +190,7 @@ setPeople(
             </div>
           </section>
         )}
-        {!count && (
+        {!count && tab !== "All" && (
           <EmptyState icon={<SearchX />} title="No matches" body="Try a different keyword." />
         )}
       </div>

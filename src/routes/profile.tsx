@@ -1,5 +1,4 @@
-import { PublicProfileQuery } from "@/components/nexora/PublicProfileQuery";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
  import {
@@ -10,6 +9,7 @@ import { toast } from "sonner";
   Bookmark,
   Grid3X3,
   Film,
+  Video,
   CheckCircle2,
   Share2,
   Pencil,
@@ -34,6 +34,7 @@ import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
+import { useStrictMediaItems, type StrictFeedType } from "@/components/nexora/StrictMediaFeed";
 import type { Post } from "@/features/core/data";
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -61,6 +62,7 @@ const profileCategories = [
 ] as const;
 
 function Profile() {
+  const navigate = useNavigate();
   const [publicHandle, setPublicHandle] = useState<string | null>(null);
   const [checkedUrl, setCheckedUrl] = useState(false);
 
@@ -72,16 +74,18 @@ function Profile() {
     setCheckedUrl(true);
   }, []);
 
-  if (!checkedUrl) {
+  useEffect(() => {
+    if (publicHandle) {
+      void navigate({ to: "/profile/$handle", params: { handle: publicHandle }, replace: true });
+    }
+  }, [publicHandle, navigate]);
+
+  if (!checkedUrl || publicHandle) {
     return (
       <div className="p-8 text-center">
         Loading profile...
       </div>
     );
-  }
-
-  if (publicHandle) {
-    return <PublicProfileQuery handle={publicHandle} />;
   }
 
   return <OwnProfile />;
@@ -97,7 +101,7 @@ function Profile() {
     Boolean(user?.user_metadata?.private_profile),
   );
   const [savingPrivacy, setSavingPrivacy] = useState(false);
-  const [socialTab, setSocialTab] = useState<"posts" | "reels" | "collabs" | "saved" | "followers" | "following">("posts");
+  const [socialTab, setSocialTab] = useState<"posts" | "reels" | "videos" | "collabs" | "saved" | "followers" | "following">("posts");
   const [exploreOpen, setExploreOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   const [accountType, setAccountType] = useState<"personal" | "creator" | "business">(user?.user_metadata?.account_type ?? "personal");
@@ -392,6 +396,7 @@ useEffect(() => {
               { value: "saved", label: "Saved", Icon: Bookmark },
               { value: "posts", label: "Posts", Icon: Grid3X3 },
               { value: "reels", label: "Reels", Icon: Film },
+              { value: "videos", label: "Videos", Icon: Video },
               { value: "collabs", label: "Collabs", Icon: Users },
             ] as const
           ).map(({ value, label, Icon: IconComponent }) => (
@@ -405,7 +410,7 @@ useEffect(() => {
             </Button>
           ))}
         </div>
-        {(socialTab === "posts" || socialTab === "reels" || socialTab === "collabs" || socialTab === "saved") && (
+        {(socialTab === "posts" || socialTab === "reels" || socialTab === "videos" || socialTab === "collabs" || socialTab === "saved") && (
           <ProfileMediaExperience tab={socialTab} />
         )}
         {(socialTab === "followers" || socialTab === "following") && (
@@ -437,7 +442,7 @@ useEffect(() => {
   );
 }
 
-type ProfileMediaTab = "posts" | "reels" | "collabs" | "saved";
+type ProfileMediaTab = "posts" | "reels" | "videos" | "collabs" | "saved";
 
 function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   const {
@@ -457,22 +462,14 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
+  const strictType: StrictFeedType = tab === "reels" ? "reel" : tab === "videos" ? "video" : tab === "collabs" ? "collab" : "post";
+  const { items: strictItems, loading: strictLoading, error: strictError } = useStrictMediaItems(strictType, user?.id, tab !== "saved" && Boolean(user?.id));
+  const strictIds = new Set(strictItems.map((item) => item.id));
 
   const activeItems = posts.filter((post) => {
     if (tab === "saved") return saved.has(post.id);
     if (post.creatorId !== "me") return false;
-
-    if (tab === "reels") return post.kind === "short";
-
-    if (tab === "collabs") {
-      return (
-        post.tags?.some((tag) => tag.toLowerCase() === "collab") ||
-        (post.kind as string) === "collab"
-      );
-    }
-
-    return post.kind !== "short" &&
-      !(post.tags ?? []).some((tag) => tag.toLowerCase() === "collab");
+    return strictIds.has(post.id);
   });
 
   const selectedPost =
@@ -527,7 +524,11 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
     <>
       {/* Fixed-height profile media grid */}
       <div className="relative h-[420px] max-h-[65vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
-        {activeItems.length === 0 ? (
+        {strictLoading ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground" role="status">Loading {tab}…</div>
+        ) : strictError ? (
+          <div className="flex h-full items-center justify-center text-sm text-destructive" role="alert">{strictError}</div>
+        ) : activeItems.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
             <Grid3X3 className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-sm font-semibold">
@@ -549,8 +550,8 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                 <button
                   key={post.id}
                   type="button"
-                  onClick={() => setViewerIndex(index)}
-                  className="group relative aspect-square overflow-hidden rounded-xl border bg-muted text-left"
+                  onClick={() => tab === "videos" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : tab === "reels" ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`) : setViewerIndex(index)}
+                  className={`group relative ${tab === "reels" ? "aspect-[9/16]" : tab === "videos" ? "aspect-video" : "aspect-square"} overflow-hidden rounded-xl border bg-muted text-left`}
                   aria-label={`Open ${post.caption || "profile content"}`}
                 >
                   {post.image ? (

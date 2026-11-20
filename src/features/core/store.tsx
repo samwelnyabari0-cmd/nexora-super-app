@@ -160,7 +160,7 @@ if (ownProfile) {
         (supabase as any)
           .from("user_media_posts")
           .select(
-            "id, user_id, caption, media_url, media_type, audience, tags, created_at, like_count, share_count, repost_count, comment_count, view_count",
+            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, duration_seconds, thumbnail_url, created_at, like_count, share_count, repost_count, comment_count, view_count",
           )
           .order("created_at", { ascending: false }),
         (supabase as any)
@@ -227,6 +227,8 @@ if (bookmarkError) {
               caption: row.caption ?? "",
               image,
               mediaType: row.media_type ?? undefined,
+              kind: row.content_type === "reel" ? "short" : row.content_type === "video" ? "video" : "post",
+              duration: row.duration_seconds == null ? undefined : `${Math.floor(row.duration_seconds / 60)}:${String(row.duration_seconds % 60).padStart(2, "0")}`,
               audience: row.audience ?? "public",
               tags: row.tags ?? [],
               filter: "original",

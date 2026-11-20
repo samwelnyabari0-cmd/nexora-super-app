@@ -1,12 +1,14 @@
 import { validateUpload, type UploadAccountTier } from "@/lib/upload-policy";
+import { aspectRatioLabel, classifyUpload } from "@/lib/media-classification";
 
-export type ContentType = "reel" | "post" | "carousel" | "video" | "story" | "live" | "ad";
+export type ContentType = "reel" | "post" | "carousel" | "video" | "collab" | "story" | "live" | "ad";
 
 export const CONTENT_TYPES: { id: ContentType; label: string; hint: string; accept: string }[] = [
-  { id: "reel", label: "Reel", hint: "Short vertical video, up to 60 seconds", accept: "video/*" },
-  { id: "post", label: "Post", hint: "A photo, video or text update", accept: "image/*,video/*" },
+  { id: "reel", label: "Reel", hint: "Vertical short video, up to 90 seconds", accept: "video/*" },
+  { id: "post", label: "Post", hint: "A photo or text update", accept: "image/*,video/*" },
   { id: "carousel", label: "Carousel", hint: "Several photos to swipe through", accept: "image/*" },
-  { id: "video", label: "Video", hint: "A longer video", accept: "video/*" },
+  { id: "video", label: "Video", hint: "Horizontal or long-form video", accept: "video/*" },
+  { id: "collab", label: "Collab", hint: "Co-created post or video", accept: "image/*,video/*" },
   { id: "story", label: "Story", hint: "A quick photo or video moment", accept: "image/*,video/*" },
   { id: "live", label: "Live", hint: "Go live right now", accept: "" },
   { id: "ad", label: "Ad", hint: "Sponsored content", accept: "image/*,video/*" },
@@ -14,7 +16,7 @@ export const CONTENT_TYPES: { id: ContentType; label: string; hint: string; acce
 
 const TAG_PREFIX = "nx-type-";
 
-/** The content type is stored as a hidden tag, so no database change is needed. */
+/** Hidden tags remain for backwards compatibility; content_type is now canonical in Supabase. */
 export const typeTag = (type: ContentType) => `${TAG_PREFIX}${type}`;
 export const visibleTags = (tags: string[]) => tags.filter((t) => !t.startsWith(TAG_PREFIX));
 export function typeFromTags(tags: string[]): ContentType | undefined {
@@ -25,6 +27,7 @@ export function typeFromTags(tags: string[]): ContentType | undefined {
 export function kindFor(type: ContentType, isVideo: boolean): "short" | "video" | "post" {
   if (type === "reel") return "short";
   if (type === "video") return "video";
+  if (type === "collab") return isVideo ? "video" : "post";
   return isVideo ? "video" : "post";
 }
 
@@ -42,48 +45,59 @@ export function guessMime(file: File): string {
   return EXT_TYPES[ext] ?? "";
 }
 
+export type UploadClassification = {
+  contentType: "post" | "reel" | "video";
+  aspectRatio: string | null;
+  durationSeconds: number | null;
+};
 
 type Options = {
   contentType: ContentType;
   tier: UploadAccountTier;
   setError: (message: string) => void;
   setNote: (message: string) => void;
-  /** Called when a file is accepted. */
-  accept: (url: string, files: File[], type: string) => void;
+  accept: (url: string, files: File[], type: string, classification: UploadClassification) => void;
 };
 
-/** Checks chosen files and hands the accepted ones back. Videos the browser cannot read still upload. */
+/** Reads local video metadata before upload so the saved row has a strict media classification. */
 export function pickMedia(picked: File[], o: Options) {
   if (!picked[0]) return;
-  // Some phones give files an empty type, so work it out from the file name.
   const files = picked.map((f) => (f.type ? f : new File([f], f.name, { type: guessMime(f) })));
   const f = files[0];
   const problem = validateUpload(f, o.tier);
   if (problem) return o.setError(problem);
   const url = URL.createObjectURL(f);
   o.setNote("");
-  const use = () => {
+
+  const use = (classification: UploadClassification) => {
     o.setError("");
-    o.accept(url, files, f.type);
+    o.accept(url, files, f.type, classification);
   };
-  if (!f.type.startsWith("video/")) return use();
+
+  if (!f.type.startsWith("video/")) {
+    return use({ contentType: "post", aspectRatio: null, durationSeconds: null });
+  }
 
   const probe = document.createElement("video");
   probe.preload = "metadata";
   probe.onloadedmetadata = () => {
-    const problem2 =
-      o.contentType === "reel" && probe.duration > 60
-        ? "Reels must be 60 seconds or shorter."
-        : validateUpload(f, o.tier, probe.duration);
+    const durationSeconds = Number.isFinite(probe.duration) ? Math.ceil(probe.duration) : null;
+    const width = probe.videoWidth;
+    const height = probe.videoHeight;
+    const problem2 = validateUpload(f, o.tier, durationSeconds ?? undefined, width, height);
     if (problem2) {
       URL.revokeObjectURL(url);
       return o.setError(problem2);
     }
-    use();
+    use({
+      contentType: classifyUpload(f, width, height, durationSeconds ?? Number.NaN),
+      aspectRatio: aspectRatioLabel(width, height),
+      durationSeconds,
+    });
   };
   probe.onerror = () => {
-    o.setNote("This browser cannot preview this video, but it will still upload.");
-    use();
+    o.setNote("Video metadata could not be read. It will be safely classified as a Video.");
+    use({ contentType: "video", aspectRatio: null, durationSeconds: null });
   };
   probe.src = url;
 }

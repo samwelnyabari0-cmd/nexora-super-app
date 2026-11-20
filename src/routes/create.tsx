@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
 import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
-import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType } from "@/lib/post-types";
+import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -56,6 +56,7 @@ function Create() {
   const [format, setFormat] = useState("square");
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
+  const [mediaClassification, setMediaClassification] = useState<UploadClassification>({ contentType: "post", aspectRatio: null, durationSeconds: null });
   const [note, setNote] = useState("");
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
@@ -98,6 +99,8 @@ function Create() {
     setMediaFiles([]);
     setMediaType(undefined);
     setCover(null);
+    setContentType("post");
+    setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
     setFilter("original");
     setFormat("landscape");
     setError("");
@@ -156,7 +159,24 @@ const previewFilter =
   setError("");
   void fetch(url)
     .then((response) => response.blob())
-    .then((blob) => setMediaFiles([blob]))
+    .then((blob) => {
+      const extension = type.startsWith("video/") ? "webm" : "jpg";
+      const file = new File([blob], `capture.${extension}`, { type });
+      pickMedia([file], {
+        contentType,
+        tier: uploadTier,
+        setError,
+        setNote,
+        accept: (previewUrl, files, mimeType, classification) => {
+          setMedia(previewUrl);
+          setOriginalMedia(previewUrl);
+          setMediaFiles(files);
+          setMediaType(mimeType);
+          setMediaClassification(classification);
+          if (mimeType.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
+        },
+      });
+    })
     .catch(() => setError("Captured media could not be prepared for upload."));
 }}
             onError={setError}
@@ -200,6 +220,8 @@ const previewFilter =
                   setMediaFiles([]);
                   setMediaType(undefined);
                   setCover(null);
+                  setContentType("post");
+                  setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
                 }}
               >
                 <Trash2 />
@@ -224,11 +246,13 @@ const previewFilter =
                 tier: uploadTier,
                 setError,
                 setNote,
-                accept: (url, files, type) => {
+                accept: (url, files, type, classification) => {
                   setMedia(url);
                   setOriginalMedia(url);
                   setMediaFiles(files);
                   setMediaType(type);
+                  setMediaClassification(classification);
+                  if (type.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
                 },
               });
             }}
@@ -240,7 +264,7 @@ const previewFilter =
           )}
           {note && !error && <p className="text-sm text-muted-foreground">{note}</p>}
           <p className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
-            {uploadTier.replaceAll("_", " ")} plan: {uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Shorts, {uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, {uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Max file size: {uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.
+            {uploadTier.replaceAll("_", " ")} plan: {uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Reels, {uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, {uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Max file size: {uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.
           </p>
           
           <TierGatedCreatorStudio
@@ -257,13 +281,25 @@ const previewFilter =
                 key={originalMedia || media}
                 videoSrc={originalMedia || media}
                 onExported={(file) => {
-                  const editedUrl = URL.createObjectURL(file);
-                  setMedia(editedUrl);
-                  setMediaFiles([file]);
-                  setMediaType(file.type.split(";")[0] || "video/webm");
-                  setCover(null);
-                  setNote("Your edited video is ready. Publishing will upload the edited copy.");
-                  setError("");
+                  const mimeType = file.type.split(";")[0] || "video/webm";
+                  const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+                  const editedFile = new File([file], `edited.${extension}`, { type: mimeType });
+                  pickMedia([editedFile], {
+                    contentType,
+                    tier: uploadTier,
+                    setError,
+                    setNote,
+                    accept: (editedUrl, files, detectedType, classification) => {
+                      setMedia(editedUrl);
+                      setOriginalMedia(editedUrl);
+                      setMediaFiles(files);
+                      setMediaType(detectedType);
+                      setMediaClassification(classification);
+                      if (contentType !== "collab") setContentType(classification.contentType);
+                      setCover(null);
+                      setNote("Your edited video is ready. Publishing will upload the edited copy.");
+                    },
+                  });
                 }}
               />
             ) : (
@@ -310,6 +346,7 @@ const previewFilter =
               return;
             }
             let mediaPath: string | null = null;
+            let thumbnailUrl: string | null = null;
             if (mediaFiles.length) {
               const uploadedPaths: string[] = [];
               for (const file of mediaFiles) {
@@ -324,14 +361,23 @@ const previewFilter =
                 uploadedPaths.push(publicData.publicUrl);
                 // Optional cover: saved beside the video as "<same-name>-cover.jpg" so the feed can find it.
                 if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
-                  await supabase.storage
+                  const coverPath = path.replace(/\.[^./]+$/, "-cover.jpg");
+                  const { error: coverError } = await supabase.storage
                     .from("post-media")
-                    .upload(path.replace(/\.[^./]+$/, "-cover.jpg"), cover, { contentType: "image/jpeg", upsert: false });
+                    .upload(coverPath, cover, { contentType: "image/jpeg", upsert: false });
+                  if (coverError) {
+                    setError("Video cover upload failed. Please try again.");
+                    return;
+                  }
+                  thumbnailUrl = supabase.storage.from("post-media").getPublicUrl(coverPath).data.publicUrl;
                 }
               }
               mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
                         const typedTags = [...tagList, typeTag(contentType)];
+            const strictContentType = contentType === "collab" || tagList.some((tag) => tag.toLowerCase() === "collab")
+              ? "collab"
+              : mediaClassification.contentType;
             const { data: savedPost, error: publishError } = await (supabase as any)
               .from("user_media_posts")
               .insert({
@@ -339,7 +385,10 @@ const previewFilter =
                 caption: caption.trim(),
                 media_url: mediaPath,
                 media_type: mediaType ?? null,
-                thumbnail_url: null,
+                thumbnail_url: thumbnailUrl,
+                content_type: strictContentType,
+                aspect_ratio: mediaClassification.aspectRatio,
+                duration_seconds: mediaClassification.durationSeconds,
                 audience,
                 tags: typedTags,
               })
