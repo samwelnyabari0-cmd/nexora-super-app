@@ -30,13 +30,19 @@ async function resolveStorageUrl(value: string | null): Promise<string | undefin
   return error ? undefined : data?.signedUrl ?? undefined;
 }
 
-export function useStrictMediaItems(contentType: StrictFeedType, userId?: string) {
+export function useStrictMediaItems(contentType: StrictFeedType, userId?: string, enabled = true) {
   const [items, setItems] = useState<StrictMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
+    if (!enabled) {
+      setItems([]);
+      setLoading(false);
+      setError("");
+      return () => { active = false; };
+    }
     setLoading(true);
     setError("");
     void (async () => {
@@ -74,7 +80,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
       }
     });
     return () => { active = false; };
-  }, [contentType, userId]);
+  }, [contentType, userId, enabled]);
 
   return { items, loading, error };
 }
