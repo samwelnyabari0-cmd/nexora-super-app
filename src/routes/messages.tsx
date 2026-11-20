@@ -10,6 +10,7 @@ import { GroupChat } from "@/components/nexora/GroupChat";
 import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
 import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
+import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 
 type DirectMessage = {
   id: string;
@@ -21,6 +22,7 @@ type DirectMessage = {
   delivered_at?: string | null;
   seen_at?: string | null;
   created_at: string;
+  reply_to_message_id?: string | null;
 };
 
 type RecipientProfile = {
@@ -67,6 +69,9 @@ function Messages() {
   const { user, ready } = useSession();
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [reactions, setReactions] = useState<MessageReaction[]>([]);
+  const [replyTarget, setReplyTarget] = useState<DirectMessage | null>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [inbox, setInbox] = useState<InboxConversation[]>([]);
   const [groupInbox, setGroupInbox] = useState<GroupInboxConversation[]>([]);
   const [inboxLoading, setInboxLoading] = useState(true);
@@ -482,6 +487,43 @@ if (recipient === user.id) {
   }, [user?.id, recipient, group]);
 
   useEffect(() => {
+    if (messages.length === 0) {
+      setReactions([]);
+      return;
+    }
+    let cancelled = false;
+    const ids = messages.map((message) => message.id);
+    void (supabase as any).from("direct_message_reactions")
+      .select("message_id, user_id, emoji")
+      .in("message_id", ids)
+      .then(({ data, error }: { data: MessageReaction[] | null; error: unknown }) => {
+        if (!cancelled && !error) setReactions(data ?? []);
+      });
+    return () => { cancelled = true; };
+  }, [messages]);
+
+  async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
+    if (!user) return;
+    const existing = reactions.find((item) => item.message_id === messageId && item.user_id === user.id);
+    let result;
+    if (existing?.emoji === emoji) {
+      result = await (supabase as any).from("direct_message_reactions")
+        .delete().eq("message_id", messageId).eq("user_id", user.id);
+    } else if (existing) {
+      result = await (supabase as any).from("direct_message_reactions")
+        .update({ emoji }).eq("message_id", messageId).eq("user_id", user.id);
+    } else {
+      result = await (supabase as any).from("direct_message_reactions")
+        .insert({ message_id: messageId, user_id: user.id, emoji });
+    }
+    if (result.error) { setError("Your reaction could not be saved."); return; }
+    setReactions((current) => [
+      ...current.filter((item) => !(item.message_id === messageId && item.user_id === user.id)),
+      ...(existing?.emoji === emoji ? [] : [{ message_id: messageId, user_id: user.id, emoji }]),
+    ]);
+  }
+
+  useEffect(() => {
     const node = log.current;
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages]);
@@ -640,6 +682,7 @@ if (recipient === user.id) {
         body,
         media_path: mediaPath,
         media_type: mediaType,
+        reply_to_message_id: replyTarget?.id ?? null,
       });
 
     if (sendError) {
@@ -653,6 +696,7 @@ if (recipient === user.id) {
 
     setDraft("");
     setSelectedFile(null);
+    setReplyTarget(null);
     if (fileInput.current) fileInput.current.value = "";
     setSending(false);
     setRefresh((value) => value + 1);
@@ -865,7 +909,7 @@ if (recipient === user.id) {
             const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
 
             return (
-              <div key={message.id} className="space-y-2">
+              <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} className="space-y-2">
                 {showDateDivider && (
                   <div className="sticky top-1 z-10 flex justify-center py-1">
                     <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
@@ -879,6 +923,12 @@ if (recipient === user.id) {
                       : "bg-muted"
                   }`}
                 >
+                  {message.reply_to_message_id && (
+                    <button type="button" onClick={() => messageRefs.current[message.reply_to_message_id!]?.scrollIntoView({ behavior: "smooth", block: "center" })} className="mb-2 block w-full rounded-lg border-l-2 border-primary/70 bg-background/20 px-2 py-1 text-left text-xs">
+                      <span className="block font-semibold">Replying to</span>
+                      <span className="block truncate opacity-80">{messages.find((item) => item.id === message.reply_to_message_id)?.body || "Original message unavailable"}</span>
+                    </button>
+                  )}
                   {message.media_path && mediaUrls[message.id] && (
                     message.media_type === "video" ? (
                       <video
@@ -902,7 +952,9 @@ if (recipient === user.id) {
                       {message.body}
                     </p>
                   )}
-                  <p className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
+                  <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
+                    <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
+                    <span className="flex items-center gap-1">
                     <span>{formatMessageTime(message.created_at)}</span>
                     {mine && (
                       <span
@@ -918,7 +970,9 @@ if (recipient === user.id) {
                         {message.seen_at ? "✓✓" : message.delivered_at ? "✓✓" : "✓"}
                       </span>
                     )}
-                  </p>
+                    </span>
+                  </div>
+                  <MessageReactions messageId={message.id} userId={user.id} reactions={reactions} onToggle={(id, emoji) => void toggleReaction(id, emoji)} />
                 </div>
                 </div>
               </div>
@@ -931,6 +985,15 @@ if (recipient === user.id) {
         <p className="pb-2 text-sm text-destructive">{error}</p>
       )}
 
+      {replyTarget && (
+        <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs">
+          <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => messageRefs.current[replyTarget.id]?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+            <span className="font-semibold">Replying to {replyTarget.sender_id === user.id ? "yourself" : recipientName}</span>
+            <span className="ml-2 text-muted-foreground">{replyTarget.body || "Attachment"}</span>
+          </button>
+          <Button type="button" variant="ghost" size="icon" aria-label="Cancel reply" onClick={() => setReplyTarget(null)}><X className="h-4 w-4" /></Button>
+        </div>
+      )}
       {selectedFile && (
         <div className="flex items-center justify-between gap-2 border-t px-2 py-2 text-sm">
           <span className="min-w-0 truncate">📎 {selectedFile.name}</span>
