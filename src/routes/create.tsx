@@ -17,29 +17,8 @@ import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
 import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
 import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
+import { uploadFileWithProgress } from "@/lib/media-upload";
 
-function uploadFileWithProgress(
-  url: string,
-  file: Blob,
-  headers: Record<string, string>,
-  onProgress: (loaded: number, total: number) => void,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("PUT", url);
-    Object.entries(headers).forEach(([name, value]) => request.setRequestHeader(name, value));
-    request.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) onProgress(event.loaded, event.total);
-    });
-    request.addEventListener("load", () => {
-      if (request.status >= 200 && request.status < 300) resolve();
-      else reject(new Error(`Media upload failed (${request.status}).`));
-    });
-    request.addEventListener("error", () => reject(new Error("Network error while uploading media.")));
-    request.addEventListener("abort", () => reject(new Error("Media upload was cancelled.")));
-    request.send(file);
-  });
-}
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
