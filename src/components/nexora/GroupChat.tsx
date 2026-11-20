@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
@@ -9,6 +9,9 @@ import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 import { MessageAttachment } from "@/components/nexora/MessageAttachment";
 import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
+import { LocationShareCard } from "@/components/nexora/LocationShareCard";
+import { useChatLocationSharing } from "@/hooks/useChatLocationSharing";
+import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
 
 type GroupMessage = {
   id: string;
@@ -20,6 +23,11 @@ type GroupMessage = {
   attachment_name?: string | null;
   attachment_mime_type?: string | null;
   attachment_size_bytes?: number | null;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
+  location_accuracy_m?: number | null;
+  location_captured_at?: string | null;
+  location_session_id?: string | null;
   created_at: string;
   reply_to_message_id?: string | null;
 };
@@ -64,10 +72,38 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const log = useRef<HTMLDivElement>(null);
+  const groupActivityTopic = `group:${groupId}`;
   const { remoteActivity, publishActivity } = useChatActivity({
-    topic: `group:${groupId}`,
+    topic: groupActivityTopic,
     userId,
     enabled: Boolean(groupId && userId),
+  });
+  const locationSharing = useChatLocationSharing({
+    chatKind: "group",
+    chatId: groupId,
+    userId,
+    enabled: Boolean(groupId && userId),
+    onShareOnce: async (payload: ChatLocationPayload) => {
+      const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
+        group_id: groupId,
+        sender_id: userId,
+        body: "Shared a location",
+        location_latitude: payload.latitude,
+        location_longitude: payload.longitude,
+        location_accuracy_m: payload.accuracyM,
+        location_captured_at: payload.capturedAt,
+      });
+      return !insertError;
+    },
+    onLiveSession: async (sessionId: string) => {
+      const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
+        group_id: groupId,
+        sender_id: userId,
+        body: "Started live location sharing",
+        location_session_id: sessionId,
+      });
+      return !insertError;
+    },
   });
 
   useEffect(() => {
@@ -90,7 +126,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -529,6 +565,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                       <img src={mediaUrls[message.id]} alt="Shared group attachment" className="mb-2 max-h-72 max-w-full rounded-lg object-contain" />
                     )
                   )}
+                  {message.location_session_id ? (
+                    <LocationShareCard sessionId={message.location_session_id} topic={groupActivityTopic} />
+                  ) : message.location_latitude !== null && message.location_latitude !== undefined
+                    && message.location_longitude !== null && message.location_longitude !== undefined
+                    && message.location_captured_at ? (
+                    <LocationShareCard oneTime={{
+                      latitude: message.location_latitude,
+                      longitude: message.location_longitude,
+                      accuracyM: message.location_accuracy_m ?? null,
+                      capturedAt: message.location_captured_at,
+                    }} />
+                  ) : null}
                   {message.body && <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
                   <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
                     <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
@@ -545,7 +593,13 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         })}
       </div>
 
-      {error && <p role="alert" className="pb-2 text-sm text-destructive">{error}</p>}
+      {(error || locationSharing.error) && <p role="alert" className="pb-2 text-sm text-destructive">{error || locationSharing.error}</p>}
+      {locationSharing.activeSessionId && (
+        <div className="flex items-center justify-between border-t px-3 py-2 text-xs">
+          <span className="flex items-center gap-2 text-primary"><Radio className="h-3 w-3" /> Live location is sharing</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => void locationSharing.stopLiveSharing()}>Stop sharing</Button>
+        </div>
+      )}
       {replyTarget && (
         <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs">
           <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => messageRefs.current[replyTarget.id]?.scrollIntoView({ behavior: "smooth", block: "center" })}>
@@ -578,6 +632,15 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         />
         <Button type="button" variant="outline" size="icon" aria-label="Attach file" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
           <ImagePlus className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Share current location" disabled={sending || recording || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+          <MapPin className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 15 minutes" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+          <Radio className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 1 hour" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+          <span className="text-[10px] font-bold">1h</span>
         </Button>
         <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
           {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
