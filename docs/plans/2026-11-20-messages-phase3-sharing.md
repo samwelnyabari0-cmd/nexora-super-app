@@ -47,33 +47,33 @@
 - `MessageAttachment` consumes a message attachment descriptor containing storage path, original filename, MIME type, and byte size; it produces a compact file card with file type, filename, formatted size, and an authenticated open/download action.
 - File objects are uploaded to the existing private `chat-media` bucket. The storage object path must be namespaced by chat and sender; the database message is inserted only after successful upload.
 
-- [ ] **Step 1: Add focused failing tests**
+- [x] **Step 1: Add focused failing tests**
 
 Test accepted document MIME types for PDF, DOC, DOCX, XLS, XLSX, PPT, and PPTX; reject executable, archive, HTML, and unknown MIME types. Test readable byte-size formatting, safe filename display, and missing signed URL behavior. Test that an upload failure creates no message row and that a message insert failure attempts to remove the just-uploaded object.
 
-- [ ] **Step 2: Verify the relevant failure**
+- [x] **Step 2: Verify the relevant failure**
 
 Run: `npm test -- src/components/nexora/message-attachments.test.ts`
 
 Expected: the new tests fail because the typed document attachment descriptor and renderer do not exist yet.
 
-- [ ] **Step 3: Implement the minimum behavior**
+- [x] **Step 3: Implement the minimum behavior**
 
 Add nullable attachment metadata to both message tables without changing existing media columns. Preserve the private bucket and existing object policies; extend its allowed MIME list only for the seven named document types and retain the current 50 MiB limit. Inspect existing Storage policies before any change; do not widen access. Add upload controls to both direct and group composers, render a compact attachment card, and create short-lived signed URLs only after the chat participant has loaded the message. Display a clear error when upload, message insert, signing, or download fails. Preserve existing photo, video, and audio upload paths.
 
-- [ ] **Step 4: Verify the focused pass**
+- [x] **Step 4: Verify the focused pass**
 
 Run: `npm test -- src/components/nexora/message-attachments.test.ts`
 
 Expected: all attachment validation, formatting, and failure-path tests pass.
 
-- [ ] **Step 5: Run affected integration checks**
+- [x] **Step 5: Run affected integration checks**
 
 Run: `npm test`, `npm run lint`, and `npm run build`.
 
 Expected: the full test suite, lint, and production build pass with existing image/video/audio messaging unchanged.
 
-- [ ] **Step 6: Commit the passing deliverable**
+- [x] **Step 6: Commit the passing deliverable**
 
 ```bash
 git add supabase/migrations src/routes/messages.tsx src/components/nexora/GroupChat.tsx src/components/nexora/MessageAttachment.tsx src/components/nexora/message-attachments.test.ts
