@@ -29,11 +29,11 @@ Keep the persisted IDs and map them to these display names and identities:
 | `tools` | ShareTab | Split receipt | Cyan |
 | `focus` | DeepPulse | Concentric timer rings | Violet |
 | `workflow` | TaskForge | Spark / branching nodes | Indigo |
-| `notes` | MindGrid | Notebook grid with pin | Slate blue |
+| `notes` and `tasks` | MindGrid | Notebook grid with pin | Slate blue |
 | `deals` | TrustSpot | Verified map pin | Amber |
-| `tasks` | ShadowBox | Ghost outline | Neon lavender |
+| Existing Ghost State control | ShadowBox | Ghost outline | Neon lavender |
 
-Important: the user described ShadowBox as the Ghost State sandbox, not the Tasks module. Therefore the existing Ghost State control should be presented as ShadowBox, while the Tasks module retains the familiar Tasks label unless a separate user-approved identity is supplied. The seven names above map to the seven mini-app functions as follows: PesaVault=budget, ShareTab=quick tools, DeepPulse=focus, TaskForge=workflow, MindGrid=notes, TrustSpot=deals, and ShadowBox=Ghost State. Tasks remains a core Hub capability, not an eighth renamed mini-app. This avoids assigning Ghost State's identity to the unrelated task checklist.
+MindGrid covers both existing Notes and Tasks surfaces. To avoid losing or migrating either dataset, keep the two existing module IDs and their independent hide/reorder preferences; give both surfaces the MindGrid identity with clear Notes and Tasks subtitles. ShadowBox labels the existing Ghost State banner and controls, which remain a separate sandbox capability rather than being incorrectly attached to the task checklist.
 
 ### Visual system
 
@@ -62,7 +62,7 @@ Important: the user described ShadowBox as the Ghost State sandbox, not the Task
 
 ## Scope boundaries
 
-Included: Hub branding, module cards and Mini-App Store labels, Ghost State/ShadowBox naming, shared Hub card and form polish, status pills, Value Ledger visualization, DeepPulse timer ring, task completion feedback, accessibility and mobile fit.
+Included: Hub branding, module cards and Mini-App Store labels, Ghost State/ShadowBox naming, shared Hub card and form polish, status pills, Value Ledger visualization, DeepPulse timer ring, task completion feedback, accessibility and mobile fit. Notes and Tasks remain separately stored and independently reorderable/hidden, but both display the MindGrid identity.
 
 Not included: CivicPulse, TrustSpot community ratings, bill calendar, export/import, encrypted backup, theme preferences, new payment flows, or changing the underlying module capabilities.
 
@@ -88,4 +88,4 @@ Not included: CivicPulse, TrustSpot community ratings, bill calendar, export/imp
 
 ## Unresolved implementation detail
 
-The user should review the mapping clarification: ShadowBox is the Ghost State feature, while Tasks remains a core capability rather than one of the seven renamed mini-apps. The seven branded mini-apps therefore map to the seven functions above, with ShadowBox represented by the existing Ghost State banner/control rather than the Tasks card.
+The user should confirm that Notes and Tasks should retain separate cards and separate visibility/order controls while sharing the MindGrid brand identity. ShadowBox is the existing Ghost State banner/control and remains separate from the task checklist.
