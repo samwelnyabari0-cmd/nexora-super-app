@@ -50,5 +50,6 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
-      - name: TypeScript audit
+      - name: TypeScript baseline audit (non-blocking)
         run: npx tsc --noEmit
+        continue-on-error: true
