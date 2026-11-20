@@ -52,13 +52,13 @@ export const moduleBranding: Record<
 };
 
 export const allModules: { id: ModuleId; label: string }[] = [
-  { id: "tasks", label: "Tasks" },
-  { id: "notes", label: "Notes" },
-  { id: "budget", label: "Budget & subscriptions" },
-  { id: "deals", label: "Deals & services" },
-  { id: "tools", label: "Quick tools" },
-  { id: "focus", label: "Focus timer" },
-  { id: "workflow", label: "Micro-Split workflows" },
+  { id: "tasks", label: "MindGrid · Tasks" },
+  { id: "notes", label: "MindGrid · Notes" },
+  { id: "budget", label: "PesaVault" },
+  { id: "deals", label: "TrustSpot" },
+  { id: "tools", label: "ShareTab" },
+  { id: "focus", label: "DeepPulse" },
+  { id: "workflow", label: "TaskForge" },
 ];
 
 /** Split an amount in KES cents fairly; leftover cents go to the first people. */
