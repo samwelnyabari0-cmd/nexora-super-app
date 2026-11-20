@@ -195,10 +195,7 @@ const row = profileRows?.[0] ?? null;
               storageKey: string | null | undefined,
               asset: "media" | "thumbnail",
             ) => {
-              if (provider === "r2") {
-                try {
-                  return await getFreshR2MediaPlaybackUrl(post.id, asset);
-              }
+              if (provider === "r2") return getFreshR2MediaPlaybackUrl(post.id, asset);
               if (!value) return undefined;
               if (/^https?:\/\//i.test(value)) return value;
               const { data } = await supabase.storage.from("post-media").createSignedUrl(storageKey || value, 900);
