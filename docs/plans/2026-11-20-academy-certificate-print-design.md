@@ -5,7 +5,7 @@
 3. Redesign the public certificate page as a single A4 landscape print sheet with controlled print dimensions, navy/gold framing, a Nexora gradient emblem, a decorative Nexora signature mark, verification seal, and visible verification code.
 4. Keep interactive controls and navigation out of print output; preserve public verification fields and URL.
 5. Add unit coverage for learner-name validation and certificate mapping.
-6. Run the full Academy CI workflow (tests, targeted lint, production build), inspect the PR checks, apply and verify the narrowly scoped SQL function update, then merge PR #49 and verify the production deployment.
+6. Add SQL verification for the replacement issuance RPC, including owner, SECURITY DEFINER, empty search_path, and execute grants.\n7. Run the full Academy CI workflow (tests, targeted lint, production build), inspect the PR checks, apply and verify the narrowly scoped SQL function update, then merge PR #49 and verify the production deployment.
 
 ## Acceptance criteria
 - A certificate is printed on one A4 landscape page without clipped or split content.
