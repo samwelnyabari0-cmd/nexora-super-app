@@ -57,3 +57,12 @@ export async function saveWatchProgress(input: {
     { onConflict: "user_id,title_id" },
   );
 }
+
+export async function fetchWatchEpisodes(titleId: string) {
+  return supabase
+    .from("watch_episodes")
+    .select("*")
+    .eq("title_id", titleId)
+    .order("season_number", { ascending: true })
+    .order("episode_number", { ascending: true });
+}
