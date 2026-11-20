@@ -500,6 +500,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   const [err, setErr] = useState("");
   const [muted, setMuted] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const [cameraOn, setCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const mutedRef = useRef(false);
@@ -559,7 +560,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
       if (remoteAudio.current) {
         remoteAudio.current.srcObject = remoteStream;
         void remoteAudio.current.play().catch(() => {
-          if (mounted.current) setErr("Tap the call controls if your browser blocks automatic audio.");
+          if (mounted.current) { setAudioBlocked(true); setErr("Your browser blocked automatic call audio."); }
         });
       }
       if (mounted.current) setConnected(true);
@@ -746,6 +747,18 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
       )}
       <audio ref={remoteAudio} autoPlay playsInline className="hidden" />
 
+      {audioBlocked && (
+        <div className="mt-3 text-center">
+          <Button variant="outline" onClick={() => {
+            void remoteAudio.current?.play().then(() => {
+              setAudioBlocked(false);
+              setErr("");
+            }).catch(() => setErr("Call audio is still blocked by the browser."));
+          }}>
+            Enable call audio
+          </Button>
+        </div>
+      )}
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         {!isCaller && invite.status === "ringing" ? (
           <>
