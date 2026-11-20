@@ -190,6 +190,15 @@ export function useChatLocationSharing({
     }
   }, [broadcastChange, chatId, chatKind, enabled, onLiveSession, stopLiveSharing, userId]);
 
+  const chatIdentityRef = useRef(`${chatKind}:${chatId}:${userId}`);
+  useEffect(() => {
+    const nextIdentity = `${chatKind}:${chatId}:${userId}`;
+    if (chatIdentityRef.current !== nextIdentity || !enabled) {
+      chatIdentityRef.current = nextIdentity;
+      if (sessionRef.current) void stopLiveSharing();
+    }
+  }, [chatId, chatKind, enabled, stopLiveSharing, userId]);
+
   useEffect(() => {
     if (!enabled || !chatId || !userId) return;
     const channel = supabase.channel(topic, { config: { private: true } });
