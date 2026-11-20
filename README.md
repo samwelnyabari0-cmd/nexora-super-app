@@ -25,7 +25,7 @@ Add these environment variables to Vercel (Production, Preview, and Development 
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET_NAME`
 
-Create an R2 API token scoped to the KYC bucket with object read/write permissions only. Keep the bucket private; do not attach a public custom domain. Configure the bucket's CORS policy to allow `PUT` from your deployed Nexora origins (including your Vercel preview origin if needed), allow the `Content-Type` request header, and expose `ETag` if you use it in the client. Then redeploy. Existing Supabase KYC objects are not migrated automatically; new KYC submissions use R2 object keys in the existing Supabase verification record.
+Create an R2 API token scoped to the KYC bucket with object read/write permissions only. Keep the bucket private; do not attach a public custom domain. Configure the bucket's CORS policy to allow `PUT` and `GET` from your deployed Nexora origins (including your Vercel preview origin if needed), allow the `Content-Type`, `Range`, `x-amz-meta-owner`, `x-amz-meta-purpose`, and `x-amz-meta-expected_size` request headers, and expose `ETag`, `Content-Length`, `Content-Range`, and `Accept-Ranges` for media playback and seeking. Then redeploy. Existing Supabase KYC objects are not migrated automatically; new KYC submissions use R2 object keys in the existing Supabase verification record.
 
 The repository's lockfile should be refreshed with `npm install` (or `bun install`) after dependency changes before deploying.
 
