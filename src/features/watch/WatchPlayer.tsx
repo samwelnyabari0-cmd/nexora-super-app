@@ -69,6 +69,7 @@ export function WatchPlayer({
 
   const closePlayer = async () => {
     const video = videoRef.current;
+    if (video) video.pause();
     const saved = video && userId ? await saveProgress(video, true) : true;
     if (saved) onClose();
   };
