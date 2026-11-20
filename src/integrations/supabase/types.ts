@@ -497,6 +497,11 @@ export type Database = {
           attachment_mime_type: string | null
           attachment_size_bytes: number | null
           reply_to_message_id: string | null
+          location_latitude: number | null
+          location_longitude: number | null
+          location_accuracy_m: number | null
+          location_captured_at: string | null
+          location_session_id: string | null
           media_type: string | null
           sender_id: string
         }
@@ -510,6 +515,11 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_size_bytes?: number | null
           reply_to_message_id?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_accuracy_m?: number | null
+          location_captured_at?: string | null
+          location_session_id?: string | null
           media_type?: string | null
           sender_id: string
         }
@@ -523,6 +533,11 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_size_bytes?: number | null
           reply_to_message_id?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_accuracy_m?: number | null
+          location_captured_at?: string | null
+          location_session_id?: string | null
           media_type?: string | null
           sender_id?: string
         }
@@ -2581,6 +2596,11 @@ export type Database = {
           attachment_mime_type: string | null
           attachment_size_bytes: number | null
           reply_to_message_id: string | null
+          location_latitude: number | null
+          location_longitude: number | null
+          location_accuracy_m: number | null
+          location_captured_at: string | null
+          location_session_id: string | null
           media_type: string | null
           recipient_id: string
           seen_at: string | null
@@ -2596,6 +2616,11 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_size_bytes?: number | null
           reply_to_message_id?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_accuracy_m?: number | null
+          location_captured_at?: string | null
+          location_session_id?: string | null
           media_type?: string | null
           recipient_id: string
           seen_at?: string | null
@@ -2611,6 +2636,11 @@ export type Database = {
           attachment_mime_type?: string | null
           attachment_size_bytes?: number | null
           reply_to_message_id?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_accuracy_m?: number | null
+          location_captured_at?: string | null
+          location_session_id?: string | null
           media_type?: string | null
           recipient_id?: string
           seen_at?: string | null
