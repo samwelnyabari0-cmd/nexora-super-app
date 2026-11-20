@@ -392,10 +392,10 @@ alter table public.direct_messages
   check (
     (shared_content_source is null and shared_content_id is null and shared_content_type is null)
     or
-    (shared_content_id is not null and shared_content_source = 'posts' and shared_content_type = 'post')
+    (shared_content_id is not null and shared_content_source is not null and shared_content_source = 'posts' and shared_content_type is not null and shared_content_type = 'post')
     or
-    (shared_content_id is not null and shared_content_source = 'user_media_posts'
-      and shared_content_type = any (array['post', 'reel', 'video']::text[]))
+    (shared_content_id is not null and shared_content_source is not null and shared_content_source = 'user_media_posts'
+      and shared_content_type is not null and shared_content_type = any (array['post', 'reel', 'video']::text[]))
   );
 
 alter table public.chat_group_messages
