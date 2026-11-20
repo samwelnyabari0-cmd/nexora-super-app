@@ -1,7 +1,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -13,6 +13,9 @@ import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 import { MessageAttachment } from "@/components/nexora/MessageAttachment";
 import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
+import { LocationShareCard } from "@/components/nexora/LocationShareCard";
+import { useChatLocationSharing } from "@/hooks/useChatLocationSharing";
+import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
 
 type DirectMessage = {
   id: string;
@@ -24,6 +27,11 @@ type DirectMessage = {
   attachment_name?: string | null;
   attachment_mime_type?: string | null;
   attachment_size_bytes?: number | null;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
+  location_accuracy_m?: number | null;
+  location_captured_at?: string | null;
+  location_session_id?: string | null;
   delivered_at?: string | null;
   seen_at?: string | null;
   created_at: string;
@@ -111,6 +119,37 @@ function Messages() {
     userId: user?.id ?? "",
     enabled: Boolean(user?.id && recipient && !group),
   });
+  const locationSharing = useChatLocationSharing({
+    chatKind: "direct",
+    chatId: recipient,
+    userId: user?.id ?? "",
+    enabled: Boolean(user?.id && recipient && !group),
+    onShareOnce: async (payload: ChatLocationPayload) => {
+      if (!user?.id || !recipient) return false;
+      const { error: insertError } = await (supabase as any).from("direct_messages").insert({
+        sender_id: user.id,
+        recipient_id: recipient,
+        body: "Shared a location",
+        location_latitude: payload.latitude,
+        location_longitude: payload.longitude,
+        location_accuracy_m: payload.accuracyM,
+        location_captured_at: payload.capturedAt,
+      });
+      if (!insertError) setRefresh((value) => value + 1);
+      return !insertError;
+    },
+    onLiveSession: async (sessionId: string) => {
+      if (!user?.id || !recipient) return false;
+      const { error: insertError } = await (supabase as any).from("direct_messages").insert({
+        sender_id: user.id,
+        recipient_id: recipient,
+        body: "Started live location sharing",
+        location_session_id: sessionId,
+      });
+      if (!insertError) setRefresh((value) => value + 1);
+      return !insertError;
+    },
+  });
 
   useEffect(() => {
     publishActivity(recording ? "recording" : draft.trim() ? "typing" : null);
@@ -189,7 +228,7 @@ function Messages() {
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -282,7 +321,7 @@ function Messages() {
           .in("id", groupIds),
         (supabase as any)
           .from("chat_group_messages")
-          .select("id, group_id, body, media_type, created_at")
+          .select("id, group_id, body, media_type, created_at, location_latitude, location_session_id")
           .in("group_id", groupIds)
           .order("created_at", { ascending: false }),
       ]);
@@ -991,6 +1030,18 @@ if (recipient === user.id) {
                       />
                     )
                   )}
+                  {message.location_session_id ? (
+                    <LocationShareCard sessionId={message.location_session_id} topic={directActivityTopic} />
+                  ) : message.location_latitude !== null && message.location_latitude !== undefined
+                    && message.location_longitude !== null && message.location_longitude !== undefined
+                    && message.location_captured_at ? (
+                    <LocationShareCard oneTime={{
+                      latitude: message.location_latitude,
+                      longitude: message.location_longitude,
+                      accuracyM: message.location_accuracy_m ?? null,
+                      capturedAt: message.location_captured_at,
+                    }} />
+                  ) : null}
                   {message.body && (
                     <p className="whitespace-pre-wrap text-sm">
                       {message.body}
@@ -1025,8 +1076,14 @@ if (recipient === user.id) {
         )}
       </div>
 
-      {error && messages.length > 0 && (
-        <p className="pb-2 text-sm text-destructive">{error}</p>
+      {(error || locationSharing.error) && (
+        <p role="alert" className="pb-2 text-sm text-destructive">{error || locationSharing.error}</p>
+      )}
+      {locationSharing.activeSessionId && (
+        <div className="flex items-center justify-between border-t px-3 py-2 text-xs">
+          <span className="flex items-center gap-2 text-primary"><Radio className="h-3 w-3" /> Live location is sharing</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => void locationSharing.stopLiveSharing()}>Stop sharing</Button>
+        </div>
       )}
 
       {replyTarget && (
@@ -1077,6 +1134,15 @@ if (recipient === user.id) {
           onClick={() => fileInput.current?.click()}
         >
           <ImagePlus className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+          <MapPin className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+          <Radio className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+          <span className="text-[10px] font-bold">1h</span>
         </Button>
         <Button
           type="button"
