@@ -451,10 +451,15 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     const prompt = buildSmartReplyPrompt(
       messages
         .filter((message) => !isMessageExpired(message.expires_at))
-        .slice(-6)
         .map((message) => ({
           sender: message.sender_id === userId ? "You" as const : "Member" as const,
           body: message.body ?? "",
+          media_path: message.media_path ?? null,
+          media_type: message.media_type ?? null,
+          location_latitude: message.location_latitude ?? null,
+          location_longitude: message.location_longitude ?? null,
+          location_session_id: message.location_session_id ?? null,
+          shared_content_id: message.shared_content_id ?? null,
         })),
     );
     if (!prompt) {
