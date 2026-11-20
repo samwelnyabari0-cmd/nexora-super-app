@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
@@ -12,6 +12,9 @@ import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } 
 import { LocationShareCard } from "@/components/nexora/LocationShareCard";
 import { useChatLocationSharing } from "@/hooks/useChatLocationSharing";
 import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
+import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
+import { SharedContentCard } from "@/components/nexora/SharedContentCard";
+import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
 
 type GroupMessage = {
   id: string;
@@ -28,6 +31,9 @@ type GroupMessage = {
   location_accuracy_m?: number | null;
   location_captured_at?: string | null;
   location_session_id?: string | null;
+  shared_content_source?: "posts" | "user_media_posts" | null;
+  shared_content_id?: string | null;
+  shared_content_type?: "post" | "reel" | "video" | null;
   created_at: string;
   reply_to_message_id?: string | null;
 };
@@ -63,6 +69,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [shareContentOpen, setShareContentOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -126,7 +133,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -577,6 +584,13 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                       capturedAt: message.location_captured_at,
                     }} />
                   ) : null}
+                  {message.shared_content_source && message.shared_content_id && message.shared_content_type && (
+                    <SharedContentCard
+                      source={message.shared_content_source}
+                      contentId={message.shared_content_id}
+                      contentType={message.shared_content_type}
+                    />
+                  )}
                   {message.body && <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
                   <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
                     <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
@@ -642,6 +656,9 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <Button type="button" variant="outline" size="icon" aria-label="Start live location for 1 hour" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
           <span className="text-[10px] font-bold">1h</span>
         </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Share Nexora content" disabled={sending || recording} onClick={() => setShareContentOpen(true)}>
+          <Share2 className="h-4 w-4" />
+        </Button>
         <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
           {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
@@ -657,6 +674,21 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
+      <ShareContentDialog
+        open={shareContentOpen}
+        onOpenChange={setShareContentOpen}
+        onShare={async (reference: SharedContentReference) => {
+          const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
+            group_id: groupId,
+            sender_id: userId,
+            body: `Shared a ${sharedContentLabel(reference.contentType)}`,
+            shared_content_source: reference.source,
+            shared_content_id: reference.contentId,
+            shared_content_type: reference.contentType,
+          });
+          return !insertError;
+        }}
+      />
     </main>
   );
 }
