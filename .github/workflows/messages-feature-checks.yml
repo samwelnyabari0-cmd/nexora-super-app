@@ -75,6 +75,9 @@ jobs:
           --rule "prettier/prettier: off"
           --rule "@typescript-eslint/no-explicit-any: off"
 
+      - name: Run full repository lint
+        run: npm run lint
+
       - name: Build production bundle
         run: npm run build
 
