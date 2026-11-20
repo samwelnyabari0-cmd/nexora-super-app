@@ -83,7 +83,7 @@ export function LocationShareCard({ oneTime, sessionId, topic }: LocationShareCa
         <span className="block text-xs text-muted-foreground">
           {status}{updatedAt ? ` · ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
         </span>
-        {accuracy !== null && <span className="block text-[11px] text-muted-foreground">Accuracy about {Math.round(accuracy)} m</span>}
+        {typeof accuracy === "number" && <span className="block text-[11px] text-muted-foreground">Accuracy about {Math.round(accuracy)} m</span>}
         {!hasCoordinates && sessionId && (session?.status === "stopped" || session?.status === "expired") && (
           <span className="block text-[11px] text-muted-foreground">The location point is no longer available.</span>
         )}
