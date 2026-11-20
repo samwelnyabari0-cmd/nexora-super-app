@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { createPublicR2MediaPlaybackUrl, createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 
@@ -46,6 +46,7 @@ type ProfilePost = {
   thumbnail_storage_provider?: "supabase" | "r2" | null;
   thumbnail_storage_key?: string | null;
   mediaSrc?: string;
+  mediaAsset?: "media" | "thumbnail";
   likes: number;
   comments: number | null;
   shares: number;
@@ -97,6 +98,24 @@ function PublicProfile() {
     profile?.settings?.privateProfile === true || profile?.settings?.private_profile === true,
   );
   const graph = useSocialGraph(profile?.id);
+  const attemptedMediaRefresh = useRef(new Set<string>());
+
+  const refreshProfileMedia = async (post: ProfilePost, failedUrl: string) => {
+    const asset = post.mediaAsset;
+    if (!asset || !failedUrl) return;
+    const provider = asset === "media" ? post.media_storage_provider : post.thumbnail_storage_provider;
+    if (provider !== "r2") return;
+    const attemptKey = `${post.id}:${asset}:${failedUrl}`;
+    if (attemptedMediaRefresh.current.has(attemptKey)) return;
+    attemptedMediaRefresh.current.add(attemptKey);
+    const freshUrl = await getFreshR2MediaPlaybackUrl(post.id, asset);
+    if (!freshUrl || freshUrl === failedUrl) return;
+    const updatePost = (entry: ProfilePost) => entry.id === post.id
+      ? { ...entry, mediaSrc: freshUrl }
+      : entry;
+    setPosts((current) => current.map(updatePost));
+    setSelectedPost((current) => current?.id === post.id ? updatePost(current) : current);
+  };
 
   useEffect(() => {
     if (!requestedPostId || loading) return;
@@ -178,16 +197,7 @@ const row = profileRows?.[0] ?? null;
             ) => {
               if (provider === "r2") {
                 try {
-                  const result = await createR2MediaPlaybackUrl({ data: { postId: post.id, asset } });
-                  return result.url;
-                } catch {
-                  try {
-                    const result = await createPublicR2MediaPlaybackUrl({ data: { postId: post.id, asset } });
-                    return result.url;
-                  } catch {
-                    return undefined;
-                  }
-                }
+                  return await getFreshR2MediaPlaybackUrl(post.id, asset);
               }
               if (!value) return undefined;
               if (/^https?:\/\//i.test(value)) return value;
@@ -201,6 +211,7 @@ const row = profileRows?.[0] ?? null;
             return {
               ...post,
               mediaSrc: mediaSrc ?? thumbnailSrc,
+              mediaAsset: mediaSrc ? "media" as const : thumbnailSrc ? "thumbnail" as const : undefined,
               likes: Number((post as any).like_count ?? 0),
               comments: Number((post as any).comment_count ?? 0),
               shares: Number((post as any).share_count ?? 0),
@@ -368,10 +379,10 @@ const row = profileRows?.[0] ?? null;
 
         {presentation === "studio" && owner && <section className="mx-4 rounded-2xl border border-slate-800 bg-slate-900 p-3"><h2 className="mb-3 text-xs font-semibold">Creator analytics overview</h2><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><Metric label="Published posts" value={posts.length} /><Metric label="Followers" value={graph.followers} /><Metric label="Following" value={graph.following} /><Metric label="Collabs" value={totalCollabs} /><Metric label="Recorded likes" value={totalLikes} /><Metric label="Recorded shares" value={totalShares} /><Metric label="Views" value={null} /><Metric label="Comments" value={null} /></div><p className="mt-3 text-center text-[10px] text-slate-400">Only recorded metrics are shown. Unavailable metrics are marked —.</p></section>}
 
-        {tab === "reposts" ? <section className="p-8 text-center text-sm text-slate-400">No public reposts to show.</section> : presentation === "social" ? <section className="space-y-2 px-4 py-2" aria-label={`${tab} timeline`}>{visiblePosts.map((post) => <article key={post.id} className="rounded-2xl border border-slate-800 bg-slate-900 p-3"><p className="mb-2 text-[10px] text-slate-400">@{profile.handle} · {new Date(post.created_at).toLocaleDateString()}</p>{post.caption && <p className="mb-3 whitespace-pre-wrap text-sm">{post.caption}</p>}{post.mediaSrc && (post.media_type?.startsWith("video/") ? <video src={post.mediaSrc} controls playsInline className="max-h-96 w-full rounded-xl bg-black object-contain" /> : <img src={post.mediaSrc} alt="Profile post" loading="lazy" className="max-h-96 w-full rounded-xl object-contain" />)}<div className="mt-3 flex justify-between text-xs text-slate-400"><span><Heart className="mr-1 inline h-3.5 w-3.5 text-pink-400" />{compactCount(post.likes)}</span><span><MessageCircle className="mr-1 inline h-3.5 w-3.5 text-emerald-400" />{post.comments === null ? "—" : compactCount(post.comments)}</span><span><Share2 className="mr-1 inline h-3.5 w-3.5 text-amber-400" />{compactCount(post.shares)}</span></div></article>)}{!visiblePosts.length && <p className="p-8 text-center text-sm text-slate-400">No posts in this tab yet.</p>}</section> : <section aria-label={`${tab} media grid`} className="grid grid-cols-3 gap-0.5 bg-slate-900 p-0.5">{visiblePosts.map((post) => <button key={post.id} type="button" onClick={() => post.content_type === "reel" ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`) : post.content_type === "video" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : setSelectedPost(post)} aria-label={`Open ${post.caption || "profile media"}`} className={`group relative overflow-hidden bg-slate-900 text-left ${presentation === "media" ? "aspect-[3/4]" : "aspect-square"}`}>{post.mediaSrc ? post.media_type?.startsWith("video/") ? <video src={post.mediaSrc} className="h-full w-full object-cover transition-transform group-hover:scale-105" muted playsInline /> : <img src={post.mediaSrc} alt="" loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" /> : <div className="flex h-full items-center justify-center p-2 text-center text-xs">{post.caption || "Text post"}</div>}{post.media_type?.startsWith("video/") && <Video className="absolute right-2 top-2 h-4 w-4 text-white drop-shadow" />}<div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent p-1.5 text-[10px] text-slate-100"><span><Heart className="mr-0.5 inline h-3 w-3 text-pink-400" />{compactCount(post.likes)}</span><span><MessageCircle className="mr-0.5 inline h-3 w-3 text-emerald-400" />{post.comments === null ? "—" : compactCount(post.comments)}</span><span><Share2 className="mr-0.5 inline h-3 w-3 text-amber-400" />{compactCount(post.shares)}</span></div></button>)}{!visiblePosts.length && <div className="col-span-3 p-8 text-center text-sm text-slate-400">{tab === "collabs" ? "No public collaborations yet." : "No posts to show in this tab yet."}</div>}</section>}
+        {tab === "reposts" ? <section className="p-8 text-center text-sm text-slate-400">No public reposts to show.</section> : presentation === "social" ? <section className="space-y-2 px-4 py-2" aria-label={`${tab} timeline`}>{visiblePosts.map((post) => <article key={post.id} className="rounded-2xl border border-slate-800 bg-slate-900 p-3"><p className="mb-2 text-[10px] text-slate-400">@{profile.handle} · {new Date(post.created_at).toLocaleDateString()}</p>{post.caption && <p className="mb-3 whitespace-pre-wrap text-sm">{post.caption}</p>}{post.mediaSrc && (post.media_type?.startsWith("video/") ? <video src={post.mediaSrc} onError={(event) => void refreshProfileMedia(post, event.currentTarget.currentSrc)} controls playsInline className="max-h-96 w-full rounded-xl bg-black object-contain" /> : <img src={post.mediaSrc} alt="Profile post" onError={(event) => void refreshProfileMedia(post, event.currentTarget.currentSrc)} loading="lazy" className="max-h-96 w-full rounded-xl object-contain" />)}<div className="mt-3 flex justify-between text-xs text-slate-400"><span><Heart className="mr-1 inline h-3.5 w-3.5 text-pink-400" />{compactCount(post.likes)}</span><span><MessageCircle className="mr-1 inline h-3.5 w-3.5 text-emerald-400" />{post.comments === null ? "—" : compactCount(post.comments)}</span><span><Share2 className="mr-1 inline h-3.5 w-3.5 text-amber-400" />{compactCount(post.shares)}</span></div></article>)}{!visiblePosts.length && <p className="p-8 text-center text-sm text-slate-400">No posts in this tab yet.</p>}</section> : <section aria-label={`${tab} media grid`} className="grid grid-cols-3 gap-0.5 bg-slate-900 p-0.5">{visiblePosts.map((post) => <button key={post.id} type="button" onClick={() => post.content_type === "reel" ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`) : post.content_type === "video" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : setSelectedPost(post)} aria-label={`Open ${post.caption || "profile media"}`} className={`group relative overflow-hidden bg-slate-900 text-left ${presentation === "media" ? "aspect-[3/4]" : "aspect-square"}`}>{post.mediaSrc ? post.media_type?.startsWith("video/") ? <video src={post.mediaSrc} onError={(event) => void refreshProfileMedia(post, event.currentTarget.currentSrc)} className="h-full w-full object-cover transition-transform group-hover:scale-105" muted playsInline /> : <img src={post.mediaSrc} alt="" onError={(event) => void refreshProfileMedia(post, event.currentTarget.currentSrc)} loading="lazy" className="h-full w-full object-cover transition-transform group-hover:scale-105" /> : <div className="flex h-full items-center justify-center p-2 text-center text-xs">{post.caption || "Text post"}</div>}{post.media_type?.startsWith("video/") && <Video className="absolute right-2 top-2 h-4 w-4 text-white drop-shadow" />}<div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent p-1.5 text-[10px] text-slate-100"><span><Heart className="mr-0.5 inline h-3 w-3 text-pink-400" />{compactCount(post.likes)}</span><span><MessageCircle className="mr-0.5 inline h-3 w-3 text-emerald-400" />{post.comments === null ? "—" : compactCount(post.comments)}</span><span><Share2 className="mr-0.5 inline h-3 w-3 text-amber-400" />{compactCount(post.shares)}</span></div></button>)}{!visiblePosts.length && <div className="col-span-3 p-8 text-center text-sm text-slate-400">{tab === "collabs" ? "No public collaborations yet." : "No posts to show in this tab yet."}</div>}</section>}
       </>}
 
-      {selectedPost && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedPost(null)}><section role="dialog" aria-modal="true" aria-labelledby="post-viewer-title" className="w-full max-w-sm space-y-4 rounded-t-2xl border border-slate-800 bg-slate-900 p-4 sm:rounded-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between border-b border-slate-800 pb-2"><h2 id="post-viewer-title" className="text-xs font-bold uppercase tracking-wider text-indigo-400">{owner ? "Content Analytics & Insights" : "Post"}</h2><button type="button" onClick={() => setSelectedPost(null)} className="text-sm text-slate-400" aria-label="Close viewer">✕</button></div>{selectedPost.mediaSrc && (selectedPost.media_type?.startsWith("video/") ? <video src={selectedPost.mediaSrc} controls playsInline className="max-h-56 w-full rounded-xl bg-black object-contain" /> : <img src={selectedPost.mediaSrc} alt="Post preview" className="max-h-56 w-full rounded-xl object-contain" />)}{selectedPost.caption && <p className="text-xs text-slate-300">{selectedPost.caption}</p>}<div className="grid grid-cols-2 gap-2 text-xs"><Metric label="Total Views" value={selectedPost.views} /><Metric label="Total Likes" value={selectedPost.likes} /><Metric label="Comments" value={selectedPost.comments} /><Metric label="Shares" value={selectedPost.shares} /></div>{(selectedPost.views === null || selectedPost.comments === null) && <p className="text-center text-[10px] text-slate-400">Views and comments are not tracked in the current data source.</p>}<Button type="button" onClick={() => setSelectedPost(null)} className="w-full bg-indigo-600">Close Insights</Button></section></div>}
+      {selectedPost && <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4" role="presentation" onClick={() => setSelectedPost(null)}><section role="dialog" aria-modal="true" aria-labelledby="post-viewer-title" className="w-full max-w-sm space-y-4 rounded-t-2xl border border-slate-800 bg-slate-900 p-4 sm:rounded-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between border-b border-slate-800 pb-2"><h2 id="post-viewer-title" className="text-xs font-bold uppercase tracking-wider text-indigo-400">{owner ? "Content Analytics & Insights" : "Post"}</h2><button type="button" onClick={() => setSelectedPost(null)} className="text-sm text-slate-400" aria-label="Close viewer">✕</button></div>{selectedPost.mediaSrc && (selectedPost.media_type?.startsWith("video/") ? <video src={selectedPost.mediaSrc} onError={(event) => void refreshProfileMedia(selectedPost, event.currentTarget.currentSrc)} controls playsInline className="max-h-56 w-full rounded-xl bg-black object-contain" /> : <img src={selectedPost.mediaSrc} alt="Post preview" onError={(event) => void refreshProfileMedia(selectedPost, event.currentTarget.currentSrc)} className="max-h-56 w-full rounded-xl object-contain" />)}{selectedPost.caption && <p className="text-xs text-slate-300">{selectedPost.caption}</p>}<div className="grid grid-cols-2 gap-2 text-xs"><Metric label="Total Views" value={selectedPost.views} /><Metric label="Total Likes" value={selectedPost.likes} /><Metric label="Comments" value={selectedPost.comments} /><Metric label="Shares" value={selectedPost.shares} /></div>{(selectedPost.views === null || selectedPost.comments === null) && <p className="text-center text-[10px] text-slate-400">Views and comments are not tracked in the current data source.</p>}<Button type="button" onClick={() => setSelectedPost(null)} className="w-full bg-indigo-600">Close Insights</Button></section></div>}
 
       <footer className="mx-4 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-400">☁️ Offline Relay: Queue empty</footer>
     </main>
