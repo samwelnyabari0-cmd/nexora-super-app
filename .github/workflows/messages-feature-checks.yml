@@ -70,6 +70,7 @@ jobs:
           src/components/nexora/chat-lock.test.ts
           src/components/nexora/ChatLockPanel.tsx
           src/hooks/useChatLock.ts
+          src/hooks/useChatLock.test.tsx
           src/components/nexora/MessageReactions.tsx
           src/hooks/useChatActivity.ts
           --rule "prettier/prettier: off"
