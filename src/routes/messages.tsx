@@ -23,6 +23,9 @@ import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSet
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
+import { ChatLockPanel } from "@/components/nexora/ChatLockPanel";
+import { hasStoredChatLock } from "@/components/nexora/chat-lock";
+import { useChatLock } from "@/hooks/useChatLock";
 
 type DirectMessage = {
   id: string;
@@ -92,6 +95,7 @@ function Messages() {
   const navigate = useNavigate();
   const { recipient, group, returnTo } = Route.useSearch();
   const { user, ready } = useSession();
+  const chatLock = useChatLock(user?.id ?? "", "direct", recipient);
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
@@ -137,6 +141,16 @@ function Messages() {
   }, [messages]);
   const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
   useEffect(() => {
+    if (chatLock.status === "unlocked") return;
+    setMessages([]);
+    setReactions([]);
+    setReplyTarget(null);
+    setMediaUrls({});
+    setProfile(null);
+    setRecipientPresence(null);
+    setSmartReplies([]);
+  }, [chatLock.status]);
+  useEffect(() => {
     if (replyTarget && isMessageExpired(replyTarget.expires_at)) setReplyTarget(null);
   }, [replyTarget]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -161,7 +175,7 @@ function Messages() {
   const { remoteActivity, publishActivity } = useChatActivity({
     topic: directActivityTopic,
     userId: user?.id ?? "",
-    enabled: Boolean(user?.id && recipient && !group),
+    enabled: Boolean(user?.id && recipient && !group && chatLock.status === "unlocked"),
   });
   const locationSharing = useChatLocationSharing({
     chatKind: "direct",
@@ -201,7 +215,7 @@ function Messages() {
 
   // Presence is returned only for people who have exchanged direct messages.
   useEffect(() => {
-    if (!user?.id || !recipient || recipient === user.id) {
+    if (!user?.id || !recipient || recipient === user.id || chatLock.status !== "unlocked") {
       setRecipientPresence(null);
       return;
     }
@@ -238,7 +252,7 @@ function Messages() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [user?.id, recipient]);
+  }, [user?.id, recipient, chatLock.status]);
 
   const recipientIsOnline =
     !!recipientPresence?.show_online &&
@@ -264,6 +278,11 @@ function Messages() {
 
       if (group) {
         setLoading(false);
+        return;
+      }
+
+      if (recipient && chatLock.status !== "unlocked") {
+        setLoading(chatLock.status === "checking");
         return;
       }
 
@@ -336,7 +355,7 @@ function Messages() {
           displayName: profile?.display_name || "NEXORA User",
           handle: profile?.handle || "",
           avatarUrl: profile?.avatar_url || null,
-          lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
+          lastMessage: hasStoredChatLock(user.id, "direct", userId) ? "🔒 Locked chat" : message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
           lastMessageAt: message.created_at,
           unreadCount: unreadByUser.get(userId) ?? 0,
           isOnline,
@@ -390,7 +409,7 @@ function Messages() {
           groupId: item.id,
           name: item.name,
           avatarUrl: signedAvatar,
-          lastMessage: latest?.body || (
+          lastMessage: hasStoredChatLock(user.id, "group", item.id) ? "🔒 Locked group" : latest?.body || (
             latest?.media_type === "video" ? "🎥 Video" :
             latest?.media_type === "image" ? "📷 Photo" :
             latest?.media_type === "audio" ? "🎤 Voice message" :
@@ -508,10 +527,10 @@ if (recipient === user.id) {
     return () => {
       cancelled = true;
     };
-  }, [ready, user?.id, recipient, group, refresh]);
+  }, [ready, user?.id, recipient, group, refresh, chatLock.status]);
 
   useEffect(() => {
-    if (!user?.id || !recipient) return;
+    if (!user?.id || !recipient || chatLock.status !== "unlocked") return;
 
     const channel = supabase
       .channel(`message-receipts-${user.id}-${recipient}`)
@@ -543,7 +562,7 @@ if (recipient === user.id) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [user?.id, recipient]);
+  }, [user?.id, recipient, chatLock.status]);
 
   useEffect(() => {
     if (!user?.id || recipient || group) return;
@@ -593,7 +612,7 @@ if (recipient === user.id) {
   }, [messages]);
 
   useEffect(() => {
-    if (!recipient || !user?.id) return;
+    if (!recipient || !user?.id || chatLock.status !== "unlocked") return;
     const channel = supabase.channel(`direct-reactions-${user.id}-${recipient}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "direct_message_reactions" }, async () => {
         const ids = messages.map((message) => message.id);
@@ -603,7 +622,7 @@ if (recipient === user.id) {
         setReactions(data ?? []);
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [recipient, user?.id, messages]);
+  }, [recipient, user?.id, messages, chatLock.status]);
 
   async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
     if (!user) return;
@@ -1072,6 +1091,7 @@ if (recipient === user.id) {
           </Button>
         </div>
       </header>
+      <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="direct" chatId={recipient} />
 
       <div
