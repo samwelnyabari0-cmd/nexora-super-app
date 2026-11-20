@@ -53,6 +53,8 @@ jobs:
           src/components/nexora/SharedContentCard.tsx
           src/components/nexora/shared-content.ts
           src/components/nexora/shared-content.test.ts
+          src/components/nexora/call-media.ts
+          src/components/nexora/call-media.test.ts
           src/hooks/useChatLocationSharing.ts
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
