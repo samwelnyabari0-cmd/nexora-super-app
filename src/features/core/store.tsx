@@ -11,6 +11,7 @@ import { validMessage, type Attachment } from "./tools";
 import { useWorkspace } from "./workspace";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
 import { useSession } from "@/lib/session";
 import {
   addCommentToPost,
@@ -160,7 +161,7 @@ if (ownProfile) {
         (supabase as any)
           .from("user_media_posts")
           .select(
-            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, duration_seconds, thumbnail_url, created_at, like_count, share_count, repost_count, comment_count, view_count",
+            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, duration_seconds, thumbnail_url, media_storage_provider, media_storage_key, created_at, like_count, share_count, repost_count, comment_count, view_count",
           )
           .order("created_at", { ascending: false }),
         (supabase as any)
@@ -213,11 +214,18 @@ if (bookmarkError) {
           savedPosts.map(async (row: any) => {
             let image: string | undefined;
             const media = row.media_url ?? undefined;
-            if (media) {
+            if (row.media_storage_provider === "r2") {
+              try {
+                const result = await createR2MediaPlaybackUrl({ data: { postId: row.id, asset: "media" } });
+                image = result.url;
+              } catch {
+                image = undefined;
+              }
+            } else if (media) {
               if (/^https?:\/\//i.test(media)) {
                 image = media;
               } else {
-                const { data } = await supabase.storage.from("post-media").createSignedUrl(media, 3600);
+                const { data } = await supabase.storage.from("post-media").createSignedUrl(row.media_storage_key || media, 3600);
                 image = data?.signedUrl ?? undefined;
               }
             }
