@@ -272,11 +272,11 @@ function Messages() {
       const [{ data: groups }, { data: groupMessages }] = await Promise.all([
         (supabase as any)
           .from("chat_groups")
-          .select("id, name, avatar_url, created_at, reply_to_message_id")
+          .select("id, name, avatar_url, created_at")
           .in("id", groupIds),
         (supabase as any)
           .from("chat_group_messages")
-          .select("id, group_id, body, media_type, created_at, reply_to_message_id")
+          .select("id, group_id, body, media_type, created_at")
           .in("group_id", groupIds)
           .order("created_at", { ascending: false }),
       ]);
