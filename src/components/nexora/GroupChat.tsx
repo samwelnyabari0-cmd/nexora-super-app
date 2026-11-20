@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
 import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
 import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
+import { useChatActivity } from "@/hooks/useChatActivity";
 
 type GroupMessage = {
   id: string;
@@ -48,6 +49,15 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const log = useRef<HTMLDivElement>(null);
+  const { remoteActivity, publishActivity } = useChatActivity({
+    topic: `group:${groupId}`,
+    userId,
+    enabled: Boolean(groupId && userId),
+  });
+
+  useEffect(() => {
+    publishActivity(draft.trim() ? "typing" : null);
+  }, [draft, publishActivity]);
 
   useEffect(() => {
     let cancelled = false;
@@ -329,7 +339,9 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-semibold">{group.name}</h1>
           <p className="truncate text-xs text-muted-foreground">
-            {group.description || "Group conversation"}
+            {remoteActivity.length > 0
+              ? `${profiles[remoteActivity[0].user_id]?.display_name || "A member"} ${remoteActivity[0].activity === "recording" ? "is recording audio…" : "is typing…"}`
+              : group.description || "Group conversation"}
           </p>
         </div>
         <GroupMembersDialog
