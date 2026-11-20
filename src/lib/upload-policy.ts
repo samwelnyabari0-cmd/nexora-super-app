@@ -1,6 +1,8 @@
 export type UploadAccountTier = "personal" | "creator" | "creator_pro" | "studio_vip";
 export type UploadFormat = "short" | "feed" | "long_form";
 
+export const MAX_REEL_DURATION_SECONDS = 90;
+
 export const UPLOAD_POLICY = {
   personal: { short: 5, feed: 10, long_form: 2, maxBytes: 500 * 1024 ** 2, maxLongSeconds: 10 * 60 },
   creator: { short: 10, feed: 20, long_form: 5, maxBytes: 2 * 1024 ** 3, maxLongSeconds: 30 * 60 },
@@ -26,20 +28,34 @@ export function accountTierFromUser(user: { app_metadata?: Record<string, unknow
   return "personal";
 }
 
-export function uploadFormat(type: string, durationSeconds?: number): UploadFormat {
+export function uploadFormat(
+  type: string,
+  durationSeconds?: number,
+  width?: number,
+  height?: number,
+): UploadFormat {
   if (type.startsWith("image/")) return "feed";
-  return durationSeconds !== undefined && durationSeconds > 60 ? "long_form" : "short";
+  const shortEnough = durationSeconds === undefined || durationSeconds <= MAX_REEL_DURATION_SECONDS;
+  const isPortrait = width === undefined || height === undefined ? true : height > width;
+  return shortEnough && isPortrait ? "short" : "long_form";
 }
 
-export function validateUpload(file: Pick<File, "size" | "type">, tier: UploadAccountTier, durationSeconds?: number): string | null {
+export function validateUpload(
+  file: Pick<File, "size" | "type">,
+  tier: UploadAccountTier,
+  durationSeconds?: number,
+  width?: number,
+  height?: number,
+): string | null {
   const limits = UPLOAD_POLICY[tier];
   if (file.size <= 0) return "This file is empty. Choose another file.";
   if (file.size > limits.maxBytes) return FILE_SIZE_LIMIT_MESSAGE;
   if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return "Choose an image or video.";
   if (file.type.startsWith("video/") && durationSeconds !== undefined) {
-    const format = uploadFormat(file.type, durationSeconds);
-    if (format === "short" && durationSeconds > 60) return "Shorts must be 60 seconds or shorter. Choose Long-Form Watch for longer videos.";
-    if (format === "long_form" && durationSeconds > limits.maxLongSeconds) return `Long-Form Watch videos for your plan can be up to ${Math.round(limits.maxLongSeconds / 60)} minutes.`;
+    const format = uploadFormat(file.type, durationSeconds, width, height);
+    if (format === "long_form" && durationSeconds > limits.maxLongSeconds) {
+      return `Videos for your plan can be up to ${Math.round(limits.maxLongSeconds / 60)} minutes.`;
+    }
   }
   return null;
 }
