@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clapperboard, Image, GalleryHorizontal, Film, Timer, Radio, Megaphone, Plus } from "lucide-react";
+import { Clapperboard, Image, GalleryHorizontal, Film, Timer, Radio, Megaphone, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CONTENT_TYPES, type ContentType } from "@/lib/post-types";
@@ -10,6 +10,7 @@ const ICONS = {
   post: Image,
   carousel: GalleryHorizontal,
   video: Film,
+  collab: Users,
   story: Timer,
   live: Radio,
   ad: Megaphone,
