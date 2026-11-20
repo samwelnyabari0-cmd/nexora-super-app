@@ -35,7 +35,7 @@ function Videos() {
             </div>
             <div className="space-y-2 p-4">
               <h2 className="font-semibold">{active?.caption || "NEXORA Video"}</h2>
-              <p className="text-xs text-muted-foreground">{Number(active?.view_count ?? 0).toLocaleString()} views · {active?.duration_seconds ? `${Math.floor(active.duration_seconds / 60)}:${String(active.duration_seconds % 60).padStart(2, "0")}` : "Duration unavailable"}</p>
+              <p className="text-xs text-muted-foreground">{Number(active?.view_count ?? 0).toLocaleString()} views · {Number(active?.like_count ?? 0).toLocaleString()} likes · {Number(active?.comment_count ?? 0).toLocaleString()} comments · {Number(active?.share_count ?? 0).toLocaleString()} shares · {active?.duration_seconds ? `${Math.floor(active.duration_seconds / 60)}:${String(active.duration_seconds % 60).padStart(2, "0")}` : "Duration unavailable"}</p>
             </div>
           </div>
           <h2 className="text-sm font-semibold">Up next · {items.length}</h2>
