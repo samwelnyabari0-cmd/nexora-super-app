@@ -8,6 +8,7 @@ on:
     branches:
       - feature/academy-educator-discovery
       - feat/academy-creator-content-management
+      - feature/academy-course-certificates
 
 permissions:
   contents: read
