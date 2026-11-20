@@ -44,10 +44,10 @@ create index if not exists chat_group_message_reactions_message_idx
 do $
 begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'direct_message_reactions') then
-    alter publication supabase_realtime add table public.direct_message_reactions;
+    execute 'alter publication supabase_realtime add table public.direct_message_reactions';
   end if;
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'chat_group_message_reactions') then
-    alter publication supabase_realtime add table public.chat_group_message_reactions;
+    execute 'alter publication supabase_realtime add table public.chat_group_message_reactions';
   end if;
 end;
 $;
