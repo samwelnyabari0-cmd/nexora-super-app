@@ -28,6 +28,8 @@ import {
   type Cycle,
   type ModuleId,
   moduleBranding,
+  taskCompletion,
+  type ModuleAccent,
 } from "@/features/hub/logic";
 import { useHub, newId, type HubData } from "@/features/hub/useHub";
 
@@ -84,7 +86,8 @@ function HubPage() {
         ...data.notes.map((n) => ({ k: "Note", t: n.text })),
       ].filter((r) => r.t.toLowerCase().includes(q))
     : [];
-  const doneTasks = data.tasks.filter((t) => t.done).length;
+  const taskProgress = taskCompletion(data.tasks);
+  const doneTasks = taskProgress.done;
   const monthly = data.subs.reduce((a, s) => a + monthlyCost(s.amount, s.cycle), 0);
 
   const blocks: Record<ModuleId, ReactElement> = {
@@ -197,8 +200,27 @@ function HubPage() {
             <p className="text-muted-foreground">subscriptions / month</p>
           </div>
         </div>
+        <div className="mt-4">
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="font-medium">Task completion</span>
+            <span className="tabular-nums text-muted-foreground">{taskProgress.percent}% · {doneTasks}/{taskProgress.total}</span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-label="Task completion"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={taskProgress.percent}
+          >
+            <div
+              className="h-full rounded-full bg-violet-400 motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:transition-none"
+              style={{ width: `${taskProgress.percent}%` }}
+            />
+          </div>
+        </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Counted only from what you entered here.
+          Counted only from what you entered here. Subscription totals use your manual entries; no allowance is assumed.
         </p>
       </Panel>
       <details className="mb-6 rounded-2xl border p-3">
@@ -256,7 +278,7 @@ function HubPage() {
   );
 }
 
-function Title({
+const brandAccent: Record<ModuleAccent, string> = {\n  emerald: "text-emerald-400",\n  cyan: "text-cyan-400",\n  violet: "text-violet-400",\n  indigo: "text-indigo-400",\n  slate: "text-slate-300",\n  amber: "text-amber-400",\n};\n\nfunction Title({
   children,
   badge,
   brandId,
@@ -269,7 +291,7 @@ function Title({
   return (
     <div className="mb-3 flex items-center justify-between">
       <div>
-        <h2 className="font-display font-semibold">{brand?.name ?? children}</h2>
+        <h2 className={`font-display font-semibold ${brand ? brandAccent[brand.accent] : ""}`}>{brand?.name ?? children}</h2>
         {brand && <p className="text-xs text-muted-foreground">{brand.feature} · {children === brand.feature ? "" : brand.description}</p>}
       </div>
       {badge && <DemoBadge>{badge}</DemoBadge>}
@@ -318,7 +340,7 @@ function Tasks({ data, update }: { data: HubData; update: Update }) {
                   }))
                 }
               />
-              <span className={`flex-1 ${x.done ? "line-through text-muted-foreground" : ""}`}>
+              <span className={`flex-1 transition-colors motion-reduce:transition-none ${x.done ? "line-through text-muted-foreground" : ""}`}>
                 {x.text}
               </span>
               <Button
