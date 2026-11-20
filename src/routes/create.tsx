@@ -281,13 +281,25 @@ const previewFilter =
                 key={originalMedia || media}
                 videoSrc={originalMedia || media}
                 onExported={(file) => {
-                  const editedUrl = URL.createObjectURL(file);
-                  setMedia(editedUrl);
-                  setMediaFiles([file]);
-                  setMediaType(file.type.split(";")[0] || "video/webm");
-                  setCover(null);
-                  setNote("Your edited video is ready. Publishing will upload the edited copy.");
-                  setError("");
+                  const mimeType = file.type.split(";")[0] || "video/webm";
+                  const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+                  const editedFile = new File([file], `edited.${extension}`, { type: mimeType });
+                  pickMedia([editedFile], {
+                    contentType,
+                    tier: uploadTier,
+                    setError,
+                    setNote,
+                    accept: (editedUrl, files, detectedType, classification) => {
+                      setMedia(editedUrl);
+                      setOriginalMedia(editedUrl);
+                      setMediaFiles(files);
+                      setMediaType(detectedType);
+                      setMediaClassification(classification);
+                      if (contentType !== "collab") setContentType(classification.contentType);
+                      setCover(null);
+                      setNote("Your edited video is ready. Publishing will upload the edited copy.");
+                    },
+                  });
                 }}
               />
             ) : (
