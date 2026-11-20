@@ -3375,6 +3375,27 @@ export type Database = {
           },
         ]
       }
+      watch_titles: {
+        Row: { id: string; title: string; slug: string; description: string | null; category: string; content_type: string; release_year: number | null; duration_seconds: number | null; thumbnail_url: string; banner_url: string; hls_manifest_url: string | null; status: string; is_featured: boolean; is_published: boolean; created_at: string; updated_at: string }
+        Insert: { id?: string; title: string; slug: string; description?: string | null; category: string; content_type?: string; release_year?: number | null; duration_seconds?: number | null; thumbnail_url: string; banner_url: string; hls_manifest_url?: string | null; status?: string; is_featured?: boolean; is_published?: boolean; created_at?: string; updated_at?: string }
+        Update: { id?: string; title?: string; slug?: string; description?: string | null; category?: string; content_type?: string; release_year?: number | null; duration_seconds?: number | null; thumbnail_url?: string; banner_url?: string; hls_manifest_url?: string | null; status?: string; is_featured?: boolean; is_published?: boolean; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      watch_episodes: {
+        Row: { id: string; title_id: string; season_number: number; episode_number: number; episode_title: string; duration_seconds: number | null; hls_manifest_url: string | null; thumbnail_url: string | null; status: string; created_at: string }
+        Insert: { id?: string; title_id: string; season_number?: number; episode_number: number; episode_title: string; duration_seconds?: number | null; hls_manifest_url?: string | null; thumbnail_url?: string | null; status?: string; created_at?: string }
+        Update: { id?: string; title_id?: string; season_number?: number; episode_number?: number; episode_title?: string; duration_seconds?: number | null; hls_manifest_url?: string | null; thumbnail_url?: string | null; status?: string; created_at?: string }
+        Relationships: [{ foreignKeyName: "watch_episodes_title_id_fkey"; columns: ["title_id"]; isOneToOne: false; referencedRelation: "watch_titles"; referencedColumns: ["id"] }]
+      }
+      watch_progress: {
+        Row: { user_id: string; title_id: string; episode_id: string | null; progress_seconds: number; total_seconds: number; updated_at: string }
+        Insert: { user_id: string; title_id: string; episode_id?: string | null; progress_seconds?: number; total_seconds: number; updated_at?: string }
+        Update: { user_id?: string; title_id?: string; episode_id?: string | null; progress_seconds?: number; total_seconds?: number; updated_at?: string }
+        Relationships: [
+          { foreignKeyName: "watch_progress_title_id_fkey"; columns: ["title_id"]; isOneToOne: false; referencedRelation: "watch_titles"; referencedColumns: ["id"] },
+          { foreignKeyName: "watch_progress_episode_title_fkey"; columns: ["episode_id", "title_id"]; isOneToOne: false; referencedRelation: "watch_episodes"; referencedColumns: ["id", "title_id"] }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
