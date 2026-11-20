@@ -278,7 +278,16 @@ function HubPage() {
   );
 }
 
-const brandAccent: Record<ModuleAccent, string> = {\n  emerald: "text-emerald-400",\n  cyan: "text-cyan-400",\n  violet: "text-violet-400",\n  indigo: "text-indigo-400",\n  slate: "text-slate-300",\n  amber: "text-amber-400",\n};\n\nfunction Title({
+const brandAccent: Record<ModuleAccent, string> = {
+  emerald: "text-emerald-400",
+  cyan: "text-cyan-400",
+  violet: "text-violet-400",
+  indigo: "text-indigo-400",
+  slate: "text-slate-300",
+  amber: "text-amber-400",
+};
+
+function Title({
   children,
   badge,
   brandId,
