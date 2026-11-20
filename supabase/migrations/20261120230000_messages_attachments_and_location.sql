@@ -352,7 +352,7 @@ alter table public.direct_messages
 alter table public.direct_messages
   add constraint direct_messages_location_payload_check
   check (
-    (location_latitude is null and location_longitude is null and location_captured_at is null)
+    (location_latitude is null and location_longitude is null and location_accuracy_m is null and location_captured_at is null)
     or
     (location_latitude is not null and location_longitude is not null
       and location_latitude between -90 and 90 and location_longitude between -180 and 180
