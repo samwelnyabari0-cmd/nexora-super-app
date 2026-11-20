@@ -34,3 +34,14 @@ export function clampWatchProgress(progressSeconds: number, totalSeconds: number
   if (!Number.isFinite(progressSeconds)) return 0;
   return Math.floor(Math.min(totalSeconds, Math.max(0, progressSeconds)));
 }
+
+export function canOpenWatchTitle(title: {
+  isDemo: boolean;
+  contentType: "single" | "series";
+  status: WatchStatus;
+  manifestUrl: string | null;
+}): boolean {
+  if (title.isDemo) return false;
+  if (title.contentType === "series") return true;
+  return title.status === "ready" && Boolean(title.manifestUrl?.trim());
+}
