@@ -6,6 +6,7 @@ import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
 import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
 import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
+import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 
 type GroupMessage = {
   id: string;
@@ -15,6 +16,7 @@ type GroupMessage = {
   media_path: string | null;
   media_type: "image" | "video" | "audio" | null;
   created_at: string;
+  reply_to_message_id?: string | null;
 };
 
 type SenderProfile = {
@@ -39,6 +41,9 @@ type GroupChatProps = {
 export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [messages, setMessages] = useState<GroupMessage[]>([]);
+  const [reactions, setReactions] = useState<MessageReaction[]>([]);
+  const [replyTarget, setReplyTarget] = useState<GroupMessage | null>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [profiles, setProfiles] = useState<Record<string, SenderProfile>>({});
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -239,6 +244,35 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }, [groupId, userId, profiles, mediaUrls]);
 
   useEffect(() => {
+    if (messages.length === 0) { setReactions([]); return; }
+    let cancelled = false;
+    const ids = messages.map((message) => message.id);
+    void (supabase as any).from("chat_group_message_reactions")
+      .select("message_id, user_id, emoji").in("message_id", ids)
+      .then(({ data, error }: { data: MessageReaction[] | null; error: unknown }) => {
+        if (!cancelled && !error) setReactions(data ?? []);
+      });
+    return () => { cancelled = true; };
+  }, [messages]);
+
+  async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
+    const existing = reactions.find((item) => item.message_id === messageId && item.user_id === userId);
+    let result;
+    if (existing?.emoji === emoji) {
+      result = await (supabase as any).from("chat_group_message_reactions").delete().eq("message_id", messageId).eq("user_id", userId);
+    } else if (existing) {
+      result = await (supabase as any).from("chat_group_message_reactions").update({ emoji }).eq("message_id", messageId).eq("user_id", userId);
+    } else {
+      result = await (supabase as any).from("chat_group_message_reactions").insert({ message_id: messageId, user_id: userId, emoji });
+    }
+    if (result.error) { setError("Your reaction could not be saved."); return; }
+    setReactions((current) => [
+      ...current.filter((item) => !(item.message_id === messageId && item.user_id === userId)),
+      ...(existing?.emoji === emoji ? [] : [{ message_id: messageId, user_id: userId, emoji }]),
+    ]);
+  }
+
+  useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [messages]);
 
@@ -293,6 +327,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         body,
         media_path: mediaPath,
         media_type: mediaType,
+        reply_to_message_id: replyTarget?.id ?? null,
       });
 
     if (insertError) {
@@ -306,6 +341,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
 
     setDraft("");
     setAttachment(null);
+    setReplyTarget(null);
     if (fileInput.current) fileInput.current.value = "";
     setSending(false);
   }
@@ -361,7 +397,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
           const sender = profiles[message.sender_id];
           return (
-            <div key={message.id} className="space-y-2">
+            <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} className="space-y-2">
               {showDateDivider && (
                 <div className="sticky top-1 z-10 flex justify-center py-1">
                   <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
@@ -385,6 +421,12 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                       {sender?.handle ? <span className="ml-1 font-normal opacity-70">@{sender.handle}</span> : null}
                     </p>
                   )}
+                  {message.reply_to_message_id && (
+                    <button type="button" onClick={() => messageRefs.current[message.reply_to_message_id!]?.scrollIntoView({ behavior: "smooth", block: "center" })} className="mb-2 block w-full rounded-lg border-l-2 border-primary/70 bg-background/20 px-2 py-1 text-left text-xs">
+                      <span className="block font-semibold">Replying to</span>
+                      <span className="block truncate opacity-80">{messages.find((item) => item.id === message.reply_to_message_id)?.body || "Original message unavailable"}</span>
+                    </button>
+                  )}
                   {message.media_path && mediaUrls[message.id] && (
                     message.media_type === "video" ? (
                       <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-72 max-w-full rounded-lg" />
@@ -395,9 +437,13 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     )
                   )}
                   {message.body && <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
-                  <p className="mt-1 text-right text-[10px] opacity-70">
+                  <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
+                    <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
+                    <span>
                     {formatMessageTime(message.created_at)}
-                  </p>
+                    </span>
+                  </div>
+                  <MessageReactions messageId={message.id} userId={userId} reactions={reactions} onToggle={(id, emoji) => void toggleReaction(id, emoji)} />
                 </div>
               </div>
               </div>
@@ -407,6 +453,15 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       </div>
 
       {error && <p role="alert" className="pb-2 text-sm text-destructive">{error}</p>}
+      {replyTarget && (
+        <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs">
+          <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => messageRefs.current[replyTarget.id]?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+            <span className="font-semibold">Replying to {replyTarget.sender_id === userId ? "yourself" : profiles[replyTarget.sender_id]?.display_name || "member"}</span>
+            <span className="ml-2 text-muted-foreground">{replyTarget.body || "Attachment"}</span>
+          </button>
+          <Button type="button" variant="ghost" size="icon" aria-label="Cancel reply" onClick={() => setReplyTarget(null)}><X className="h-4 w-4" /></Button>
+        </div>
+      )}
       {attachment && (
         <div className="flex items-center justify-between border-t px-2 py-2 text-sm">
           <span className="min-w-0 truncate">📎 {attachment.name}</span>
