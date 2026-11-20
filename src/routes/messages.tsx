@@ -132,6 +132,9 @@ function Messages() {
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [messages]);
   const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
+  useEffect(() => {
+    if (replyTarget && isMessageExpired(replyTarget.expires_at)) setReplyTarget(null);
+  }, [replyTarget]);
   const fileInput = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
