@@ -17,6 +17,29 @@ import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
 import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
 import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
+
+function uploadFileWithProgress(
+  url: string,
+  file: Blob,
+  headers: Record<string, string>,
+  onProgress: (loaded: number, total: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", url);
+    Object.entries(headers).forEach(([name, value]) => request.setRequestHeader(name, value));
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress(event.loaded, event.total);
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) resolve();
+      else reject(new Error(`Media upload failed (${request.status}).`));
+    });
+    request.addEventListener("error", () => reject(new Error("Network error while uploading media.")));
+    request.addEventListener("abort", () => reject(new Error("Media upload was cancelled.")));
+    request.send(file);
+  });
+}
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -52,6 +75,8 @@ function Create() {
   const [mediaFiles, setMediaFiles] = useState<Blob[]>([]);
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [filter, setFilter] = useState("original");
   const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
@@ -365,17 +390,22 @@ const previewFilter =
 
               for (const file of mediaFiles) {
                 if (useR2) {
+                  const totalUploadBytes = file.size + (cover?.size ?? 0);
+                  let completedUploadBytes = 0;
+                  setUploadProgress(0);
+                  setUploadStatus("Uploading video...");
                   try {
                     const signed = await createR2MediaUploadUrl({
                       data: { contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
                     });
                     pendingR2Keys.push(signed.key);
-                    const uploadResponse = await fetch(signed.uploadUrl, {
-                      method: "PUT",
-                      headers: signed.uploadHeaders,
-                      body: file,
-                    });
-                    if (!uploadResponse.ok) throw new Error("R2 upload failed.");
+                    await uploadFileWithProgress(
+                      signed.uploadUrl,
+                      file,
+                      signed.uploadHeaders,
+                      (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                    );
+                    completedUploadBytes += file.size;
                     const verified = await verifyR2MediaUpload({
                       data: { key: signed.key, contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
                     });
@@ -390,12 +420,14 @@ const previewFilter =
                         data: { contentType: "image/jpeg", size: cover.size },
                       });
                       pendingR2Keys.push(coverSigned.key);
-                      const coverResponse = await fetch(coverSigned.uploadUrl, {
-                        method: "PUT",
-                        headers: coverSigned.uploadHeaders,
-                        body: cover,
-                      });
-                      if (!coverResponse.ok) throw new Error("Video cover upload failed.");
+                      setUploadStatus("Uploading video cover...");
+                      await uploadFileWithProgress(
+                        coverSigned.uploadUrl,
+                        cover,
+                        coverSigned.uploadHeaders,
+                        (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                      );
+                      completedUploadBytes += cover.size;
                       const coverVerified = await verifyR2MediaUpload({
                         data: { key: coverSigned.key, contentType: "image/jpeg", size: cover.size },
                       });
@@ -403,11 +435,15 @@ const previewFilter =
                       thumbnailStorageProvider = "r2";
                       thumbnailStorageKey = coverVerified.key;
                     }
+                    setUploadProgress(100);
+                    setUploadStatus("Upload complete. Publishing your post...");
                   } catch (uploadFailure) {
                     console.error("R2 media upload failed:", uploadFailure);
                     if (pendingR2Keys.length) {
                       await cleanupR2MediaObjects({ data: { keys: pendingR2Keys } }).catch(() => undefined);
                     }
+                    setUploadProgress(null);
+                    setUploadStatus("");
                     setError(uploadFailure instanceof Error ? uploadFailure.message : "Video upload failed. Please try again.");
                     return;
                   }
@@ -526,7 +562,25 @@ const previewFilter =
               <option value="private">Only me</option>
             </select>
           </label>
-          <Button className="w-full bg-brand" disabled={!caption.trim() || queued}>
+          {uploadProgress !== null && (
+            <div className="space-y-2 rounded-xl border bg-card p-3" role="status" aria-live="polite">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium">{uploadStatus || "Uploading media..."}</span>
+                <span className="font-semibold tabular-nums">{uploadProgress}%</span>
+              </div>
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-label="Video upload progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={uploadProgress}
+              >
+                <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${uploadProgress}%` }} />
+              </div>
+            </div>
+          )}
+          <Button className="w-full bg-brand" disabled={!caption.trim() || queued || uploadProgress !== null}>
             {queued ? "Already queued" : user ? "Publish" : "Sign in to publish"}
           </Button>
           <Button
