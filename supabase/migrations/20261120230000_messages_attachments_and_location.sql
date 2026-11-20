@@ -58,6 +58,7 @@ alter table public.chat_group_messages
       media_path is not null
       and attachment_name is not null
       and length(btrim(attachment_name)) > 0
+      and attachment_mime_type is not null
       and attachment_mime_type = any (array[
         'application/pdf',
         'application/msword',
