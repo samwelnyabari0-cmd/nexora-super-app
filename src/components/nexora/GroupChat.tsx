@@ -19,6 +19,8 @@ import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSet
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
+import { ChatLockPanel } from "@/components/nexora/ChatLockPanel";
+import { useChatLock } from "@/hooks/useChatLock";
 
 type GroupMessage = {
   id: string;
@@ -63,6 +65,7 @@ type GroupChatProps = {
 };
 
 export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
+  const chatLock = useChatLock(userId, "group", groupId);
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
@@ -120,6 +123,16 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }, [messages]);
   const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
   useEffect(() => {
+    if (chatLock.status === "unlocked") return;
+    setMessages([]);
+    setReactions([]);
+    setReplyTarget(null);
+    setMediaUrls({});
+    setProfiles({});
+    setGroup(null);
+    setAvatarUrl("");
+  }, [chatLock.status]);
+  useEffect(() => {
     if (replyTarget && isMessageExpired(replyTarget.expires_at)) setReplyTarget(null);
   }, [replyTarget]);
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -141,7 +154,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const { remoteActivity, publishActivity } = useChatActivity({
     topic: groupActivityTopic,
     userId,
-    enabled: Boolean(groupId && userId),
+    enabled: Boolean(groupId && userId && chatLock.status === "unlocked"),
   });
   const locationSharing = useChatLocationSharing({
     chatKind: "group",
@@ -179,6 +192,10 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     let cancelled = false;
 
     async function loadGroup() {
+      if (chatLock.status !== "unlocked") {
+        setLoading(chatLock.status === "checking");
+        return;
+      }
       setLoading(true);
       setError("");
 
@@ -254,9 +271,10 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [groupId, userId]);
+  }, [groupId, userId, chatLock.status]);
 
   useEffect(() => {
+    if (chatLock.status !== "unlocked") return;
     const channel = supabase
       .channel(`group-chat-${groupId}-${userId}`)
       .on(
@@ -352,7 +370,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [groupId, userId, profiles, mediaUrls]);
+  }, [groupId, userId, profiles, mediaUrls, chatLock.status]);
 
   useEffect(() => {
     if (messages.length === 0) { setReactions([]); return; }
@@ -573,6 +591,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     setSending(false);
   }
 
+  if (chatLock.status !== "unlocked") return <ChatLockPanel lock={chatLock} />;
+
   if (loading) {
     return <p className="py-10 text-center text-sm text-muted-foreground">Loading group...</p>;
   }
@@ -613,6 +633,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           onLeave={onBack}
         />
       </header>
+      <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
       <div ref={log} className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
