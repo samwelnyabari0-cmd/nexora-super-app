@@ -301,7 +301,7 @@ function Title({
     <div className="mb-3 flex items-center justify-between">
       <div>
         <h2 className={`font-display font-semibold ${brand ? brandAccent[brand.accent] : ""}`}>{brand?.name ?? children}</h2>
-        {brand && <p className="text-xs text-muted-foreground">{brand.feature} · {children === brand.feature ? "" : brand.description}</p>}
+        {brand && <p className="text-xs text-muted-foreground">{brand.feature} · {brand.description}</p>}
       </div>
       {badge && <DemoBadge>{badge}</DemoBadge>}
     </div>
