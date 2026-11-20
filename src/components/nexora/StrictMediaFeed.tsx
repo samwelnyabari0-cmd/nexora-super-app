@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { Film, Play, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -115,8 +114,8 @@ export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFe
             </div>
           </div>
         );
-        if (contentType === "reel") return <Link key={item.id} to="/reels" aria-label="Open Reels feed">{tile}</Link>;
-        if (contentType === "video") return <Link key={item.id} to="/videos" aria-label="Open Videos feed">{tile}</Link>;
+        if (contentType === "reel") return <a key={item.id} href={`/reels?post=${encodeURIComponent(item.id)}`} aria-label="Open this Reel">{tile}</a>;
+        if (contentType === "video") return <a key={item.id} href={`/videos?post=${encodeURIComponent(item.id)}`} aria-label="Open this Video">{tile}</a>;
         return <div key={item.id}>{tile}</div>;
       })}
     </div>
