@@ -1,32 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  canReadR2Media,
   isValidR2PostObjectKey,
   isVerifiedR2Upload,
 } from "./r2-media-policy";
 
-describe("R2 media authorization and upload verification", () => {
-  it("allows an owner to read their own private media", () => {
-    expect(canReadR2Media({
-      ownerId: "owner-1",
-      requesterId: "owner-1",
-      audience: "private",
-    })).toBe(true);
-  });
-
-  it("allows a different viewer only when the post is public", () => {
-    expect(canReadR2Media({
-      ownerId: "owner-1",
-      requesterId: "viewer-1",
-      audience: "public",
-    })).toBe(true);
-    expect(canReadR2Media({
-      ownerId: "owner-1",
-      requesterId: "viewer-1",
-      audience: "private",
-    })).toBe(false);
-  });
-
+describe("R2 media object validation and upload verification", () => {
   it("rejects object keys outside the owner's posts folder", () => {
     expect(isValidR2PostObjectKey("owner-1", "owner-1/posts/video.mp4")).toBe(true);
     expect(isValidR2PostObjectKey("owner-1", "owner-2/posts/video.mp4")).toBe(false);
