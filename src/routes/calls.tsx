@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel, Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
+import { nextCameraFacingMode, setMediaTracksEnabled, supportsCameraFacingMode } from "@/components/nexora/call-media";
 
 const peerConfig = {
   iceServers: [
@@ -501,6 +502,9 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   const [accepting, setAccepting] = useState(false);
   const [cameraOn, setCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const mutedRef = useRef(false);
+  const cameraOnRef = useRef(true);
+  const endingRef = useRef(false);
   const local = useRef<HTMLVideoElement>(null);
   const remote = useRef<HTMLVideoElement>(null);
   const remoteAudio = useRef<HTMLAudioElement>(null);
@@ -528,12 +532,27 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
     return () => {
       mounted.current = false;
       cleanup();
+      if (!endingRef.current) {
+        void (async () => {
+          const { data } = await supabase
+            .from("call_invites")
+            .select("status")
+            .eq("id", invite.id)
+            .maybeSingle();
+          if (data?.status === "ringing" || data?.status === "accepted") {
+            await supabase
+              .from("call_invites")
+              .update({ status: isCaller && data.status === "ringing" ? "cancelled" : "ended" })
+              .eq("id", invite.id);
+          }
+        })();
+      }
     };
-  }, [cleanup]);
+  }, [cleanup, invite.id, isCaller]);
 
   const attach = (localStream: MediaStream, remoteStream?: MediaStream) => {
-    localStream.getAudioTracks().forEach((track) => { track.enabled = !muted; });
-    localStream.getVideoTracks().forEach((track) => { track.enabled = cameraOn; });
+    setMediaTracksEnabled(localStream.getAudioTracks(), !mutedRef.current);
+    setMediaTracksEnabled(localStream.getVideoTracks(), cameraOnRef.current);
     if (local.current) local.current.srcObject = localStream;
     if (remoteStream) {
       if (remote.current) remote.current.srcObject = remoteStream;
@@ -551,6 +570,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
     supabase.from("call_invites").update({ status, ...extra }).eq("id", invite.id);
 
   const fail = (message: string) => {
+    endingRef.current = true;
     cleanup();
     if (mounted.current) {
       setConnected(false);
@@ -564,6 +584,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
     activeCall.on("stream", (remoteStream: MediaStream) => attach(localStream, remoteStream));
     activeCall.on("close", () => {
       if (call.current !== activeCall) return;
+      endingRef.current = true;
       call.current = null;
       cleanup();
       if (mounted.current) setConnected(false);
@@ -646,6 +667,7 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
         activePeer.on("error", () => fail("Call signalling failed. Check your network or configure TURN."));
       } catch {
         if (!cancelled && mounted.current) {
+          endingRef.current = true;
           cleanup();
           setErr("Permission to use your microphone/camera was denied.");
           void setStatus("ended");
@@ -656,11 +678,13 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   }, [cleanup, invite.callee_peer_id, invite.kind, invite.status, isCaller]);
 
   useEffect(() => {
-    stream.current?.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+    mutedRef.current = muted;
+    if (stream.current) setMediaTracksEnabled(stream.current.getAudioTracks(), !muted);
   }, [muted]);
 
   useEffect(() => {
-    stream.current?.getVideoTracks().forEach((track) => { track.enabled = cameraOn; });
+    cameraOnRef.current = cameraOn;
+    if (stream.current) setMediaTracksEnabled(stream.current.getVideoTracks(), cameraOn);
   }, [cameraOn]);
 
   const switchCamera = async () => {
@@ -669,10 +693,10 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
       setErr("A video camera is not available for this call.");
       return;
     }
-    const nextMode = facingMode === "user" ? "environment" : "user";
+    const nextMode = nextCameraFacingMode(facingMode);
     try {
       const capabilities = track.getCapabilities?.();
-      if (capabilities?.facingMode?.length && !capabilities.facingMode.includes(nextMode)) {
+      if (!supportsCameraFacingMode(capabilities?.facingMode, nextMode)) {
         setErr("This device does not expose another camera.");
         return;
       }
@@ -685,11 +709,13 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   };
 
   const hangUp = () => {
+    endingRef.current = true;
     cleanup();
     setConnected(false);
     void setStatus(isCaller && invite.status === "ringing" ? "cancelled" : "ended");
   };
   const decline = () => {
+    endingRef.current = true;
     cleanup();
     void setStatus("declined");
   };
