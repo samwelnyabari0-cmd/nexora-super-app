@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, FileVideo, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { createPublicR2MediaPlaybackUrl, createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
 import {
   canonicalSharedContentPath,
   isValidSharedContentReference,
@@ -29,11 +30,31 @@ function firstMediaSource(value: string | null): string | null {
   return value;
 }
 
-async function resolvePrivateMedia(value: string | null, allowExternal: boolean): Promise<string | null> {
+async function resolvePrivateMedia(
+  value: string | null,
+  allowExternal: boolean,
+  postId?: string,
+  asset: "media" | "thumbnail" = "media",
+  provider?: "supabase" | "r2" | null,
+  storageKey?: string | null,
+): Promise<string | null> {
+  if (provider === "r2" && postId) {
+    try {
+      const result = await createR2MediaPlaybackUrl({ data: { postId, asset } });
+      return result.url;
+    } catch {
+      try {
+        const result = await createPublicR2MediaPlaybackUrl({ data: { postId, asset } });
+        return result.url;
+      } catch {
+        return null;
+      }
+    }
+  }
   const source = firstMediaSource(value);
   if (!source) return null;
   if (/^https?:\/\//i.test(source)) return allowExternal ? source : null;
-  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(source, 60);
+  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(storageKey || source, 60);
   return error ? null : data?.signedUrl ?? null;
 }
 
@@ -69,7 +90,7 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
       } else {
         const { data, error } = await (supabase as any)
           .from("user_media_posts")
-          .select("id, user_id, original_author_id, caption, media_url, thumbnail_url, media_type, content_type, audience")
+          .select("id, user_id, original_author_id, caption, media_url, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, media_type, content_type, audience")
           .eq("id", contentId)
           .maybeSingle();
         if (error) {
@@ -99,8 +120,20 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
         }
       }
 
-      const mediaValue = source === "posts" ? row.media_url : row.thumbnail_url || row.media_url;
-      const mediaUrl = await resolvePrivateMedia(mediaValue, row.audience === "public");
+      const useThumbnail = source !== "posts" && Boolean(row.thumbnail_url || row.thumbnail_storage_key);
+      const mediaValue = source === "posts" ? row.media_url : useThumbnail ? row.thumbnail_url : row.media_url;
+      const mediaUrl = await resolvePrivateMedia(
+        mediaValue,
+        row.audience === "public",
+        source === "user_media_posts" ? contentId : undefined,
+        useThumbnail ? "thumbnail" : "media",
+        source === "user_media_posts"
+          ? useThumbnail ? row.thumbnail_storage_provider : row.media_storage_provider
+          : undefined,
+        source === "user_media_posts"
+          ? useThumbnail ? row.thumbnail_storage_key : row.media_storage_key
+          : undefined,
+      );
       const path = canonicalSharedContentPath(reference, creatorHandle);
       if (!cancelled) {
         setContent({

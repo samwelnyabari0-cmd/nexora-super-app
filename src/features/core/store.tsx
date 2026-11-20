@@ -11,6 +11,9 @@ import { validMessage, type Attachment } from "./tools";
 import { useWorkspace } from "./workspace";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cleanupR2MediaObjects } from "@/lib/r2-media.functions";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
+import { getR2PostObjectKeys } from "@/lib/r2-post-cleanup";
 import { useSession } from "@/lib/session";
 import {
   addCommentToPost,
@@ -160,7 +163,7 @@ if (ownProfile) {
         (supabase as any)
           .from("user_media_posts")
           .select(
-            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, duration_seconds, thumbnail_url, created_at, like_count, share_count, repost_count, comment_count, view_count",
+            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, duration_seconds, thumbnail_url, media_storage_provider, media_storage_key, created_at, like_count, share_count, repost_count, comment_count, view_count",
           )
           .order("created_at", { ascending: false }),
         (supabase as any)
@@ -213,16 +216,20 @@ if (bookmarkError) {
           savedPosts.map(async (row: any) => {
             let image: string | undefined;
             const media = row.media_url ?? undefined;
-            if (media) {
+            if (row.media_storage_provider === "r2") {
+              image = await getFreshR2MediaPlaybackUrl(row.id, "media");
+            } else if (media) {
               if (/^https?:\/\//i.test(media)) {
                 image = media;
               } else {
-                const { data } = await supabase.storage.from("post-media").createSignedUrl(media, 3600);
+                const { data } = await supabase.storage.from("post-media").createSignedUrl(row.media_storage_key || media, 3600);
                 image = data?.signedUrl ?? undefined;
               }
             }
             return {
               id: row.id,
+              mediaPostId: row.id,
+              mediaStorageProvider: row.media_storage_provider ?? "supabase",
               creatorId: row.user_id === user.id ? "me" : (row.user_id ?? "me"),
               caption: row.caption ?? "",
               image,
@@ -475,8 +482,26 @@ if (bookmarkError) {
           toast.error("Sign in to delete this post.");
           return false;
         }
-                const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        let r2Keys: string[] = [];
         if (isDbId) {
+          // Read storage references before deleting the row; RLS scopes this to the owner.
+          const { data: post, error: lookupError } = await (supabase as any)
+            .from("user_media_posts")
+            .select("id, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key")
+            .eq("id", id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (lookupError) {
+            toast.error(`Could not delete the post: ${lookupError.message}`);
+            return false;
+          }
+          if (!post) {
+            toast.error("Could not delete: this post was not found on your account.");
+            return false;
+          }
+          r2Keys = getR2PostObjectKeys(post);
+
           const { data, error } = await (supabase as any)
             .from("user_media_posts")
             .delete()
@@ -492,8 +517,20 @@ if (bookmarkError) {
             return false;
           }
         }
+
         setPosts((current) => current.filter((post) => post.id !== id));
         emit("post.delete", id);
+
+        if (r2Keys.length) {
+          try {
+            await cleanupR2MediaObjects({ data: { keys: r2Keys } });
+          } catch (cleanupError) {
+            console.error("Post deleted but R2 media cleanup failed:", cleanupError);
+            toast.error("Post deleted, but its media cleanup failed. Please contact support.");
+            return true;
+          }
+        }
+
         toast.success("Post deleted");
         return true;
       },

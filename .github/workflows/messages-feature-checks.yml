@@ -71,6 +71,17 @@ jobs:
           src/hooks/useChatLock.ts
           src/hooks/useChatLock.test.tsx
           src/components/nexora/MessageReactions.tsx
+          src/components/nexora/StrictMediaFeed.tsx
+          src/components/nexora/PostCard.tsx
+          src/features/core/store.tsx
+          src/routes/create.tsx
+          src/lib/r2-media.functions.ts
+          src/lib/r2-media-policy.ts
+          src/lib/r2-media-policy.test.ts
+          src/lib/r2-media-playback.ts
+          src/lib/r2-media-playback.test.ts
+          src/lib/r2-post-cleanup.ts
+          src/lib/r2-post-cleanup.test.ts
           src/hooks/useChatActivity.ts
           --rule "prettier/prettier: off"
           --rule "@typescript-eslint/no-explicit-any: off"

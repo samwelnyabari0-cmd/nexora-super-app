@@ -14,7 +14,7 @@ import {
   Trash2,
   Flag,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { compact, creatorById, type Post } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
@@ -29,6 +29,7 @@ import { SceneToAction } from "./SceneToAction";
 import { ShareSheet } from "./ShareSheet";
 import { sharePost } from "@/lib/social-activity";
 import { typeFromTags, visibleTags } from "@/lib/post-types";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
@@ -51,6 +52,16 @@ export function PostCard({ post }: { post: Post }) {
     }
   })();
   const mediaSource = mediaSources[0];
+  const [refreshedMediaUrl, setRefreshedMediaUrl] = useState<string | undefined>();
+  const attemptedRefresh = useRef(new Set<string>());
+  const displayedMediaSource = refreshedMediaUrl ?? mediaSource;
+  const refreshMediaUrl = async (failedUrl: string) => {
+    if (post.mediaStorageProvider !== "r2" || !post.mediaPostId || !failedUrl) return;
+    if (attemptedRefresh.current.has(failedUrl)) return;
+    attemptedRefresh.current.add(failedUrl);
+    const freshUrl = await getFreshR2MediaPlaybackUrl(post.mediaPostId, "media");
+    if (freshUrl && freshUrl !== failedUrl) setRefreshedMediaUrl(freshUrl);
+  };
   const isLiked = liked.has(post.id);
   const isSaved = saved.has(post.id);
   const [showComments, setShowComments] = useState(false);
@@ -197,7 +208,8 @@ export function PostCard({ post }: { post: Post }) {
       <div className="p-4 pb-3">{header}</div>
       {mediaSource && post.mediaType?.startsWith("video/") ? (
         <video
-          src={mediaSource}
+          src={displayedMediaSource}
+          onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
           controls
           playsInline
           className={cn(
@@ -208,7 +220,8 @@ export function PostCard({ post }: { post: Post }) {
         />
       ) : post.image && post.creatorId === "me" ? (
         <img
-          src={mediaSource}
+          src={displayedMediaSource}
+          onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
           alt={post.caption}
           className={cn(
   "block w-full aspect-[4/5] object-cover bg-muted",
@@ -227,7 +240,8 @@ export function PostCard({ post }: { post: Post }) {
           aria-label={playing ? "Pause preview" : "Play preview"}
         >
           <img
-            src={mediaSource}
+            src={displayedMediaSource}
+            onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
             alt={post.caption}
             loading="lazy"
             className={cn(
@@ -413,7 +427,7 @@ export function PostCard({ post }: { post: Post }) {
         onOpenChange={setShareOpen}
         postId={post.id}
         caption={post.caption}
-        mediaUrl={mediaSource && /^https?:/i.test(mediaSource) ? mediaSource : undefined}
+        mediaUrl={displayedMediaSource && /^https?:/i.test(displayedMediaSource) ? displayedMediaSource : undefined}
         onShared={() => void countShare()}
       />
       <SceneToAction post={post} open={scene} onOpenChange={setScene} />

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Film, Play, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 
 export type StrictFeedType = "post" | "reel" | "video" | "collab";
 export type StrictMediaItem = {
@@ -18,14 +19,25 @@ export type StrictMediaItem = {
   comment_count: number | null;
   share_count: number | null;
   view_count: number | null;
+  media_storage_provider?: "supabase" | "r2" | null;
+  media_storage_key?: string | null;
+  thumbnail_storage_provider?: "supabase" | "r2" | null;
+  thumbnail_storage_key?: string | null;
   mediaSrc?: string;
   thumbnailSrc?: string;
 };
 
-async function resolveStorageUrl(value: string | null): Promise<string | undefined> {
+async function resolveStorageUrl(
+  value: string | null,
+  postId: string,
+  asset: "media" | "thumbnail",
+  provider?: "supabase" | "r2" | null,
+  storageKey?: string | null,
+): Promise<string | undefined> {
+  if (provider === "r2") return getFreshR2MediaPlaybackUrl(postId, asset);
   if (!value) return undefined;
   if (/^https?:\/\//i.test(value)) return value;
-  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(value, 900);
+  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(storageKey || value, 900);
   return error ? undefined : data?.signedUrl ?? undefined;
 }
 
@@ -33,6 +45,24 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
   const [items, setItems] = useState<StrictMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const attemptedRefresh = useRef(new Set<string>());
+
+  const refreshItemUrl = async (
+    item: StrictMediaItem,
+    asset: "media" | "thumbnail",
+    failedUrl: string,
+  ) => {
+    const provider = asset === "media" ? item.media_storage_provider : item.thumbnail_storage_provider;
+    if (provider !== "r2" || !failedUrl) return;
+    const attemptKey = `${item.id}:${asset}:${failedUrl}`;
+    if (attemptedRefresh.current.has(attemptKey)) return;
+    attemptedRefresh.current.add(attemptKey);
+    const freshUrl = await getFreshR2MediaPlaybackUrl(item.id, asset);
+    if (!freshUrl || freshUrl === failedUrl) return;
+    setItems((current) => current.map((entry) => entry.id !== item.id
+      ? entry
+      : asset === "media" ? { ...entry, mediaSrc: freshUrl } : { ...entry, thumbnailSrc: freshUrl }));
+  };
 
   useEffect(() => {
     let active = true;
@@ -47,7 +77,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     void (async () => {
       let query = (supabase as any)
         .from("user_media_posts")
-        .select("id, user_id, caption, media_url, media_type, thumbnail_url, content_type, aspect_ratio, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
+        .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
         .eq("content_type", contentType)
         .order("created_at", { ascending: false })
         .limit(80);
@@ -64,8 +94,8 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
       }
       const hydrated = await Promise.all((data ?? []).map(async (row: StrictMediaItem) => {
         const [mediaSrc, thumbnailSrc] = await Promise.all([
-          resolveStorageUrl(row.media_url),
-          resolveStorageUrl(row.thumbnail_url),
+          resolveStorageUrl(row.media_url, row.id, "media", row.media_storage_provider, row.media_storage_key),
+          resolveStorageUrl(row.thumbnail_url, row.id, "thumbnail", row.thumbnail_storage_provider, row.thumbnail_storage_key),
         ]);
         return { ...row, mediaSrc, thumbnailSrc };
       }));
@@ -81,11 +111,11 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     return () => { active = false; };
   }, [contentType, userId, enabled]);
 
-  return { items, loading, error };
+  return { items, loading, error, refreshItemUrl };
 }
 
 export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFeedType; userId?: string }) {
-  const { items, loading, error } = useStrictMediaItems(contentType, userId);
+  const { items, loading, error, refreshItemUrl } = useStrictMediaItems(contentType, userId);
   const label = contentType === "reel" ? "Reels" : contentType === "video" ? "Videos" : contentType === "collab" ? "Collabs" : "Posts";
 
   if (loading) return <p className="py-10 text-center text-sm text-muted-foreground">Loading {label.toLowerCase()}…</p>;
@@ -100,9 +130,9 @@ export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFe
         const tile = (
           <div className={`group relative ${shape} overflow-hidden rounded-xl border border-white/10 bg-[#14141f]`}>
             {preview && item.media_type?.startsWith("video/") ? (
-              <video src={item.mediaSrc} poster={item.thumbnailSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+              <video src={item.mediaSrc} poster={item.thumbnailSrc} onError={(event) => void refreshItemUrl(item, "media", event.currentTarget.currentSrc)} muted playsInline preload="metadata" className="h-full w-full object-cover" />
             ) : preview ? (
-              <img src={preview} alt={item.caption || `NEXORA ${label}`} loading="lazy" className="h-full w-full object-cover" />
+              <img src={preview} alt={item.caption || `NEXORA ${label}`} onError={(event) => void refreshItemUrl(item, item.thumbnailSrc ? "thumbnail" : "media", event.currentTarget.currentSrc)} loading="lazy" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center p-3 text-center text-xs text-zinc-300">{item.caption || label}</div>
             )}
