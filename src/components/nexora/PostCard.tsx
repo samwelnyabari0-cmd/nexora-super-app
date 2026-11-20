@@ -220,7 +220,8 @@ export function PostCard({ post }: { post: Post }) {
         />
       ) : post.image && post.creatorId === "me" ? (
         <img
-          src={mediaSource}
+          src={displayedMediaSource}
+          onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
           alt={post.caption}
           className={cn(
   "block w-full aspect-[4/5] object-cover bg-muted",
@@ -239,7 +240,8 @@ export function PostCard({ post }: { post: Post }) {
           aria-label={playing ? "Pause preview" : "Play preview"}
         >
           <img
-            src={mediaSource}
+            src={displayedMediaSource}
+            onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
             alt={post.caption}
             loading="lazy"
             className={cn(
