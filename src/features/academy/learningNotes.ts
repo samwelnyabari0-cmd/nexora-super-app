@@ -87,6 +87,20 @@ export async function listLearningNotes(
   return { data: (data ?? []).map(mapLearningNote), error: null };
 }
 
+export async function listAllLearningNotes(
+  courseId: string,
+): Promise<{ data: LearningNote[]; error: Error | null }> {
+  const { data, error } = await supabase
+    .from("edu_learning_notes")
+    .select("id, student_id, course_id, lesson_id, title, body, created_at, updated_at")
+    .eq("course_id", courseId)
+    .not("lesson_id", "is", null)
+    .order("updated_at", { ascending: false });
+
+  if (error) return { data: [], error: toError(error) };
+  return { data: (data ?? []).map(mapLearningNote), error: null };
+}
+
 export async function createLearningNote(
   input: LearningNoteDraft,
 ): Promise<{ data: LearningNote | null; error: Error | null }> {

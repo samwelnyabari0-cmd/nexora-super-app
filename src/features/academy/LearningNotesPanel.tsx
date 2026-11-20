@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   createLearningNote,
   deleteLearningNote,
+  listAllLearningNotes,
   listLearningNotes,
   MAX_LEARNING_NOTE_BODY_LENGTH,
   MAX_LEARNING_NOTE_TITLE_LENGTH,
@@ -13,6 +14,7 @@ import {
 } from "./learningNotes";
 
 type LearningNotesPanelProps = {
+  lessons?: Array<{ id: string; title: string }>;
   courseId: string;
   lessonId: string | null;
   isSignedIn: boolean;
@@ -24,6 +26,7 @@ export function LearningNotesPanel({
   lessonId,
   isSignedIn,
   canUseNotes,
+  lessons = [],
 }: LearningNotesPanelProps) {
   const titleInputId = useId();
   const bodyInputId = useId();
@@ -45,8 +48,12 @@ export function LearningNotesPanel({
     }
 
     setLoading(true);
-    const result = await listLearningNotes(courseId, lessonId);
-    setNotes(result.data);
+    const result = lessonId
+      ? await listAllLearningNotes(courseId)
+      : await listLearningNotes(courseId, null);
+    setNotes(lessonId
+      ? result.data.filter((note) => note.lessonId !== null)
+      : result.data);
     setError(result.error?.message ?? null);
     setLoading(false);
   }, [canUseNotes, courseId, lessonId]);
@@ -236,84 +243,63 @@ export function LearningNotesPanel({
             </p>
           )}
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 h-80 overflow-auto rounded-xl border">
             {loading ? (
-              <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
-                Loading your notes…
-              </p>
+              <p className="p-3 text-sm text-muted-foreground">Loading your notes…</p>
             ) : notes.length === 0 ? (
-              <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
-                No notes yet. Add your first note above.
-              </p>
+              <p className="p-3 text-sm text-muted-foreground">No notes yet. Add your first note above.</p>
             ) : (
-              notes.map((note) => (
-                <article key={note.id} className="rounded-xl border p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h4 className="break-words font-medium">{note.title}</h4>
-                      <p
-                        className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground"
-                      >
-                        {note.body}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Updated {new Date(note.updatedAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Edit ${note.title}`}
-                        onClick={() => startEditing(note)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Delete ${note.title}`}
-                        onClick={() => setConfirmDeleteId(note.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  {confirmDeleteId === note.id && (
-                    <div
-                      className="mt-3 rounded-lg bg-muted p-3"
-                      role="group"
-                      aria-label={`Confirm delete ${note.title}`}
-                    >
-                      <p className="text-sm">
-                        Delete this note? This cannot be undone.
-                      </p>
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          disabled={deletingNoteId === note.id}
-                          onClick={() => void handleDelete(note.id)}
-                        >
-                          {deletingNoteId === note.id ? "Deleting…" : "Confirm delete"}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={deletingNoteId === note.id}
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </article>
-              ))
+              <table
+                aria-label={lessonId ? "Lesson notes" : "Course notes"}
+                className="w-full min-w-[560px] border-collapse text-left text-sm"
+              >
+                <thead className="sticky top-0 z-10 bg-muted">
+                  <tr>
+                    {lessonId && <th scope="col" className="px-3 py-2 font-semibold">Lesson</th>}
+                    <th scope="col" className="px-3 py-2 font-semibold">Note</th>
+                    <th scope="col" className="px-3 py-2 font-semibold">Content</th>
+                    <th scope="col" className="px-3 py-2 font-semibold">Last updated</th>
+                    <th scope="col" className="px-3 py-2 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {notes.map((note) => (
+                    <tr key={note.id} className="align-top">
+                      {lessonId && (
+                        <td className="max-w-40 break-words px-3 py-3 font-medium">
+                          {lessons.find((lesson) => lesson.id === note.lessonId)?.title ?? "Lesson"}
+                        </td>
+                      )}
+                      <td className="max-w-40 break-words px-3 py-3 font-medium">{note.title}</td>
+                      <td className="max-w-xs whitespace-pre-wrap break-words px-3 py-3 text-muted-foreground">{note.body}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
+                        {new Date(note.updatedAt).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1">
+                          <Button type="button" size="icon" variant="ghost" aria-label={`Edit ${note.title}`} onClick={() => startEditing(note)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${note.title}`} onClick={() => setConfirmDeleteId(note.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {confirmDeleteId === note.id && (
+                          <div className="mt-2 min-w-40 rounded-lg bg-muted p-2" role="group" aria-label={`Confirm delete ${note.title}`}>
+                            <p className="text-xs">Delete this note? This cannot be undone.</p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              <Button type="button" size="sm" variant="destructive" disabled={deletingNoteId === note.id} onClick={() => void handleDelete(note.id)}>
+                                {deletingNoteId === note.id ? "Deleting…" : "Confirm delete"}
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" disabled={deletingNoteId === note.id} onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </>
