@@ -45,6 +45,10 @@ jobs:
         # check focused on the new feature code and enforce other ESLint rules.
         run: >-
           npx eslint
+          src/features/academy/CourseCertificatePanel.tsx
+          src/features/academy/courseCertificates.ts
+          src/features/academy/courseCertificates.test.ts
+          src/routes/certificate.$code.tsx
           src/features/academy/CourseRatingPanel.tsx
           src/features/academy/CourseRatingPanel.test.tsx
           src/features/academy/LearningNotesPanel.tsx
