@@ -11,6 +11,9 @@ import { Avatar, DemoBadge, EmptyState, PageHeader } from "@/components/nexora/u
 import { Button } from "@/components/ui/button";
 import { StrictMediaGrid } from "@/components/nexora/StrictMediaFeed";
 export const Route = createFileRoute("/explore")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    post: typeof search.post === "string" ? search.post : "",
+  }),
   head: () => ({
     meta: [
       { title: "Universal search — NEXORA" },
@@ -27,6 +30,7 @@ export const Route = createFileRoute("/explore")({
   component: Explore,
 });
 function Explore() {
+  const { post: requestedPostId } = Route.useSearch();
   const { posts } = useApp();
   const { muted } = useWorkspace();
   const [q, setQ] = useState("");
@@ -66,7 +70,7 @@ setPeople(
 
   return () => window.clearTimeout(timer);
 }, [query, q]);
-  const r = posts.filter((p) => p.kind === "post" && !(p.tags ?? []).some((tag) => ["collab", "nx-type-collab"].includes(tag.toLowerCase())) && canDiscover(p, muted) && matchesPost(p, q));
+  const r = posts.filter((p) => (requestedPostId ? p.id === requestedPostId : p.kind === "post") && !(p.tags ?? []).some((tag) => ["collab", "nx-type-collab"].includes(tag.toLowerCase())) && canDiscover(p, muted) && matchesPost(p, q));
   
   const locations = places.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query));
   const titles = catalog.filter((t) => `${t.title} ${t.genre}`.toLowerCase().includes(query));
