@@ -223,7 +223,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     async function refreshMessages() {
       const { data, error: loadError } = await (supabase as any)
         .from("chat_group_messages")
-        .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes")
+        .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id")
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
 
