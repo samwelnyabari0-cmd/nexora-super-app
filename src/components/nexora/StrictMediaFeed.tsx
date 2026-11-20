@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Film, Play, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { createPublicR2MediaPlaybackUrl, createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 
 export type StrictFeedType = "post" | "reel" | "video" | "collab";
 export type StrictMediaItem = {
@@ -34,19 +34,7 @@ async function resolveStorageUrl(
   provider?: "supabase" | "r2" | null,
   storageKey?: string | null,
 ): Promise<string | undefined> {
-  if (provider === "r2") {
-    try {
-      const result = await createR2MediaPlaybackUrl({ data: { postId, asset } });
-      return result.url;
-    } catch {
-      try {
-        const result = await createPublicR2MediaPlaybackUrl({ data: { postId, asset } });
-        return result.url;
-      } catch {
-        return undefined;
-      }
-    }
-  }
+  if (provider === "r2") return getFreshR2MediaPlaybackUrl(postId, asset);
   if (!value) return undefined;
   if (/^https?:\/\//i.test(value)) return value;
   const { data, error } = await supabase.storage.from("post-media").createSignedUrl(storageKey || value, 900);
@@ -57,6 +45,24 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
   const [items, setItems] = useState<StrictMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const attemptedRefresh = useRef(new Set<string>());
+
+  const refreshItemUrl = async (
+    item: StrictMediaItem,
+    asset: "media" | "thumbnail",
+    failedUrl: string,
+  ) => {
+    const provider = asset === "media" ? item.media_storage_provider : item.thumbnail_storage_provider;
+    if (provider !== "r2" || !failedUrl) return;
+    const attemptKey = `${item.id}:${asset}:${failedUrl}`;
+    if (attemptedRefresh.current.has(attemptKey)) return;
+    attemptedRefresh.current.add(attemptKey);
+    const freshUrl = await getFreshR2MediaPlaybackUrl(item.id, asset);
+    if (!freshUrl || freshUrl === failedUrl) return;
+    setItems((current) => current.map((entry) => entry.id !== item.id
+      ? entry
+      : asset === "media" ? { ...entry, mediaSrc: freshUrl } : { ...entry, thumbnailSrc: freshUrl }));
+  };
 
   useEffect(() => {
     let active = true;
@@ -105,11 +111,11 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     return () => { active = false; };
   }, [contentType, userId, enabled]);
 
-  return { items, loading, error };
+  return { items, loading, error, refreshItemUrl };
 }
 
 export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFeedType; userId?: string }) {
-  const { items, loading, error } = useStrictMediaItems(contentType, userId);
+  const { items, loading, error, refreshItemUrl } = useStrictMediaItems(contentType, userId);
   const label = contentType === "reel" ? "Reels" : contentType === "video" ? "Videos" : contentType === "collab" ? "Collabs" : "Posts";
 
   if (loading) return <p className="py-10 text-center text-sm text-muted-foreground">Loading {label.toLowerCase()}…</p>;
@@ -124,9 +130,9 @@ export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFe
         const tile = (
           <div className={`group relative ${shape} overflow-hidden rounded-xl border border-white/10 bg-[#14141f]`}>
             {preview && item.media_type?.startsWith("video/") ? (
-              <video src={item.mediaSrc} poster={item.thumbnailSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+              <video src={item.mediaSrc} poster={item.thumbnailSrc} onError={(event) => void refreshItemUrl(item, "media", event.currentTarget.currentSrc)} muted playsInline preload="metadata" className="h-full w-full object-cover" />
             ) : preview ? (
-              <img src={preview} alt={item.caption || `NEXORA ${label}`} loading="lazy" className="h-full w-full object-cover" />
+              <img src={preview} alt={item.caption || `NEXORA ${label}`} onError={(event) => void refreshItemUrl(item, item.thumbnailSrc ? "thumbnail" : "media", event.currentTarget.currentSrc)} loading="lazy" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center p-3 text-center text-xs text-zinc-300">{item.caption || label}</div>
             )}
