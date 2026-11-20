@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
 import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
-import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType } from "@/lib/post-types";
+import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -56,6 +56,7 @@ function Create() {
   const [format, setFormat] = useState("square");
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
+  const [mediaClassification, setMediaClassification] = useState<UploadClassification>({ contentType: "post", aspectRatio: null, durationSeconds: null });
   const [note, setNote] = useState("");
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
@@ -98,6 +99,7 @@ function Create() {
     setMediaFiles([]);
     setMediaType(undefined);
     setCover(null);
+    setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
     setFilter("original");
     setFormat("landscape");
     setError("");
@@ -150,13 +152,27 @@ const previewFilter =
           </div>
           <StudioCapture
             onCapture={(url, type) => {
-  setMedia(url);
-  setOriginalMedia(url);
-  setMediaType(type);
   setError("");
   void fetch(url)
     .then((response) => response.blob())
-    .then((blob) => setMediaFiles([blob]))
+    .then((blob) => {
+      const extension = type.startsWith("video/") ? "webm" : "jpg";
+      const file = new File([blob], `capture.${extension}`, { type });
+      pickMedia([file], {
+        contentType,
+        tier: uploadTier,
+        setError,
+        setNote,
+        accept: (previewUrl, files, mimeType, classification) => {
+          setMedia(previewUrl);
+          setOriginalMedia(previewUrl);
+          setMediaFiles(files);
+          setMediaType(mimeType);
+          setMediaClassification(classification);
+          if (mimeType.startsWith("video/")) setContentType(classification.contentType);
+        },
+      });
+    })
     .catch(() => setError("Captured media could not be prepared for upload."));
 }}
             onError={setError}
@@ -224,11 +240,13 @@ const previewFilter =
                 tier: uploadTier,
                 setError,
                 setNote,
-                accept: (url, files, type) => {
+                accept: (url, files, type, classification) => {
                   setMedia(url);
                   setOriginalMedia(url);
                   setMediaFiles(files);
                   setMediaType(type);
+                  setMediaClassification(classification);
+                  if (type.startsWith("video/")) setContentType(classification.contentType);
                 },
               });
             }}
@@ -310,6 +328,7 @@ const previewFilter =
               return;
             }
             let mediaPath: string | null = null;
+            let thumbnailUrl: string | null = null;
             if (mediaFiles.length) {
               const uploadedPaths: string[] = [];
               for (const file of mediaFiles) {
@@ -324,14 +343,23 @@ const previewFilter =
                 uploadedPaths.push(publicData.publicUrl);
                 // Optional cover: saved beside the video as "<same-name>-cover.jpg" so the feed can find it.
                 if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
-                  await supabase.storage
+                  const coverPath = path.replace(/\.[^./]+$/, "-cover.jpg");
+                  const { error: coverError } = await supabase.storage
                     .from("post-media")
-                    .upload(path.replace(/\.[^./]+$/, "-cover.jpg"), cover, { contentType: "image/jpeg", upsert: false });
+                    .upload(coverPath, cover, { contentType: "image/jpeg", upsert: false });
+                  if (coverError) {
+                    setError("Video cover upload failed. Please try again.");
+                    return;
+                  }
+                  thumbnailUrl = supabase.storage.from("post-media").getPublicUrl(coverPath).data.publicUrl;
                 }
               }
               mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
             }
                         const typedTags = [...tagList, typeTag(contentType)];
+            const strictContentType = tagList.some((tag) => tag.toLowerCase() === "collab")
+              ? "collab"
+              : mediaClassification.contentType;
             const { data: savedPost, error: publishError } = await (supabase as any)
               .from("user_media_posts")
               .insert({
@@ -339,7 +367,10 @@ const previewFilter =
                 caption: caption.trim(),
                 media_url: mediaPath,
                 media_type: mediaType ?? null,
-                thumbnail_url: null,
+                thumbnail_url: thumbnailUrl,
+                content_type: strictContentType,
+                aspect_ratio: mediaClassification.aspectRatio,
+                duration_seconds: mediaClassification.durationSeconds,
                 audience,
                 tags: typedTags,
               })
