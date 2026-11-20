@@ -99,7 +99,6 @@ export const verifyR2MediaUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => completeInputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const ownerPrefix = `${context.userId}/posts/`;
     if (!isValidR2PostObjectKey(context.userId, data.key)) {
       throw new Error("Invalid media object key.");
     }
@@ -238,7 +237,7 @@ export const createPublicR2MediaPlaybackUrl = createServerFn({ method: "POST" })
       ? post.media_storage_key
       : post.thumbnail_storage_key;
 
-    if (provider !== "r2" || typeof key !== "string" || !key.startsWith(`${post.user_id}/posts/`)) {
+    if (provider !== "r2" || typeof key !== "string" || !isValidR2PostObjectKey(post.user_id, key)) {
       throw new Error("Public R2 media reference is invalid.");
     }
 
