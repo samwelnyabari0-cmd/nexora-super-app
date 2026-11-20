@@ -15,6 +15,8 @@ import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
 import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
 import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
+import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
+import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 
 type GroupMessage = {
   id: string;
@@ -34,6 +36,7 @@ type GroupMessage = {
   shared_content_source?: "posts" | "user_media_posts" | null;
   shared_content_id?: string | null;
   shared_content_type?: "post" | "reel" | "video" | null;
+  expires_at?: string | null;
   created_at: string;
   reply_to_message_id?: string | null;
 };
@@ -66,6 +69,31 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const touchStartX = useRef<number | null>(null);
   const [profiles, setProfiles] = useState<Record<string, SenderProfile>>({});
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const timers = messages.flatMap((message) => {
+      const delay = messageExpiryDelay(message.expires_at);
+      if (delay === null) return [];
+      if (delay === 0 || isMessageExpired(message.expires_at)) {
+        setMessages((current) => current.filter((item) => item.id !== message.id));
+        setMediaUrls((current) => {
+          const next = { ...current };
+          delete next[message.id];
+          return next;
+        });
+        return [];
+      }
+      return [window.setTimeout(() => {
+        setMessages((current) => current.filter((item) => item.id !== message.id));
+        setMediaUrls((current) => {
+          const next = { ...current };
+          delete next[message.id];
+          return next;
+        });
+      }, delay + 25)];
+    });
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [messages]);
+  const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
   const [avatarUrl, setAvatarUrl] = useState("");
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -133,7 +161,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -515,15 +543,16 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           onLeave={onBack}
         />
       </header>
+      <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log} className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
-        {messages.length === 0 ? (
+      <div ref={log className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
+        {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
           </p>
-        ) : messages.map((message, index) => {
+        ) : visibleMessages.map((message, index) => {
           const mine = message.sender_id === userId;
-          const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
+          const showDateDivider = shouldShowDateDivider(message.created_at, visibleMessages[index - 1]?.created_at);
           const sender = profiles[message.sender_id];
           return (
             <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const start = touchStartX.current; touchStartX.current = null; if (start !== null && (event.changedTouches[0]?.clientX ?? start) - start > 60) setReplyTarget(message); }} className="space-y-2">
