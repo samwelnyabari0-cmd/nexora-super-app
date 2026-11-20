@@ -70,6 +70,12 @@ export function splitBill(total: number, people: number): number[] {
   return Array.from({ length: people }, (_, i) => (base + (i < rest ? 1 : 0)) / 100);
 }
 
+export function taskCompletion(tasks: readonly { done: boolean }[]) {
+  const total = tasks.length;
+  const done = tasks.filter((task) => task.done).length;
+  return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+}
+
 export type Cycle = "weekly" | "monthly" | "yearly";
 export function monthlyCost(amount: number, cycle: Cycle) {
   return cycle === "weekly" ? (amount * 52) / 12 : cycle === "yearly" ? amount / 12 : amount;
