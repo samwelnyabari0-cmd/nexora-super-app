@@ -130,10 +130,17 @@ const row = profileRows?.[0] ?? null;
           return;
         }
 
+        if (tab === "reposts") {
+          setPosts([]);
+          setLoading(false);
+          return;
+        }
+        const strictType = tab === "reels" ? "reel" : tab === "videos" ? "video" : tab === "collabs" ? "collab" : "post";
         const { data: rows, error: postsError } = await (supabase as any)
           .from("user_media_posts")
           .select("id, user_id, caption, media_url, media_type, thumbnail_url, content_type, aspect_ratio, duration_seconds, audience, tags, created_at, like_count, comment_count, share_count, view_count")
           .eq("user_id", found.id)
+          .eq("content_type", strictType)
           .order("created_at", { ascending: false })
           .limit(60);
         if (cancelled) return;
@@ -184,7 +191,7 @@ const row = profileRows?.[0] ?? null;
     return () => {
       cancelled = true;
     };
-  }, [handle, user?.id]);
+  }, [handle, user?.id, tab]);
 
   useEffect(() => {
     let cancelled = false;
