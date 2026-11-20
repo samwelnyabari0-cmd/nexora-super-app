@@ -31,7 +31,7 @@ export function DisappearingSettingsControl({ chatKind, chatId }: DisappearingSe
     }).then(({ data, error: loadError }: { data: any; error: any }) => {
       if (cancelled) return;
       if (loadError) {
-        setError("Expiry setting could not be loaded.");
+        setError(loadError?.message || "Expiry setting could not be loaded.");
       } else {
         const row = Array.isArray(data) ? data[0] : data;
         setRetentionSeconds(Number(row?.retention_seconds ?? 0));
