@@ -28,7 +28,7 @@ function CertificateVerificationPage() {
 
   async function copyCode() {
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(window.location.href);
     } catch {
       setError("Unable to copy the verification code on this device.");
     }
@@ -39,7 +39,7 @@ function CertificateVerificationPage() {
       <div className="mb-6 flex items-center justify-between gap-3 print:hidden">
         <a href="/learn" className="text-sm font-semibold text-primary">NEXORA Academy</a>
         <div className="flex gap-2">
-          {certificate && <Button size="sm" variant="outline" onClick={() => void copyCode()}><Copy className="mr-2 h-4 w-4" />Copy code</Button>}
+          {certificate && <Button size="sm" variant="outline" onClick={() => void copyCode()}><Copy className="mr-2 h-4 w-4" />Copy verification link</Button>}
           {certificate && <Button size="sm" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print / Save PDF</Button>}
         </div>
       </div>
