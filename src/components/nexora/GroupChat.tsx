@@ -3,6 +3,8 @@ import { ArrowLeft, ImagePlus, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
+import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
+import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 
 type GroupMessage = {
   id: string;
@@ -342,11 +344,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
           </p>
-        ) : messages.map((message) => {
+        ) : messages.map((message, index) => {
           const mine = message.sender_id === userId;
+          const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
           const sender = profiles[message.sender_id];
           return (
-            <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+            <div key={message.id} className="space-y-2">
+              {showDateDivider && (
+                <div className="sticky top-1 z-10 flex justify-center py-1">
+                  <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
+                </div>
+              )}
+              <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`flex max-w-[88%] gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
                   sender?.avatar_url ? (
@@ -368,16 +377,17 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     message.media_type === "video" ? (
                       <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-72 max-w-full rounded-lg" />
                     ) : message.media_type === "audio" ? (
-                      <audio src={mediaUrls[message.id]} controls className="mb-2 w-full min-w-[220px]" />
+                      <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
                       <img src={mediaUrls[message.id]} alt="Shared group attachment" className="mb-2 max-h-72 max-w-full rounded-lg object-contain" />
                     )
                   )}
                   {message.body && <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
                   <p className="mt-1 text-right text-[10px] opacity-70">
-                    {new Date(message.created_at).toLocaleString()}
+                    {formatMessageTime(message.created_at)}
                   </p>
                 </div>
+              </div>
               </div>
             </div>
           );
