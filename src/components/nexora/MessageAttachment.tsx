@@ -1,5 +1,5 @@
 import { FileText, Download } from "lucide-react";
-import { formatAttachmentSize, safeAttachmentName } from "./message-attachments";
+import { documentTypeLabel, formatAttachmentSize, safeAttachmentName } from "./message-attachments";
 
 type MessageAttachmentProps = {
   url?: string;
@@ -18,7 +18,7 @@ export function MessageAttachment({ url, fileName, mimeType, sizeBytes }: Messag
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium" title={name}>{name}</span>
         <span className="block text-xs text-muted-foreground">
-          {mimeType || "Document"} · {typeof sizeBytes === "number" ? formatAttachmentSize(sizeBytes) : "Size unavailable"}
+          {documentTypeLabel(mimeType)} · {typeof sizeBytes === "number" ? formatAttachmentSize(sizeBytes) : "Size unavailable"}
         </span>
       </span>
       {url ? (
