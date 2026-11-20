@@ -90,6 +90,15 @@ export function useChatLock(userId: string, chatKind: ChatLockKind, chatId: stri
     }
   }, [key, record]);
 
+  useEffect(() => {
+    if (status !== "unlocked" || !record) return;
+    const lockWhenHidden = () => {
+      if (document.visibilityState === "hidden") lockNow();
+    };
+    document.addEventListener("visibilitychange", lockWhenHidden);
+    return () => document.removeEventListener("visibilitychange", lockWhenHidden);
+  }, [status, record, lockNow]);
+
   const reset = useCallback(() => {
     if (!key) return;
     try {
