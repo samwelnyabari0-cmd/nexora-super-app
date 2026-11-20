@@ -60,6 +60,9 @@ jobs:
           src/components/nexora/call-media.test.ts
           src/hooks/useChatLocationSharing.ts
           src/hooks/useChatLocationSharing.test.tsx
+          src/components/nexora/message-transcription.ts
+          src/components/nexora/message-transcription.test.ts
+          src/components/nexora/TranscribeVoiceMessageButton.tsx
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
           src/hooks/useChatActivity.ts
