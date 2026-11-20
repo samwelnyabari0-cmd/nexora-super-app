@@ -1,5 +1,4 @@
-import { PublicProfileQuery } from "@/components/nexora/PublicProfileQuery";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
  import {
@@ -63,6 +62,7 @@ const profileCategories = [
 ] as const;
 
 function Profile() {
+  const navigate = useNavigate();
   const [publicHandle, setPublicHandle] = useState<string | null>(null);
   const [checkedUrl, setCheckedUrl] = useState(false);
 
@@ -74,16 +74,18 @@ function Profile() {
     setCheckedUrl(true);
   }, []);
 
-  if (!checkedUrl) {
+  useEffect(() => {
+    if (publicHandle) {
+      void navigate({ to: "/profile/$handle", params: { handle: publicHandle }, replace: true });
+    }
+  }, [publicHandle, navigate]);
+
+  if (!checkedUrl || publicHandle) {
     return (
       <div className="p-8 text-center">
         Loading profile...
       </div>
     );
-  }
-
-  if (publicHandle) {
-    return <PublicProfileQuery handle={publicHandle} />;
   }
 
   return <OwnProfile />;
