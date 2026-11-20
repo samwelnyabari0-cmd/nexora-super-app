@@ -387,12 +387,14 @@ const previewFilter =
                 r2VideoTypes.includes(mediaFiles[0].type) &&
                 mediaFiles[0].size <= 5 * 1024 ** 3;
               const uploadedPaths: string[] = [];
+              const totalUploadBytes = mediaFiles.reduce((total, file) => total + file.size, 0) +
+                (mediaFiles.length === 1 && mediaFiles[0].type.startsWith("video/") ? cover?.size ?? 0 : 0);
+              let completedUploadBytes = 0;
+              setUploadProgress(0);
+              setUploadStatus("Preparing upload...");
 
               for (const file of mediaFiles) {
                 if (useR2) {
-                  const totalUploadBytes = file.size + (cover?.size ?? 0);
-                  let completedUploadBytes = 0;
-                  setUploadProgress(0);
                   setUploadStatus("Uploading video...");
                   try {
                     const signed = await createR2MediaUploadUrl({
@@ -450,25 +452,65 @@ const previewFilter =
                 } else {
                   const extension = file.type.split(";")[0].split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
                   const storagePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-                  const { error: uploadError } = await supabase.storage.from("post-media").upload(storagePath, file, { contentType: file.type, upsert: false });
-                  if (uploadError) {
-                    setError("Media upload failed. Please try again.");
+                  const { data: signedUpload, error: signError } = await supabase.storage
+                    .from("post-media")
+                    .createSignedUploadUrl(storagePath, { upsert: false });
+                  if (signError || !signedUpload?.signedUrl) {
+                    setUploadProgress(null);
+                    setUploadStatus("");
+                    setError("Could not prepare media upload. Please try again.");
                     return;
                   }
+                  setUploadStatus("Uploading media...");
+                  try {
+                    await uploadFileWithProgress(
+                      signedUpload.signedUrl,
+                      file,
+                      { "Content-Type": file.type },
+                      (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                    );
+                  } catch (uploadFailure) {
+                    setUploadProgress(null);
+                    setUploadStatus("");
+                    setError(uploadFailure instanceof Error ? uploadFailure.message : "Media upload failed. Please try again.");
+                    return;
+                  }
+                  completedUploadBytes += file.size;
                   const { data: publicData } = supabase.storage.from("post-media").getPublicUrl(storagePath);
                   uploadedPaths.push(publicData.publicUrl);
                   if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
                     const coverPath = storagePath.replace(/\.[^./]+$/, "-cover.jpg");
-                    const { error: coverError } = await supabase.storage.from("post-media").upload(coverPath, cover, { contentType: "image/jpeg", upsert: false });
-                    if (coverError) {
-                      setError("Video cover upload failed. Please try again.");
+                    const { data: signedCover, error: signCoverError } = await supabase.storage
+                      .from("post-media")
+                      .createSignedUploadUrl(coverPath, { upsert: false });
+                    if (signCoverError || !signedCover?.signedUrl) {
+                      setUploadProgress(null);
+                      setUploadStatus("");
+                      setError("Could not prepare video cover upload. Please try again.");
                       return;
                     }
+                    setUploadStatus("Uploading video cover...");
+                    try {
+                      await uploadFileWithProgress(
+                        signedCover.signedUrl,
+                        cover,
+                        { "Content-Type": "image/jpeg" },
+                        (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                      );
+                    } catch (coverFailure) {
+                      setUploadProgress(null);
+                      setUploadStatus("");
+                      setError(coverFailure instanceof Error ? coverFailure.message : "Video cover upload failed. Please try again.");
+                      return;
+                    }
+                    completedUploadBytes += cover.size;
                     thumbnailUrl = supabase.storage.from("post-media").getPublicUrl(coverPath).data.publicUrl;
                   }
                 }
               }
               if (!useR2) mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
+              setUploadProgress(100);
+              setUploadStatus("Upload complete. Publishing your post...");
             }
                         const typedTags = [...tagList, typeTag(contentType)];
             const strictContentType = contentType === "collab" || tagList.some((tag) => tag.toLowerCase() === "collab")
@@ -496,6 +538,8 @@ const previewFilter =
               .single();
 
             if (publishError || !savedPost?.id) {
+              setUploadProgress(null);
+              setUploadStatus("");
               if (pendingR2Keys.length) {
                 await cleanupR2MediaObjects({ data: { keys: pendingR2Keys } }).catch((cleanupError) =>
                   console.error("Could not clean up unlinked R2 media:", cleanupError),
