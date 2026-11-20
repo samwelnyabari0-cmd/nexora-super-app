@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
@@ -18,6 +18,8 @@ import { sharedContentLabel, type SharedContentReference } from "@/components/ne
 import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
 import { TranscribeVoiceMessageButton } from "@/components/nexora/TranscribeVoiceMessageButton";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
+import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
+import { aiChat } from "@/lib/ai.functions";
 
 type GroupMessage = {
   id: string;
@@ -125,6 +127,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [shareContentOpen, setShareContentOpen] = useState(false);
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [smartRepliesLoading, setSmartRepliesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -443,6 +447,41 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }
 
+  async function suggestSmartReplies() {
+    if (!userId || smartRepliesLoading) return;
+    const prompt = buildSmartReplyPrompt(
+      messages
+        .filter((message) => !isMessageExpired(message.expires_at))
+        .slice(-6)
+        .map((message) => ({
+          sender: message.sender_id === userId ? "You" as const : "Member" as const,
+          body: message.body ?? "",
+        })),
+    );
+    if (!prompt) {
+      setError("There is no recent text to use for reply suggestions.");
+      return;
+    }
+    setSmartRepliesLoading(true);
+    setError("");
+    try {
+      const result = await aiChat({ data: { messages: [{ role: "user", content: prompt }] } });
+      if (result.error) {
+        setError(result.error);
+        setSmartReplies([]);
+      } else {
+        const suggestions = parseSmartReplySuggestions(result.text);
+        setSmartReplies(suggestions);
+        if (!suggestions.length) setError("No reply suggestions were returned. Please try again.");
+      }
+    } catch {
+      setError("AI reply suggestions are unavailable right now.");
+      setSmartReplies([]);
+    } finally {
+      setSmartRepliesLoading(false);
+    }
+  }
+
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.trim();
@@ -691,6 +730,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         </div>
       )}
 
+      {smartReplies.length > 0 && (
+        <div className="space-y-2 border-t px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">AI suggestions · choose one to edit as a draft</p>
+          <div className="flex flex-wrap gap-2">
+            {smartReplies.map((suggestion) => (
+              <Button key={suggestion} type="button" size="sm" variant="outline" onClick={() => { setDraft(suggestion); setSmartReplies([]); }}>
+                {suggestion}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
       <form onSubmit={sendMessage} className="flex items-center gap-2 border-t pt-3">
         <input
           ref={fileInput}
@@ -715,6 +766,9 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <Button type="button" variant="outline" size="icon" aria-label="Share Nexora content" disabled={sending || recording} onClick={() => setShareContentOpen(true)}>
           <Share2 className="h-4 w-4" />
         </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Suggest AI replies" disabled={sending || recording || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
+          <Sparkles className="h-4 w-4" />
+        </Button>
         <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
           {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
@@ -730,6 +784,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
+      <p className="px-3 pb-2 text-[10px] text-muted-foreground">When requested, only the latest six text messages are sent to AI for draft suggestions. Nothing is sent automatically.</p>
       <ShareContentDialog
         open={shareContentOpen}
         onOpenChange={setShareContentOpen}
