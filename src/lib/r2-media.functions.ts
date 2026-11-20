@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -168,4 +168,24 @@ export const createR2MediaPlaybackUrl = createServerFn({ method: "POST" })
       { expiresIn: 900 },
     );
     return { url, expiresInSeconds: 900 };
+  });
+
+
+const cleanupInputSchema = z.object({
+  keys: z.array(z.string().min(1).max(512)).min(1).max(2),
+});
+
+export const cleanupR2MediaObjects = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => cleanupInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const prefix = `${context.userId}/posts/`;
+    if (data.keys.some((key) => !key.startsWith(prefix) || key.includes(".."))) {
+      throw new Error("Invalid media cleanup key.");
+    }
+    const { client, bucket } = getR2MediaConfig();
+    await Promise.all(data.keys.map((Key) =>
+      client.send(new DeleteObjectCommand({ Bucket: bucket, Key }))
+    ));
+    return { deleted: data.keys.length };
   });
