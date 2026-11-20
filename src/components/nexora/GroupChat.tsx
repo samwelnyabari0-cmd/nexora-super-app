@@ -7,6 +7,8 @@ import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@
 import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
+import { MessageAttachment } from "@/components/nexora/MessageAttachment";
+import { uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
 
 type GroupMessage = {
   id: string;
@@ -14,7 +16,10 @@ type GroupMessage = {
   sender_id: string;
   body: string;
   media_path: string | null;
-  media_type: "image" | "video" | "audio" | null;
+  media_type: "image" | "video" | "audio" | "document" | null;
+  attachment_name?: string | null;
+  attachment_mime_type?: string | null;
+  attachment_size_bytes?: number | null;
   created_at: string;
   reply_to_message_id?: string | null;
 };
@@ -85,7 +90,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -348,14 +353,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     setSending(true);
     setError("");
     let mediaPath: string | null = null;
-    let mediaType: "image" | "video" | "audio" | null = null;
+    let mediaType: "image" | "video" | "audio" | "document" | null = null;
+    let attachmentName: string | null = null;
+    let attachmentMimeType: string | null = null;
+    let attachmentSizeBytes: number | null = null;
 
     if (attachment) {
       const isImage = attachment.type.startsWith("image/");
       const isVideo = attachment.type.startsWith("video/");
       const isAudio = attachment.type.startsWith("audio/");
-      if (!isImage && !isVideo && !isAudio) {
-        setError("Choose an image, video, or audio file.");
+      const document = validateDocumentFile(attachment);
+      if (!isImage && !isVideo && !isAudio && !document.ok) {
+        setError(document.reason);
         setSending(false);
         return;
       }
@@ -365,40 +374,53 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         return;
       }
 
-      mediaType = isImage ? "image" : isVideo ? "video" : "audio";
-      const extension = attachment.name.split(".").pop()?.toLowerCase() ||
-        (isImage ? "jpg" : isVideo ? "mp4" : "webm");
+      mediaType = document.ok && !isImage && !isVideo && !isAudio
+        ? "document"
+        : isImage ? "image" : isVideo ? "video" : "audio";
+      const extension = document.ok && mediaType === "document"
+        ? document.extension
+        : attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
       mediaPath = `groups/${groupId}/${userId}/${crypto.randomUUID()}.${extension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("chat-media")
-        .upload(mediaPath, attachment, {
-          contentType: attachment.type,
-          upsert: false,
-        });
-      if (uploadError) {
-        setError("Media upload failed. Please try again.");
-        setSending(false);
-        return;
+      if (mediaType === "document") {
+        attachmentName = attachment.name.split(/[\\/]/).pop()?.slice(0, 120) || "Shared document";
+        attachmentMimeType = attachment.type;
+        attachmentSizeBytes = attachment.size;
       }
     }
 
-    const { error: insertError } = await (supabase as any)
-      .from("chat_group_messages")
-      .insert({
-        group_id: groupId,
-        sender_id: userId,
-        body,
-        media_path: mediaPath,
-        media_type: mediaType,
-        reply_to_message_id: replyTarget?.id ?? null,
-      });
+    const insertMessage = async () => {
+      const { error: insertError } = await (supabase as any)
+        .from("chat_group_messages")
+        .insert({
+          group_id: groupId,
+          sender_id: userId,
+          body,
+          media_path: mediaPath,
+          media_type: mediaType,
+          attachment_name: attachmentName,
+          attachment_mime_type: attachmentMimeType,
+          attachment_size_bytes: attachmentSizeBytes,
+          reply_to_message_id: replyTarget?.id ?? null,
+        });
+      return { error: insertError };
+    };
 
-    if (insertError) {
-      if (mediaPath) {
-        await supabase.storage.from("chat-media").remove([mediaPath]);
-      }
-      setError("Your message could not be sent. Please try again.");
+    const result = mediaPath
+      ? await uploadThenInsertAttachment(
+          async () => {
+            const { error } = await supabase.storage.from("chat-media").upload(mediaPath!, attachment!, {
+              contentType: attachment!.type,
+              upsert: false,
+            });
+            return { error };
+          },
+          insertMessage,
+          async () => { await supabase.storage.from("chat-media").remove([mediaPath!]); },
+        )
+      : await insertMessage();
+
+    if (result.error) {
+      setError(mediaPath ? "Attachment could not be sent. Please try again." : "Your message could not be sent. Please try again.");
       setSending(false);
       return;
     }
@@ -492,7 +514,14 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     </button>
                   )}
                   {message.media_path && mediaUrls[message.id] && (
-                    message.media_type === "video" ? (
+                    message.media_type === "document" ? (
+                      <MessageAttachment
+                        url={mediaUrls[message.id]}
+                        fileName={message.attachment_name}
+                        mimeType={message.attachment_mime_type}
+                        sizeBytes={message.attachment_size_bytes}
+                      />
+                    ) : message.media_type === "video" ? (
                       <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-72 max-w-full rounded-lg" />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
@@ -542,12 +571,12 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <input
           ref={fileInput}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
-          aria-label="Choose a group attachment"
+          aria-label="Choose a group photo, video, audio, or document"
           onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
         />
-        <Button type="button" variant="outline" size="icon" aria-label="Attach media" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
+        <Button type="button" variant="outline" size="icon" aria-label="Attach file" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
           <ImagePlus className="h-4 w-4" />
         </Button>
         <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
