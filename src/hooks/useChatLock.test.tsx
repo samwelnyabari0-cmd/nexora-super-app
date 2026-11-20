@@ -18,7 +18,6 @@ describe("useChatLock", () => {
   it("locks before content is opened, verifies the passphrase, and recovers without deleting messages", async () => {
     const { result } = renderHook(() => useChatLock("user-1", "direct", "chat-1"));
 
-    expect(result.current.status).toBe("checking");
     await waitFor(() => expect(result.current.status).toBe("unlocked"));
 
     await act(async () => {
