@@ -40,6 +40,8 @@ jobs:
         run: >-
           npx eslint
           src/routes/messages.tsx
+          src/routes/explore.tsx
+          src/routes/profile.$handle.tsx
           src/components/nexora/GroupChat.tsx
           src/components/nexora/MessageAttachment.tsx
           src/components/nexora/message-attachments.ts
