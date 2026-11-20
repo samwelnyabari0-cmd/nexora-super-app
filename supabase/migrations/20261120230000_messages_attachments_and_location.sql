@@ -44,7 +44,6 @@ alter table public.direct_messages
         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
       ]::text[])
       and attachment_size_bytes is not null
-      and attachment_size_bytes is not null
       and attachment_size_bytes between 1 and 52428800
     )
   );
