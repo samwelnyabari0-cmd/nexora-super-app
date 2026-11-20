@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ImagePlus, Loader2, Send, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
@@ -51,6 +51,10 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const log = useRef<HTMLDivElement>(null);
@@ -61,8 +65,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   });
 
   useEffect(() => {
-    publishActivity(draft.trim() ? "typing" : null);
-  }, [draft, publishActivity]);
+    publishActivity(recording ? "recording" : draft.trim() ? "typing" : null);
+  }, [draft, recording, publishActivity]);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,6 +280,53 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [messages]);
 
+  async function startVoiceRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Voice recording is not supported in this browser.");
+      return;
+    }
+    try {
+      setError("");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = recorder;
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setError("Voice recording failed. Please try again.");
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+      recorder.onstop = () => {
+        const type = recorder.mimeType || mimeType || "audio/webm";
+        const extension = type.includes("mp4") ? "m4a" : "webm";
+        const blob = new Blob(recordingChunksRef.current, { type });
+        if (blob.size > 0) setAttachment(new File([blob], `voice-message.${extension}`, { type }));
+        else setError("No audio was recorded. Please try again.");
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setError("Microphone access was denied or unavailable.");
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      recordingStreamRef.current = null;
+      setRecording(false);
+    }
+  }
+
+  function stopVoiceRecording() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = draft.trim();
@@ -483,8 +534,11 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           aria-label="Choose a group attachment"
           onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
         />
-        <Button type="button" variant="outline" size="icon" aria-label="Attach media" disabled={sending} onClick={() => fileInput.current?.click()}>
+        <Button type="button" variant="outline" size="icon" aria-label="Attach media" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
           <ImagePlus className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+          {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
         <input
           value={draft}
@@ -494,7 +548,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           aria-label="Message the group"
           className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
         />
-        <Button type="submit" size="icon" aria-label="Send group message" disabled={(!draft.trim() && !attachment) || sending}>
+        <Button type="submit" size="icon" aria-label="Send group message" disabled={(!draft.trim() && !attachment) || sending || recording}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
