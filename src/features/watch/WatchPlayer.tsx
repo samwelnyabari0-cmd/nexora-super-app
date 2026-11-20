@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type Hls from "hls.js";
 import { X, AlertCircle, Settings2 } from "lucide-react";
 import { saveWatchProgress } from "./data";
+import { shouldSaveWatchProgress } from "./logic";
 
 type WatchPlayerProps = {
   titleId: string;
@@ -25,24 +26,48 @@ export function WatchPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const lastSavedRef = useRef(0);
+  const savingRef = useRef<Promise<void> | null>(null);
   const [error, setError] = useState("");
   const [levels, setLevels] = useState<Array<{ height: number; bitrate: number }>>([]);
   const [quality, setQuality] = useState(-1);
 
-  const saveProgress = useCallback(async (video: HTMLVideoElement) => {
+  const saveProgress = useCallback(async (video: HTMLVideoElement, force = false) => {
     if (!userId || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    if (savingRef.current) await savingRef.current;
+
     const position = Math.floor(video.currentTime);
-    if (Math.abs(position - lastSavedRef.current) < 3 && position < video.duration - 2) return;
-    lastSavedRef.current = position;
-    const result = await saveWatchProgress({
+    const duration = Math.floor(video.duration);
+    if (!shouldSaveWatchProgress(position, lastSavedRef.current, duration, force)) return;
+
+    const pending = saveWatchProgress({
       userId,
       titleId,
       episodeId,
       progressSeconds: position,
-      totalSeconds: Math.floor(video.duration),
-    });
-    if (result.error) setError("Playback continues, but progress could not sync.");
+      totalSeconds: duration,
+    })
+      .then((result) => {
+        if (result.error) {
+          setError("Playback continues, but progress could not sync.");
+        } else {
+          lastSavedRef.current = position;
+        }
+      })
+      .catch(() => setError("Playback continues, but progress could not sync."));
+
+    savingRef.current = pending;
+    try {
+      await pending;
+    } finally {
+      if (savingRef.current === pending) savingRef.current = null;
+    }
   }, [episodeId, titleId, userId]);
+
+  const closePlayer = async () => {
+    const video = videoRef.current;
+    if (video && userId) await saveProgress(video, true);
+    onClose();
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -123,7 +148,7 @@ export function WatchPlayer({
       <div className="w-full max-w-5xl">
         <div className="mb-3 flex items-center justify-between gap-3 text-white">
           <h2 className="truncate text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded-full bg-white/10 p-2" aria-label="Close player"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={() => void closePlayer()} className="rounded-full bg-white/10 p-2" aria-label="Close player"><X className="h-5 w-5" /></button>
         </div>
         <video ref={videoRef} controls playsInline className="max-h-[75vh] w-full rounded-xl bg-black" />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-white/80">
