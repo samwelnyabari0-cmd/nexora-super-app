@@ -36,8 +36,8 @@ export function strictContentTypeFromLegacy(
   mediaType: string | null | undefined,
 ): StrictContentType {
   const normalized = (tags ?? []).map((tag) => tag.trim().toLowerCase());
-  if (normalized.some((tag) => ["nx-type-reel", "reel", "short"].includes(tag))) return "reel";
   if (normalized.some((tag) => ["nx-type-collab", "collab"].includes(tag))) return "collab";
+  if (normalized.some((tag) => ["nx-type-reel", "reel", "short"].includes(tag))) return "reel";
   if (normalized.includes("nx-type-video")) return "video";
   if (mediaType?.startsWith("video/")) return "video";
   return "post";
