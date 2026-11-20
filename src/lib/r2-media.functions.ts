@@ -4,7 +4,7 @@ import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectComm
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { canReadR2Media, isValidR2PostObjectKey, isVerifiedR2Upload } from "@/lib/r2-media-policy";
+import { isValidR2PostObjectKey, isVerifiedR2Upload } from "@/lib/r2-media-policy";
 
 // A single R2 PutObject upload supports files up to 5 GB.
 // Multipart upload will be a separate implementation before larger files are enabled.
@@ -144,13 +144,8 @@ export const createR2MediaPlaybackUrl = createServerFn({ method: "POST" })
 
     if (error || !post) throw new Error("Media post is unavailable.");
 
-    if (!canReadR2Media({
-      ownerId: post.user_id,
-      requesterId: context.userId,
-      audience: post.audience,
-    })) {
-      throw new Error("You do not have permission to view this media.");
-    }
+    // A row is returned only when this caller satisfies the table's RLS SELECT policy.
+    // This preserves owner, public, and active-subscriber access rules in one place.
 
     const provider = data.asset === "media"
       ? post.media_storage_provider
