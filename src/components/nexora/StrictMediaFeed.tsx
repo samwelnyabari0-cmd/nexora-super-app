@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Film, Play, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
 
 export type StrictFeedType = "post" | "reel" | "video" | "collab";
 export type StrictMediaItem = {
@@ -18,14 +19,32 @@ export type StrictMediaItem = {
   comment_count: number | null;
   share_count: number | null;
   view_count: number | null;
+  media_storage_provider?: "supabase" | "r2" | null;
+  media_storage_key?: string | null;
+  thumbnail_storage_provider?: "supabase" | "r2" | null;
+  thumbnail_storage_key?: string | null;
   mediaSrc?: string;
   thumbnailSrc?: string;
 };
 
-async function resolveStorageUrl(value: string | null): Promise<string | undefined> {
+async function resolveStorageUrl(
+  value: string | null,
+  postId: string,
+  asset: "media" | "thumbnail",
+  provider?: "supabase" | "r2" | null,
+  storageKey?: string | null,
+): Promise<string | undefined> {
+  if (provider === "r2") {
+    try {
+      const result = await createR2MediaPlaybackUrl({ data: { postId, asset } });
+      return result.url;
+    } catch {
+      return undefined;
+    }
+  }
   if (!value) return undefined;
   if (/^https?:\/\//i.test(value)) return value;
-  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(value, 900);
+  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(storageKey || value, 900);
   return error ? undefined : data?.signedUrl ?? undefined;
 }
 
@@ -47,7 +66,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     void (async () => {
       let query = (supabase as any)
         .from("user_media_posts")
-        .select("id, user_id, caption, media_url, media_type, thumbnail_url, content_type, aspect_ratio, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
+        .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
         .eq("content_type", contentType)
         .order("created_at", { ascending: false })
         .limit(80);
@@ -64,8 +83,8 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
       }
       const hydrated = await Promise.all((data ?? []).map(async (row: StrictMediaItem) => {
         const [mediaSrc, thumbnailSrc] = await Promise.all([
-          resolveStorageUrl(row.media_url),
-          resolveStorageUrl(row.thumbnail_url),
+          resolveStorageUrl(row.media_url, row.id, "media", row.media_storage_provider, row.media_storage_key),
+          resolveStorageUrl(row.thumbnail_url, row.id, "thumbnail", row.thumbnail_storage_provider, row.thumbnail_storage_key),
         ]);
         return { ...row, mediaSrc, thumbnailSrc };
       }));
