@@ -1,12 +1,14 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X, Mic, Square } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { CreateGroupDialog } from "@/components/nexora/CreateGroupDialog";
 import { GroupChat } from "@/components/nexora/GroupChat";
+import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
+import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 
 type DirectMessage = {
   id: string;
@@ -32,6 +34,7 @@ type InboxConversation = {
   avatarUrl: string | null;
   lastMessage: string;
   lastMessageAt: string;
+  unreadCount: number;
 };
 type GroupInboxConversation = {
   groupId: string;
@@ -65,6 +68,8 @@ function Messages() {
   const [inbox, setInbox] = useState<InboxConversation[]>([]);
   const [groupInbox, setGroupInbox] = useState<GroupInboxConversation[]>([]);
   const [inboxLoading, setInboxLoading] = useState(true);
+  const [inboxSearch, setInboxSearch] = useState("");
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unread" | "groups">("all");
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -184,6 +189,7 @@ function Messages() {
     }
 
     const latestByUser = new Map<string, DirectMessage>();
+    const unreadByUser = new Map<string, number>();
 
     for (const message of (data ?? []) as DirectMessage[]) {
       const otherUser =
@@ -193,6 +199,9 @@ function Messages() {
 
       if (otherUser !== user.id && !latestByUser.has(otherUser)) {
         latestByUser.set(otherUser, message);
+      }
+      if (message.recipient_id === user.id && !message.seen_at) {
+        unreadByUser.set(otherUser, (unreadByUser.get(otherUser) ?? 0) + 1);
       }
     }
 
@@ -212,6 +221,7 @@ function Messages() {
           avatarUrl: profile?.avatar_url || null,
           lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : ""),
           lastMessageAt: message.created_at,
+          unreadCount: unreadByUser.get(userId) ?? 0,
         };
       })
     );
@@ -659,8 +669,19 @@ if (!recipient && !group) {
       avatarUrl: item.avatarUrl,
       lastMessage: item.lastMessage,
       lastMessageAt: item.lastMessageAt,
+      unreadCount: item.unreadCount,
     })),
   ].sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+
+  const normalizedSearch = inboxSearch.trim().toLowerCase();
+  const visibleInbox = combinedInbox.filter((conversation) => {
+    const isGroup = conversation.kind === "group";
+    if (inboxFilter === "groups" && !isGroup) return false;
+    if (inboxFilter === "unread" && (isGroup || conversation.unreadCount === 0)) return false;
+    if (!normalizedSearch) return true;
+    return [isGroup ? conversation.name : conversation.displayName, !isGroup ? conversation.handle : "", conversation.lastMessage]
+      .join(" ").toLowerCase().includes(normalizedSearch);
+  });
 
   return (
     <main className="mx-auto max-w-2xl p-4">
@@ -674,13 +695,24 @@ if (!recipient && !group) {
         />
       </div>
 
+      <div className="mb-4 space-y-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={inboxSearch} onChange={(event) => setInboxSearch(event.target.value)} placeholder="Search messages" aria-label="Search conversations" className="w-full rounded-xl border bg-background py-3 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+        <div className="flex gap-2" role="group" aria-label="Filter conversations">
+          {([["all", "All"], ["unread", "Unread"], ["groups", "Groups"]] as const).map(([value, label]) => (
+            <button key={value} type="button" onClick={() => setInboxFilter(value)} aria-pressed={inboxFilter === value} className={`rounded-full px-4 py-2 text-xs font-semibold transition ${inboxFilter === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>{label}</button>
+          ))}
+        </div>
+      </div>
       {inboxLoading ? (
         <p className="py-10 text-center text-muted-foreground">
           Loading conversations...
         </p>
       ) : error && inbox.length === 0 && groupInbox.length === 0 ? (
         <p className="py-10 text-center text-destructive">{error}</p>
-      ) : inbox.length === 0 && groupInbox.length === 0 ? (
+      ) : combinedInbox.length === 0 ? (
         <div className="py-12 text-center">
           <h2 className="font-semibold">No conversations yet</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -692,7 +724,9 @@ if (!recipient && !group) {
         </div>
       ) : (
         <div className="divide-y">
-          {combinedInbox.map((conversation) => {
+          {visibleInbox.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No conversations match this search or filter.</p>
+          ) : visibleInbox.map((conversation) => {
             const isGroup = conversation.kind === "group";
             const title = isGroup ? conversation.name : conversation.displayName;
             const href = isGroup
@@ -721,9 +755,12 @@ if (!recipient && !group) {
                     {conversation.lastMessage}
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(conversation.lastMessageAt).toLocaleDateString()}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="text-[11px] text-muted-foreground">{formatMessageTime(conversation.lastMessageAt)}</span>
+                  {!isGroup && conversation.unreadCount > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground" aria-label={`${conversation.unreadCount} unread messages`}>{conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}</span>
+                  )}
+                </div>
               </a>
             );
           })}
@@ -794,14 +831,18 @@ if (recipient === user.id) {
             No messages yet. Send the first message.
           </p>
         ) : (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const mine = message.sender_id === user.id;
+            const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
 
             return (
-              <div
-                key={message.id}
-                className={`flex ${mine ? "justify-end" : "justify-start"}`}
-              >
+              <div key={message.id} className="space-y-2">
+                {showDateDivider && (
+                  <div className="sticky top-1 z-10 flex justify-center py-1">
+                    <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
+                  </div>
+                )}
+                <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[85%] break-words rounded-2xl px-4 py-2 ${
                     mine
@@ -818,11 +859,7 @@ if (recipient === user.id) {
                         className="mb-2 max-h-72 max-w-full rounded-lg"
                       />
                     ) : message.media_type === "audio" ? (
-                      <audio
-                        src={mediaUrls[message.id]}
-                        controls
-                        className="mb-2 w-full min-w-[220px]"
-                      />
+                      <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
                       <img
                         src={mediaUrls[message.id]}
@@ -837,7 +874,7 @@ if (recipient === user.id) {
                     </p>
                   )}
                   <p className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
-                    <span>{new Date(message.created_at).toLocaleString()}</span>
+                    <span>{formatMessageTime(message.created_at)}</span>
                     {mine && (
                       <span
                         className={message.seen_at ? "font-semibold text-sky-300" : ""}
@@ -853,6 +890,7 @@ if (recipient === user.id) {
                       </span>
                     )}
                   </p>
+                </div>
                 </div>
               </div>
             );
