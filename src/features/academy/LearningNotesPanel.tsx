@@ -243,7 +243,7 @@ export function LearningNotesPanel({
             </p>
           )}
 
-          <div className="mt-5 max-h-80 overflow-auto rounded-xl border">
+          <div className="mt-5 h-80 overflow-auto rounded-xl border">
             {loading ? (
               <p className="p-3 text-sm text-muted-foreground">Loading your notes…</p>
             ) : notes.length === 0 ? (
