@@ -35,6 +35,7 @@ import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
+import { useStrictMediaItems, type StrictFeedType } from "@/components/nexora/StrictMediaFeed";
 import type { Post } from "@/features/core/data";
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -459,23 +460,14 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
+  const strictType: StrictFeedType = tab === "reels" ? "reel" : tab === "videos" ? "video" : tab === "collabs" ? "collab" : "post";
+  const { items: strictItems } = useStrictMediaItems(strictType, user?.id, tab !== "saved" && Boolean(user?.id));
+  const strictIds = new Set(strictItems.map((item) => item.id));
 
   const activeItems = posts.filter((post) => {
     if (tab === "saved") return saved.has(post.id);
     if (post.creatorId !== "me") return false;
-
-    if (tab === "reels") return post.kind === "short";
-    if (tab === "videos") return post.kind === "video";
-
-    if (tab === "collabs") {
-      return (
-        post.tags?.some((tag) => tag.toLowerCase() === "collab") ||
-        (post.kind as string) === "collab"
-      );
-    }
-
-    return post.kind === "post" &&
-      !(post.tags ?? []).some((tag) => tag.toLowerCase() === "collab");
+    return strictIds.has(post.id);
   });
 
   const selectedPost =
