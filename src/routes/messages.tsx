@@ -9,6 +9,7 @@ import { CreateGroupDialog } from "@/components/nexora/CreateGroupDialog";
 import { GroupChat } from "@/components/nexora/GroupChat";
 import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
 import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
+import { useChatActivity } from "@/hooks/useChatActivity";
 
 type DirectMessage = {
   id: string;
@@ -91,6 +92,18 @@ function Messages() {
   } | null>(null);
 
   const log = useRef<HTMLDivElement>(null);
+  const directActivityTopic = user?.id && recipient
+    ? `dm:${[user.id, recipient].sort().join(":")}`
+    : "";
+  const { remoteActivity, publishActivity } = useChatActivity({
+    topic: directActivityTopic,
+    userId: user?.id ?? "",
+    enabled: Boolean(user?.id && recipient && !group),
+  });
+
+  useEffect(() => {
+    publishActivity(recording ? "recording" : draft.trim() ? "typing" : null);
+  }, [draft, recording, publishActivity]);
 
   // Presence is returned only for people who have exchanged direct messages.
   useEffect(() => {
@@ -819,7 +832,11 @@ if (recipient === user.id) {
             {recipientIsOnline && (
               <span className="h-2 w-2 rounded-full bg-green-500" aria-label="Online" />
             )}
-            <span>{recipientStatus}</span>
+            <span>{remoteActivity.some((activity) => activity.activity === "recording")
+              ? "Recording audio…"
+              : remoteActivity.some((activity) => activity.activity === "typing")
+                ? "Typing…"
+                : recipientStatus}</span>
           </p>
         </div>
       </header>
