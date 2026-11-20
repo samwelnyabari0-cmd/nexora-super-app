@@ -7,6 +7,7 @@ import { useChatLock } from "./useChatLock";
 beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto as unknown as Crypto);
   localStorage.clear();
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
 });
 
 afterEach(() => {
@@ -32,6 +33,15 @@ describe("useChatLock", () => {
     await act(async () => {
       await expect(result.current.unlock("incorrect phrase")).resolves.toBe(false);
     });
+    expect(result.current.status).toBe("locked");
+
+    await act(async () => {
+      await expect(result.current.unlock("private device phrase")).resolves.toBe(true);
+    });
+    expect(result.current.status).toBe("unlocked");
+
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
     expect(result.current.status).toBe("locked");
 
     await act(async () => {
