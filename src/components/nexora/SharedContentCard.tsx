@@ -29,17 +29,18 @@ function firstMediaSource(value: string | null): string | null {
   return value;
 }
 
-async function resolvePrivateMedia(value: string | null): Promise<string | null> {
+async function resolvePrivateMedia(value: string | null, allowExternal: boolean): Promise<string | null> {
   const source = firstMediaSource(value);
   if (!source) return null;
-  if (/^https?:\/\//i.test(source)) return source;
-  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(source, 900);
+  if (/^https?:\/\//i.test(source)) return allowExternal ? source : null;
+  const { data, error } = await supabase.storage.from("post-media").createSignedUrl(source, 60);
   return error ? null : data?.signedUrl ?? null;
 }
 
 export function SharedContentCard({ source, contentId, contentType }: SharedContentCardProps) {
   const [content, setContent] = useState<ResolvedContent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +58,7 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
       if (source === "posts") {
         const { data, error } = await (supabase as any)
           .from("posts")
-          .select("id, author_id, caption, media_url, media_type")
+          .select("id, author_id, caption, media_url, media_type, audience")
           .eq("id", contentId)
           .maybeSingle();
         if (error) {
@@ -68,7 +69,7 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
       } else {
         const { data, error } = await (supabase as any)
           .from("user_media_posts")
-          .select("id, user_id, original_author_id, caption, media_url, thumbnail_url, media_type, content_type")
+          .select("id, user_id, original_author_id, caption, media_url, thumbnail_url, media_type, content_type, audience")
           .eq("id", contentId)
           .maybeSingle();
         if (error) {
@@ -99,7 +100,7 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
       }
 
       const mediaValue = source === "posts" ? row.media_url : row.thumbnail_url || row.media_url;
-      const mediaUrl = await resolvePrivateMedia(mediaValue);
+      const mediaUrl = await resolvePrivateMedia(mediaValue, row.audience === "public");
       const path = canonicalSharedContentPath(reference, creatorHandle);
       if (!cancelled) {
         setContent({
@@ -116,7 +117,12 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
     });
 
     return () => { cancelled = true; };
-  }, [contentId, contentType, source]);
+  }, [contentId, contentType, source, refreshToken]);
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(() => setRefreshToken((value) => value + 1), 45_000);
+    return () => window.clearInterval(refreshTimer);
+  }, []);
 
   const label = sharedContentLabel(contentType);
   if (loading) {
