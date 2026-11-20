@@ -72,6 +72,7 @@ function Messages() {
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
   const [replyTarget, setReplyTarget] = useState<DirectMessage | null>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const touchStartX = useRef<number | null>(null);
   const [inbox, setInbox] = useState<InboxConversation[]>([]);
   const [groupInbox, setGroupInbox] = useState<GroupInboxConversation[]>([]);
   const [inboxLoading, setInboxLoading] = useState(true);
@@ -922,7 +923,7 @@ if (recipient === user.id) {
             const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
 
             return (
-              <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} className="space-y-2">
+              <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const start = touchStartX.current; touchStartX.current = null; if (start !== null && (event.changedTouches[0]?.clientX ?? start) - start > 60) setReplyTarget(message); }} className="space-y-2">
                 {showDateDivider && (
                   <div className="sticky top-1 z-10 flex justify-center py-1">
                     <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
