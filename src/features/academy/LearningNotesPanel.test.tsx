@@ -4,6 +4,7 @@ import { LearningNotesPanel } from "./LearningNotesPanel";
 import {
   createLearningNote,
   deleteLearningNote,
+  listAllLearningNotes,
   listLearningNotes,
   updateLearningNote,
 } from "./learningNotes";
@@ -11,12 +12,14 @@ import {
 vi.mock("./learningNotes", () => ({
   createLearningNote: vi.fn(),
   deleteLearningNote: vi.fn(),
+  listAllLearningNotes: vi.fn(),
   listLearningNotes: vi.fn(),
   updateLearningNote: vi.fn(),
   MAX_LEARNING_NOTE_BODY_LENGTH: 5000,
   MAX_LEARNING_NOTE_TITLE_LENGTH: 100,
 }));
 
+const listAllMock = vi.mocked(listAllLearningNotes);
 const listMock = vi.mocked(listLearningNotes);
 const createMock = vi.mocked(createLearningNote);
 const updateMock = vi.mocked(updateLearningNote);
@@ -35,6 +38,7 @@ const note = {
 describe("LearningNotesPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listAllMock.mockResolvedValue({ data: [], error: null });
     listMock.mockResolvedValue({ data: [], error: null });
     createMock.mockResolvedValue({ data: note, error: null });
     updateMock.mockResolvedValue({ error: null });
@@ -132,6 +136,58 @@ describe("LearningNotesPanel", () => {
     expect(await screen.findByText("Revision point")).toBeInTheDocument();
     expect(screen.getByText("Second note")).toBeInTheDocument();
     expect(screen.getByText("2 notes")).toBeInTheDocument();
+  });
+
+  it("shows notes from every lesson with the matching lesson title in a scrollable table", async () => {
+    listAllMock.mockResolvedValue({
+      data: [
+        { ...note, id: "lesson-note-1", lessonId: "lesson-1", title: "First lesson note" },
+        { ...note, id: "lesson-note-2", lessonId: "lesson-2", title: "Second lesson note" },
+        { ...note, id: "course-note", lessonId: null, title: "Course-level note" },
+      ],
+      error: null,
+    });
+
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId="lesson-2"
+        lessons={[
+          { id: "lesson-1", title: "Introduction" },
+          { id: "lesson-2", title: "Advanced topic" },
+        ]}
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
+
+    expect(await screen.findByText("First lesson note")).toBeInTheDocument();
+    expect(screen.getByText("Second lesson note")).toBeInTheDocument();
+    expect(screen.getByText("Introduction")).toBeInTheDocument();
+    expect(screen.getByText("Advanced topic")).toBeInTheDocument();
+    expect(screen.queryByText("Course-level note")).not.toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Lesson notes" });
+    expect(table.closest("div")).toHaveClass("h-80", "overflow-auto");
+    expect(screen.getByRole("columnheader", { name: "Lesson" })).toBeInTheDocument();
+  });
+
+  it("shows course notes separately in their own scrollable table", async () => {
+    listMock.mockResolvedValue({
+      data: [{ ...note, lessonId: null }],
+      error: null,
+    });
+
+    render(
+      <LearningNotesPanel
+        courseId="course-1"
+        lessonId={null}
+        isSignedIn={true}
+        canUseNotes={true}
+      />,
+    );
+
+    expect(await screen.findByRole("table", { name: "Course notes" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Lesson" })).not.toBeInTheDocument();
   });
 
   it("allows a learner to edit an existing note", async () => {
