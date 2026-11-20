@@ -4,7 +4,7 @@ import { Play, AlertCircle, Film } from "lucide-react";
 import { catalog } from "@/features/core/data";
 import { Chip, DemoBadge, PageHeader } from "@/components/nexora/ui";
 import { useSession } from "@/lib/session";
-import { fetchWatchProgress, fetchWatchTitles, type WatchProgress, type WatchTitle } from "@/features/watch/data";
+import { fetchWatchEpisodes, fetchWatchProgress, fetchWatchTitles, type WatchEpisode, type WatchProgress, type WatchTitle } from "@/features/watch/data";
 import { normalizeWatchCategory, resolveWatchStatus, matchesWatchCategory, watchProgressPercent, type WatchCategory } from "@/features/watch/logic";
 import { WatchPlayer } from "@/features/watch/WatchPlayer";
 
@@ -57,6 +57,11 @@ function Watch() {
   const [loadError, setLoadError] = useState("");
   const [usingDemo, setUsingDemo] = useState(false);
   const [activeTitle, setActiveTitle] = useState<DisplayTitle | null>(null);
+  const [seriesTitle, setSeriesTitle] = useState<DisplayTitle | null>(null);
+  const [episodes, setEpisodes] = useState<WatchEpisode[]>([]);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
+  const [episodesError, setEpisodesError] = useState("");
+  const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,9 +136,46 @@ function Watch() {
     void navigate({ search: { category: next } });
   };
 
-  const play = (item: DisplayTitle) => {
-    if (item.status !== "ready" || !item.manifestUrl || item.isDemo) return;
+  const play = async (item: DisplayTitle) => {
+    if (item.isDemo) return;
+    if (item.contentType === "series") {
+      setSeriesTitle(item);
+      setEpisodes([]);
+      setEpisodesError("");
+      setEpisodesLoading(true);
+      const result = await fetchWatchEpisodes(item.id);
+      setEpisodesLoading(false);
+      if (result.error) {
+        setEpisodesError("Episodes could not be loaded. Please try again.");
+        return;
+      }
+      const list = result.data ?? [];
+      setEpisodes(list);
+      const readyEpisodes = list.filter((episode) =>
+        episode.status === "ready" && Boolean(episode.hls_manifest_url?.trim()),
+      );
+      if (readyEpisodes.length === 0 && item.status === "ready" && item.manifestUrl) {
+        setSeriesTitle(null);
+        setActiveEpisodeId(null);
+        setActiveTitle(item);
+      }
+      return;
+    }
+    if (item.status !== "ready" || !item.manifestUrl) return;
+    setActiveEpisodeId(null);
     setActiveTitle(item);
+  };
+
+  const playEpisode = (episode: WatchEpisode) => {
+    if (episode.status !== "ready" || !episode.hls_manifest_url?.trim() || !seriesTitle) return;
+    setActiveEpisodeId(episode.id);
+    setActiveTitle({
+      ...seriesTitle,
+      title: seriesTitle.title + " · S" + episode.season_number + " E" + episode.episode_number + ": " + episode.episode_title,
+      manifestUrl: episode.hls_manifest_url,
+      length: durationLabel(episode.duration_seconds),
+    });
+    setSeriesTitle(null);
   };
 
   return (
@@ -203,14 +245,50 @@ function Watch() {
           ))}
         </div>
       )}
+      {seriesTitle && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label="Series episodes">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">{seriesTitle.title}</h2>
+                <p className="text-xs text-muted-foreground">Choose an available episode</p>
+              </div>
+              <button onClick={() => setSeriesTitle(null)} className="rounded-lg px-3 py-2 text-sm hover:bg-muted">Close</button>
+            </div>
+            {episodesLoading ? (
+              <div className="space-y-3 animate-pulse">{[1, 2, 3].map((n) => <div key={n} className="h-16 rounded-xl bg-muted" />)}</div>
+            ) : episodesError ? (
+              <div className="rounded-xl bg-muted p-4 text-sm">{episodesError}<button onClick={() => void play(seriesTitle)} className="ml-2 underline">Retry</button></div>
+            ) : episodes.length === 0 ? (
+              <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">No episodes have been added yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {episodes.map((episode) => {
+                  const ready = episode.status === "ready" && Boolean(episode.hls_manifest_url?.trim());
+                  return (
+                    <button key={episode.id} disabled={!ready} onClick={() => playEpisode(episode)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-3 text-left disabled:opacity-55">
+                      <span className="min-w-0">
+                        <span className="block text-xs text-muted-foreground">Season {episode.season_number} · Episode {episode.episode_number}</span>
+                        <span className="block truncate font-medium">{episode.episode_title}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{ready ? durationLabel(episode.duration_seconds) : episode.status === "processing" ? "Processing" : "Not ready"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {activeTitle && session.user && (
         <WatchPlayer
           titleId={activeTitle.id}
           title={activeTitle.title}
           manifestUrl={activeTitle.manifestUrl ?? ""}
+          episodeId={activeEpisodeId}
           userId={session.user.id}
           initialProgress={progress.find((item) => item.title_id === activeTitle.id)?.progress_seconds ?? 0}
-          onClose={() => setActiveTitle(null)}
+          onClose={() => { setActiveTitle(null); setActiveEpisodeId(null); }}
         />
       )}
       {activeTitle && !session.user && (
@@ -218,6 +296,7 @@ function Watch() {
           titleId={activeTitle.id}
           title={activeTitle.title}
           manifestUrl={activeTitle.manifestUrl ?? ""}
+          episodeId={activeEpisodeId}
           onClose={() => setActiveTitle(null)}
         />
       )}
