@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { createPublicR2MediaPlaybackUrl, createR2MediaPlaybackUrl } from "@/lib/r2-media.functions";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 
@@ -40,6 +41,10 @@ type ProfilePost = {
   audience: string | null;
   tags: string[] | null;
   created_at: string;
+  media_storage_provider?: "supabase" | "r2" | null;
+  media_storage_key?: string | null;
+  thumbnail_storage_provider?: "supabase" | "r2" | null;
+  thumbnail_storage_key?: string | null;
   mediaSrc?: string;
   likes: number;
   comments: number | null;
@@ -148,7 +153,7 @@ const row = profileRows?.[0] ?? null;
         const strictType = tab === "reels" ? "reel" : tab === "videos" ? "video" : tab === "collabs" ? "collab" : "post";
         const { data: rows, error: postsError } = await (supabase as any)
           .from("user_media_posts")
-          .select("id, user_id, caption, media_url, media_type, thumbnail_url, content_type, aspect_ratio, duration_seconds, audience, tags, created_at, like_count, comment_count, share_count, view_count")
+          .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, duration_seconds, audience, tags, created_at, like_count, comment_count, share_count, view_count")
           .eq("user_id", found.id)
           .eq("content_type", strictType)
           .order("created_at", { ascending: false })
@@ -165,15 +170,33 @@ const row = profileRows?.[0] ?? null;
 
         const hydrated = await Promise.all(
           queryRows.map(async (post: ProfilePost) => {
-            const resolveUrl = async (value: string | null) => {
+            const resolveUrl = async (
+              value: string | null,
+              provider: "supabase" | "r2" | null | undefined,
+              storageKey: string | null | undefined,
+              asset: "media" | "thumbnail",
+            ) => {
+              if (provider === "r2") {
+                try {
+                  const result = await createR2MediaPlaybackUrl({ data: { postId: post.id, asset } });
+                  return result.url;
+                } catch {
+                  try {
+                    const result = await createPublicR2MediaPlaybackUrl({ data: { postId: post.id, asset } });
+                    return result.url;
+                  } catch {
+                    return undefined;
+                  }
+                }
+              }
               if (!value) return undefined;
               if (/^https?:\/\//i.test(value)) return value;
-              const { data } = await supabase.storage.from("post-media").createSignedUrl(value, 900);
+              const { data } = await supabase.storage.from("post-media").createSignedUrl(storageKey || value, 900);
               return data?.signedUrl ?? undefined;
             };
             const [mediaSrc, thumbnailSrc] = await Promise.all([
-              resolveUrl(post.media_url),
-              resolveUrl(post.thumbnail_url),
+              resolveUrl(post.media_url, post.media_storage_provider, post.media_storage_key, "media"),
+              resolveUrl(post.thumbnail_url, post.thumbnail_storage_provider, post.thumbnail_storage_key, "thumbnail"),
             ]);
             return {
               ...post,
