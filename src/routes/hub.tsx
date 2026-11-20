@@ -697,6 +697,8 @@ function Focus({ update }: { update: Update }) {
       toast.success("Focus session done — 25 minutes logged");
     }
   }, [left, update]);
+  const progress = 1 - left / (25 * 60);
+  const circumference = 2 * Math.PI * 54;
   return (
     <>
       <Title brandId="focus" badge="Solo, local">Focus timer</Title>
