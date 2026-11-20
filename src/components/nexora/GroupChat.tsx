@@ -80,7 +80,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -177,7 +177,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     async function refreshMessages() {
       const { data, error: loadError } = await (supabase as any)
         .from("chat_group_messages")
-        .select("id, group_id, sender_id, body, media_path, media_type, created_at")
+        .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id")
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
 
