@@ -417,3 +417,104 @@ create index if not exists direct_messages_shared_content_idx
 create index if not exists chat_group_messages_shared_content_idx
   on public.chat_group_messages(shared_content_source, shared_content_id)
   where shared_content_id is not null;
+
+
+-- Validate shared references as the sender, so clients cannot forge arbitrary IDs or bypass source RLS.
+create or replace function public.validate_shared_message_content()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if new.shared_content_id is null then
+    return new;
+  end if;
+
+  if new.shared_content_source = 'posts' then
+    if new.shared_content_type <> 'post'
+       or not exists (select 1 from public.posts p where p.id = new.shared_content_id) then
+      raise exception 'This post is not available to share';
+    end if;
+  elsif new.shared_content_source = 'user_media_posts' then
+    if not exists (
+      select 1 from public.user_media_posts p
+      where p.id = new.shared_content_id
+        and p.content_type = new.shared_content_type
+    ) then
+      raise exception 'This Nexora media is not available to share';
+    end if;
+  else
+    raise exception 'Unsupported shared content source';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists direct_messages_validate_shared_content on public.direct_messages;
+create trigger direct_messages_validate_shared_content
+before insert or update of shared_content_source, shared_content_id, shared_content_type
+on public.direct_messages
+for each row execute function public.validate_shared_message_content();
+
+drop trigger if exists chat_group_messages_validate_shared_content on public.chat_group_messages;
+create trigger chat_group_messages_validate_shared_content
+before insert or update of shared_content_source, shared_content_id, shared_content_type
+on public.chat_group_messages
+for each row execute function public.validate_shared_message_content();
+
+-- A live session can only be attached by its sender to the exact chat for which it was created.
+create or replace function public.validate_chat_location_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_session public.chat_location_shares%rowtype;
+begin
+  if new.location_session_id is null then
+    return new;
+  end if;
+  if auth.uid() is null or new.sender_id <> auth.uid() then
+    raise exception 'Only the location sender can attach this session';
+  end if;
+
+  select * into v_session
+  from public.chat_location_shares
+  where id = new.location_session_id;
+
+  if not found or v_session.sender_id <> auth.uid() then
+    raise exception 'Location session not found';
+  end if;
+
+  if tg_table_name = 'direct_messages' then
+    if v_session.chat_kind <> 'direct' or v_session.recipient_id <> new.recipient_id then
+      raise exception 'Location session belongs to another conversation';
+    end if;
+  elsif tg_table_name = 'chat_group_messages' then
+    if v_session.chat_kind <> 'group' or v_session.group_id <> new.group_id then
+      raise exception 'Location session belongs to another group';
+    end if;
+  else
+    raise exception 'Unsupported location message table';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists direct_messages_validate_location_session on public.direct_messages;
+create trigger direct_messages_validate_location_session
+before insert or update of location_session_id, sender_id, recipient_id
+on public.direct_messages
+for each row execute function public.validate_chat_location_message();
+
+drop trigger if exists chat_group_messages_validate_location_session on public.chat_group_messages;
+create trigger chat_group_messages_validate_location_session
+before insert or update of location_session_id, sender_id, group_id
+on public.chat_group_messages
+for each row execute function public.validate_chat_location_message();
+
+revoke all on function public.validate_shared_message_content() from public, anon;
+revoke all on function public.validate_chat_location_message() from public, anon;
