@@ -29,6 +29,9 @@ import {
   type ModuleId,
   moduleBranding,
   taskCompletion,
+  focusProgress,
+  hubSyncLabel,
+  subscriptionBreakdown,
   type ModuleAccent,
 } from "@/features/hub/logic";
 import { useHub, newId, type HubData } from "@/features/hub/useHub";
@@ -88,7 +91,8 @@ function HubPage() {
     : [];
   const taskProgress = taskCompletion(data.tasks);
   const doneTasks = taskProgress.done;
-  const monthly = data.subs.reduce((a, s) => a + monthlyCost(s.amount, s.cycle), 0);
+  const spend = subscriptionBreakdown(data.subs);
+  const monthly = spend.total;
 
   const blocks: Record<ModuleId, ReactElement> = {
     tasks: <Tasks data={data} update={update} />,
@@ -107,13 +111,7 @@ function HubPage() {
         subtitle="Your tools, routines and everyday workspace."
         action={
           <DemoBadge className="normal-case tracking-normal">
-            {hub.cloud === "syncing"
-              ? "Syncing"
-              : hub.cloud === "synced"
-                ? "Cloud synced"
-                : hub.cloud === "error"
-                  ? "Sync issue"
-                  : "Device saved"}
+            {hubSyncLabel(hub.cloud)}
           </DemoBadge>
         }
       />
@@ -219,8 +217,22 @@ function HubPage() {
             />
           </div>
         </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+          <div className="rounded-lg bg-muted/50 p-2">
+            <p className="text-muted-foreground">Weekly plans</p>
+            <p className="font-semibold tabular-nums">{fmtKES(spend.weekly)}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-2">
+            <p className="text-muted-foreground">Monthly plans</p>
+            <p className="font-semibold tabular-nums">{fmtKES(spend.monthly)}</p>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-2">
+            <p className="text-muted-foreground">Yearly plans</p>
+            <p className="font-semibold tabular-nums">{fmtKES(spend.yearly)}</p>
+          </div>
+        </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Counted only from what you entered here. Subscription totals use your manual entries; no allowance is assumed.
+          Monthly-equivalent totals are based only on your manual entries; no budget allowance is assumed.
         </p>
       </Panel>
       <details className="mb-6 rounded-2xl border p-3">
@@ -697,13 +709,14 @@ function Focus({ update }: { update: Update }) {
       toast.success("Focus session done — 25 minutes logged");
     }
   }, [left, update]);
-  const progress = 1 - left / (25 * 60);
+  const progressPercent = focusProgress(left);
+  const progress = progressPercent / 100;
   const circumference = 2 * Math.PI * 54;
   return (
     <>
       <Title brandId="focus" badge="Solo, local">Focus timer</Title>
       <div className="relative mx-auto my-3 grid h-40 w-40 place-items-center">
-        <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" role="img" aria-label={`Focus session ${Math.round(progress * 100)} percent complete`}>
+        <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" role="img" aria-label={`Focus session ${progressPercent} percent complete`}>
           <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeOpacity=".12" strokeWidth="8" />
           <circle
             cx="60" cy="60" r="54" fill="none" stroke="currentColor"
@@ -717,7 +730,7 @@ function Focus({ update }: { update: Update }) {
           <p className="font-display text-4xl font-bold tabular-nums" aria-live="polite">
             {String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}
           </p>
-          <p className="text-xs text-muted-foreground">{Math.round(progress * 100)}% complete</p>
+          <p className="text-xs text-muted-foreground">{progressPercent}% complete</p>
         </div>
       </div>
       <div className="mt-3 flex justify-center gap-2">
