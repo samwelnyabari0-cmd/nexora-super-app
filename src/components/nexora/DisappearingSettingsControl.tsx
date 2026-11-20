@@ -24,7 +24,7 @@ export function DisappearingSettingsControl({ chatKind, chatId }: DisappearingSe
   useEffect(() => {
     if (!chatId) return;
     let cancelled = false;
-    const requestId = ++requestRef.current;
+    requestRef.current += 1;
     setLoading(true);
     setSaving(false);
     setError("");
