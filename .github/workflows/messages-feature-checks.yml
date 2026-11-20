@@ -62,6 +62,8 @@ jobs:
           src/hooks/useChatLocationSharing.test.tsx
           src/components/nexora/message-transcription.ts
           src/components/nexora/message-transcription.test.ts
+          src/components/nexora/smart-replies.ts
+          src/components/nexora/smart-replies.test.ts
           src/components/nexora/TranscribeVoiceMessageButton.tsx
           src/components/nexora/VoiceNotePlayer.tsx
           src/components/nexora/MessageReactions.tsx
