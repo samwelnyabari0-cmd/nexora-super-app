@@ -463,7 +463,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const strictType: StrictFeedType = tab === "reels" ? "reel" : tab === "videos" ? "video" : tab === "collabs" ? "collab" : "post";
-  const { items: strictItems } = useStrictMediaItems(strictType, user?.id, tab !== "saved" && Boolean(user?.id));
+  const { items: strictItems, loading: strictLoading, error: strictError } = useStrictMediaItems(strictType, user?.id, tab !== "saved" && Boolean(user?.id));
   const strictIds = new Set(strictItems.map((item) => item.id));
 
   const activeItems = posts.filter((post) => {
@@ -524,7 +524,11 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
     <>
       {/* Fixed-height profile media grid */}
       <div className="relative h-[420px] max-h-[65vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
-        {activeItems.length === 0 ? (
+        {strictLoading ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground" role="status">Loading {tab}…</div>
+        ) : strictError ? (
+          <div className="flex h-full items-center justify-center text-sm text-destructive" role="alert">{strictError}</div>
+        ) : activeItems.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
             <Grid3X3 className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-sm font-semibold">
