@@ -102,6 +102,7 @@ function Messages() {
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [shareContentOpen, setShareContentOpen] = useState(false);
+  const [startingCall, setStartingCall] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -690,16 +691,21 @@ if (recipient === user.id) {
   }
 
   async function startDirectCall(kind: "audio" | "video") {
-    if (!user?.id || !recipient || group) return;
+    if (!user?.id || !recipient || group || startingCall) return;
+    setStartingCall(true);
     setError("");
-    const { error: callError } = await supabase
-      .from("call_invites")
-      .insert({ caller: user.id, callee: recipient, kind });
-    if (callError) {
-      setError("Calls are available only with accepted contacts. Add this person as a contact in Calls first.");
-      return;
+    try {
+      const { error: callError } = await supabase
+        .from("call_invites")
+        .insert({ caller: user.id, callee: recipient, kind });
+      if (callError) {
+        setError("Calls are available only with accepted contacts. Add this person as a contact in Calls first.");
+        return;
+      }
+      await navigate({ to: "/calls" });
+    } finally {
+      setStartingCall(false);
     }
-    await navigate({ to: "/calls" });
   }
 
   async function sendMessage(event: React.FormEvent<HTMLFormElement>) {
@@ -981,10 +987,10 @@ if (recipient === user.id) {
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <Button type="button" variant="outline" size="icon" aria-label="Start voice call" disabled={!user?.id || !recipient} onClick={() => void startDirectCall("audio")}>
+          <Button type="button" variant="outline" size="icon" aria-label="Start voice call" disabled={!user?.id || !recipient || startingCall} onClick={() => void startDirectCall("audio")}>
             <Phone className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" aria-label="Start video call" disabled={!user?.id || !recipient} onClick={() => void startDirectCall("video")}>
+          <Button type="button" variant="outline" size="icon" aria-label="Start video call" disabled={!user?.id || !recipient || startingCall} onClick={() => void startDirectCall("video")}>
             <Video className="h-4 w-4" />
           </Button>
         </div>
