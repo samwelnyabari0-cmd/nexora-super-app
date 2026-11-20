@@ -1,8 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Phone, PhoneCall, PhoneOff, Video, Copy, Search,
-  UserPlus, Check, X, Crown, Sparkles, ShieldCheck
-} from "lucide-react";
+import { Phone, PhoneCall, PhoneOff, Video, VideoOff, Mic, MicOff, SwitchCamera, Copy, Search, UserPlus, Check, X, Crown, Sparkles, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -499,85 +497,195 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
   const isCaller = invite.caller === userId;
   const [connected, setConnected] = useState(false);
   const [err, setErr] = useState("");
+  const [muted, setMuted] = useState(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const local = useRef<HTMLVideoElement>(null);
   const remote = useRef<HTMLVideoElement>(null);
+  const remoteAudio = useRef<HTMLAudioElement>(null);
   const stream = useRef<MediaStream | null>(null);
-  const peer = useRef<{ destroy: () => void } | null>(null);
+  const peer = useRef<any>(null);
+  const call = useRef<any>(null);
+  const mounted = useRef(true);
 
   const cleanup = useCallback(() => {
-    stream.current?.getTracks().forEach((t) => t.stop());
-    stream.current = null;
-    peer.current?.destroy();
+    const activeCall = call.current;
+    call.current = null;
+    activeCall?.close();
+    const activePeer = peer.current;
     peer.current = null;
+    activePeer?.destroy();
+    stream.current?.getTracks().forEach((track) => track.stop());
+    stream.current = null;
+    if (local.current) local.current.srcObject = null;
+    if (remote.current) remote.current.srcObject = null;
+    if (remoteAudio.current) remoteAudio.current.srcObject = null;
   }, []);
-  useEffect(() => cleanup, [cleanup]);
 
-  const attach = (s: MediaStream, remoteS?: MediaStream) => {
-    if (local.current) local.current.srcObject = s;
-    if (remoteS && remote.current) {
-      remote.current.srcObject = remoteS;
-      setConnected(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const attach = (localStream: MediaStream, remoteStream?: MediaStream) => {
+    if (local.current) local.current.srcObject = localStream;
+    if (remoteStream) {
+      if (remote.current) remote.current.srcObject = remoteStream;
+      if (remoteAudio.current) {
+        remoteAudio.current.srcObject = remoteStream;
+        void remoteAudio.current.play().catch(() => {
+          if (mounted.current) setErr("Tap the call controls if your browser blocks automatic audio.");
+        });
+      }
+      if (mounted.current) setConnected(true);
     }
   };
 
   const setStatus = (status: string, extra: Record<string, string> = {}) =>
-    supabase
-      .from("call_invites")
-      .update({ status, ...extra })
-      .eq("id", invite.id);
+    supabase.from("call_invites").update({ status, ...extra }).eq("id", invite.id);
 
-  // Callee: only after explicit Accept do we capture media and expose a peer id.
+  const fail = (message: string) => {
+    cleanup();
+    if (mounted.current) {
+      setConnected(false);
+      setErr(message);
+    }
+    void setStatus("ended");
+  };
+
+  const watchCall = (activeCall: any, localStream: MediaStream) => {
+    call.current = activeCall;
+    activeCall.on("stream", (remoteStream: MediaStream) => attach(localStream, remoteStream));
+    activeCall.on("close", () => {
+      if (call.current !== activeCall) return;
+      call.current = null;
+      cleanup();
+      if (mounted.current) setConnected(false);
+      void setStatus("ended");
+    });
+    activeCall.on("error", () => fail("The call connection failed. Check your network or try again."));
+  };
+
   const accept = async () => {
+    setErr("");
     try {
-      const s = await mediaFor(invite.kind);
-      stream.current = s;
-      attach(s);
+      const localStream = await mediaFor(invite.kind);
+      if (!mounted.current) {
+        localStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      stream.current = localStream;
+      attach(localStream);
       const { default: Peer } = await import("peerjs");
-      const p = new Peer({ config: peerConfig });
-      peer.current = p;
-      p.on("call", (call) => {
-        call.answer(s);
-        call.on("stream", (r) => attach(s, r));
+      if (!mounted.current) {
+        localStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const activePeer = new Peer({ config: peerConfig });
+      peer.current = activePeer;
+      activePeer.on("call", (incomingCall: any) => {
+        if (!mounted.current) {
+          incomingCall.close();
+          return;
+        }
+        incomingCall.answer(localStream);
+        watchCall(incomingCall, localStream);
       });
-      p.on("open", (id) => void setStatus("accepted", { callee_peer_id: id }));
-      p.on("error", () => setErr("Connection failed. Try again."));
+      activePeer.on("open", (id: string) => {
+        void setStatus("accepted", { callee_peer_id: id }).then(({ error: updateError }) => {
+          if (updateError) fail("Your call could not be accepted. Please try again.");
+        });
+      });
+      activePeer.on("error", () => fail("Call signalling failed. Check your network or try again."));
     } catch {
-      setErr(
-        invite.kind === "audio"
-          ? "Microphone permission is needed to answer."
-          : "Camera and microphone permission are needed to answer.",
-      );
+      cleanup();
+      if (mounted.current) {
+        setErr(
+          invite.kind === "audio"
+            ? "Microphone permission is needed to answer."
+            : "Camera and microphone permission are needed to answer.",
+        );
+      }
     }
   };
 
-  // Caller: connect media only once the recipient has accepted.
   useEffect(() => {
     if (!isCaller || invite.status !== "accepted" || !invite.callee_peer_id || peer.current) return;
+    let cancelled = false;
     void (async () => {
       try {
-        const s = await mediaFor(invite.kind);
-        stream.current = s;
-        attach(s);
+        const localStream = await mediaFor(invite.kind);
+        if (cancelled || !mounted.current) {
+          localStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        stream.current = localStream;
+        attach(localStream);
         const { default: Peer } = await import("peerjs");
-        const p = new Peer({ config: peerConfig });       
-        peer.current = p;
-        p.on("open", () => {
-          const call = p.call(invite.callee_peer_id!, s);
-          call.on("stream", (r) => attach(s, r));
+        if (cancelled || !mounted.current) {
+          localStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        const activePeer = new Peer({ config: peerConfig });
+        peer.current = activePeer;
+        activePeer.on("open", () => {
+          if (cancelled || !mounted.current) return;
+          const outgoingCall = activePeer.call(invite.callee_peer_id!, localStream);
+          watchCall(outgoingCall, localStream);
         });
-        p.on("error", () => setErr("Call signalling failed. Check your network or configure TURN."));
+        activePeer.on("error", () => fail("Call signalling failed. Check your network or configure TURN."));
       } catch {
-        setErr("Permission to use your microphone/camera was denied.");
-        void setStatus("ended");
+        if (!cancelled && mounted.current) {
+          cleanup();
+          setErr("Permission to use your microphone/camera was denied.");
+          void setStatus("ended");
+        }
       }
     })();
-  }, [isCaller, invite.status, invite.callee_peer_id, invite.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
+  }, [cleanup, invite.callee_peer_id, invite.kind, invite.status, isCaller]);
+
+  useEffect(() => {
+    stream.current?.getAudioTracks().forEach((track) => { track.enabled = !muted; });
+  }, [muted]);
+
+  useEffect(() => {
+    stream.current?.getVideoTracks().forEach((track) => { track.enabled = cameraOn; });
+  }, [cameraOn]);
+
+  const switchCamera = async () => {
+    const track = stream.current?.getVideoTracks()[0];
+    if (!track) {
+      setErr("A video camera is not available for this call.");
+      return;
+    }
+    const nextMode = facingMode === "user" ? "environment" : "user";
+    try {
+      const capabilities = track.getCapabilities?.();
+      if (capabilities?.facingMode?.length && !capabilities.facingMode.includes(nextMode)) {
+        setErr("This device does not expose another camera.");
+        return;
+      }
+      await track.applyConstraints({ facingMode: { ideal: nextMode } });
+      setFacingMode(nextMode);
+      setErr("");
+    } catch {
+      setErr("Camera switching is not supported by this device or browser.");
+    }
+  };
 
   const hangUp = () => {
     cleanup();
+    setConnected(false);
     void setStatus(isCaller && invite.status === "ringing" ? "cancelled" : "ended");
   };
-  const decline = () => void setStatus("declined");
+  const decline = () => {
+    cleanup();
+    void setStatus("declined");
+  };
 
   return (
     <Panel className="border-accent">
@@ -594,34 +702,18 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
               ? "Connected"
               : "Connecting…"}
         </p>
-        {err && (
-          <p role="alert" className="mt-1 text-sm text-destructive">
-            {err}
-          </p>
-        )}
+        {err && <p role="alert" className="mt-1 text-sm text-destructive">{err}</p>}
       </div>
-      <div
-        className={
-          invite.kind === "video" && invite.status === "accepted"
-            ? "mt-3 grid gap-2 sm:grid-cols-2"
-            : "hidden"
-        }
-      >
-        <video
-          ref={remote}
-          autoPlay
-          playsInline
-          className="aspect-video w-full rounded-xl bg-muted"
-        />
-        <video
-          ref={local}
-          autoPlay
-          muted
-          playsInline
-          className="aspect-video w-full rounded-xl bg-muted"
-        />
-      </div>
-      <div className="mt-4 flex justify-center gap-2">
+
+      {invite.kind === "video" && invite.status === "accepted" && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <video ref={remote} autoPlay muted playsInline className="aspect-video w-full rounded-xl bg-muted" />
+          <video ref={local} autoPlay muted playsInline className="aspect-video w-full rounded-xl bg-muted" />
+        </div>
+      )}
+      <audio ref={remoteAudio} autoPlay playsInline className="hidden" />
+
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
         {!isCaller && invite.status === "ringing" ? (
           <>
             <Button variant="destructive" onClick={decline}>
@@ -632,14 +724,32 @@ function LiveCall({ invite, userId, other }: { invite: Invite; userId: string; o
             </Button>
           </>
         ) : (
-          <Button variant="destructive" onClick={hangUp}>
-            <PhoneOff className="h-4 w-4" /> Hang up
-          </Button>
+          <>
+            {invite.status === "accepted" && (
+              <>
+                <Button variant={muted ? "default" : "outline"} size="icon" aria-label={muted ? "Unmute microphone" : "Mute microphone"} onClick={() => setMuted((value) => !value)}>
+                  {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+                {invite.kind === "video" && (
+                  <>
+                    <Button variant={cameraOn ? "outline" : "default"} size="icon" aria-label={cameraOn ? "Turn camera off" : "Turn camera on"} onClick={() => setCameraOn((value) => !value)}>
+                      {cameraOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+                    </Button>
+                    <Button variant="outline" size="icon" aria-label="Switch camera" onClick={() => void switchCamera()}>
+                      <SwitchCamera className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
+            <Button variant="destructive" onClick={hangUp}>
+              <PhoneOff className="h-4 w-4" /> Hang up
+            </Button>
+          </>
         )}
       </div>
       <p className="mt-2 text-center text-xs text-muted-foreground">
-        Peer-to-peer via the public PeerJS signalling service. Some strict networks may block direct
-        connections.
+        Peer-to-peer via the public PeerJS signalling service. Google STUN is used; TURN is optional and must be configured for some restrictive networks.
       </p>
     </Panel>
   );
