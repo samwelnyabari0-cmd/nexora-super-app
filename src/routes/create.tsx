@@ -17,6 +17,29 @@ import { accountTierFromUser, UPLOAD_POLICY } from "@/lib/upload-policy";
 import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
 import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
+
+function uploadFileWithProgress(
+  url: string,
+  file: Blob,
+  headers: Record<string, string>,
+  onProgress: (loaded: number, total: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", url);
+    Object.entries(headers).forEach(([name, value]) => request.setRequestHeader(name, value));
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress(event.loaded, event.total);
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) resolve();
+      else reject(new Error(`Media upload failed (${request.status}).`));
+    });
+    request.addEventListener("error", () => reject(new Error("Network error while uploading media.")));
+    request.addEventListener("abort", () => reject(new Error("Media upload was cancelled.")));
+    request.send(file);
+  });
+}
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
@@ -52,6 +75,8 @@ function Create() {
   const [mediaFiles, setMediaFiles] = useState<Blob[]>([]);
   const [mediaType, setMediaType] = useState<string>();
   const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [filter, setFilter] = useState("original");
   const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
@@ -362,20 +387,27 @@ const previewFilter =
                 r2VideoTypes.includes(mediaFiles[0].type) &&
                 mediaFiles[0].size <= 5 * 1024 ** 3;
               const uploadedPaths: string[] = [];
+              const totalUploadBytes = mediaFiles.reduce((total, file) => total + file.size, 0) +
+                (mediaFiles.length === 1 && mediaFiles[0].type.startsWith("video/") ? cover?.size ?? 0 : 0);
+              let completedUploadBytes = 0;
+              setUploadProgress(0);
+              setUploadStatus("Preparing upload...");
 
               for (const file of mediaFiles) {
                 if (useR2) {
+                  setUploadStatus("Uploading video...");
                   try {
                     const signed = await createR2MediaUploadUrl({
                       data: { contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
                     });
                     pendingR2Keys.push(signed.key);
-                    const uploadResponse = await fetch(signed.uploadUrl, {
-                      method: "PUT",
-                      headers: signed.uploadHeaders,
-                      body: file,
-                    });
-                    if (!uploadResponse.ok) throw new Error("R2 upload failed.");
+                    await uploadFileWithProgress(
+                      signed.uploadUrl,
+                      file,
+                      signed.uploadHeaders,
+                      (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                    );
+                    completedUploadBytes += file.size;
                     const verified = await verifyR2MediaUpload({
                       data: { key: signed.key, contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
                     });
@@ -390,12 +422,14 @@ const previewFilter =
                         data: { contentType: "image/jpeg", size: cover.size },
                       });
                       pendingR2Keys.push(coverSigned.key);
-                      const coverResponse = await fetch(coverSigned.uploadUrl, {
-                        method: "PUT",
-                        headers: coverSigned.uploadHeaders,
-                        body: cover,
-                      });
-                      if (!coverResponse.ok) throw new Error("Video cover upload failed.");
+                      setUploadStatus("Uploading video cover...");
+                      await uploadFileWithProgress(
+                        coverSigned.uploadUrl,
+                        cover,
+                        coverSigned.uploadHeaders,
+                        (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                      );
+                      completedUploadBytes += cover.size;
                       const coverVerified = await verifyR2MediaUpload({
                         data: { key: coverSigned.key, contentType: "image/jpeg", size: cover.size },
                       });
@@ -403,36 +437,80 @@ const previewFilter =
                       thumbnailStorageProvider = "r2";
                       thumbnailStorageKey = coverVerified.key;
                     }
+                    setUploadProgress(100);
+                    setUploadStatus("Upload complete. Publishing your post...");
                   } catch (uploadFailure) {
                     console.error("R2 media upload failed:", uploadFailure);
                     if (pendingR2Keys.length) {
                       await cleanupR2MediaObjects({ data: { keys: pendingR2Keys } }).catch(() => undefined);
                     }
+                    setUploadProgress(null);
+                    setUploadStatus("");
                     setError(uploadFailure instanceof Error ? uploadFailure.message : "Video upload failed. Please try again.");
                     return;
                   }
                 } else {
                   const extension = file.type.split(";")[0].split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
                   const storagePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-                  const { error: uploadError } = await supabase.storage.from("post-media").upload(storagePath, file, { contentType: file.type, upsert: false });
-                  if (uploadError) {
-                    setError("Media upload failed. Please try again.");
+                  const { data: signedUpload, error: signError } = await supabase.storage
+                    .from("post-media")
+                    .createSignedUploadUrl(storagePath, { upsert: false });
+                  if (signError || !signedUpload?.signedUrl) {
+                    setUploadProgress(null);
+                    setUploadStatus("");
+                    setError("Could not prepare media upload. Please try again.");
                     return;
                   }
+                  setUploadStatus("Uploading media...");
+                  try {
+                    await uploadFileWithProgress(
+                      signedUpload.signedUrl,
+                      file,
+                      { "Content-Type": file.type },
+                      (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                    );
+                  } catch (uploadFailure) {
+                    setUploadProgress(null);
+                    setUploadStatus("");
+                    setError(uploadFailure instanceof Error ? uploadFailure.message : "Media upload failed. Please try again.");
+                    return;
+                  }
+                  completedUploadBytes += file.size;
                   const { data: publicData } = supabase.storage.from("post-media").getPublicUrl(storagePath);
                   uploadedPaths.push(publicData.publicUrl);
                   if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
                     const coverPath = storagePath.replace(/\.[^./]+$/, "-cover.jpg");
-                    const { error: coverError } = await supabase.storage.from("post-media").upload(coverPath, cover, { contentType: "image/jpeg", upsert: false });
-                    if (coverError) {
-                      setError("Video cover upload failed. Please try again.");
+                    const { data: signedCover, error: signCoverError } = await supabase.storage
+                      .from("post-media")
+                      .createSignedUploadUrl(coverPath, { upsert: false });
+                    if (signCoverError || !signedCover?.signedUrl) {
+                      setUploadProgress(null);
+                      setUploadStatus("");
+                      setError("Could not prepare video cover upload. Please try again.");
                       return;
                     }
+                    setUploadStatus("Uploading video cover...");
+                    try {
+                      await uploadFileWithProgress(
+                        signedCover.signedUrl,
+                        cover,
+                        { "Content-Type": "image/jpeg" },
+                        (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
+                      );
+                    } catch (coverFailure) {
+                      setUploadProgress(null);
+                      setUploadStatus("");
+                      setError(coverFailure instanceof Error ? coverFailure.message : "Video cover upload failed. Please try again.");
+                      return;
+                    }
+                    completedUploadBytes += cover.size;
                     thumbnailUrl = supabase.storage.from("post-media").getPublicUrl(coverPath).data.publicUrl;
                   }
                 }
               }
               if (!useR2) mediaPath = uploadedPaths.length > 1 ? JSON.stringify(uploadedPaths) : uploadedPaths[0];
+              setUploadProgress(100);
+              setUploadStatus("Upload complete. Publishing your post...");
             }
                         const typedTags = [...tagList, typeTag(contentType)];
             const strictContentType = contentType === "collab" || tagList.some((tag) => tag.toLowerCase() === "collab")
@@ -460,6 +538,8 @@ const previewFilter =
               .single();
 
             if (publishError || !savedPost?.id) {
+              setUploadProgress(null);
+              setUploadStatus("");
               if (pendingR2Keys.length) {
                 await cleanupR2MediaObjects({ data: { keys: pendingR2Keys } }).catch((cleanupError) =>
                   console.error("Could not clean up unlinked R2 media:", cleanupError),
@@ -526,7 +606,25 @@ const previewFilter =
               <option value="private">Only me</option>
             </select>
           </label>
-          <Button className="w-full bg-brand" disabled={!caption.trim() || queued}>
+          {uploadProgress !== null && (
+            <div className="space-y-2 rounded-xl border bg-card p-3" role="status" aria-live="polite">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium">{uploadStatus || "Uploading media..."}</span>
+                <span className="font-semibold tabular-nums">{uploadProgress}%</span>
+              </div>
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-label="Media upload progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={uploadProgress}
+              >
+                <div className="h-full rounded-full bg-primary transition-[width] duration-150" style={{ width: `${uploadProgress}%` }} />
+              </div>
+            </div>
+          )}
+          <Button className="w-full bg-brand" disabled={!caption.trim() || queued || uploadProgress !== null}>
             {queued ? "Already queued" : user ? "Publish" : "Sign in to publish"}
           </Button>
           <Button
