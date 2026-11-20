@@ -572,7 +572,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       </header>
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
+      <div ref={log} className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
