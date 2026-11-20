@@ -160,7 +160,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     chatKind: "group",
     chatId: groupId,
     userId,
-    enabled: Boolean(groupId && userId),
+    enabled: Boolean(groupId && userId && chatLock.status === "unlocked"),
     onShareOnce: async (payload: ChatLocationPayload) => {
       const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
         group_id: groupId,
