@@ -28,10 +28,12 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
       return;
     }
     setBusy(true);
-    await lock.create(passphrase);
+    const created = await lock.create(passphrase);
     setBusy(false);
-    setPassphrase("");
-    setConfirmation("");
+    if (created) {
+      setPassphrase("");
+      setConfirmation("");
+    }
   }
 
   async function unlockChat(event: FormEvent<HTMLFormElement>) {
@@ -73,7 +75,7 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
             className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
             placeholder="Enter passphrase"
           />
-          <Button type="submit" block disabled={busy || !passphrase}>
+          <Button type="submit" className="w-full" disabled={busy || !passphrase}>
             <Unlock className="mr-2 h-4 w-4" /> {busy ? "Checking…" : "Unlock chat"}
           </Button>
         </form>
