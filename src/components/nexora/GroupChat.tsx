@@ -44,6 +44,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [reactions, setReactions] = useState<MessageReaction[]>([]);
   const [replyTarget, setReplyTarget] = useState<GroupMessage | null>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const touchStartX = useRef<number | null>(null);
   const [profiles, setProfiles] = useState<Record<string, SenderProfile>>({});
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -460,7 +461,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           const showDateDivider = shouldShowDateDivider(message.created_at, messages[index - 1]?.created_at);
           const sender = profiles[message.sender_id];
           return (
-            <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} className="space-y-2">
+            <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const start = touchStartX.current; touchStartX.current = null; if (start !== null && (event.changedTouches[0]?.clientX ?? start) - start > 60) setReplyTarget(message); }} className="space-y-2">
               {showDateDivider && (
                 <div className="sticky top-1 z-10 flex justify-center py-1">
                   <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
