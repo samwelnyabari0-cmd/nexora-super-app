@@ -130,7 +130,7 @@ export function LearningNotesPanel({
 
   return (
     <section
-      className="rounded-2xl border bg-card p-4"
+      className="min-w-0 max-w-full rounded-2xl border bg-card p-3 sm:p-4"
       aria-labelledby={`learning-notes-heading-${titleInputId}`}
     >
       <div className="flex items-center justify-between gap-3">
@@ -243,7 +243,7 @@ export function LearningNotesPanel({
             </p>
           )}
 
-          <div className="mt-5 h-80 overflow-auto rounded-xl border">
+          <div className="mt-5 h-80 min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl border">
             {loading ? (
               <p className="p-3 text-sm text-muted-foreground">Loading your notes…</p>
             ) : notes.length === 0 ? (
