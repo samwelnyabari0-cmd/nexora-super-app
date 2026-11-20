@@ -40,8 +40,15 @@ export function validateDocumentFile(file: Pick<File, "type" | "name" | "size">)
 }
 
 export function safeAttachmentName(name: string): string {
-  const leaf = name.split(/[\\/]/).pop()?.replace(/[\u0000-\u001f\u007f-\u009f]/g, "").trim() ?? "";
-  return (leaf || "Shared document").slice(0, 120);
+  const leaf = name.split(/[\\/]/).pop() ?? "";
+  const cleaned = Array.from(leaf)
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code >= 32 && !(code >= 127 && code <= 159);
+    })
+    .join("")
+    .trim();
+  return (cleaned || "Shared document").slice(0, 120);
 }
 
 export function documentTypeLabel(mimeType?: string | null): string {
