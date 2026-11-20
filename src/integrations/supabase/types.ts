@@ -502,6 +502,9 @@ export type Database = {
           location_accuracy_m: number | null
           location_captured_at: string | null
           location_session_id: string | null
+          shared_content_source: string | null
+          shared_content_id: string | null
+          shared_content_type: string | null
           media_type: string | null
           sender_id: string
         }
@@ -520,6 +523,9 @@ export type Database = {
           location_accuracy_m?: number | null
           location_captured_at?: string | null
           location_session_id?: string | null
+          shared_content_source?: string | null
+          shared_content_id?: string | null
+          shared_content_type?: string | null
           media_type?: string | null
           sender_id: string
         }
@@ -538,6 +544,9 @@ export type Database = {
           location_accuracy_m?: number | null
           location_captured_at?: string | null
           location_session_id?: string | null
+          shared_content_source?: string | null
+          shared_content_id?: string | null
+          shared_content_type?: string | null
           media_type?: string | null
           sender_id?: string
         }
@@ -2601,6 +2610,9 @@ export type Database = {
           location_accuracy_m: number | null
           location_captured_at: string | null
           location_session_id: string | null
+          shared_content_source: string | null
+          shared_content_id: string | null
+          shared_content_type: string | null
           media_type: string | null
           recipient_id: string
           seen_at: string | null
@@ -2621,6 +2633,9 @@ export type Database = {
           location_accuracy_m?: number | null
           location_captured_at?: string | null
           location_session_id?: string | null
+          shared_content_source?: string | null
+          shared_content_id?: string | null
+          shared_content_type?: string | null
           media_type?: string | null
           recipient_id: string
           seen_at?: string | null
@@ -2641,6 +2656,9 @@ export type Database = {
           location_accuracy_m?: number | null
           location_captured_at?: string | null
           location_session_id?: string | null
+          shared_content_source?: string | null
+          shared_content_id?: string | null
+          shared_content_type?: string | null
           media_type?: string | null
           recipient_id?: string
           seen_at?: string | null
