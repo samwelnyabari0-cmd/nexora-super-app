@@ -27,6 +27,7 @@ import {
   extractTags,
   type Cycle,
   type ModuleId,
+  moduleBranding,
 } from "@/features/hub/logic";
 import { useHub, newId, type HubData } from "@/features/hub/useHub";
 
@@ -100,17 +101,27 @@ function HubPage() {
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title={hour === null ? "Hub" : `${greeting(hour)}, ${passport.name.split(" ")[0]}`}
-        subtitle="Your mini-apps. Saved on this device only — not synced to a cloud account."
-        action={<DemoBadge>Device only</DemoBadge>}
+        subtitle="Your tools, routines and everyday workspace."
+        action={
+          <DemoBadge className="normal-case tracking-normal">
+            {hub.cloud === "syncing"
+              ? "Syncing"
+              : hub.cloud === "synced"
+                ? "Cloud synced"
+                : hub.cloud === "error"
+                  ? "Sync issue"
+                  : "Device saved"}
+          </DemoBadge>
+        }
       />
       <div
         className={`mb-4 flex flex-wrap items-center gap-3 rounded-2xl border p-3 ${hub.ghostOn ? "border-warning/60 bg-warning/10" : ""}`}
       >
-        <Ghost className="h-5 w-5" aria-hidden />
-        <p className="flex-1 text-sm">
+        <Ghost className="h-5 w-5 text-violet-400" aria-hidden />
+        <div className="flex-1"><p className="text-sm font-semibold">ShadowBox</p><p className="text-sm text-muted-foreground">
           {hub.ghostOn
-            ? "Ghost State on: changes are temporary and not saved until you commit."
-            : "Ghost State: try changes in a temporary sandbox, then commit or discard."}
+            ? "ShadowBox is active: changes are temporary until you commit them."
+            : "ShadowBox: safely test changes in a temporary sandbox, then commit or discard."}
         </p>
         {hub.ghostOn ? (
           <>
@@ -118,7 +129,7 @@ function HubPage() {
               size="sm"
               onClick={() => {
                 hub.commitGhost();
-                toast.success("Ghost changes committed to this device");
+                toast.success("ShadowBox changes committed");
               }}
             >
               Commit
@@ -128,7 +139,7 @@ function HubPage() {
               variant="outline"
               onClick={() => {
                 hub.discardGhost();
-                toast("Ghost changes discarded");
+                toast("ShadowBox changes discarded");
               }}
             >
               Discard
@@ -136,7 +147,7 @@ function HubPage() {
           </>
         ) : (
           <Button size="sm" variant="outline" onClick={hub.enterGhost}>
-            Enter Ghost State
+            Open ShadowBox
           </Button>
         )}
         <span className="text-xs text-muted-foreground">
@@ -245,10 +256,22 @@ function HubPage() {
   );
 }
 
-function Title({ children, badge }: { children: string; badge?: string }) {
+function Title({
+  children,
+  badge,
+  brandId,
+}: {
+  children: string;
+  badge?: string;
+  brandId?: ModuleId;
+}) {
+  const brand = brandId ? moduleBranding[brandId] : null;
   return (
     <div className="mb-3 flex items-center justify-between">
-      <h2 className="font-display font-semibold">{children}</h2>
+      <div>
+        <h2 className="font-display font-semibold">{brand?.name ?? children}</h2>
+        {brand && <p className="text-xs text-muted-foreground">{brand.feature} · {children === brand.feature ? "" : brand.description}</p>}
+      </div>
       {badge && <DemoBadge>{badge}</DemoBadge>}
     </div>
   );
@@ -263,7 +286,7 @@ function Tasks({ data, update }: { data: HubData; update: Update }) {
   };
   return (
     <>
-      <Title>Tasks</Title>
+      <Title brandId="tasks">Tasks</Title>
       <form
         className="mb-2 flex gap-2"
         onSubmit={(e) => {
@@ -324,7 +347,7 @@ function Notes({ data, update }: { data: HubData; update: Update }) {
     tags = extractTags(t);
   return (
     <>
-      <Title>Notes</Title>
+      <Title brandId="notes">Notes</Title>
       <textarea
         aria-label="Note"
         value={t}
@@ -409,7 +432,7 @@ function Budget({ data, update }: { data: HubData; update: Update }) {
   const shares = splitBill(Number(total), Number(people));
   return (
     <>
-      <Title badge="Manual entries">Budget & subscriptions</Title>
+      <Title brandId="budget" badge="Manual entries">Subscriptions & bills</Title>
       <form
         className="grid grid-cols-2 gap-2"
         onSubmit={(e) => {
@@ -556,7 +579,7 @@ function Deals({ data, update }: { data: HubData; update: Update }) {
   };
   return (
     <>
-      <Title badge="Sample listings">Deals & verified services</Title>
+      <Title brandId="deals" badge="Sample listings">Deals & services</Title>
       <div className="flex gap-2">
         <select
           aria-label="City"
@@ -598,7 +621,7 @@ function QuickTools() {
   const [tip, setTip] = useState("10");
   return (
     <>
-      <Title>Quick tools</Title>
+      <Title brandId="tools">Bill split & tip calculator</Title>
            <label className="text-sm">Tip calculator</label>
       <div className="flex gap-2">
         <input
@@ -645,10 +668,25 @@ function Focus({ update }: { update: Update }) {
   }, [left, update]);
   return (
     <>
-      <Title badge="Solo, local">Focus timer</Title>
-      <p className="text-center font-display text-5xl font-bold tabular-nums" aria-live="polite">
-        {String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}
-      </p>
+      <Title brandId="focus" badge="Solo, local">Focus timer</Title>
+      <div className="relative mx-auto my-3 grid h-40 w-40 place-items-center">
+        <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full -rotate-90" role="img" aria-label={`Focus session ${Math.round(progress * 100)} percent complete`}>
+          <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeOpacity=".12" strokeWidth="8" />
+          <circle
+            cx="60" cy="60" r="54" fill="none" stroke="currentColor"
+            className="text-violet-400 motion-safe:transition-[stroke-dashoffset] motion-safe:duration-500"
+            strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - progress)}
+          />
+        </svg>
+        <div className="text-center">
+          <p className="font-display text-4xl font-bold tabular-nums" aria-live="polite">
+            {String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}
+          </p>
+          <p className="text-xs text-muted-foreground">{Math.round(progress * 100)}% complete</p>
+        </div>
+      </div>
       <div className="mt-3 flex justify-center gap-2">
         <Button onClick={() => setRun(!run)}>
           <Timer className="h-4 w-4" />
@@ -676,7 +714,7 @@ function Workflow({ update }: { update: Update }) {
   const [out, setOut] = useState<string[] | null>(null);
   return (
     <>
-      <Title>Micro-Split workflow</Title>
+      <Title brandId="workflow">Micro-workflows</Title>
       <p className="mb-2 text-xs text-muted-foreground">
         Voice or text → Extract action items → Tasks. Runs locally; nothing saves until you commit.
       </p>
