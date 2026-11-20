@@ -1,7 +1,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio } from "lucide-react";
+import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -16,6 +16,9 @@ import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } 
 import { LocationShareCard } from "@/components/nexora/LocationShareCard";
 import { useChatLocationSharing } from "@/hooks/useChatLocationSharing";
 import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
+import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
+import { SharedContentCard } from "@/components/nexora/SharedContentCard";
+import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
 
 type DirectMessage = {
   id: string;
@@ -32,6 +35,9 @@ type DirectMessage = {
   location_accuracy_m?: number | null;
   location_captured_at?: string | null;
   location_session_id?: string | null;
+  shared_content_source?: "posts" | "user_media_posts" | null;
+  shared_content_id?: string | null;
+  shared_content_type?: "post" | "reel" | "video" | null;
   delivered_at?: string | null;
   seen_at?: string | null;
   created_at: string;
@@ -94,6 +100,7 @@ function Messages() {
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [shareContentOpen, setShareContentOpen] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -228,7 +235,7 @@ function Messages() {
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -1042,6 +1049,13 @@ if (recipient === user.id) {
                       capturedAt: message.location_captured_at,
                     }} />
                   ) : null}
+                  {message.shared_content_source && message.shared_content_id && message.shared_content_type && (
+                    <SharedContentCard
+                      source={message.shared_content_source}
+                      contentId={message.shared_content_id}
+                      contentType={message.shared_content_type}
+                    />
+                  )}
                   {message.body && (
                     <p className="whitespace-pre-wrap text-sm">
                       {message.body}
@@ -1144,6 +1158,9 @@ if (recipient === user.id) {
         <Button type="button" variant="outline" size="icon" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
           <span className="text-[10px] font-bold">1h</span>
         </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
+          <Share2 className="h-4 w-4" />
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -1176,6 +1193,23 @@ if (recipient === user.id) {
           <Send className="h-4 w-4" />
         </Button>
       </form>
+      <ShareContentDialog
+        open={shareContentOpen}
+        onOpenChange={setShareContentOpen}
+        onShare={async (reference: SharedContentReference) => {
+          if (!user?.id || !recipient) return false;
+          const { error: insertError } = await (supabase as any).from("direct_messages").insert({
+            sender_id: user.id,
+            recipient_id: recipient,
+            body: `Shared a ${sharedContentLabel(reference.contentType)}`,
+            shared_content_source: reference.source,
+            shared_content_id: reference.contentId,
+            shared_content_type: reference.contentType,
+          });
+          if (!insertError) setRefresh((value) => value + 1);
+          return !insertError;
+        }}
+      />
     </main>
   );
           }
