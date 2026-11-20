@@ -546,7 +546,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                 <button
                   key={post.id}
                   type="button"
-                  onClick={() => tab === "videos" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : setViewerIndex(index)}
+                  onClick={() => tab === "videos" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : tab === "reels" ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`) : setViewerIndex(index)}
                   className={`group relative ${tab === "reels" ? "aspect-[9/16]" : tab === "videos" ? "aspect-video" : "aspect-square"} overflow-hidden rounded-xl border bg-muted text-left`}
                   aria-label={`Open ${post.caption || "profile content"}`}
                 >
