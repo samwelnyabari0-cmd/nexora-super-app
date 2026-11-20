@@ -124,7 +124,13 @@ export function useChatLocationSharing({
       setActiveSessionId(sessionId);
       lastPublishedAtRef.current = Date.now();
 
-      const messageSent = await onLiveSession(sessionId);
+      let messageSent = false;
+      try {
+        messageSent = await onLiveSession(sessionId);
+      } catch {
+        await stopLiveSharing();
+        throw new Error("The live location card could not be sent.");
+      }
       if (!messageSent) {
         await stopLiveSharing();
         throw new Error("The live location card could not be sent.");
@@ -135,7 +141,8 @@ export function useChatLocationSharing({
         throw new Error("Location is not supported by this browser.");
       }
 
-      watchIdRef.current = navigator.geolocation.watchPosition(
+      try {
+        watchIdRef.current = navigator.geolocation.watchPosition(
         async (position) => {
           const now = Date.now();
           if (!shouldPublishLocation(lastPublishedAtRef.current, now)) return;
@@ -165,7 +172,11 @@ export function useChatLocationSharing({
           await stopLiveSharing();
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
-      );
+        );
+      } catch {
+        await stopLiveSharing();
+        throw new Error("Live location tracking could not start.");
+      }
       expiryTimerRef.current = window.setTimeout(() => {
         void stopLiveSharing();
       }, durationMinutes * 60_000);
