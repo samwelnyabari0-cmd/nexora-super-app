@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitBill, nextRenewal, monthlyCost, extractTasks } from "./logic";
+import { splitBill, nextRenewal, monthlyCost, extractTasks, moduleBranding } from "./logic";
 
 describe("hub rules", () => {
   it("splits a bill so shares add up exactly", () => {
@@ -21,5 +21,23 @@ describe("hub rules", () => {
       "Draft budget",
       "Call Amina tomorrow",
     ]);
+  });
+});
+
+
+describe("Hub mini-app branding", () => {
+  it("maps all existing module IDs to the approved brand identities", () => {
+    expect(Object.keys(moduleBranding).sort()).toEqual([
+      "budget", "deals", "focus", "notes", "tasks", "tools", "workflow",
+    ]);
+    expect(moduleBranding).toMatchObject({
+      budget: { name: "PesaVault", accent: "emerald" },
+      tools: { name: "ShareTab", accent: "cyan" },
+      focus: { name: "DeepPulse", accent: "violet" },
+      workflow: { name: "TaskForge", accent: "indigo" },
+      notes: { name: "MindGrid", feature: "Notes", accent: "slate" },
+      tasks: { name: "MindGrid", feature: "Tasks", accent: "slate" },
+      deals: { name: "TrustSpot", accent: "amber" },
+    });
   });
 });
