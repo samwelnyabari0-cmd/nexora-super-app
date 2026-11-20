@@ -8,7 +8,7 @@ import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 import { MessageAttachment } from "@/components/nexora/MessageAttachment";
-import { uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
+import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
 
 type GroupMessage = {
   id: string;
@@ -382,7 +382,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         : attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
       mediaPath = `groups/${groupId}/${userId}/${crypto.randomUUID()}.${extension}`;
       if (mediaType === "document") {
-        attachmentName = attachment.name.split(/[\\/]/).pop()?.slice(0, 120) || "Shared document";
+        attachmentName = safeAttachmentName(attachment.name);
         attachmentMimeType = attachment.type;
         attachmentSizeBytes = attachment.size;
       }
