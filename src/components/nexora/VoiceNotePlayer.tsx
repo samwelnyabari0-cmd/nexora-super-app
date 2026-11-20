@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, Captions, Loader2 } from "lucide-react";
+import { aiTranscribe } from "@/lib/ai.functions";
 
 type VoiceNotePlayerProps = {
   src: string;
@@ -23,6 +24,10 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playError, setPlayError] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [summary, setSummary] = useState("");
+  const [transcribeError, setTranscribeError] = useState("");
 
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
@@ -47,6 +52,30 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
     } else {
       audio.pause();
       setPlaying(false);
+    }
+  }
+
+  async function transcribeVoiceNote() {
+    if (transcribing) return;
+    setTranscribing(true);
+    setTranscribeError("");
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error("The voice message could not be downloaded for transcription.");
+      const blob = await response.blob();
+      if (!blob.size) throw new Error("This voice message is empty.");
+      if (blob.size > 20 * 1024 * 1024) throw new Error("Voice messages over 20 MB cannot be transcribed.");
+      const extension = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : blob.type.includes("mpeg") ? "mp3" : "webm";
+      const formData = new FormData();
+      formData.append("file", new File([blob], `voice-message.${extension}`, { type: blob.type || "audio/webm" }));
+      const result = await aiTranscribe({ data: formData });
+      if (result.error) throw new Error(result.error);
+      setTranscript(result.transcript);
+      setSummary(result.summary);
+    } catch (caught) {
+      setTranscribeError(caught instanceof Error ? caught.message : "Voice transcription is unavailable.");
+    } finally {
+      setTranscribing(false);
     }
   }
 
@@ -96,6 +125,16 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
       </div>
       <button
         type="button"
+        onClick={() => void transcribeVoiceNote()}
+        disabled={transcribing}
+        aria-label="Transcribe and summarize voice message"
+        className="flex shrink-0 items-center gap-1 rounded-md bg-background/20 px-1.5 py-1 text-[10px] font-semibold disabled:opacity-50"
+      >
+        {transcribing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Captions className="h-3 w-3" />}
+        {transcribing ? "…" : "Text"}
+      </button>
+      <button
+        type="button"
         onClick={() => setSpeedIndex((index) => (index + 1) % SPEEDS.length)}
         aria-label={`Playback speed ${SPEEDS[speedIndex]}x. Change speed`}
         className="rounded-md bg-background/20 px-1.5 py-1 text-[10px] font-semibold"
@@ -103,5 +142,13 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
         {SPEEDS[speedIndex]}x
       </button>
     </div>
+    {transcribeError && <p role="alert" className="max-w-[280px] text-[10px] text-destructive">{transcribeError}</p>}
+    {transcript && (
+      <details className="max-w-[280px] rounded-lg border border-current/10 p-2 text-xs">
+        <summary className="cursor-pointer font-medium">Transcript and summary</summary>
+        <p className="mt-2 whitespace-pre-wrap">{transcript}</p>
+        {summary && <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{summary}</p>}
+      </details>
+    )}
   );
 }
