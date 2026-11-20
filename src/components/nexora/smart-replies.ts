@@ -4,13 +4,19 @@ export type SmartReplyContextMessage = {
   media_path?: string | null;
   media_type?: string | null;
   location_latitude?: number | null;
+  location_longitude?: number | null;
   location_session_id?: string | null;
   shared_content_id?: string | null;
 };
 
 export function buildSmartReplyPrompt(messages: SmartReplyContextMessage[]): string {
   const recent = messages
-    .filter((message) => typeof message.body === "string" && message.body.trim())
+    .filter((message) =>
+      typeof message.body === "string" && message.body.trim() &&
+      !message.media_path && !message.media_type &&
+      message.location_latitude == null && message.location_longitude == null &&
+      !message.location_session_id && !message.shared_content_id
+    )
     .slice(-6)
     .map((message) => `${message.sender}: ${message.body.trim().slice(0, 500)}`);
   if (!recent.length) return "";
