@@ -356,7 +356,11 @@ const previewFilter =
             if (mediaFiles.length) {
               // First rollout: route a single video to R2. Images and multi-file posts
               // retain the existing Supabase Storage path until their flows are migrated.
-              const useR2 = mediaFiles.length === 1 && mediaFiles[0].type.startsWith("video/");
+              const r2VideoTypes = ["video/mp4", "video/webm", "video/quicktime", "video/x-matroska"];
+              const useR2 =
+                mediaFiles.length === 1 &&
+                r2VideoTypes.includes(mediaFiles[0].type) &&
+                mediaFiles[0].size <= 5 * 1024 ** 3;
               const uploadedPaths: string[] = [];
 
               for (const file of mediaFiles) {
