@@ -41,7 +41,7 @@ create index if not exists chat_group_message_reactions_message_idx
   on public.chat_group_message_reactions(message_id);
 
 -- Enable Postgres Changes for reaction updates without changing existing publication members.
-do $
+do $$
 begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'direct_message_reactions') then
     execute 'alter publication supabase_realtime add table public.direct_message_reactions';
@@ -50,7 +50,7 @@ begin
     execute 'alter publication supabase_realtime add table public.chat_group_message_reactions';
   end if;
 end;
-$;
+$$;
 
 alter table public.direct_message_reactions enable row level security;
 alter table public.chat_group_message_reactions enable row level security;
