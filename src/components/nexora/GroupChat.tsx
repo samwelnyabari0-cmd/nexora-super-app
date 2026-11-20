@@ -1,8 +1,26 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ImagePlus, Loader2, Send, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
+import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
+import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
+import { useChatActivity } from "@/hooks/useChatActivity";
+import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
+import { MessageAttachment } from "@/components/nexora/MessageAttachment";
+import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
+import { LocationShareCard } from "@/components/nexora/LocationShareCard";
+import { useChatLocationSharing } from "@/hooks/useChatLocationSharing";
+import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
+import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
+import { SharedContentCard } from "@/components/nexora/SharedContentCard";
+import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
+import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
+import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
+import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
+import { aiChat } from "@/lib/ai.functions";
+import { ChatLockPanel } from "@/components/nexora/ChatLockPanel";
+import { useChatLock } from "@/hooks/useChatLock";
 
 type GroupMessage = {
   id: string;
@@ -10,8 +28,21 @@ type GroupMessage = {
   sender_id: string;
   body: string;
   media_path: string | null;
-  media_type: "image" | "video" | "audio" | null;
+  media_type: "image" | "video" | "audio" | "document" | null;
+  attachment_name?: string | null;
+  attachment_mime_type?: string | null;
+  attachment_size_bytes?: number | null;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
+  location_accuracy_m?: number | null;
+  location_captured_at?: string | null;
+  location_session_id?: string | null;
+  shared_content_source?: "posts" | "user_media_posts" | null;
+  shared_content_id?: string | null;
+  shared_content_type?: "post" | "reel" | "video" | null;
+  expires_at?: string | null;
   created_at: string;
+  reply_to_message_id?: string | null;
 };
 
 type SenderProfile = {
@@ -34,23 +65,137 @@ type GroupChatProps = {
 };
 
 export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
+  const chatLock = useChatLock(userId, "group", groupId);
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [messages, setMessages] = useState<GroupMessage[]>([]);
+  const [reactions, setReactions] = useState<MessageReaction[]>([]);
+  const [replyTarget, setReplyTarget] = useState<GroupMessage | null>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const touchStartX = useRef<number | null>(null);
   const [profiles, setProfiles] = useState<Record<string, SenderProfile>>({});
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const refreshMediaUrls = async () => {
+      const mediaMessages = messages.filter((message) => message.media_path && !isMessageExpired(message.expires_at));
+      const entries = await Promise.all(mediaMessages.map(async (message) => {
+        const { data } = await supabase.storage.from("chat-media").createSignedUrl(message.media_path!, 60);
+        return [message.id, data?.signedUrl ?? ""] as const;
+      }));
+      if (!cancelled) {
+        setMediaUrls((current) => ({
+          ...current,
+          ...Object.fromEntries(entries.filter(([, url]) => Boolean(url))),
+        }));
+      }
+    };
+    void refreshMediaUrls();
+    const refreshTimer = window.setInterval(() => void refreshMediaUrls(), 45_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshTimer);
+    };
+  }, [messages]);
+
+  useEffect(() => {
+    const timers = messages.flatMap((message) => {
+      const delay = messageExpiryDelay(message.expires_at);
+      if (delay === null) return [];
+      if (delay === 0 || isMessageExpired(message.expires_at)) {
+        setMessages((current) => current.filter((item) => item.id !== message.id));
+        setMediaUrls((current) => {
+          const next = { ...current };
+          delete next[message.id];
+          return next;
+        });
+        return [];
+      }
+      return [window.setTimeout(() => {
+        setMessages((current) => current.filter((item) => item.id !== message.id));
+        setMediaUrls((current) => {
+          const next = { ...current };
+          delete next[message.id];
+          return next;
+        });
+      }, delay + 25)];
+    });
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [messages]);
+  const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
+  useEffect(() => {
+    if (chatLock.status === "unlocked") return;
+    setMessages([]);
+    setReactions([]);
+    setReplyTarget(null);
+    setMediaUrls({});
+    setProfiles({});
+    setGroup(null);
+    setAvatarUrl("");
+  }, [chatLock.status]);
+  useEffect(() => {
+    if (replyTarget && isMessageExpired(replyTarget.expires_at)) setReplyTarget(null);
+  }, [replyTarget]);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [shareContentOpen, setShareContentOpen] = useState(false);
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [smartRepliesLoading, setSmartRepliesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const log = useRef<HTMLDivElement>(null);
+  const groupActivityTopic = `group:${groupId}`;
+  const { remoteActivity, publishActivity } = useChatActivity({
+    topic: groupActivityTopic,
+    userId,
+    enabled: Boolean(groupId && userId && chatLock.status === "unlocked"),
+  });
+  const locationSharing = useChatLocationSharing({
+    chatKind: "group",
+    chatId: groupId,
+    userId,
+    enabled: Boolean(groupId && userId && chatLock.status === "unlocked"),
+    onShareOnce: async (payload: ChatLocationPayload) => {
+      const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
+        group_id: groupId,
+        sender_id: userId,
+        body: "Shared a location",
+        location_latitude: payload.latitude,
+        location_longitude: payload.longitude,
+        location_accuracy_m: payload.accuracyM,
+        location_captured_at: payload.capturedAt,
+      });
+      return !insertError;
+    },
+    onLiveSession: async (sessionId: string) => {
+      const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
+        group_id: groupId,
+        sender_id: userId,
+        body: "Started live location sharing",
+        location_session_id: sessionId,
+      });
+      return !insertError;
+    },
+  });
+
+  useEffect(() => {
+    publishActivity(recording ? "recording" : draft.trim() ? "typing" : null);
+  }, [draft, recording, publishActivity]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadGroup() {
+      if (chatLock.status !== "unlocked") {
+        setLoading(chatLock.status === "checking");
+        return;
+      }
       setLoading(true);
       setError("");
 
@@ -63,7 +208,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -101,7 +246,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         rows.filter((message) => message.media_path).map(async (message) => {
           const { data } = await supabase.storage
             .from("chat-media")
-            .createSignedUrl(message.media_path!, 3600);
+            .createSignedUrl(message.media_path!, 60);
           return [message.id, data?.signedUrl ?? ""] as const;
         }),
       );
@@ -126,9 +271,10 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [groupId, userId]);
+  }, [groupId, userId, chatLock.status]);
 
   useEffect(() => {
+    if (chatLock.status !== "unlocked") return;
     const channel = supabase
       .channel(`group-chat-${groupId}-${userId}`)
       .on(
@@ -160,7 +306,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     async function refreshMessages() {
       const { data, error: loadError } = await (supabase as any)
         .from("chat_group_messages")
-        .select("id, group_id, sender_id, body, media_path, media_type, created_at")
+        .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
 
@@ -196,7 +342,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         const entries = await Promise.all(newMedia.map(async (message) => {
           const { data: signed } = await supabase.storage
             .from("chat-media")
-            .createSignedUrl(message.media_path!, 3600);
+            .createSignedUrl(message.media_path!, 60);
           return [message.id, signed?.signedUrl ?? ""] as const;
         }));
         setMediaUrls((current) => ({
@@ -224,11 +370,139 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [groupId, userId, profiles, mediaUrls]);
+  }, [groupId, userId, profiles, mediaUrls, chatLock.status]);
+
+  useEffect(() => {
+    if (messages.length === 0) { setReactions([]); return; }
+    let cancelled = false;
+    const ids = messages.map((message) => message.id);
+    void (supabase as any).from("chat_group_message_reactions")
+      .select("message_id, user_id, emoji").in("message_id", ids)
+      .then(({ data, error }: { data: MessageReaction[] | null; error: unknown }) => {
+        if (!cancelled && !error) setReactions(data ?? []);
+      });
+    return () => { cancelled = true; };
+  }, [messages]);
+
+  useEffect(() => {
+    if (!groupId || messages.length === 0) return;
+    const channel = supabase.channel(`group-reactions-${groupId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chat_group_message_reactions" }, async () => {
+        const ids = messages.map((message) => message.id);
+        const { data } = await (supabase as any).from("chat_group_message_reactions")
+          .select("message_id, user_id, emoji").in("message_id", ids);
+        setReactions(data ?? []);
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [groupId, messages]);
+
+  async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
+    const existing = reactions.find((item) => item.message_id === messageId && item.user_id === userId);
+    let result;
+    if (existing?.emoji === emoji) {
+      result = await (supabase as any).from("chat_group_message_reactions").delete().eq("message_id", messageId).eq("user_id", userId);
+    } else if (existing) {
+      result = await (supabase as any).from("chat_group_message_reactions").update({ emoji }).eq("message_id", messageId).eq("user_id", userId);
+    } else {
+      result = await (supabase as any).from("chat_group_message_reactions").insert({ message_id: messageId, user_id: userId, emoji });
+    }
+    if (result.error) { setError("Your reaction could not be saved."); return; }
+    setReactions((current) => [
+      ...current.filter((item) => !(item.message_id === messageId && item.user_id === userId)),
+      ...(existing?.emoji === emoji ? [] : [{ message_id: messageId, user_id: userId, emoji }]),
+    ]);
+  }
 
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [messages]);
+
+  async function startVoiceRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Voice recording is not supported in this browser.");
+      return;
+    }
+    try {
+      setError("");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordingStreamRef.current = stream;
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = recorder;
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setError("Voice recording failed. Please try again.");
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+      recorder.onstop = () => {
+        const type = recorder.mimeType || mimeType || "audio/webm";
+        const extension = type.includes("mp4") ? "m4a" : "webm";
+        const blob = new Blob(recordingChunksRef.current, { type });
+        if (blob.size > 0) setAttachment(new File([blob], `voice-message.${extension}`, { type }));
+        else setError("No audio was recorded. Please try again.");
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setError("Microphone access was denied or unavailable.");
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      recordingStreamRef.current = null;
+      setRecording(false);
+    }
+  }
+
+  function stopVoiceRecording() {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }
+
+  async function suggestSmartReplies() {
+    if (!userId || smartRepliesLoading) return;
+    const prompt = buildSmartReplyPrompt(
+      messages
+        .filter((message) => !isMessageExpired(message.expires_at))
+        .map((message) => ({
+          sender: message.sender_id === userId ? "You" as const : "Member" as const,
+          body: message.body ?? "",
+          media_path: message.media_path ?? null,
+          media_type: message.media_type ?? null,
+          location_latitude: message.location_latitude ?? null,
+          location_longitude: message.location_longitude ?? null,
+          location_session_id: message.location_session_id ?? null,
+          shared_content_id: message.shared_content_id ?? null,
+        })),
+    );
+    if (!prompt) {
+      setError("There is no recent text to use for reply suggestions.");
+      return;
+    }
+    setSmartRepliesLoading(true);
+    setError("");
+    try {
+      const result = await aiChat({ data: { messages: [{ role: "user", content: prompt }] } });
+      if (result.error) {
+        setError(result.error);
+        setSmartReplies([]);
+      } else {
+        const suggestions = parseSmartReplySuggestions(result.text);
+        setSmartReplies(suggestions);
+        if (!suggestions.length) setError("No reply suggestions were returned. Please try again.");
+      }
+    } catch {
+      setError("AI reply suggestions are unavailable right now.");
+      setSmartReplies([]);
+    } finally {
+      setSmartRepliesLoading(false);
+    }
+  }
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -238,14 +512,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     setSending(true);
     setError("");
     let mediaPath: string | null = null;
-    let mediaType: "image" | "video" | "audio" | null = null;
+    let mediaType: "image" | "video" | "audio" | "document" | null = null;
+    let attachmentName: string | null = null;
+    let attachmentMimeType: string | null = null;
+    let attachmentSizeBytes: number | null = null;
 
     if (attachment) {
       const isImage = attachment.type.startsWith("image/");
       const isVideo = attachment.type.startsWith("video/");
       const isAudio = attachment.type.startsWith("audio/");
-      if (!isImage && !isVideo && !isAudio) {
-        setError("Choose an image, video, or audio file.");
+      const document = validateDocumentFile(attachment);
+      if (!isImage && !isVideo && !isAudio && !document.ok) {
+        setError(document.reason);
         setSending(false);
         return;
       }
@@ -255,48 +533,65 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         return;
       }
 
-      mediaType = isImage ? "image" : isVideo ? "video" : "audio";
-      const extension = attachment.name.split(".").pop()?.toLowerCase() ||
-        (isImage ? "jpg" : isVideo ? "mp4" : "webm");
+      mediaType = document.ok && !isImage && !isVideo && !isAudio
+        ? "document"
+        : isImage ? "image" : isVideo ? "video" : "audio";
+      const extension = document.ok && mediaType === "document"
+        ? document.extension
+        : attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
       mediaPath = `groups/${groupId}/${userId}/${crypto.randomUUID()}.${extension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("chat-media")
-        .upload(mediaPath, attachment, {
-          contentType: attachment.type,
-          upsert: false,
-        });
-      if (uploadError) {
-        setError("Media upload failed. Please try again.");
-        setSending(false);
-        return;
+      if (mediaType === "document") {
+        attachmentName = safeAttachmentName(attachment.name);
+        attachmentMimeType = attachment.type;
+        attachmentSizeBytes = attachment.size;
       }
     }
 
-    const { error: insertError } = await (supabase as any)
-      .from("chat_group_messages")
-      .insert({
-        group_id: groupId,
-        sender_id: userId,
-        body,
-        media_path: mediaPath,
-        media_type: mediaType,
-      });
+    const insertMessage = async () => {
+      const { error: insertError } = await (supabase as any)
+        .from("chat_group_messages")
+        .insert({
+          group_id: groupId,
+          sender_id: userId,
+          body,
+          media_path: mediaPath,
+          media_type: mediaType,
+          attachment_name: attachmentName,
+          attachment_mime_type: attachmentMimeType,
+          attachment_size_bytes: attachmentSizeBytes,
+          reply_to_message_id: replyTarget?.id ?? null,
+        });
+      return { error: insertError };
+    };
 
-    if (insertError) {
-      if (mediaPath) {
-        await supabase.storage.from("chat-media").remove([mediaPath]);
-      }
-      setError("Your message could not be sent. Please try again.");
+    const result = mediaPath
+      ? await uploadThenInsertAttachment(
+          async () => {
+            const { error } = await supabase.storage.from("chat-media").upload(mediaPath!, attachment!, {
+              contentType: attachment!.type,
+              upsert: false,
+            });
+            return { error };
+          },
+          insertMessage,
+          async () => { await supabase.storage.from("chat-media").remove([mediaPath!]); },
+        )
+      : await insertMessage();
+
+    if (result.error) {
+      setError(mediaPath ? "Attachment could not be sent. Please try again." : "Your message could not be sent. Please try again.");
       setSending(false);
       return;
     }
 
     setDraft("");
     setAttachment(null);
+    setReplyTarget(null);
     if (fileInput.current) fileInput.current.value = "";
     setSending(false);
   }
+
+  if (chatLock.status !== "unlocked") return <ChatLockPanel lock={chatLock} />;
 
   if (loading) {
     return <p className="py-10 text-center text-sm text-muted-foreground">Loading group...</p>;
@@ -327,7 +622,9 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-semibold">{group.name}</h1>
           <p className="truncate text-xs text-muted-foreground">
-            {group.description || "Group conversation"}
+            {remoteActivity.length > 0
+              ? `${profiles[remoteActivity[0].user_id]?.display_name || "A member"} ${remoteActivity[0].activity === "recording" ? "is recording audio…" : "is typing…"}`
+              : group.description || "Group conversation"}
           </p>
         </div>
         <GroupMembersDialog
@@ -336,17 +633,26 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           onLeave={onBack}
         />
       </header>
+      <ChatLockPanel lock={chatLock} />
+      <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
       <div ref={log} className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
           </p>
-        ) : messages.map((message) => {
+        ) : visibleMessages.map((message, index) => {
           const mine = message.sender_id === userId;
+          const showDateDivider = shouldShowDateDivider(message.created_at, visibleMessages[index - 1]?.created_at);
           const sender = profiles[message.sender_id];
           return (
-            <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+            <div key={message.id} ref={(node) => { messageRefs.current[message.id] = node; }} onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const start = touchStartX.current; touchStartX.current = null; if (start !== null && (event.changedTouches[0]?.clientX ?? start) - start > 60) setReplyTarget(message); }} className="space-y-2">
+              {showDateDivider && (
+                <div className="sticky top-1 z-10 flex justify-center py-1">
+                  <span className="rounded-full border bg-background/90 px-3 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur">{getMessageDateLabel(message.created_at)}</span>
+                </div>
+              )}
+              <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`flex max-w-[88%] gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
                   sender?.avatar_url ? (
@@ -364,27 +670,79 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                       {sender?.handle ? <span className="ml-1 font-normal opacity-70">@{sender.handle}</span> : null}
                     </p>
                   )}
+                  {message.reply_to_message_id && (
+                    <button type="button" onClick={() => messageRefs.current[message.reply_to_message_id!]?.scrollIntoView({ behavior: "smooth", block: "center" })} className="mb-2 block w-full rounded-lg border-l-2 border-primary/70 bg-background/20 px-2 py-1 text-left text-xs">
+                      <span className="block font-semibold">Replying to</span>
+                      <span className="block truncate opacity-80">{messages.find((item) => item.id === message.reply_to_message_id)?.body || "Original message unavailable"}</span>
+                    </button>
+                  )}
                   {message.media_path && mediaUrls[message.id] && (
-                    message.media_type === "video" ? (
+                    message.media_type === "document" ? (
+                      <MessageAttachment
+                        url={mediaUrls[message.id]}
+                        fileName={message.attachment_name}
+                        mimeType={message.attachment_mime_type}
+                        sizeBytes={message.attachment_size_bytes}
+                      />
+                    ) : message.media_type === "video" ? (
                       <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-72 max-w-full rounded-lg" />
                     ) : message.media_type === "audio" ? (
-                      <audio src={mediaUrls[message.id]} controls className="mb-2 w-full min-w-[220px]" />
+                      <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
                       <img src={mediaUrls[message.id]} alt="Shared group attachment" className="mb-2 max-h-72 max-w-full rounded-lg object-contain" />
                     )
                   )}
+                  {message.location_session_id ? (
+                    <LocationShareCard sessionId={message.location_session_id} topic={groupActivityTopic} />
+                  ) : message.location_latitude !== null && message.location_latitude !== undefined
+                    && message.location_longitude !== null && message.location_longitude !== undefined
+                    && message.location_captured_at ? (
+                    <LocationShareCard oneTime={{
+                      latitude: message.location_latitude,
+                      longitude: message.location_longitude,
+                      accuracyM: message.location_accuracy_m ?? null,
+                      capturedAt: message.location_captured_at,
+                    }} />
+                  ) : null}
+                  {message.shared_content_source && message.shared_content_id && message.shared_content_type && (
+                    <SharedContentCard
+                      source={message.shared_content_source}
+                      contentId={message.shared_content_id}
+                      contentType={message.shared_content_type}
+                    />
+                  )}
                   {message.body && <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
-                  <p className="mt-1 text-right text-[10px] opacity-70">
-                    {new Date(message.created_at).toLocaleString()}
-                  </p>
+                  <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
+                    <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
+                    <span>
+                    {formatMessageTime(message.created_at)}
+                    </span>
+                  </div>
+                  <MessageReactions messageId={message.id} userId={userId} reactions={reactions} onToggle={(id, emoji) => void toggleReaction(id, emoji)} />
                 </div>
+              </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {error && <p role="alert" className="pb-2 text-sm text-destructive">{error}</p>}
+      {(error || locationSharing.error) && <p role="alert" className="pb-2 text-sm text-destructive">{error || locationSharing.error}</p>}
+      {locationSharing.activeSessionId && (
+        <div className="flex items-center justify-between border-t px-3 py-2 text-xs">
+          <span className="flex items-center gap-2 text-primary"><Radio className="h-3 w-3" /> Live location is sharing</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => void locationSharing.stopLiveSharing()}>Stop sharing</Button>
+        </div>
+      )}
+      {replyTarget && (
+        <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs">
+          <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => messageRefs.current[replyTarget.id]?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+            <span className="font-semibold">Replying to {replyTarget.sender_id === userId ? "yourself" : profiles[replyTarget.sender_id]?.display_name || "member"}</span>
+            <span className="ml-2 text-muted-foreground">{replyTarget.body || "Attachment"}</span>
+          </button>
+          <Button type="button" variant="ghost" size="icon" aria-label="Cancel reply" onClick={() => setReplyTarget(null)}><X className="h-4 w-4" /></Button>
+        </div>
+      )}
       {attachment && (
         <div className="flex items-center justify-between border-t px-2 py-2 text-sm">
           <span className="min-w-0 truncate">📎 {attachment.name}</span>
@@ -397,17 +755,47 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         </div>
       )}
 
+      {smartReplies.length > 0 && (
+        <div className="space-y-2 border-t px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">AI suggestions · choose one to edit as a draft</p>
+          <div className="flex flex-wrap gap-2">
+            {smartReplies.map((suggestion) => (
+              <Button key={suggestion} type="button" size="sm" variant="outline" onClick={() => { setDraft(suggestion); setSmartReplies([]); }}>
+                {suggestion}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
       <form onSubmit={sendMessage} className="flex items-center gap-2 border-t pt-3">
         <input
           ref={fileInput}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
-          aria-label="Choose a group attachment"
+          aria-label="Choose a group photo, video, audio, or document"
           onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
         />
-        <Button type="button" variant="outline" size="icon" aria-label="Attach media" disabled={sending} onClick={() => fileInput.current?.click()}>
+        <Button type="button" variant="outline" size="icon" aria-label="Attach file" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
           <ImagePlus className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Share current location" disabled={sending || recording || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+          <MapPin className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 15 minutes" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+          <Radio className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 1 hour" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+          <span className="text-[10px] font-bold">1h</span>
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Share Nexora content" disabled={sending || recording} onClick={() => setShareContentOpen(true)}>
+          <Share2 className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label="Suggest AI replies" disabled={sending || recording || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
+          <Sparkles className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+          {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
         <input
           value={draft}
@@ -417,10 +805,26 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           aria-label="Message the group"
           className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
         />
-        <Button type="submit" size="icon" aria-label="Send group message" disabled={(!draft.trim() && !attachment) || sending}>
+        <Button type="submit" size="icon" aria-label="Send group message" disabled={(!draft.trim() && !attachment) || sending || recording}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
+      <p className="px-3 pb-2 text-[10px] text-muted-foreground">When requested, only the latest six text messages are sent to AI for draft suggestions. Nothing is sent automatically.</p>
+      <ShareContentDialog
+        open={shareContentOpen}
+        onOpenChange={setShareContentOpen}
+        onShare={async (reference: SharedContentReference) => {
+          const { error: insertError } = await (supabase as any).from("chat_group_messages").insert({
+            group_id: groupId,
+            sender_id: userId,
+            body: `Shared a ${sharedContentLabel(reference.contentType)}`,
+            shared_content_source: reference.source,
+            shared_content_id: reference.contentId,
+            shared_content_type: reference.contentType,
+          });
+          return !insertError;
+        }}
+      />
     </main>
   );
 }

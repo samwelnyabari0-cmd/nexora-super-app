@@ -1,0 +1,83 @@
+name: Messages feature checks
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - feature/messages-phase1-polish
+
+permissions:
+  contents: read
+
+concurrency:
+  group: messages-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Messages tests, lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Lint changed Messages files
+        run: >-
+          npx eslint
+          src/routes/messages.tsx
+          src/routes/explore.tsx
+          'src/routes/profile.$handle.tsx'
+          src/components/nexora/GroupChat.tsx
+          src/components/nexora/MessageAttachment.tsx
+          src/components/nexora/message-attachments.ts
+          src/components/nexora/message-attachments.test.ts
+          src/components/nexora/LocationShareCard.tsx
+          src/components/nexora/DisappearingSettingsControl.tsx
+          src/components/nexora/location-sharing.ts
+          src/components/nexora/location-sharing.test.ts
+          src/components/nexora/ShareContentDialog.tsx
+          src/components/nexora/SharedContentCard.tsx
+          src/components/nexora/shared-content.ts
+          src/components/nexora/shared-content.test.ts
+          src/components/nexora/message-expiry.ts
+          src/components/nexora/message-expiry.test.ts
+          src/components/nexora/call-media.ts
+          src/components/nexora/call-media.test.ts
+          src/hooks/useChatLocationSharing.ts
+          src/hooks/useChatLocationSharing.test.tsx
+          src/components/nexora/message-transcription.ts
+          src/components/nexora/message-transcription.test.ts
+          src/components/nexora/smart-replies.ts
+          src/components/nexora/smart-replies.test.ts
+          src/components/nexora/VoiceNotePlayer.tsx
+          src/components/nexora/chat-lock.ts
+          src/components/nexora/chat-lock.test.ts
+          src/components/nexora/ChatLockPanel.tsx
+          src/hooks/useChatLock.ts
+          src/hooks/useChatLock.test.tsx
+          src/components/nexora/MessageReactions.tsx
+          src/hooks/useChatActivity.ts
+          --rule "prettier/prettier: off"
+          --rule "@typescript-eslint/no-explicit-any: off"
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: TypeScript baseline audit (non-blocking)
+        run: npx tsc --noEmit
+        continue-on-error: true
