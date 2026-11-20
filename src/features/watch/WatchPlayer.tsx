@@ -26,18 +26,18 @@ export function WatchPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const lastSavedRef = useRef(0);
-  const savingRef = useRef<Promise<void> | null>(null);
+  const savingRef = useRef<Promise<boolean> | null>(null);
   const [error, setError] = useState("");
   const [levels, setLevels] = useState<Array<{ height: number; bitrate: number }>>([]);
   const [quality, setQuality] = useState(-1);
 
-  const saveProgress = useCallback(async (video: HTMLVideoElement, force = false) => {
-    if (!userId || !Number.isFinite(video.duration) || video.duration <= 0) return;
+  const saveProgress = useCallback(async (video: HTMLVideoElement, force = false): Promise<boolean> => {
+    if (!userId || !Number.isFinite(video.duration) || video.duration <= 0) return true;
     if (savingRef.current) await savingRef.current;
 
     const position = Math.floor(video.currentTime);
     const duration = Math.floor(video.duration);
-    if (!shouldSaveWatchProgress(position, lastSavedRef.current, duration, force)) return;
+    if (!shouldSaveWatchProgress(position, lastSavedRef.current, duration, force)) return true;
 
     const pending = saveWatchProgress({
       userId,
@@ -48,16 +48,20 @@ export function WatchPlayer({
     })
       .then((result) => {
         if (result.error) {
-          setError("Playback continues, but progress could not sync.");
-        } else {
-          lastSavedRef.current = position;
+          setError("Progress could not sync. Check your connection and try again before closing.");
+          return false;
         }
+        lastSavedRef.current = position;
+        return true;
       })
-      .catch(() => setError("Playback continues, but progress could not sync."));
+      .catch(() => {
+        setError("Progress could not sync. Check your connection and try again before closing.");
+        return false;
+      });
 
     savingRef.current = pending;
     try {
-      await pending;
+      return await pending;
     } finally {
       if (savingRef.current === pending) savingRef.current = null;
     }
@@ -65,8 +69,8 @@ export function WatchPlayer({
 
   const closePlayer = async () => {
     const video = videoRef.current;
-    if (video && userId) await saveProgress(video, true);
-    onClose();
+    const saved = video && userId ? await saveProgress(video, true) : true;
+    if (saved) onClose();
   };
 
   useEffect(() => {
