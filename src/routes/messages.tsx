@@ -11,6 +11,8 @@ import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@
 import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
+import { MessageAttachment } from "@/components/nexora/MessageAttachment";
+import { uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
 
 type DirectMessage = {
   id: string;
@@ -18,7 +20,10 @@ type DirectMessage = {
   recipient_id: string;
   body: string;
   media_path?: string | null;
-  media_type?: "image" | "video" | "audio" | null;
+  media_type?: "image" | "video" | "audio" | "document" | null;
+  attachment_name?: string | null;
+  attachment_mime_type?: string | null;
+  attachment_size_bytes?: number | null;
   delivered_at?: string | null;
   seen_at?: string | null;
   created_at: string;
@@ -184,7 +189,7 @@ function Messages() {
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -248,7 +253,7 @@ function Messages() {
           displayName: profile?.display_name || "NEXORA User",
           handle: profile?.handle || "",
           avatarUrl: profile?.avatar_url || null,
-          lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : ""),
+          lastMessage: message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
           lastMessageAt: message.created_at,
           unreadCount: unreadByUser.get(userId) ?? 0,
           isOnline,
@@ -653,14 +658,19 @@ if (recipient === user.id) {
     setError("");
 
     let mediaPath: string | null = null;
-    let mediaType: "image" | "video" | "audio" | null = null;
+    let mediaType: "image" | "video" | "audio" | "document" | null = null;
+    let attachmentName: string | null = null;
+    let attachmentMimeType: string | null = null;
+    let attachmentSizeBytes: number | null = null;
+    let uploadErrorMessage = "Media upload failed. Please try again.";
 
     if (attachment) {
       const isImage = attachment.type.startsWith("image/");
       const isVideo = attachment.type.startsWith("video/");
       const isAudio = attachment.type.startsWith("audio/");
-      if (!isImage && !isVideo && !isAudio) {
-        setError("Choose an image, video, or audio file.");
+      const document = validateDocumentFile(attachment);
+      if (!isImage && !isVideo && !isAudio && !document.ok) {
+        setError(document.reason);
         setSending(false);
         return;
       }
@@ -670,40 +680,54 @@ if (recipient === user.id) {
         return;
       }
 
-      mediaType = isImage ? "image" : isVideo ? "video" : "audio";
-      const extension = attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
+      mediaType = document.ok && !isImage && !isVideo && !isAudio
+        ? "document"
+        : isImage ? "image" : isVideo ? "video" : "audio";
+      const extension = document.ok && mediaType === "document"
+        ? document.extension
+        : attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
       mediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("chat-media")
-        .upload(mediaPath, attachment, {
-          contentType: attachment.type,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        setError("Media upload failed. Please try again.");
-        setSending(false);
-        return;
+      if (mediaType === "document") {
+        attachmentName = attachment.name.split(/[\\/]/).pop()?.slice(0, 120) || "Shared document";
+        attachmentMimeType = attachment.type;
+        attachmentSizeBytes = attachment.size;
+        uploadErrorMessage = "Document upload failed. Please try again.";
       }
     }
 
-    const { error: sendError } = await (supabase as any)
-      .from("direct_messages")
-      .insert({
-        sender_id: user.id,
-        recipient_id: recipient,
-        body,
-        media_path: mediaPath,
-        media_type: mediaType,
-        reply_to_message_id: replyTarget?.id ?? null,
-      });
+    const insertMessage = async () => {
+      const { error: sendError } = await (supabase as any)
+        .from("direct_messages")
+        .insert({
+          sender_id: user.id,
+          recipient_id: recipient,
+          body,
+          media_path: mediaPath,
+          media_type: mediaType,
+          attachment_name: attachmentName,
+          attachment_mime_type: attachmentMimeType,
+          attachment_size_bytes: attachmentSizeBytes,
+          reply_to_message_id: replyTarget?.id ?? null,
+        });
+      return { error: sendError };
+    };
 
-    if (sendError) {
-      if (mediaPath) {
-        await supabase.storage.from("chat-media").remove([mediaPath]);
-      }
-      setError("Message could not be sent. Please try again.");
+    const result = mediaPath
+      ? await uploadThenInsertAttachment(
+          async () => {
+            const { error } = await supabase.storage.from("chat-media").upload(mediaPath!, attachment!, {
+              contentType: attachment!.type,
+              upsert: false,
+            });
+            return { error };
+          },
+          insertMessage,
+          async () => { await supabase.storage.from("chat-media").remove([mediaPath!]); },
+        )
+      : await insertMessage();
+
+    if (result.error) {
+      setError(mediaPath ? uploadErrorMessage : "Message could not be sent. Please try again.");
       setSending(false);
       return;
     }
@@ -944,7 +968,14 @@ if (recipient === user.id) {
                     </button>
                   )}
                   {message.media_path && mediaUrls[message.id] && (
-                    message.media_type === "video" ? (
+                    message.media_type === "document" ? (
+                      <MessageAttachment
+                        url={mediaUrls[message.id]}
+                        fileName={message.attachment_name}
+                        mimeType={message.attachment_mime_type}
+                        sizeBytes={message.attachment_size_bytes}
+                      />
+                    ) : message.media_type === "video" ? (
                       <video
                         src={mediaUrls[message.id]}
                         controls
@@ -1030,9 +1061,9 @@ if (recipient === user.id) {
         <input
           ref={fileInput}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
-          aria-label="Choose a photo or video"
+          aria-label="Choose a photo, video, audio, or document"
           onChange={(event) => {
             const file = event.target.files?.[0] || null;
             if (file) setSelectedFile(file);
@@ -1042,7 +1073,7 @@ if (recipient === user.id) {
           type="button"
           variant="outline"
           size="icon"
-          aria-label="Attach photo or video"
+          aria-label="Attach file"
           disabled={sending}
           onClick={() => fileInput.current?.click()}
         >
