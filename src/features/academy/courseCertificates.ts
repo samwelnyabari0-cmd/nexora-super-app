@@ -39,7 +39,7 @@ export function mapCourseCertificate(row: CertificateRow): CourseCertificate {
   };
 }
 
-export function isValidCertificateCode(value: string): boolean {
+export function hasLearnerDisplayName(value: unknown): boolean {\n  return typeof value === "string" && value.trim().length > 0 && value.trim().toLowerCase() !== "learner";\n}\n\nexport function isValidCertificateCode(value: string): boolean {
   return /^[a-f0-9]{32}$/i.test(value.trim());
 }
 
