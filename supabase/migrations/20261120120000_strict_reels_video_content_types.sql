@@ -13,10 +13,12 @@ set content_type = case
     or original_author_id is not null
     or tags @> array['nx-type-collab']::text[]
     or tags @> array['collab']::text[] then 'collab'
-  when tags @> array['nx-type-reel']::text[]
-    or tags @> array['reel']::text[]
-    or tags @> array['short']::text[] then 'reel'
-  when tags @> array['nx-type-video']::text[] then 'video'
+  when coalesce(media_type, '') like 'video/%'
+    and (tags @> array['nx-type-reel']::text[]
+      or tags @> array['reel']::text[]
+      or tags @> array['short']::text[]) then 'reel'
+  when coalesce(media_type, '') like 'video/%'
+    and tags @> array['nx-type-video']::text[] then 'video'
   when coalesce(media_type, '') like 'video/%' then 'video'
   else 'post'
 end
