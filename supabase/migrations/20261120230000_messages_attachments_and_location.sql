@@ -373,6 +373,26 @@ alter table public.chat_group_messages
       and (location_accuracy_m is null or location_accuracy_m >= 0))
   );
 
+alter table public.direct_messages
+  drop constraint if exists direct_messages_location_session_payload_check;
+alter table public.direct_messages
+  add constraint direct_messages_location_session_payload_check
+  check (
+    location_session_id is null
+    or (location_latitude is null and location_longitude is null
+      and location_accuracy_m is null and location_captured_at is null)
+  );
+
+alter table public.chat_group_messages
+  drop constraint if exists chat_group_messages_location_session_payload_check;
+alter table public.chat_group_messages
+  add constraint chat_group_messages_location_session_payload_check
+  check (
+    location_session_id is null
+    or (location_latitude is null and location_longitude is null
+      and location_accuracy_m is null and location_captured_at is null)
+  );
+
 
 -- Reference-only sharing of existing Nexora content. Recipients resolve each item under their own RLS.
 alter table public.direct_messages
