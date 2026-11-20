@@ -311,7 +311,7 @@ function Watch() {
           title={activeTitle.title}
           manifestUrl={activeTitle.manifestUrl ?? ""}
           episodeId={activeEpisodeId}
-          onClose={() => { setActiveTitle(null); setActiveEpisodeId(null); }}
+          onClose={closePlayer}
         />
       )}
     </div>
