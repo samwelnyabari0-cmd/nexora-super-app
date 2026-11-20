@@ -372,3 +372,48 @@ alter table public.chat_group_messages
       and location_captured_at is not null
       and (location_accuracy_m is null or location_accuracy_m >= 0))
   );
+
+
+-- Reference-only sharing of existing Nexora content. Recipients resolve each item under their own RLS.
+alter table public.direct_messages
+  add column if not exists shared_content_source text,
+  add column if not exists shared_content_id uuid,
+  add column if not exists shared_content_type text;
+
+alter table public.chat_group_messages
+  add column if not exists shared_content_source text,
+  add column if not exists shared_content_id uuid,
+  add column if not exists shared_content_type text;
+
+alter table public.direct_messages
+  drop constraint if exists direct_messages_shared_content_check;
+alter table public.direct_messages
+  add constraint direct_messages_shared_content_check
+  check (
+    (shared_content_source is null and shared_content_id is null and shared_content_type is null)
+    or
+    (shared_content_id is not null and shared_content_source = 'posts' and shared_content_type = 'post')
+    or
+    (shared_content_id is not null and shared_content_source = 'user_media_posts'
+      and shared_content_type = any (array['post', 'reel', 'video']::text[]))
+  );
+
+alter table public.chat_group_messages
+  drop constraint if exists chat_group_messages_shared_content_check;
+alter table public.chat_group_messages
+  add constraint chat_group_messages_shared_content_check
+  check (
+    (shared_content_source is null and shared_content_id is null and shared_content_type is null)
+    or
+    (shared_content_id is not null and shared_content_source = 'posts' and shared_content_type = 'post')
+    or
+    (shared_content_id is not null and shared_content_source = 'user_media_posts'
+      and shared_content_type = any (array['post', 'reel', 'video']::text[]))
+  );
+
+create index if not exists direct_messages_shared_content_idx
+  on public.direct_messages(shared_content_source, shared_content_id)
+  where shared_content_id is not null;
+create index if not exists chat_group_messages_shared_content_idx
+  on public.chat_group_messages(shared_content_source, shared_content_id)
+  where shared_content_id is not null;
