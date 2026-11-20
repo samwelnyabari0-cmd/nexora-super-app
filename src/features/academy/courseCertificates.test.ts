@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { isValidCertificateCode, mapCourseCertificate } from "./courseCertificates";
+import { hasLearnerDisplayName, isValidCertificateCode, mapCourseCertificate } from "./courseCertificates";
 
-describe("course certificate helpers", () => {
+describe("course certificate helpers", () => {\n  it("requires a real non-empty learner display name", () => {\n    expect(hasLearnerDisplayName("Samwel Nyabari")).toBe(true);\n    expect(hasLearnerDisplayName("  Learner Name  ")).toBe(true);\n    expect(hasLearnerDisplayName("")).toBe(false);\n    expect(hasLearnerDisplayName("   ")).toBe(false);\n    expect(hasLearnerDisplayName("Learner")).toBe(false);\n    expect(hasLearnerDisplayName(null)).toBe(false);\n  });
   it("accepts a 32-character hexadecimal verification code", () => {
     expect(isValidCertificateCode("0123456789abcdef0123456789ABCDEF")).toBe(true);
   });
