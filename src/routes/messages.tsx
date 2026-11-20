@@ -502,6 +502,19 @@ if (recipient === user.id) {
     return () => { cancelled = true; };
   }, [messages]);
 
+  useEffect(() => {
+    if (!recipient || !user?.id) return;
+    const channel = supabase.channel(`direct-reactions-${user.id}-${recipient}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "direct_message_reactions" }, async () => {
+        const ids = messages.map((message) => message.id);
+        if (ids.length === 0) return;
+        const { data } = await (supabase as any).from("direct_message_reactions")
+          .select("message_id, user_id, emoji").in("message_id", ids);
+        setReactions(data ?? []);
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [recipient, user?.id, messages]);
+
   async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
     if (!user) return;
     const existing = reactions.find((item) => item.message_id === messageId && item.user_id === user.id);
