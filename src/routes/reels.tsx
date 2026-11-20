@@ -15,6 +15,8 @@ function Reels() {
   const { user } = useSession();
   const { items, loading, error } = useStrictMediaItems("reel");
   const [liked, setLiked] = useState<string[]>([]);
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let active = true;
@@ -34,8 +36,7 @@ function Reels() {
     );
     if (rpcError) return toast.error("Could not update your like.");
     setLiked((current) => wasLiked ? current.filter((id) => id !== postId) : [...current, postId]);
-    // The database RPC remains the source of truth for the like counter.
-    void data;
+    if (typeof data === "number") setLikeCounts((current) => ({ ...current, [postId]: data }));
   }
 
   async function shareReel(postId: string, caption: string | null) {
@@ -44,8 +45,9 @@ function Reels() {
       if (navigator.share) await navigator.share({ title: "NEXORA Reel", text: caption || "Watch this Reel", url });
       else { await navigator.clipboard.writeText(url); toast.success("Reel link copied."); }
       if (user) {
-        const { error: shareError } = await (supabase as any).rpc("increment_user_media_post_shares", { target_post_id: postId });
+        const { data, error: shareError } = await (supabase as any).rpc("increment_user_media_post_shares", { target_post_id: postId });
         if (shareError) toast.error("Link shared, but the share count could not be updated.");
+        else if (typeof data === "number") setShareCounts((current) => ({ ...current, [postId]: data }));
       }
     } catch (reason) {
       if ((reason as Error).name !== "AbortError") toast.error("Could not share this Reel.");
@@ -76,9 +78,9 @@ function Reels() {
               <p className="text-[11px] text-white/70">{item.duration_seconds ?? "—"} sec · {Number(item.view_count ?? 0).toLocaleString()} views</p>
             </div>
             <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5">
-              <button type="button" onClick={() => void toggleLike(item.id)} aria-label={liked.includes(item.id) ? "Unlike Reel" : "Like Reel"} className="flex flex-col items-center gap-1"><Heart className={`h-7 w-7 ${liked.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} /><span className="text-[11px]">{Number(item.like_count ?? 0)}</span></button>
+              <button type="button" onClick={() => void toggleLike(item.id)} aria-label={liked.includes(item.id) ? "Unlike Reel" : "Like Reel"} className="flex flex-col items-center gap-1"><Heart className={`h-7 w-7 ${liked.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} /><span className="text-[11px]">{Number(likeCounts[item.id] ?? item.like_count ?? 0)}</span></button>
               <div className="flex flex-col items-center gap-1" aria-label="Comments"><MessageCircle className="h-7 w-7" /><span className="text-[11px]">{Number(item.comment_count ?? 0)}</span></div>
-              <button type="button" onClick={() => void shareReel(item.id, item.caption)} aria-label="Share Reel" className="flex flex-col items-center gap-1"><Share2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.share_count ?? 0)}</span></button>
+              <button type="button" onClick={() => void shareReel(item.id, item.caption)} aria-label="Share Reel" className="flex flex-col items-center gap-1"><Share2 className="h-7 w-7" /><span className="text-[11px]">{Number(shareCounts[item.id] ?? item.share_count ?? 0)}</span></button>
             </div>
           </article>
         ))}
