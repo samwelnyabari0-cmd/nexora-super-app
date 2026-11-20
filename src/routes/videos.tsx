@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Play, Video, ArrowLeft } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 
@@ -11,6 +11,10 @@ export const Route = createFileRoute("/videos")({
 function Videos() {
   const { items, loading, error } = useStrictMediaItems("video");
   const [activeId, setActiveId] = useState<string | null>(null);
+  useEffect(() => {
+    const requestedId = new URLSearchParams(window.location.search).get("post");
+    if (requestedId) setActiveId(requestedId);
+  }, []);
   const active = items.find((item) => item.id === activeId) ?? items[0];
 
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
