@@ -28,15 +28,25 @@ export function uploadFileWithProgress(
       ));
     });
     request.addEventListener("error", () => {
+      // A presigned URL contains temporary credentials in its query string.
+      // Report only its hostname and the header names supplied by the app.
+      let targetHost = "unknown";
+      try {
+        targetHost = new URL(url).hostname;
+      } catch {
+        // Keep the diagnostic safe if the URL cannot be parsed.
+      }
+      const requestHeaderNames = Object.keys(headers);
       const diagnostic = {
         status: request.status,
         statusText: request.statusText,
         readyState: request.readyState,
+        targetHost,
+        requestHeaderNames,
       };
-      // Never log the signed URL: it contains temporary upload credentials.
       console.error("Media upload transport error", diagnostic);
       reject(new Error(
-        `Network/CORS failure while contacting storage (status ${request.status || 0}, readyState ${request.readyState}). The browser could not complete the upload request.`,
+        `Network/CORS failure while contacting storage (status ${request.status || 0}, readyState ${request.readyState}). Target host: ${targetHost}. Upload header names: ${requestHeaderNames.join(", ") || "none"}. The browser could not complete the upload request.`,
       ));
     });
     request.addEventListener("abort", () => reject(new Error("Media upload was cancelled.")));

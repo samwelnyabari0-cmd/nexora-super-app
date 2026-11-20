@@ -29,7 +29,7 @@ describe("uploadFileWithProgress diagnostics", () => {
 
   it("reports a browser-level network or CORS failure with transport details", async () => {
     const request = new MockUploadRequest();
-    stubXMLHttpRequest(request)
+    stubXMLHttpRequest(request);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(
@@ -50,10 +50,30 @@ describe("uploadFileWithProgress diagnostics", () => {
     request.responseText = "SignatureDoesNotMatch";
     request.send = vi.fn(() => request.listeners.get("load")?.());
 
-    stubXMLHttpRequest(request)
+    stubXMLHttpRequest(request);
 
     await expect(
       uploadFileWithProgress("https://storage.example/signed-upload", new Blob(["video"]), {}, vi.fn()),
     ).rejects.toThrow(/403 Forbidden.*SignatureDoesNotMatch/);
+  });
+
+  it("shows only the upload hostname and header names on transport failure, never signed URL credentials", async () => {
+    const request = new MockUploadRequest();
+    stubXMLHttpRequest(request);
+
+    const failure = uploadFileWithProgress(
+      "https://storage.example/upload?X-Amz-Signature=do-not-display",
+      new Blob(["video"]),
+      {
+        "Content-Type": "video/mp4",
+        "x-amz-meta-owner": "user-id",
+        "x-amz-meta-purpose": "post-media",
+      },
+      vi.fn(),
+    );
+
+    await expect(failure).rejects.toThrow(/storage\.example/);
+    await expect(failure).rejects.toThrow(/Content-Type, x-amz-meta-owner, x-amz-meta-purpose/);
+    await expect(failure).rejects.not.toThrow(/X-Amz-Signature|do-not-display|user-id/);
   });
 });
