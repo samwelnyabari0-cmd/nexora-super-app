@@ -97,8 +97,12 @@ export function useHub() {
   const [ready, setReady] = useState(false);
   const [cloud, setCloud] = useState<CloudStatus>("off");
   const pulledFor = useRef<string | null>(null);
+  const pullReadyRef = useRef(false);
+  const editedDuringPull = useRef(false);
+  const [pullReady, setPullReady] = useState(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const signedIn = !!currentUser();
+  const userId = currentUser()?.id ?? null;
+  const signedIn = !!userId;
 
   useEffect(() => {
     try {
@@ -119,11 +123,25 @@ export function useHub() {
       }
   }, [saved, ready]);
 
-  // Pull once per sign-in; cloud wins only when it is newer than the last push from this device.
+  // Finish the initial cloud pull before allowing pushes, so stale device data cannot overwrite cloud data.
   useEffect(() => {
+    if (!ready) return;
     const user = currentUser();
-    if (!ready || !user || pulledFor.current === user.id) return;
+    if (!user) {
+      pullReadyRef.current = true;
+      setPullReady(true);
+      setCloud("off");
+      return;
+    }
+    if (pulledFor.current === user.id) {
+      pullReadyRef.current = true;
+      setPullReady(true);
+      return;
+    }
     pulledFor.current = user.id;
+    pullReadyRef.current = false;
+    editedDuringPull.current = false;
+    setPullReady(false);
     let cancelled = false;
     setCloud("syncing");
     void supabase
@@ -134,18 +152,21 @@ export function useHub() {
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
+          pulledFor.current = null;
           setCloud("error");
           return;
         }
         const lastSync = Number(localStorage.getItem(SYNC_KEY) ?? 0);
         const row = data as { data: unknown; updated_at: string } | null;
-        setSaved((local) => resolveHub(local, row, lastSync).data);
+        setSaved((local) => editedDuringPull.current ? local : resolveHub(local, row, lastSync).data);
+        pullReadyRef.current = true;
+        setPullReady(true);
         setCloud("synced");
       });
     return () => {
       cancelled = true;
     };
-  }, [ready, signedIn]);
+  }, [ready, userId]);
 
   // Debounced push whenever signed in and data changes.
   useEffect(() => {
@@ -153,6 +174,7 @@ export function useHub() {
       setCloud("off");
       return;
     }
+    if (!pullReady || !pullReadyRef.current) return;
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(async () => {
       const user = currentUser();
@@ -170,13 +192,16 @@ export function useHub() {
     return () => {
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [saved, ready, signedIn]);
+  }, [saved, ready, signedIn, pullReady]);
 
   const data = ghost ?? saved;
   const update = useCallback(
     (fn: (d: HubData) => HubData) => {
       if (ghost) setGhost((g) => (g ? fn(g) : g));
-      else setSaved(fn);
+      else {
+        if (!pullReadyRef.current) editedDuringPull.current = true;
+        setSaved(fn);
+      }
     },
     [ghost],
   );
@@ -188,7 +213,10 @@ export function useHub() {
     cloud,
     enterGhost: () => setGhost(structuredClone(saved)),
     commitGhost: () => {
-      if (ghost) setSaved(ghost);
+      if (ghost) {
+        if (!pullReadyRef.current) editedDuringPull.current = true;
+        setSaved(ghost);
+      }
       setGhost(null);
     },
     discardGhost: () => setGhost(null),
