@@ -69,5 +69,6 @@ describe("useChatLocationSharing lifecycle", () => {
       );
     });
     expect(clearWatch).toHaveBeenCalledWith(77);
+    expect(result.current.activeSessionId).toBeNull();
   });
 });
