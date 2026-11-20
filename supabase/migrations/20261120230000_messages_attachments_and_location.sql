@@ -136,7 +136,7 @@ create index if not exists chat_location_shares_group_expiry_idx
   where group_id is not null;
 
 alter table public.chat_location_shares enable row level security;
-revoke all on public.chat_location_shares from anon, authenticated;
+revoke all on public.chat_location_shares from public, anon, authenticated;
 
 create or replace function public.start_chat_location_share(
   p_chat_kind text,
@@ -354,7 +354,8 @@ alter table public.direct_messages
   check (
     (location_latitude is null and location_longitude is null and location_captured_at is null)
     or
-    (location_latitude between -90 and 90 and location_longitude between -180 and 180
+    (location_latitude is not null and location_longitude is not null
+      and location_latitude between -90 and 90 and location_longitude between -180 and 180
       and location_captured_at is not null
       and (location_accuracy_m is null or location_accuracy_m >= 0))
   );
