@@ -167,7 +167,7 @@ describe("LearningNotesPanel", () => {
     expect(screen.getByText("Advanced topic")).toBeInTheDocument();
     expect(screen.queryByText("Course-level note")).not.toBeInTheDocument();
     const table = screen.getByRole("table", { name: "Lesson notes" });
-    expect(table.closest("div")).toHaveClass("h-80", "overflow-auto");
+    expect(table.closest("div")).toHaveClass("h-80", "min-w-0", "max-w-full", "overflow-x-auto", "overflow-y-auto");
     expect(screen.getByRole("columnheader", { name: "Lesson" })).toBeInTheDocument();
   });
 
@@ -186,7 +186,8 @@ describe("LearningNotesPanel", () => {
       />,
     );
 
-    expect(await screen.findByRole("table", { name: "Course notes" })).toBeInTheDocument();
+    const table = await screen.findByRole("table", { name: "Course notes" });
+    expect(table.closest("div")).toHaveClass("h-80", "min-w-0", "max-w-full", "overflow-x-auto", "overflow-y-auto");
     expect(screen.queryByRole("columnheader", { name: "Lesson" })).not.toBeInTheDocument();
   });
 
