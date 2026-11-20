@@ -99,6 +99,7 @@ function Create() {
     setMediaFiles([]);
     setMediaType(undefined);
     setCover(null);
+    setContentType("post");
     setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
     setFilter("original");
     setFormat("landscape");
@@ -152,6 +153,9 @@ const previewFilter =
           </div>
           <StudioCapture
             onCapture={(url, type) => {
+  setMedia(url);
+  setOriginalMedia(url);
+  setMediaType(type);
   setError("");
   void fetch(url)
     .then((response) => response.blob())
@@ -216,6 +220,8 @@ const previewFilter =
                   setMediaFiles([]);
                   setMediaType(undefined);
                   setCover(null);
+                  setContentType("post");
+                  setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
                 }}
               >
                 <Trash2 />
