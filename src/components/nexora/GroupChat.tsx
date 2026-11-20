@@ -259,6 +259,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     return () => { cancelled = true; };
   }, [messages]);
 
+  useEffect(() => {
+    if (!groupId || messages.length === 0) return;
+    const channel = supabase.channel(`group-reactions-${groupId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chat_group_message_reactions" }, async () => {
+        const ids = messages.map((message) => message.id);
+        const { data } = await (supabase as any).from("chat_group_message_reactions")
+          .select("message_id, user_id, emoji").in("message_id", ids);
+        setReactions(data ?? []);
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [groupId, messages]);
+
   async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
     const existing = reactions.find((item) => item.message_id === messageId && item.user_id === userId);
     let result;
