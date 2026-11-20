@@ -27,6 +27,8 @@ import {
   Trophy,
   GraduationCap,
   ShieldCheck,
+  Clapperboard,
+  Video,
 } from "lucide-react";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
@@ -39,7 +41,9 @@ import { useSession } from "@/lib/session";
 const nav = [
   { to: "/", label: "Home", icon: Home },
   { to: "/explore", label: "Explore", icon: Compass },
+  { to: "/reels", label: "Reels", icon: Clapperboard },
   { to: "/create", label: "Create", icon: PlusSquare },
+  { to: "/videos", label: "Videos", icon: Video },
   { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/ai", label: "AI", icon: Sparkles },
   { to: "/maps", label: "Maps", icon: MapPin },
@@ -58,7 +62,7 @@ const nav = [
   { to: "/help", label: "Help", icon: HelpCircle },
 ] as const;
 
-const mobileNav = ["/", "/explore", "/create", "/messages", "/profile"];
+const mobileNav = ["/", "/explore", "/reels", "/create", "/videos", "/messages", "/profile"];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -299,7 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={to}
                   to={to}
                   aria-label="Create"
-                  className="bg-brand -mt-1 grid h-11 w-14 place-items-center rounded-2xl text-primary-foreground shadow-glow"
+                  className="bg-brand -mt-1 grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-primary-foreground shadow-glow sm:w-12"
                 >
                   <PlusSquare className="h-5 w-5" />
                 </Link>
@@ -310,7 +314,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex w-14 flex-col items-center gap-0.5 text-[11px]",
+                  "relative flex w-11 shrink-0 flex-col items-center gap-0.5 text-[10px] sm:w-12 sm:text-[11px]",
                   active ? "text-foreground" : "text-muted-foreground",
                 )}
               >
