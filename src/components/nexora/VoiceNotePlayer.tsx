@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Pause, Play, Captions, Loader2 } from "lucide-react";
 import { aiTranscribe } from "@/lib/ai.functions";
+import { validateTranscriptionAudio } from "./message-transcription";
 
 type VoiceNotePlayerProps = {
   src: string;
@@ -19,6 +21,7 @@ function formatDuration(seconds: number): string {
 
 export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const runTranscription = useServerFn(aiTranscribe);
   const [playing, setPlaying] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -63,12 +66,13 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
       const response = await fetch(src);
       if (!response.ok) throw new Error("The voice message could not be downloaded for transcription.");
       const blob = await response.blob();
-      if (!blob.size) throw new Error("This voice message is empty.");
-      if (blob.size > 20 * 1024 * 1024) throw new Error("Voice messages over 20 MB cannot be transcribed.");
-      const extension = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : blob.type.includes("mpeg") ? "mp3" : "webm";
+      const mimeType = blob.type || "audio/webm";
+      const validation = validateTranscriptionAudio(blob.size, mimeType);
+      if (!validation.ok) throw new Error(validation.reason);
+      const extension = mimeType.includes("mp4") ? "m4a" : mimeType.includes("ogg") ? "ogg" : mimeType.includes("mpeg") ? "mp3" : "webm";
       const formData = new FormData();
-      formData.append("file", new File([blob], `voice-message.${extension}`, { type: blob.type || "audio/webm" }));
-      const result = await aiTranscribe({ data: formData });
+      formData.append("file", new File([blob], `voice-message.${extension}`, { type: mimeType }));
+      const result = await runTranscription({ data: formData });
       if (result.error) throw new Error(result.error);
       setTranscript(result.transcript);
       setSummary(result.summary);
@@ -144,7 +148,7 @@ export function VoiceNotePlayer({ src, mine = false }: VoiceNotePlayerProps) {
       </button>
     </div>
     <p className="max-w-[320px] text-[10px] text-muted-foreground">Transcribing sends this audio to the configured AI provider.</p>
-    {transcribeError && <p role="alert" className="max-w-[320px] text-[10px] text-destructive">{transcribeError}</p>
+    {transcribeError && <p role="alert" className="max-w-[320px] text-[10px] text-destructive">{transcribeError}</p>}
     {transcript && (
       <details className="max-w-[280px] rounded-lg border border-current/10 p-2 text-xs">
         <summary className="cursor-pointer font-medium">Transcript and summary</summary>
