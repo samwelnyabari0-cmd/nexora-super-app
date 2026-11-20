@@ -122,7 +122,7 @@ function HubPage() {
           {hub.ghostOn
             ? "ShadowBox is active: changes are temporary until you commit them."
             : "ShadowBox: safely test changes in a temporary sandbox, then commit or discard."}
-        </p>
+        </p></div>
         {hub.ghostOn ? (
           <>
             <Button
