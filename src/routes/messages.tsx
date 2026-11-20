@@ -20,7 +20,6 @@ import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
 import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
 import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
-import { TranscribeVoiceMessageButton } from "@/components/nexora/TranscribeVoiceMessageButton";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
@@ -1130,7 +1129,7 @@ if (recipient === user.id) {
                         className="mb-2 max-h-72 max-w-full rounded-lg"
                       />
                     ) : message.media_type === "audio" ? (
-                      <><VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} /><TranscribeVoiceMessageButton src={mediaUrls[message.id]} /></>
+                      <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
                       <img
                         src={mediaUrls[message.id]}
