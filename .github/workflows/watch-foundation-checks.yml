@@ -39,6 +39,9 @@ jobs:
           npx eslint
           src/features/watch/logic.ts
           src/features/watch/logic.test.ts
+          src/features/watch/data.ts
+          src/features/watch/WatchPlayer.tsx
+          src/routes/watch.tsx
           --rule "prettier/prettier: off"
       - name: Build production bundle
         run: npm run build
