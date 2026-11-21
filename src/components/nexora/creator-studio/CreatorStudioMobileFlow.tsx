@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -99,20 +99,20 @@ export default function CreatorStudioMobileFlow(props: Props) {
     return Math.hypot(dx, dy);
   };
 
-  const handlePreviewTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+  const handlePreviewTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length === 2) {
       pinchStart.current = { distance: touchDistance(event.touches), zoom: previewZoom };
     }
   };
 
-  const handlePreviewTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+  const handlePreviewTouchMove = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length !== 2 || !pinchStart.current) return;
     event.preventDefault();
     const nextZoom = pinchStart.current.zoom * (touchDistance(event.touches) / pinchStart.current.distance);
     setPreviewZoom(Math.min(3, Math.max(0.5, nextZoom)));
   };
 
-  const handlePreviewTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+  const handlePreviewTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length < 2) pinchStart.current = null;
   };
 
