@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { AudioLines, Clapperboard, Lock, SlidersHorizontal, Sparkles, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ type Props = {
   filterIntensity: number;
   onFilterIntensityChange: (value: number) => void;
   onNavigateToSubscriptions: () => void;
+  advancedEditor?: ReactNode;
 };
 
 type DockTab = "filters" | "audio" | "studio";
@@ -21,6 +22,7 @@ export default function TierGatedCreatorStudio({
   filterIntensity,
   onFilterIntensityChange,
   onNavigateToSubscriptions,
+  advancedEditor,
 }: Props) {
   const [tab, setTab] = useState<DockTab>("filters");
   const [upgrade, setUpgrade] = useState<UpgradeTier | null>(null);
@@ -90,6 +92,7 @@ export default function TierGatedCreatorStudio({
               <div className="rounded-xl border bg-card p-3">
                 <p className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4" /> Studio unlocked</p>
                 <p className="mt-1 text-xs text-muted-foreground">Timeline editing, voiceover and audio mixing are available in the advanced editor.</p>
+                {advancedEditor && <div className="mt-3">{advancedEditor}</div>}
               </div>
             ) : (
               <>
