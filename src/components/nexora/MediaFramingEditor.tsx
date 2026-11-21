@@ -11,6 +11,7 @@ import {
 
 type Props = {
   src: string;
+  mediaType?: string;
   originalAspectRatio: number | null;
   frameRatio: MediaFrameRatio;
   focalX: number;
@@ -21,7 +22,7 @@ type Props = {
 };
 
 export function MediaFramingEditor({
-  src, originalAspectRatio, frameRatio, focalX, focalY, zoom,
+  src, mediaType, originalAspectRatio, frameRatio, focalX, focalY, zoom,
   onFrameRatioChange, onFramingChange,
 }: Props) {
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -96,13 +97,23 @@ export function MediaFramingEditor({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         >
-          <img src={src} alt="Media framing preview" draggable={false}
-            className="h-full w-full select-none"
-            style={{
-              objectFit: cropped ? "cover" : "contain",
-              objectPosition: `${framing.focalX}% ${framing.focalY}%`,
-              transform: `scale(${framing.zoom})`,
-            }} />
+          {mediaType?.startsWith("video/") ? (
+            <video src={src} autoPlay muted loop playsInline preload="metadata"
+              className="h-full w-full select-none"
+              style={{
+                objectFit: cropped ? "cover" : "contain",
+                objectPosition: framing.focalX + "% " + framing.focalY + "%",
+                transform: "scale(" + framing.zoom + ")",
+              }} />
+          ) : (
+            <img src={src} alt="Media framing preview" draggable={false}
+              className="h-full w-full select-none"
+              style={{
+                objectFit: cropped ? "cover" : "contain",
+                objectPosition: framing.focalX + "% " + framing.focalY + "%",
+                transform: "scale(" + framing.zoom + ")",
+              }} />
+          )}
         </div>
       </div>
       <div className="flex items-center gap-3">
