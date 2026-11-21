@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, SearchX, Users } from "lucide-react";
+import { SearchX, Users } from "lucide-react";
 import { feedFilters } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,7 @@ function Home() {
             {people.slice(0, 12).map((person) => (
               <Link key={person.id} to="/profile" search={{ handle: person.handle }}
                 className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
-                <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={60} ring />
+                <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={60} />
                 <span className="w-full truncate text-center text-muted-foreground">{person.handle}</span>
               </Link>
             ))}
