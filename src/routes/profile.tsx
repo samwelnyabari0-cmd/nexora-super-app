@@ -107,8 +107,9 @@ function Profile() {
   const [accountType, setAccountType] = useState<"personal" | "creator" | "business">(user?.user_metadata?.account_type ?? "personal");
   const [profileCategory, setProfileCategory] = useState<string>(user?.user_metadata?.profile_category ?? "");
   const [connections, setConnections] = useState<
-    Array<{ id: string; display_name: string | null; handle: string | null }>
+    Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>
   >([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
@@ -120,22 +121,36 @@ function Profile() {
 
   useEffect(() => {
     if (!user || (socialTab !== "followers" && socialTab !== "following")) return;
+    let active = true;
     void (async () => {
-      const column = socialTab === "followers" ? "follower_id" : "following_id";
-      const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
-      const { data: rows } = await (supabase as any)
-        .from("follows")
-        .select(`${column}`)
-        .eq(relationColumn, user.id);
-      const ids = (rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean);
-      if (!ids.length) return setConnections([]);
-      const { data: profiles } = await (supabase as any)
-        .from("profiles")
-        .select("id, display_name, handle")
-        .in("id", ids);
-      setConnections(profiles ?? []);
+      setConnectionsLoading(true);
+      try {
+        const column = socialTab === "followers" ? "follower_id" : "following_id";
+        const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
+        const { data: rows, error: followsError } = await (supabase as any)
+          .from("follows")
+          .select(column)
+          .eq(relationColumn, user.id);
+        if (followsError) throw followsError;
+        const ids = [...new Set((rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean))];
+        if (!ids.length) {
+          if (active) setConnections([]);
+          return;
+        }
+        // Use the safe identity RPC; profile rows are not directly readable to every signed-in user.
+        const { data: profiles, error: profilesError } = await (supabase as any)
+          .rpc("get_post_author_profiles", { target_user_ids: ids });
+        if (profilesError) throw profilesError;
+        if (active) setConnections(profiles ?? []);
+      } catch (error) {
+        console.error(`Could not load ${socialTab}:`, error);
+        if (active) setConnections([]);
+      } finally {
+        if (active) setConnectionsLoading(false);
+      }
     })();
-  }, [socialTab, user]);
+    return () => { active = false; };
+  }, [socialTab, user?.id]);
 
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
@@ -316,7 +331,15 @@ useEffect(() => {
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
             <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
-            <p className="mt-2 text-sm text-muted-foreground">{followers.toLocaleString()} Followers · {following.toLocaleString()} Following · <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span></p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <button type="button" onClick={() => setSocialTab("followers")} className="rounded-sm text-left hover:text-foreground">
+                <strong className="text-foreground">{followers.toLocaleString()}</strong> Followers
+              </button>
+              <button type="button" onClick={() => setSocialTab("following")} className="rounded-sm text-left hover:text-foreground">
+                <strong className="text-foreground">{following.toLocaleString()}</strong> Following
+              </button>
+              <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span>
+            </div>
           </div>
         </div>
         <ProfileBadges
@@ -389,7 +412,7 @@ useEffect(() => {
       </Panel>
 
       <Panel className="space-y-4">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex items-center justify-around gap-1 overflow-x-auto border-y py-1">
           {(
             [
               { value: "followers", label: "Followers", Icon: Users },
@@ -415,18 +438,28 @@ useEffect(() => {
           <ProfileMediaExperience tab={socialTab} />
         )}
         {(socialTab === "followers" || socialTab === "following") && (
-          <div className="space-y-2">
-            {connections.map((connection) => (
-              <div key={connection.id} className="flex items-center gap-3 rounded-xl border p-3">
-                <Avatar name={connection.display_name ?? connection.handle ?? "NEXORA user"} size={40} />
-                <div className="min-w-0">
-                  <p className="font-semibold">{connection.display_name ?? "NEXORA user"}</p>
-                  <p className="text-sm text-muted-foreground">@{connection.handle ?? connection.id.slice(0, 8)}</p>
+          <div className="space-y-2 py-2">
+            {connectionsLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground" role="status">Loading {socialTab}…</p>
+            ) : connections.map((connection) => (
+              <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
+                {connection.avatar_url ? (
+                  <img src={connection.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <Avatar name={connection.display_name ?? connection.handle ?? "NEXORA user"} size={44} />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                  <p className="truncate text-sm text-muted-foreground">@{connection.handle ?? connection.id.slice(0, 8)}</p>
                 </div>
-                <Button className="ml-auto" variant="outline" size="sm">View</Button>
+                {connection.handle && (
+                  <Button asChild className="shrink-0" variant="outline" size="sm">
+                    <Link to="/profile/$handle" params={{ handle: connection.handle }}>View</Link>
+                  </Button>
+                )}
               </div>
             ))}
-            {!connections.length && <p className="text-sm text-muted-foreground">No {socialTab} yet.</p>}
+            {!connectionsLoading && !connections.length && <p className="py-8 text-center text-sm text-muted-foreground">No {socialTab} yet.</p>}
           </div>
         )}
       </Panel>
@@ -523,14 +556,14 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
 
   return (
     <>
-      {/* Fixed-height profile media grid */}
-      <div className="relative h-[420px] max-h-[65vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
+      {/* Instagram-style grid grows with its content and the page scrolls naturally. */}
+      <div className="relative overflow-visible rounded-2xl pr-1">
         {strictLoading ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground" role="status">Loading {tab}…</div>
+          <div className="flex min-h-32 items-center justify-center py-8 text-sm text-muted-foreground" role="status">Loading {tab}…</div>
         ) : strictError ? (
-          <div className="flex h-full items-center justify-center text-sm text-destructive" role="alert">{strictError}</div>
+          <div className="flex min-h-32 items-center justify-center py-8 text-sm text-destructive" role="alert">{strictError}</div>
         ) : activeItems.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
+          <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center">
             <Grid3X3 className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-sm font-semibold">
               No {tab} yet
@@ -540,7 +573,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2 pb-5">
+          <div className="grid grid-cols-3 gap-1 pb-5">
             {activeItems.map((post, index) => {
               const isVideo =
                 post.kind === "short" ||
