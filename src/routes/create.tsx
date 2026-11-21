@@ -241,6 +241,7 @@ const previewFilter =
         userPlan={userPlan as "free" | "pro" | "studio"}
         media={media} mediaType={mediaType} frameRatio={frameRatio} onFrameRatioChange={changeFrameRatio}
         filter={filter} onFilterChange={setFilter} filterIntensity={filterIntensity} onFilterIntensityChange={setFilterIntensity}
+        previewFilter={previewFilter}
         contentType={contentType}
         onContentTypeChange={(next) => next === "live" ? void nav({ to: "/live" }) : setContentType(next)}
         drafts={drafts.map((item) => ({ id: item.id, caption: item.caption }))}
