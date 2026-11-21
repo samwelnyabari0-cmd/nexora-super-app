@@ -32,7 +32,7 @@ export function validateDocumentFile(file: Pick<File, "type" | "name" | "size">)
   if (file.size > MAX_CHAT_ATTACHMENT_BYTES) {
     return { ok: false, reason: "The document must be 50 MB or smaller." };
   }
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : "";
   if (!extensions.includes(extension)) {
     return { ok: false, reason: "The file extension does not match its document type." };
   }
