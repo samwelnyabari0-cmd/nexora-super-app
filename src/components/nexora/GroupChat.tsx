@@ -8,7 +8,7 @@ import { VoiceNotePlayer } from "@/components/nexora/VoiceNotePlayer";
 import { useChatActivity } from "@/hooks/useChatActivity";
 import { MessageReactions, type MessageReaction, type MessageReactionEmoji } from "@/components/nexora/MessageReactions";
 import { MessageAttachment } from "@/components/nexora/MessageAttachment";
-import { safeAttachmentName, uploadThenInsertAttachment, validateDocumentFile } from "@/components/nexora/message-attachments";
+import { resolveChatAttachment, safeAttachmentName, uploadThenInsertAttachment } from "@/components/nexora/message-attachments";
 import { LocationShareCard } from "@/components/nexora/LocationShareCard";
 import { useChatLocationSharing } from "@/hooks/useChatLocationSharing";
 import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
@@ -539,32 +539,21 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     let attachmentMimeType: string | null = null;
     let attachmentSizeBytes: number | null = null;
 
+    let uploadContentType: string | null = null;
     if (attachment) {
-      const isImage = attachment.type.startsWith("image/");
-      const isVideo = attachment.type.startsWith("video/");
-      const isAudio = attachment.type.startsWith("audio/");
-      const document = validateDocumentFile(attachment);
-      if (!isImage && !isVideo && !isAudio && !document.ok) {
-        setError(document.reason);
-        setSending(false);
-        return;
-      }
-      if (attachment.size > 50 * 1024 * 1024) {
-        setError("The file must be 50 MB or smaller.");
+      const resolved = resolveChatAttachment(attachment);
+      if (!resolved.ok) {
+        setError(resolved.reason);
         setSending(false);
         return;
       }
 
-      mediaType = document.ok && !isImage && !isVideo && !isAudio
-        ? "document"
-        : isImage ? "image" : isVideo ? "video" : "audio";
-      const extension = document.ok && mediaType === "document"
-        ? document.extension
-        : attachment.name.split(".").pop()?.toLowerCase() || (isImage ? "jpg" : isVideo ? "mp4" : "webm");
-      mediaPath = `groups/${groupId}/${userId}/${crypto.randomUUID()}.${extension}`;
+      mediaType = resolved.mediaType;
+      uploadContentType = resolved.contentType;
+      mediaPath = `groups/${groupId}/${userId}/${crypto.randomUUID()}.${resolved.extension}`;
       if (mediaType === "document") {
         attachmentName = safeAttachmentName(attachment.name);
-        attachmentMimeType = attachment.type;
+        attachmentMimeType = resolved.contentType;
         attachmentSizeBytes = attachment.size;
       }
     }
@@ -590,7 +579,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       ? await uploadThenInsertAttachment(
           async () => {
             const { error } = await supabase.storage.from("chat-media").upload(mediaPath!, attachment!, {
-              contentType: attachment!.type,
+              contentType: uploadContentType ?? (attachment!.type || "application/octet-stream"),
               upsert: false,
             });
             return { error };
@@ -601,7 +590,12 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       : await insertMessage();
 
     if (result.error) {
-      setError(mediaPath ? "Attachment could not be sent. Please try again." : "Your message could not be sent. Please try again.");
+      const detail = result.error && typeof result.error === "object" && "message" in result.error
+        ? String((result.error as { message?: unknown }).message ?? "")
+        : "";
+      setError(mediaPath
+        ? detail ? `Attachment could not be sent: ${detail}` : "Attachment could not be sent. Please try again."
+        : detail ? `Message could not be sent: ${detail}` : "Message could not be sent. Please try again.");
       setSending(false);
       return;
     }
@@ -658,7 +652,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
+      <div ref={log} className="min-h-[55dvh] min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
@@ -804,7 +798,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <input
           ref={fileInput}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/webm,audio/mp4,audio/ogg,audio/mpeg,audio/wav,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
           aria-label="Choose a group photo, video, audio, or document"
           onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}

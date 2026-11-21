@@ -2,12 +2,33 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DOCUMENT_MIME_TYPES,
   formatAttachmentSize,
+  resolveChatAttachment,
   safeAttachmentName,
   uploadThenInsertAttachment,
   validateDocumentFile,
 } from "./message-attachments";
 
 describe("private document attachment rules", () => {
+  it("resolves supported mobile photo and video attachments when the picker omits or varies MIME types", () => {
+    expect(resolveChatAttachment({ type: "image/jpg", name: "photo.jpg", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "image", contentType: "image/jpeg", extension: "jpg",
+    });
+    expect(resolveChatAttachment({ type: "", name: "photo.jpeg", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "image", contentType: "image/jpeg", extension: "jpeg",
+    });
+    expect(resolveChatAttachment({ type: "video/mp4", name: "clip.mp4", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "video", contentType: "video/mp4", extension: "mp4",
+    });
+    expect(resolveChatAttachment({ type: "image/jpeg", name: "photo", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "image", contentType: "image/jpeg", extension: "jpg",
+    });
+  });
+
+  it("rejects unsupported mobile media formats and files above the bucket limit", () => {
+    expect(resolveChatAttachment({ type: "image/heic", name: "photo.heic", size: 2048 }).ok).toBe(false);
+    expect(resolveChatAttachment({ type: "video/mp4", name: "clip.mp4", size: 50 * 1024 * 1024 + 1 }).ok).toBe(false);
+  });
+
   it("accepts the seven supported document formats", () => {
     const extensions = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
     DOCUMENT_MIME_TYPES.forEach((type, index) => {
