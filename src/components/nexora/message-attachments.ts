@@ -125,7 +125,7 @@ export function resolveChatAttachment(
     return { ok: false, reason: "Photos and videos must be 50 MB or smaller." };
   }
 
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : "";
   const declaredType = file.type.trim().toLowerCase();
   const aliases: Record<string, string> = {
     "image/jpg": "image/jpeg",
