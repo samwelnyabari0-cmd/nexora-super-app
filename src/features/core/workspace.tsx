@@ -28,7 +28,7 @@ export type Preferences = {
 function useWorkspaceState() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [collections, setCollections] = useState<Record<string, string[]>>({ Favorites: ["p4"] });
-  const [following, setFollowing] = useState(["c1", "c3", "c5"]);
+  const [following, setFollowing] = useState<string[]>([]);
   const [muted, setMuted] = useState<string[]>([]);
   const [reports, setReports] = useState<{ target: string; reason: string }[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);

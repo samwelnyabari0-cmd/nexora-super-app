@@ -15,6 +15,7 @@ import {
   Flag,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { compact, creatorById, type Post } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { useApp } from "@/features/core/store";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./ui";
@@ -34,12 +36,17 @@ import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
     useApp();
-  const c =
-    post.creatorId === "me"
-      ? { name: passport.name, handle: passport.handle, hue: 295, verified: false }
-      : creatorById(post.creatorId);
-  const { following, toggleFollow, muted, toggleMute, report } = useWorkspace();
+  const fallbackCreator = creatorById(post.creatorId);
+  const c = {
+    name: post.creatorId === "me" ? passport.name : post.creatorName ?? fallbackCreator.name,
+    handle: post.creatorId === "me" ? passport.handle : post.creatorHandle ?? fallbackCreator.handle,
+    avatarUrl: post.creatorAvatarUrl ?? (post.creatorId === "me" ? passport.avatarUrl ?? null : null),
+    hue: fallbackCreator.hue,
+    verified: post.creatorId === "me" ? false : fallbackCreator.verified,
+  };
+  const { muted, toggleMute, report } = useWorkspace();
   const { user } = useSession();
+  const socialGraph = useSocialGraph(post.creatorId === "me" ? "" : post.creatorId);
   const [safety, setSafety] = useState(false);
   const [reason, setReason] = useState("Spam");
   const mediaSources = (() => {
@@ -113,8 +120,10 @@ export function PostCard({ post }: { post: Post }) {
 
   const header = (
     <div className="flex items-center gap-3">
-      <Avatar name={c.name} hue={c.hue} size={38} />
-      <div className="min-w-0 flex-1">
+      <Link to="/profile" search={{ handle: c.handle }} className="shrink-0" aria-label={`Open ${c.name}'s profile`}>
+        <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
+      </Link>
+      <Link to="/profile" search={{ handle: c.handle }} className="min-w-0 flex-1">
         <p className="flex items-center gap-1 text-sm font-semibold">
           {c.name}
           {c.verified && <BadgeCheck className="h-4 w-4 text-accent" aria-label="Verified" />}
@@ -127,11 +136,9 @@ export function PostCard({ post }: { post: Post }) {
           ) : null}
           <span>{typeLabel}</span>
           <span aria-hidden="true">·</span>
-          <span>
-            @{c.handle} · {post.createdAt}
-          </span>
+          <span>@{c.handle} · {post.createdAt}</span>
         </p>
-      </div>
+      </Link>
       {post.creatorId === "me" ? (
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit post">Edit</Button>
@@ -367,8 +374,8 @@ export function PostCard({ post }: { post: Post }) {
   <Dialog open={safety} onOpenChange={setSafety}>
         <DialogContent>
           <DialogTitle>{c.name}</DialogTitle>
-          <Button variant="outline" onClick={() => toggleFollow(post.creatorId)}>
-            {following.includes(post.creatorId) ? "Unfollow" : "Follow"}
+          <Button variant="outline" disabled={!user || socialGraph.loading} onClick={() => { void socialGraph.toggleFollow(); setSafety(false); }}>
+            {!user ? "Sign in to follow" : socialGraph.isFollowing ? "Unfollow" : "Follow"}
           </Button>
           <Button
             variant="outline"

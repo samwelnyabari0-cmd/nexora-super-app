@@ -17,11 +17,11 @@ export const Route = createFileRoute("/explore")({
   head: () => ({
     meta: [
       { title: "Universal search — NEXORA" },
-      { name: "description", content: "Search posts, creators, places and demo watch titles." },
+      { name: "description", content: "Discover real NEXORA accounts, public posts, places and watch titles." },
       { property: "og:title", content: "Universal search — NEXORA" },
       {
         property: "og:description",
-        content: "Search posts, creators, places and demo watch titles.",
+        content: "Discover real NEXORA accounts, public posts, places and watch titles.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -35,41 +35,35 @@ function Explore() {
   const { muted } = useWorkspace();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("All");
-  const [people, setPeople] = useState<
-  {
+  const [people, setPeople] = useState<{
     id: string;
     display_name: string | null;
     handle: string | null;
     avatar_url: string | null;
-  }[]
->([]);
+    account_type: string | null;
+    private_profile: boolean;
+  }[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(true);
   const query = q.trim().toLowerCase();
   useEffect(() => {
-  if (query.length < 2) {
-    setPeople([]);
-    return;
-  }
-
-  const timer = window.setTimeout(async () => {
-    const { data, error } = await supabase.rpc("search_directory", {
-      q: q.trim(),
-    });
-
-    if (error) {
-      console.error("Directory search failed:", error.message);
-      setPeople([]);
-      return;
-    }
-setPeople(
-  (data ?? []).filter(
-    (person: { handle: string | null }) =>
-      typeof person.handle === "string" && person.handle.trim().length > 0
-  )
-);
-  }, 300);
-
-  return () => window.clearTimeout(timer);
-}, [query, q]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setPeopleLoading(true);
+      const { data, error } = await (supabase as any).rpc("get_discoverable_profiles", {
+        p_query: query.length >= 2 ? q.trim() : null,
+        p_limit: 60,
+      });
+      if (!active) return;
+      if (error) {
+        console.error("Account discovery failed:", error.message);
+        setPeople([]);
+      } else {
+        setPeople((data ?? []).filter((person: { handle: string | null }) => typeof person.handle === "string" && person.handle.trim().length > 0));
+      }
+      setPeopleLoading(false);
+    }, query.length >= 2 ? 250 : 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [query, q]);
   const r = posts.filter((p) => (requestedPostId ? p.id === requestedPostId : p.kind === "post") && !(p.tags ?? []).some((tag) => ["collab", "nx-type-collab"].includes(tag.toLowerCase())) && canDiscover(p, muted) && matchesPost(p, q));
   
   const locations = places.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query));
@@ -111,10 +105,10 @@ setPeople(
         {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
         {show("Videos") && <section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section>}
         {show("Collabs") && <section><h2 className="mb-3 text-lg font-semibold">Collabs</h2><StrictMediaGrid contentType="collab" /></section>}
-        {show("Creators") && query.length >= 2 && (
+        {show("Creators") && (
           <section>
             <h2 className="mb-3 text-lg font-semibold">People</h2>
-            {people.length > 0 ? (
+            {peopleLoading ? <p className="text-sm text-muted-foreground">Finding NEXORA accounts…</p> : people.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {people.map((person) => (
                   <Link
@@ -123,18 +117,10 @@ setPeople(
   search={{ handle: person.handle! }}
   className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
 >
-                    {person.avatar_url ? (
-                      <img
-                        src={person.avatar_url}
-                        alt={person.display_name ?? person.handle ?? "NEXORA User"}
-                        className="h-10 w-10 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
-                    )}
+                    <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} src={person.avatar_url} size={44} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{person.display_name ?? "NEXORA User"}</p>
-                      <p className="truncate text-xs text-muted-foreground">@{person.handle}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
                     </div>
                   </Link>
                 ))}
@@ -195,7 +181,7 @@ setPeople(
           </section>
         )}
         {!count && tab !== "All" && (
-          <EmptyState icon={<SearchX />} title="No matches" body="Try a different keyword." />
+          <EmptyState icon={<SearchX />} title="No matches" body="Try another keyword or explore more accounts." />
         )}
       </div>
     </div>

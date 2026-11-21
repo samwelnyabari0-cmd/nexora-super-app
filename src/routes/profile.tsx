@@ -91,7 +91,7 @@ function Profile() {
   return <OwnProfile />;
 } 
   function OwnProfile() {
-  const { passport } = useApp();
+  const { passport, updatePassport } = useApp();
   const { user, ready } = useSession();
   const { followers, following } = useSocialGraph();
   const [bio, setBio] = useState(passport.bio);
@@ -235,6 +235,7 @@ useEffect(() => {
       if (profileError) throw profileError;
 
       setAvatarUrl(data.publicUrl);
+      updatePassport({ avatarUrl: data.publicUrl });
       toast.success("Profile photo saved.");
     } catch (error) {
       console.error("Profile photo upload failed:", error);

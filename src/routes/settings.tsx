@@ -5,8 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useWorkspace, type Preferences } from "@/features/core/workspace";
-import { creators } from "@/features/core/data";
-import { PageHeader } from "@/components/nexora/ui";
+import { Avatar, PageHeader } from "@/components/nexora/ui";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/settings")({
@@ -34,6 +33,18 @@ function Settings() {
   const navigate = useNavigate();
   const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
   const shownName = meta.display_name ?? meta.full_name ?? user?.email?.split("@")[0] ?? "Nexora user";
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(meta.avatar_url ?? null);
+
+  useEffect(() => {
+    if (!user) { setProfileAvatarUrl(null); return; }
+    let active = true;
+    void (supabase as any).from("profiles").select("avatar_url").eq("id", user.id).maybeSingle()
+      .then(({ data, error }: { data: { avatar_url?: string | null } | null; error: unknown }) => {
+        if (!active) return;
+        if (!error) setProfileAvatarUrl(data?.avatar_url ?? null);
+      });
+    return () => { active = false; };
+  }, [user?.id]);
 
   async function logOut() {
     const { error } = await supabase.auth.signOut();
@@ -41,6 +52,19 @@ function Settings() {
     void navigate({ to: "/auth" });
   }
   const [savedReports, setSavedReports] = useState<Array<{ target_id: string; reason: string; status: string }>>([]);
+  const [mutedProfiles, setMutedProfiles] = useState<Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || muted.length === 0) { setMutedProfiles([]); return; }
+    void (supabase as any).rpc("get_post_author_profiles", { target_user_ids: muted })
+      .then(({ data, error }: { data: Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }> | null; error: unknown }) => {
+        if (!active) return;
+        if (error) { console.error("Could not load muted account profiles:", error); setMutedProfiles([]); }
+        else setMutedProfiles(data ?? []);
+      });
+    return () => { active = false; };
+  }, [user?.id, muted]);
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [showLastSeen, setShowLastSeen] = useState(true);
 
@@ -207,16 +231,21 @@ function Settings() {
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold">Muted creators</h2>
         {muted.length ? (
-          muted.map((id) => (
-            <div key={id} className="flex items-center justify-between border-b py-3">
-              <span>{creators.find((c) => c.id === id)?.name ?? id}</span>
-              <Button variant="outline" onClick={() => toggleMute(id)}>
-                Unmute
-              </Button>
-            </div>
-          ))
+          muted.map((id) => {
+            const person = mutedProfiles.find((profile) => profile.id === id);
+            return (
+              <div key={id} className="flex items-center gap-3 border-b py-3">
+                <Avatar name={person?.display_name ?? person?.handle ?? "NEXORA member"} src={person?.avatar_url} size={36} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{person?.display_name ?? "NEXORA member"}</p>
+                  <p className="truncate text-xs text-muted-foreground">@{person?.handle ?? "account"}</p>
+                </div>
+                <Button variant="outline" onClick={() => toggleMute(id)}>Unmute</Button>
+              </div>
+            );
+          })
         ) : (
-          <p className="text-sm text-muted-foreground">No muted creators.</p>
+          <p className="text-sm text-muted-foreground">No muted accounts.</p>
         )}
         <h3 className="mt-5 font-semibold">Safety reports</h3>
         <p className="mt-2 text-sm text-muted-foreground">
