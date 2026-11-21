@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import {
-  MEDIA_FRAME_RATIOS,
-  getFrameAspectRatio,
-  normalizeMediaFraming,
-} from "./media-framing";
+import { MEDIA_FRAME_RATIOS, getFrameAspectRatio, normalizeMediaFraming } from "./media-framing";
 
 describe("media framing", () => {
   it("offers the supported framing presets", () => {
     expect(MEDIA_FRAME_RATIOS.map((frame) => frame.value)).toEqual([
-      "original", "1:1", "4:5", "16:9", "9:16",
+      "original",
+      "1:1",
+      "4:5",
+      "16:9",
+      "9:16",
     ]);
   });
 
@@ -26,13 +26,17 @@ describe("media framing", () => {
 
   it("clamps unsafe focal and zoom values to supported bounds", () => {
     expect(normalizeMediaFraming({ focalX: -10, focalY: 140, zoom: 8 })).toEqual({
-      focalX: 0, focalY: 100, zoom: 3,
+      focalX: 0,
+      focalY: 100,
+      zoom: 3,
     });
   });
 
   it("uses safe defaults for invalid metadata", () => {
     expect(normalizeMediaFraming({ focalX: Number.NaN, focalY: undefined, zoom: 0 })).toEqual({
-      focalX: 50, focalY: 50, zoom: 1,
+      focalX: 50,
+      focalY: 50,
+      zoom: 1,
     });
   });
 });

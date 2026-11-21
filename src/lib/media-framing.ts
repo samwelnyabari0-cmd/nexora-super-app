@@ -15,7 +15,10 @@ const FIXED_RATIOS: Record<Exclude<MediaFrameRatio, "original">, number> = {
   "9:16": 9 / 16,
 };
 
-export function getFrameAspectRatio(frame: MediaFrameRatio, originalRatio: number | null | undefined): number {
+export function getFrameAspectRatio(
+  frame: MediaFrameRatio,
+  originalRatio: number | null | undefined,
+): number {
   if (frame !== "original") return FIXED_RATIOS[frame];
   return typeof originalRatio === "number" && Number.isFinite(originalRatio) && originalRatio > 0
     ? originalRatio

@@ -20,11 +20,16 @@ export function getDominantColorFromPixels(data: Uint8ClampedArray): string {
     count += alpha;
   }
   if (!count) return "#171717";
-  const hex = (value: number) => Math.round(value / count).toString(16).padStart(2, "0");
+  const hex = (value: number) =>
+    Math.round(value / count)
+      .toString(16)
+      .padStart(2, "0");
   return `#${hex(red)}${hex(green)}${hex(blue)}`;
 }
 
-function loadVideoFrame(file: File): Promise<{ source: CanvasImageSource; width: number; height: number; cleanup: () => void }> {
+function loadVideoFrame(
+  file: File,
+): Promise<{ source: CanvasImageSource; width: number; height: number; cleanup: () => void }> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     const url = URL.createObjectURL(file);
@@ -45,7 +50,12 @@ function loadVideoFrame(file: File): Promise<{ source: CanvasImageSource; width:
     video.muted = true;
     video.playsInline = true;
     video.onloadedmetadata = () => {
-      if (!Number.isFinite(video.videoWidth) || !Number.isFinite(video.videoHeight) || !video.videoWidth || !video.videoHeight) {
+      if (
+        !Number.isFinite(video.videoWidth) ||
+        !Number.isFinite(video.videoHeight) ||
+        !video.videoWidth ||
+        !video.videoHeight
+      ) {
         fail();
         return;
       }
@@ -67,7 +77,10 @@ function loadVideoFrame(file: File): Promise<{ source: CanvasImageSource; width:
   });
 }
 
-export async function createMediaPoster(file: File, maxWidth = 960): Promise<GeneratedMediaPoster | null> {
+export async function createMediaPoster(
+  file: File,
+  maxWidth = 960,
+): Promise<GeneratedMediaPoster | null> {
   let source: CanvasImageSource;
   let width: number;
   let height: number;
@@ -109,7 +122,9 @@ export async function createMediaPoster(file: File, maxWidth = 960): Promise<Gen
     sampleContext.drawImage(source, 0, 0, 24, 24);
     const pixels = sampleContext.getImageData(0, 0, 24, 24).data;
     const dominantColor = getDominantColorFromPixels(pixels);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.78),
+    );
     if (!blob || blob.type !== "image/webp") return null;
     return {
       blob,

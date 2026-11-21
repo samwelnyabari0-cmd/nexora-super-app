@@ -45,10 +45,7 @@ export function MediaFramingEditor({
   const cropped = frameRatio !== "original";
 
   const distance = (points: { x: number; y: number }[]) =>
-    Math.hypot(
-      points[0].x - points[1].x,
-      points[0].y - points[1].y,
-    );
+    Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -83,8 +80,7 @@ export function MediaFramingEditor({
 
     if (points.length >= 2 && pinchStart.current) {
       const nextZoom =
-        (pinchStart.current.zoom * distance(points)) /
-        Math.max(1, pinchStart.current.distance);
+        (pinchStart.current.zoom * distance(points)) / Math.max(1, pinchStart.current.distance);
       onFramingChange(normalizeMediaFraming({ ...framing, zoom: nextZoom }));
       return;
     }
@@ -97,9 +93,7 @@ export function MediaFramingEditor({
       const nextY =
         dragStart.current.focalY -
         ((event.clientY - dragStart.current.y) / Math.max(1, rect.height)) * 100;
-      onFramingChange(
-        normalizeMediaFraming({ ...framing, focalX: nextX, focalY: nextY }),
-      );
+      onFramingChange(normalizeMediaFraming({ ...framing, focalX: nextX, focalY: nextY }));
     }
   }
 
@@ -120,11 +114,7 @@ export function MediaFramingEditor({
         </div>
         <Move className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label="Media aspect ratio"
-      >
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Media aspect ratio">
         {MEDIA_FRAME_RATIOS.map((frame) => (
           <Button
             key={frame.value}
@@ -188,14 +178,10 @@ export function MediaFramingEditor({
           step={0.05}
           value={[framing.zoom]}
           onValueChange={(value) =>
-            onFramingChange(
-              normalizeMediaFraming({ ...framing, zoom: value[0] }),
-            )
+            onFramingChange(normalizeMediaFraming({ ...framing, zoom: value[0] }))
           }
         />
-        <span className="w-10 text-right text-xs tabular-nums">
-          {framing.zoom.toFixed(1)}×
-        </span>
+        <span className="w-10 text-right text-xs tabular-nums">{framing.zoom.toFixed(1)}×</span>
       </div>
     </section>
   );
