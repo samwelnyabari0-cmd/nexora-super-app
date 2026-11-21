@@ -176,7 +176,7 @@ function Create() {
       .then((response) => response.blob())
       .then((blob) => {
         const extension = type.startsWith("video/") ? "webm" : "jpg";
-        const file = new File([blob], \`capture.\${extension}\`, { type });
+        const file = new File([blob], `capture.${extension}`, { type });
         pickMedia([file], {
           contentType, tier: uploadTier, setError, setNote,
           accept: (previewUrl, files, mimeType, classification) => {
@@ -253,7 +253,7 @@ const previewFilter =
         }}
         caption={caption} onCaptionChange={setCaption} tags={tags} onTagsChange={setTags}
         audience={audience} onAudienceChange={setAudience}
-        uploadLimits={\`\${uploadTier.replaceAll("_", " ")} plan: \${uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Reels, \${uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, \${uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Maximum file size: \${uploadLimits.maxBytes >= 1024 ** 3 ? \`\${uploadLimits.maxBytes / 1024 ** 3} GB\` : \`\${uploadLimits.maxBytes / 1024 ** 2} MB\`}.\`}
+        uploadLimits={`${uploadTier.replaceAll("_", " ")} plan: ${uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Reels, ${uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, ${uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Maximum file size: ${uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.`}
         error={error} note={note} uploadProgress={uploadProgress} uploadStatus={uploadStatus}
         publishDisabled={!caption.trim() || queued || uploadProgress !== null}
         onPublish={() => publishFormRef.current?.requestSubmit()}
@@ -265,7 +265,7 @@ const previewFilter =
             onExported={(file) => {
               const mimeType = file.type.split(";")[0] || "video/webm";
               const extension = mimeType.includes("mp4") ? "mp4" : "webm";
-              const editedFile = new File([file], \`edited.\${extension}\`, { type: mimeType });
+              const editedFile = new File([file], `edited.${extension}`, { type: mimeType });
               pickMedia([editedFile], {
                 contentType, tier: uploadTier, setError, setNote,
                 accept: (editedUrl, files, detectedType, classification) => {
