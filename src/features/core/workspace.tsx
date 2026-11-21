@@ -5,7 +5,8 @@ export type Draft = {
   caption: string;
   media?: string;
   mediaType?: string;
-  mediaPath?: string;
+  mediaPaths?: string[];
+  contentType?: string;
   tags: string[];
   audience: "public" | "private";
   filter?: string;
