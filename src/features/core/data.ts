@@ -9,6 +9,9 @@ export type Creator = { id: string; name: string; handle: string; hue: number; v
 export type Post = {
   id: string;
   creatorId: string;
+  creatorName?: string;
+  creatorHandle?: string;
+  creatorAvatarUrl?: string | null;
   kind: "short" | "video" | "post";
   image?: string;
   mediaType?: string;
