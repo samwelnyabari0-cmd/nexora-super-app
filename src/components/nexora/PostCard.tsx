@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Volume2,
   VolumeX,
+  Maximize2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -231,6 +232,13 @@ export function PostCard({ post }: { post: Post }) {
             className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-black/65 text-white backdrop-blur">
             {videoMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
           </button>
+          {post.kind === "short" && (
+            <button type="button" onClick={() => { window.location.href = "/reels?post=" + encodeURIComponent(post.id); }}
+              aria-label="Open Reel full screen"
+              className="absolute bottom-3 right-16 grid h-10 w-10 place-items-center rounded-full bg-black/65 text-white backdrop-blur">
+              <Maximize2 className="h-5 w-5" />
+            </button>
+          )}
         </div>
       ) : post.image ? (
         <div className="w-full overflow-hidden bg-muted" style={{
