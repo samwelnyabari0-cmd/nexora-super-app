@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useWorkspace, type Preferences } from "@/features/core/workspace";
-import { creators } from "@/features/core/data";
 import { Avatar, PageHeader } from "@/components/nexora/ui";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
