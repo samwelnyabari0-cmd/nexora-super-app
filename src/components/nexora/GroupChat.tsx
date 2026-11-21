@@ -629,7 +629,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[94dvh] min-h-[560px] max-w-3xl flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl md:h-[94dvh] md:min-h-[560px] flex-col p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
@@ -658,7 +658,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log} className="min-h-[52dvh] flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
+      <div ref={log} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
