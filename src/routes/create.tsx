@@ -3,7 +3,7 @@ import CreatorStudioMobileFlow from "@/components/nexora/creator-studio/CreatorS
 import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Upload, Save, Trash2, Image, Film, FileText, ShieldCheck, Sparkles, Music2, LockKeyhole } from "lucide-react";
+import { Upload, Save, Trash2, Image, FileText, ShieldCheck, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useApp } from "@/features/core/store";
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/create")({
   component: Create,
 });
 function Create() {
-  const { createPost, online, relay } = useApp();
+  const { createPost, relay } = useApp();
   const { user } = useSession();
   const { drafts, saveDraft, removeDraft, notify, preferences, replaceDrafts } = useWorkspace();
   const nav = useNavigate();
