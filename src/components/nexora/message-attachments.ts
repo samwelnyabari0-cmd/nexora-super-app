@@ -67,6 +67,111 @@ export function formatAttachmentSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+
+const CHAT_MEDIA_MIME_TYPES: Record<string, { mediaType: "image" | "video" | "audio"; extensions: string[]; defaultExtension: string }> = {
+  "image/jpeg": { mediaType: "image", extensions: ["jpg", "jpeg"], defaultExtension: "jpg" },
+  "image/png": { mediaType: "image", extensions: ["png"], defaultExtension: "png" },
+  "image/webp": { mediaType: "image", extensions: ["webp"], defaultExtension: "webp" },
+  "image/gif": { mediaType: "image", extensions: ["gif"], defaultExtension: "gif" },
+  "video/mp4": { mediaType: "video", extensions: ["mp4"], defaultExtension: "mp4" },
+  "video/webm": { mediaType: "video", extensions: ["webm"], defaultExtension: "webm" },
+  "audio/mp4": { mediaType: "audio", extensions: ["m4a", "mp4"], defaultExtension: "m4a" },
+  "audio/mpeg": { mediaType: "audio", extensions: ["mp3", "mpeg"], defaultExtension: "mp3" },
+  "audio/ogg": { mediaType: "audio", extensions: ["ogg", "oga"], defaultExtension: "ogg" },
+  "audio/wav": { mediaType: "audio", extensions: ["wav"], defaultExtension: "wav" },
+  "audio/webm": { mediaType: "audio", extensions: ["webm"], defaultExtension: "webm" },
+};
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  m4a: "audio/mp4",
+  mp3: "audio/mpeg",
+  mpeg: "audio/mpeg",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  wav: "audio/wav",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+
+export type ChatAttachmentResolution =
+  | {
+      ok: true;
+      mediaType: "image" | "video" | "audio" | "document";
+      contentType: string;
+      extension: string;
+    }
+  | { ok: false; reason: string };
+
+/** Resolve mobile-picker MIME quirks while staying within the private chat-media bucket allowlist. */
+export function resolveChatAttachment(
+  file: Pick<File, "type" | "name" | "size">,
+): ChatAttachmentResolution {
+  if (!Number.isFinite(file.size) || file.size <= 0) {
+    return { ok: false, reason: "The selected file is empty or has an invalid size." };
+  }
+  if (file.size > MAX_CHAT_ATTACHMENT_BYTES) {
+    return { ok: false, reason: "Photos and videos must be 50 MB or smaller." };
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const declaredType = file.type.trim().toLowerCase();
+  const aliases: Record<string, string> = {
+    "image/jpg": "image/jpeg",
+    "image/pjpeg": "image/jpeg",
+    "audio/mp3": "audio/mpeg",
+    "audio/x-m4a": "audio/mp4",
+  };
+  const normalizedType = aliases[declaredType] ?? declaredType;
+  const contentType =
+    !normalizedType || normalizedType === "application/octet-stream"
+      ? MIME_BY_EXTENSION[extension]
+      : normalizedType;
+
+  const media = contentType ? CHAT_MEDIA_MIME_TYPES[contentType] : undefined;
+  if (media) {
+    if (extension && !media.extensions.includes(extension)) {
+      return { ok: false, reason: "The file extension does not match its photo, video, or audio type." };
+    }
+    return {
+      ok: true,
+      mediaType: media.mediaType,
+      contentType,
+      extension: extension || media.defaultExtension,
+    };
+  }
+
+  const document = validateDocumentFile({
+    type: contentType ?? normalizedType,
+    name: file.name,
+    size: file.size,
+  });
+  if (document.ok) {
+    return {
+      ok: true,
+      mediaType: "document",
+      contentType: contentType ?? normalizedType,
+      extension: document.extension,
+    };
+  }
+
+  return {
+    ok: false,
+    reason: "This format is not supported. Use JPG, PNG, WEBP, GIF, MP4, WEBM, supported audio, or PDF/Office documents.",
+  };
+}
+
 export async function uploadThenInsertAttachment(
   upload: () => Promise<{ error: unknown | null }>,
   insert: () => Promise<{ error: unknown | null }>,
