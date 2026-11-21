@@ -1074,7 +1074,7 @@ if (recipient === user.id) {
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
-    <main className="mx-auto flex h-[94dvh] min-h-[560px] max-w-3xl flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl md:h-[94dvh] md:min-h-[560px] flex-col p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
@@ -1121,7 +1121,7 @@ if (recipient === user.id) {
 
       <div
         ref={log}
-        className="min-h-[52dvh] flex-1 space-y-3 overflow-y-auto py-4"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4"
         aria-live="polite"
         role="log"
       >
