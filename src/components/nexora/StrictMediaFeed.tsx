@@ -13,6 +13,11 @@ export type StrictMediaItem = {
   thumbnail_url: string | null;
   content_type: StrictFeedType;
   aspect_ratio: string | null;
+  framing_aspect_ratio?: string | null;
+  focal_x?: number | null;
+  focal_y?: number | null;
+  zoom?: number | null;
+  dominant_color?: string | null;
   duration_seconds: number | null;
   created_at: string;
   like_count: number | null;
@@ -77,7 +82,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     void (async () => {
       let query = (supabase as any)
         .from("user_media_posts")
-        .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
+        .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, framing_aspect_ratio, focal_x, focal_y, zoom, dominant_color, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
         .eq("content_type", contentType)
         .order("created_at", { ascending: false })
         .limit(80);
@@ -122,17 +127,27 @@ export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFe
   if (error) return <p role="alert" className="py-10 text-center text-sm text-muted-foreground">{error}</p>;
   if (!items.length) return <p className="py-10 text-center text-sm text-muted-foreground">No {label.toLowerCase()} yet.</p>;
 
-  const shape = contentType === "reel" ? "aspect-[9/16]" : contentType === "video" ? "aspect-video" : "aspect-square";
   return (
-    <div className={contentType === "video" ? "grid gap-3 sm:grid-cols-2" : "grid grid-cols-3 gap-2"}>
+    <div className="grid grid-cols-3 auto-rows-[112px] gap-2 sm:auto-rows-[132px]">
       {items.map((item) => {
         const preview = item.thumbnailSrc || item.mediaSrc;
+        const ratioParts = (item.framing_aspect_ratio && item.framing_aspect_ratio !== "original"
+          ? item.framing_aspect_ratio : item.aspect_ratio)?.split(":").map(Number);
+        const ratio = ratioParts?.length === 2 && ratioParts.every((part) => Number.isFinite(part) && part > 0)
+          ? ratioParts[0] / ratioParts[1]
+          : contentType === "reel" ? 9 / 16 : contentType === "video" ? 16 / 9 : 1;
+        const tall = ratio <= 0.75 || contentType === "reel";
+        const wide = ratio >= 1.55 || contentType === "video";
+        const fixedFrame = Boolean(item.framing_aspect_ratio && item.framing_aspect_ratio !== "original");
         const tile = (
-          <div className={`group relative ${shape} overflow-hidden rounded-xl border border-white/10 bg-[#14141f]`}>
+          <div className={`group relative ${tall ? "row-span-2" : wide ? "col-span-2" : ""} h-full min-h-0 overflow-hidden rounded-xl border border-white/10`}
+            style={{ backgroundColor: item.dominant_color || "#14141f" }}>
             {preview && item.media_type?.startsWith("video/") ? (
-              <video src={item.mediaSrc} poster={item.thumbnailSrc} onError={(event) => void refreshItemUrl(item, "media", event.currentTarget.currentSrc)} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+              <video src={item.mediaSrc} poster={item.thumbnailSrc} onError={(event) => void refreshItemUrl(item, "media", event.currentTarget.currentSrc)} muted playsInline preload="metadata" className="h-full w-full"
+                style={{ objectFit: fixedFrame ? "cover" : "contain", objectPosition: `${item.focal_x ?? 50}% ${item.focal_y ?? 50}%`, transform: `scale(${Math.max(1, Math.min(3, item.zoom ?? 1))})` }} />
             ) : preview ? (
-              <img src={preview} alt={item.caption || `NEXORA ${label}`} onError={(event) => void refreshItemUrl(item, item.thumbnailSrc ? "thumbnail" : "media", event.currentTarget.currentSrc)} loading="lazy" className="h-full w-full object-cover" />
+              <img src={preview} alt={item.caption || `NEXORA ${label}`} onError={(event) => void refreshItemUrl(item, item.thumbnailSrc ? "thumbnail" : "media", event.currentTarget.currentSrc)} loading="lazy" className="h-full w-full"
+                style={{ objectFit: fixedFrame ? "cover" : "contain", objectPosition: `${item.focal_x ?? 50}% ${item.focal_y ?? 50}%`, transform: `scale(${Math.max(1, Math.min(3, item.zoom ?? 1))})` }} />
             ) : (
               <div className="flex h-full items-center justify-center p-3 text-center text-xs text-zinc-300">{item.caption || label}</div>
             )}
