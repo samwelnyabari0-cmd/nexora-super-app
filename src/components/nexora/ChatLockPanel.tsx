@@ -101,53 +101,58 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
   }
 
   return (
-    <div className="border-b px-3 py-2">
-      {lock.configured ? (
-        <Button type="button" size="sm" variant="outline" onClick={lock.lockNow}>
-          <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Lock this chat
-        </Button>
-      ) : !showSetup ? (
-        <Button type="button" size="sm" variant="outline" onClick={() => setShowSetup(true)}>
-          <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Set device lock
-        </Button>
-      ) : (
-        <form onSubmit={(event) => void createLock(event)} className="space-y-2">
-          <p className="text-xs font-semibold">Create a device-only passphrase</p>
-          <input
-            type="password"
-            autoComplete="new-password"
-            aria-label="New chat lock passphrase"
-            value={passphrase}
-            onChange={(event) => setPassphrase(event.target.value)}
-            maxLength={32}
-            placeholder="8–32 characters"
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            type="password"
-            autoComplete="new-password"
-            aria-label="Confirm chat lock passphrase"
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-            maxLength={32}
-            placeholder="Confirm passphrase"
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" size="sm" disabled={busy || !passphrase || !confirmation}>
-              {busy ? "Saving…" : "Enable lock"}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => { setShowSetup(false); setPassphrase(""); setConfirmation(""); }}>
-              Cancel
-            </Button>
-          </div>
-          {(formError || lock.error) && <p role="alert" className="text-xs text-destructive">{formError || lock.error}</p>}
-        </form>
-      )}
-      <p className="mt-1 text-[10px] text-muted-foreground">
-        Optional privacy screen on this device only. It is not end-to-end encryption and does not protect a compromised or already-unlocked browser.
-      </p>
-      {lock.error && !showSetup && <p role="alert" className="mt-1 text-xs text-destructive">{lock.error}</p>}
-    </div>
+    <details className="shrink-0 border-b px-3 py-1">
+      <summary className="cursor-pointer list-none py-1 text-xs font-medium text-muted-foreground">
+        {lock.configured ? "Privacy settings · chat lock enabled" : "Privacy & encryption settings"}
+      </summary>
+      <div className="pb-2">
+        {lock.configured ? (
+          <Button type="button" size="sm" variant="outline" onClick={lock.lockNow}>
+            <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Lock this chat
+          </Button>
+        ) : !showSetup ? (
+          <Button type="button" size="sm" variant="outline" onClick={() => setShowSetup(true)}>
+            <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Set device lock
+          </Button>
+        ) : (
+          <form onSubmit={(event) => void createLock(event)} className="space-y-2">
+            <p className="text-xs font-semibold">Create a device-only passphrase</p>
+            <input
+              type="password"
+              autoComplete="new-password"
+              aria-label="New chat lock passphrase"
+              value={passphrase}
+              onChange={(event) => setPassphrase(event.target.value)}
+              maxLength={32}
+              placeholder="8–32 characters"
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              aria-label="Confirm chat lock passphrase"
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              maxLength={32}
+              placeholder="Confirm passphrase"
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" size="sm" disabled={busy || !passphrase || !confirmation}>
+                {busy ? "Saving…" : "Enable lock"}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowSetup(false); setPassphrase(""); setConfirmation(""); }}>
+                Cancel
+              </Button>
+            </div>
+            {(formError || lock.error) && <p role="alert" className="text-xs text-destructive">{formError || lock.error}</p>}
+          </form>
+        )}
+        <p className="mt-2 text-[10px] text-muted-foreground">
+          Optional privacy screen on this device only. It is not end-to-end encryption and does not protect a compromised or already-unlocked browser.
+        </p>
+        {lock.error && !showSetup && <p role="alert" className="mt-1 text-xs text-destructive">{lock.error}</p>}
+      </div>
+    </details>
   );
 }
