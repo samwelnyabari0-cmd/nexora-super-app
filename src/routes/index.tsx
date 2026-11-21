@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
-import { useSession } from "@/lib/session";
 
 type DirectoryPerson = {
   id: string;
