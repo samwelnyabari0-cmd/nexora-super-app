@@ -32,6 +32,7 @@ type Props = {
   onFilterChange: (value: string) => void;
   filterIntensity: number;
   onFilterIntensityChange: (value: number) => void;
+  previewFilter: string;
   contentType: ContentType;
   onContentTypeChange: (value: ContentType) => void;
   drafts: DraftItem[];
@@ -70,6 +71,10 @@ const CONTENT_OPTIONS: { value: ContentType; label: string }[] = [
   { value: "post", label: "Post" },
   { value: "reel", label: "Reel" },
   { value: "story", label: "Story" },
+  { value: "carousel", label: "Carousel" },
+  { value: "video", label: "Video" },
+  { value: "collab", label: "Collab" },
+  { value: "ad", label: "Ad" },
 ];
 
 export default function CreatorStudioMobileFlow(props: Props) {
@@ -203,9 +208,9 @@ export default function CreatorStudioMobileFlow(props: Props) {
             <div className="relative flex min-h-0 flex-[55] items-center justify-center overflow-hidden bg-neutral-950 p-3">
               {props.media ? (
                 props.mediaType?.startsWith("video/") ? (
-                  <video src={props.media} controls playsInline className="max-h-full max-w-full rounded-xl object-contain" />
+                  <video src={props.media} controls playsInline className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
                 ) : (
-                  <img src={props.media} alt="Edit preview" className="max-h-full max-w-full rounded-xl object-contain" />
+                  <img src={props.media} alt="Edit preview" className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
                 )
               ) : (
                 <div className="text-center text-sm text-white/70">
