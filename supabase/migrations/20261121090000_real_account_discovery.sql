@@ -28,7 +28,6 @@ begin
   from public.profiles p
   where p.id <> auth.uid()
     and nullif(btrim(p.handle), '') is not null
-    and (p.discoverable is true or p.private_profile is true)
     and (
       nullif(btrim(p_query), '') is null
       or concat_ws(' ', p.display_name, p.handle) ilike '%' || btrim(p_query) || '%'
@@ -58,12 +57,7 @@ begin
   return query
   select p.id, p.display_name, p.handle, p.avatar_url
   from public.profiles p
-  where p.id = any(coalesce(target_user_ids, '{}'::uuid[]))
-    and exists (
-      select 1 from public.user_media_posts post
-      where post.user_id = p.id
-        and post.audience = 'public'
-    );
+  where p.id = any(coalesce(target_user_ids, '{}'::uuid[]));
 end;
 $function$;
 
