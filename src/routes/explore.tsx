@@ -117,15 +117,7 @@ function Explore() {
   search={{ handle: person.handle! }}
   className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
 >
-                    {person.avatar_url ? (
-                      <img
-                        src={person.avatar_url}
-                        alt={person.display_name ?? person.handle ?? "NEXORA User"}
-                        className="h-10 w-10 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} />
-                    )}
+                    <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} src={person.avatar_url} size={44} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{person.display_name ?? "NEXORA User"}</p>
                       <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
