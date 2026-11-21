@@ -147,7 +147,6 @@ const row = profileRows?.[0] ?? null;
 
         const found = {
   ...row,
-  avatar_url: null,
   settings: {
     ...(row.settings ?? {}),
     privateProfile: row.private_profile,
