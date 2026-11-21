@@ -36,16 +36,9 @@ export type Post = {
   createdAt: string;
 };
 
-export const creators: Creator[] = [
-  { id: "c1", name: "Amani Otieno", handle: "amani.frames", hue: 295, verified: true },
-  { id: "c2", name: "Wanjiku Eats", handle: "wanjikueats", hue: 40 },
-  { id: "c3", name: "Zuri Motion", handle: "zuri.moves", hue: 330, verified: true },
-  { id: "c4", name: "Safari Lens", handle: "safarilens", hue: 25 },
-  { id: "c5", name: "Kibet Codes", handle: "kibet.dev", hue: 205 },
-  { id: "c6", name: "Lena Mwangi", handle: "lena.studio", hue: 160 },
-];
+export const creators: Creator[] = [];
 
-export const creatorById = (id: string) => creators.find((c) => c.id === id) ?? creators[0];
+export const creatorById = (id: string): Creator => creators.find((creator) => creator.id === id) ?? { id, name: "NEXORA member", handle: "", hue: 295 };
 
 export const seedPosts: Post[] = [
   {
