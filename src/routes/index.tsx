@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
+import { useSession } from "@/lib/session";
 
 type DirectoryPerson = {
   id: string;
@@ -181,6 +182,7 @@ function Home() {
 
 function SuggestedAccount({ person }: { person: DirectoryPerson }) {
   const graph = useSocialGraph(person.id);
+  const { user } = useSession();
   return (
     <div className="flex items-center gap-3 py-2">
       <Link to="/profile" search={{ handle: person.handle }}>
@@ -190,13 +192,10 @@ function SuggestedAccount({ person }: { person: DirectoryPerson }) {
         <p className="truncate text-sm font-semibold">{person.display_name ?? person.handle}</p>
         <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
       </Link>
-      <Button size="sm" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading || !userCanFollow(graph)} onClick={() => void graph.toggleFollow()} className="rounded-full">
+      <Button size="sm" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading || !user} onClick={() => void graph.toggleFollow()} className="rounded-full">
         {graph.isFollowing ? "Following" : "Follow"}
       </Button>
     </div>
   );
 }
 
-function userCanFollow(graph: ReturnType<typeof useSocialGraph>) {
-  return !graph.loading;
-}
