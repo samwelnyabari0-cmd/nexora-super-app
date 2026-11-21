@@ -473,7 +473,7 @@ const previewFilter =
         </div>
         <form
           ref={publishFormRef}
-          className="hidden space-y-4"
+          className="hidden space-y-4 lg:block"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
