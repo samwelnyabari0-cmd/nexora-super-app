@@ -212,7 +212,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
             <div className="relative flex min-h-0 flex-[55] items-center justify-center overflow-hidden bg-neutral-950 p-3">
               {props.media ? (
                 props.mediaType?.startsWith("video/") ? (
-                  <video src={props.media} controls playsInline className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
+                  <video src={props.media} controls playsInline className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", height: "100%", width: "auto", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
                 ) : (
                   <img src={props.media} alt="Edit preview" className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
                 )
@@ -228,7 +228,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
                     key={frame.value}
                     type="button"
                     size="sm"
-                    variant={props.frameRatio === frame.value ? "default" : "secondary"}
+                    variant={props.frameRatio === frame.value || (props.frameRatio === "original" && frame.value === "1:1") ? "default" : "secondary"}
                     className="rounded-full shadow-lg"
                     onClick={() => props.onFrameRatioChange(frame.value)}
                   >
