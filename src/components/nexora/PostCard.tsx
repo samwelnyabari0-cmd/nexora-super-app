@@ -176,21 +176,10 @@ export function PostCard({ post }: { post: Post }) {
 
   const actions = (
     <div className="flex items-center gap-1">
-      <Action
-        label={isLiked ? "Unlike" : "Like"}
-        onClick={() => toggleLike(post.id)}
-        active={isLiked}
-        count={post.likes}
-      >
-        <Heart
-          className={cn("h-5 w-5", isLiked && "animate-pop fill-destructive text-destructive")}
-        />
+      <Action label={isLiked ? "Unlike" : "Like"} onClick={() => toggleLike(post.id)} active={isLiked} count={post.likes}>
+        <Heart className={cn("h-5 w-5", isLiked && "animate-pop fill-destructive text-destructive")} />
       </Action>
-      <Action
-        label="Comments"
-        onClick={() => setShowComments((v) => !v)}
-        count={post.comments.length}
-      >
+      <Action label="Comments" onClick={() => setShowComments((v) => !v)} count={post.comments.length}>
         <MessageCircle className="h-5 w-5" />
       </Action>
       <Action label="Share" onClick={() => setShareOpen(true)} count={post.shares + shareBump}>
@@ -231,7 +220,7 @@ export function PostCard({ post }: { post: Post }) {
           onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
           alt={post.caption}
           className={cn(
-  "block w-full aspect-[4/5] object-cover bg-muted",
+            "block w-full aspect-[4/5] object-cover bg-muted",
             `media-${post.filter || "original"}`,
             `format-${post.format || "landscape"}`,
           )}
@@ -287,7 +276,7 @@ export function PostCard({ post }: { post: Post }) {
           <p className="text-xs text-warning">
             {post.audience === "private"
               ? "Only me · excluded from discovery"
-              : "Published locally · not public on the internet"}
+              : "Public · visible on NEXORA"}
           </p>
         )}
         <div className="flex flex-wrap gap-1.5">
@@ -305,32 +294,32 @@ export function PostCard({ post }: { post: Post }) {
               </p>
             )}
             {post.comments.map((k) => (
-  <div key={k.id} className="flex items-start gap-2">
-    <div className="min-w-0 flex-1 space-y-0.5">
-      <p className="text-sm">
-        <span className="font-semibold">@{k.author}</span> {k.text}
-      </p>
-      {k.createdAt && (
-        <p className="text-xs text-muted-foreground">
-          {new Date(k.createdAt).toLocaleString()}
-        </p>
-      )}
-    </div>
-    {user && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k.id) && (
-      <button type="button" className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive" aria-label="Report comment" title="Report comment"
-        onClick={async () => {
-          const { error } = await (supabase as any).from("reports").insert({
-            reporter_id: user.id, target_id: k.id, target_type: "comment",
-            reason: "Other", details: "Comment reported from the Nexora feed."
-          });
-          if (error) toast.error("Comment report could not be submitted.");
-          else toast.success("Comment reported to moderators.");
-        }}>
-        <Flag className="h-3.5 w-3.5" />
-      </button>
-    )}
-  </div>
-))}
+              <div key={k.id} className="flex items-start gap-2">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-sm">
+                    <span className="font-semibold">@{k.author}</span> {k.text}
+                  </p>
+                  {k.createdAt && (
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(k.createdAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+                {user && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k.id) && (
+                  <button type="button" className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive" aria-label="Report comment" title="Report comment"
+                    onClick={async () => {
+                      const { error } = await (supabase as any).from("reports").insert({
+                        reporter_id: user.id, target_id: k.id, target_type: "comment",
+                        reason: "Other", details: "Comment reported from the Nexora feed."
+                      });
+                      if (error) toast.error("Comment report could not be submitted.");
+                      else toast.success("Comment reported to moderators.");
+                    }}>
+                    <Flag className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -341,9 +330,7 @@ export function PostCard({ post }: { post: Post }) {
               }}
               className="flex gap-2"
             >
-              <label className="sr-only" htmlFor={`c-${post.id}`}>
-                Add a comment
-              </label>
+              <label className="sr-only" htmlFor={`c-${post.id}`}>Add a comment</label>
               <input
                 id={`c-${post.id}`}
                 value={draft}
@@ -351,10 +338,7 @@ export function PostCard({ post }: { post: Post }) {
                 placeholder="Add a comment…"
                 className="flex-1 rounded-full border bg-background px-4 py-2 text-sm"
               />
-              <button
-                className="bg-brand grid h-9 w-9 place-items-center rounded-full text-primary-foreground"
-                aria-label="Post comment"
-              >
+              <button className="bg-brand grid h-9 w-9 place-items-center rounded-full text-primary-foreground" aria-label="Post comment">
                 <Send className="h-4 w-4" />
               </button>
             </form>
@@ -362,41 +346,28 @@ export function PostCard({ post }: { post: Post }) {
         )}
       </div>
       <Dialog open={editing} onOpenChange={setEditing}>
-    <DialogContent>
-      <DialogTitle>Edit {post.kind === "short" ? "reel" : post.kind}</DialogTitle>
-      <textarea className="min-h-28 w-full rounded-xl border bg-background p-3" value={editedCaption} onChange={(event) => setEditedCaption(event.target.value)} aria-label="Edit caption" />
-      <Button onClick={async () => { if (!user || !editedCaption.trim()) return; const { error } = await (supabase as any).from("user_media_posts")
-.update({ caption: editedCaption.trim() })
-.eq("id", post.id)
-.eq("user_id", user.id); if (error) toast.error("Could not save changes"); else { toast.success("Post updated"); setEditing(false); window.location.reload(); } }}>Save changes</Button>
-    </DialogContent>
-  </Dialog>
-  <Dialog open={safety} onOpenChange={setSafety}>
+        <DialogContent>
+          <DialogTitle>Edit {post.kind === "short" ? "reel" : post.kind}</DialogTitle>
+          <textarea className="min-h-28 w-full rounded-xl border bg-background p-3" value={editedCaption} onChange={(event) => setEditedCaption(event.target.value)} aria-label="Edit caption" />
+          <Button onClick={async () => { if (!user || !editedCaption.trim()) return; const { error } = await (supabase as any).from("user_media_posts")
+            .update({ caption: editedCaption.trim() })
+            .eq("id", post.id)
+            .eq("user_id", user.id); if (error) toast.error("Could not save changes"); else { toast.success("Post updated"); setEditing(false); window.location.reload(); } }}>Save changes</Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={safety} onOpenChange={setSafety}>
         <DialogContent>
           <DialogTitle>{c.name}</DialogTitle>
           <Button variant="outline" disabled={!user || socialGraph.loading} onClick={() => { void socialGraph.toggleFollow(); setSafety(false); }}>
             {!user ? "Sign in to follow" : socialGraph.isFollowing ? "Unfollow" : "Follow"}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              toggleMute(post.creatorId);
-              setSafety(false);
-            }}
-          >
+          <Button variant="outline" onClick={() => { toggleMute(post.creatorId); setSafety(false); }}>
             {muted.includes(post.creatorId) ? "Unmute" : "Mute creator"}
           </Button>
           <label className="text-sm">
             Report reason
-            <select
-              aria-label="Report reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="mt-2 w-full rounded-lg border bg-card p-2"
-            >
-              {["Spam", "Harassment", "Unsafe content", "Other"].map((r) => (
-                <option key={r}>{r}</option>
-              ))}
+            <select aria-label="Report reason" value={reason} onChange={(e) => setReason(e.target.value)} className="mt-2 w-full rounded-lg border bg-card p-2">
+              {["Spam", "Harassment", "Unsafe content", "Other"].map((r) => <option key={r}>{r}</option>)}
             </select>
           </label>
           <Button
@@ -408,10 +379,7 @@ export function PostCard({ post }: { post: Post }) {
                 return;
               }
               const { error } = await (supabase as any).from("reports").insert({
-                reporter_id: user.id,
-                target_id: post.id,
-                target_type: "post",
-                reason,
+                reporter_id: user.id, target_id: post.id, target_type: "post", reason,
               });
               if (error) {
                 toast.error("Report could not be submitted.");
@@ -424,9 +392,7 @@ export function PostCard({ post }: { post: Post }) {
           >
             Submit report
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Reports are sent securely to the moderation queue.
-          </p>
+          <p className="text-xs text-muted-foreground">Reports are sent securely to the moderation queue.</p>
         </DialogContent>
       </Dialog>
       <ShareSheet
