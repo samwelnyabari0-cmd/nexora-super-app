@@ -888,7 +888,7 @@ if (recipient === user.id) {
       ? await uploadThenInsertAttachment(
           async () => {
             const { error } = await supabase.storage.from("chat-media").upload(mediaPath!, attachment!, {
-              contentType: uploadContentType ?? attachment!.type || "application/octet-stream",
+              contentType: uploadContentType ?? (attachment!.type || "application/octet-stream"),
               upsert: false,
             });
             return { error };
