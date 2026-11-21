@@ -3,14 +3,12 @@ import {
   BadgeCheck,
   Heart,
   MessageCircle,
-  Play,
   Send,
   Share2,
   Repeat2,
   Film,
   Clapperboard,
   Zap,
-  MapPin,
   Trash2,
   Flag,
   MoreHorizontal,
@@ -98,7 +96,6 @@ export function PostCard({ post }: { post: Post }) {
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [scene, setScene] = useState(false);
-  const [playing, setPlaying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedCaption, setEditedCaption] = useState(post.caption);
   const [shareOpen, setShareOpen] = useState(false);
