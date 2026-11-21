@@ -101,7 +101,13 @@ export async function createMediaPoster(file: File, maxWidth = 960): Promise<Gen
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) return null;
     context.drawImage(source, 0, 0, outputWidth, outputHeight);
-    const pixels = context.getImageData(0, 0, Math.min(24, outputWidth), Math.min(24, outputHeight)).data;
+    const sampleCanvas = document.createElement("canvas");
+    sampleCanvas.width = 24;
+    sampleCanvas.height = 24;
+    const sampleContext = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    if (!sampleContext) return null;
+    sampleContext.drawImage(source, 0, 0, 24, 24);
+    const pixels = sampleContext.getImageData(0, 0, 24, 24).data;
     const dominantColor = getDominantColorFromPixels(pixels);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.78));
     if (!blob || blob.type !== "image/webp") return null;
