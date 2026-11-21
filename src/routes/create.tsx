@@ -1,4 +1,5 @@
 import TierGatedCreatorStudio from "@/components/nexora/src/components/nexora/src/components/nexora/TierGatedCreatorStudio";
+import CreatorStudioMobileFlow from "@/components/nexora/creator-studio/CreatorStudioMobileFlow";
 import AdvancedVideoStudioEditor from "@/components/nexora/AdvancedVideoStudioEditor";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -75,6 +76,8 @@ function Create() {
   const [savingDraft, setSavingDraft] = useState(false);
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
+  const publishFormRef = useRef<HTMLFormElement>(null);
+  const saveDraftButtonRef = useRef<HTMLButtonElement>(null);
   const uploadTier = accountTierFromUser(user);
   const appMetadata = user?.app_metadata ?? {};
   const rawPlan = String(
@@ -164,6 +167,66 @@ function Create() {
     setDominantColor("#171717");
     setError("");
   };
+  const handleCapture = (url: string, type: string) => {
+    setMedia(url);
+    setOriginalMedia(url);
+    setMediaType(type);
+    setError("");
+    void fetch(url)
+      .then((response) => response.blob())
+      .then((blob) => {
+        const extension = type.startsWith("video/") ? "webm" : "jpg";
+        const file = new File([blob], \`capture.\${extension}\`, { type });
+        pickMedia([file], {
+          contentType, tier: uploadTier, setError, setNote,
+          accept: (previewUrl, files, mimeType, classification) => {
+            setMedia(previewUrl); setOriginalMedia(previewUrl); setMediaFiles(files);
+            setMediaType(mimeType); setMediaClassification(classification);
+            setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
+            if (mimeType.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
+          },
+        });
+      })
+      .catch(() => setError("Captured media could not be prepared for upload."));
+  };
+
+  const restoreDraft = async (draftId: string) => {
+    const saved = drafts.find((item) => item.id === draftId);
+    if (!saved) return;
+    setId(saved.id); setCaption(saved.caption); setTags(saved.tags.join(", "));
+    setMedia(undefined); setOriginalMedia(undefined); setMediaFiles([]);
+    setMediaType(saved.mediaType); setContentType((saved.contentType as ContentType) || "post");
+    setAudience(saved.audience); setFilter(saved.filter || "original");
+    setFormat(saved.format || "landscape"); setError("");
+    if (saved.mediaPaths?.length) {
+      const downloads = await Promise.all(saved.mediaPaths.map((storedPath) => supabase.storage.from("creator-drafts").download(storedPath)));
+      if (downloads.some(({ data, error: downloadError }) => downloadError || !data)) {
+        setError("Some media in this draft could not be restored. Please try again.");
+        return;
+      }
+      const files = downloads.map(({ data }) => data as Blob);
+      const urls = files.map((file) => URL.createObjectURL(file));
+      setMedia(urls[0]); setOriginalMedia(urls[0]); setMediaFiles(files);
+    }
+  };
+
+  const uploadSelectedFiles = (picked: File[]) => {
+    pickMedia(picked, {
+      contentType, tier: uploadTier, setError, setNote,
+      accept: (url, files, type, classification) => {
+        setMedia(url); setOriginalMedia(url); setMediaFiles(files);
+        setMediaType(type); setMediaClassification(classification);
+        setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
+        if (type.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
+      },
+    });
+  };
+
+  const changeFrameRatio = (value: MediaFrameRatio) => {
+    setFrameRatio(value);
+    setFormat(value === "9:16" ? "portrait" : value === "16:9" ? "landscape" : value === "original" ? "landscape" : "square");
+  };
+
   const intensity = filterIntensity / 100;
 
 const previewFilter =
@@ -173,6 +236,51 @@ const previewFilter =
   filter === "cinema" ? `contrast(${0.9 + intensity * 0.4}) saturate(${0.8 + intensity * 0.4})` :
   `brightness(${0.9 + intensity * 0.15}) saturate(${0.85 + intensity * 0.3})`;
   return (
+    <>
+      <CreatorStudioMobileFlow
+        userPlan={userPlan as "free" | "pro" | "studio"}
+        media={media} mediaType={mediaType} frameRatio={frameRatio} onFrameRatioChange={changeFrameRatio}
+        filter={filter} onFilterChange={setFilter} filterIntensity={filterIntensity} onFilterIntensityChange={setFilterIntensity}
+        contentType={contentType}
+        onContentTypeChange={(next) => next === "live" ? void nav({ to: "/live" }) : setContentType(next)}
+        drafts={drafts.map((item) => ({ id: item.id, caption: item.caption }))}
+        onRestoreDraft={(draftId) => void restoreDraft(draftId)}
+        onCapture={handleCapture} onCaptureError={setError} onUploadFiles={uploadSelectedFiles}
+        accept={accept} onNewComposition={reset}
+        onRemoveMedia={() => {
+          setMedia(undefined); setOriginalMedia(undefined); setMediaFiles([]); setMediaType(undefined); setCover(null);
+          setContentType("post"); setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
+        }}
+        caption={caption} onCaptionChange={setCaption} tags={tags} onTagsChange={setTags}
+        audience={audience} onAudienceChange={setAudience}
+        uploadLimits={\`\${uploadTier.replaceAll("_", " ")} plan: \${uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Reels, \${uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, \${uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Maximum file size: \${uploadLimits.maxBytes >= 1024 ** 3 ? \`\${uploadLimits.maxBytes / 1024 ** 3} GB\` : \`\${uploadLimits.maxBytes / 1024 ** 2} MB\`}.\`}
+        error={error} note={note} uploadProgress={uploadProgress} uploadStatus={uploadStatus}
+        publishDisabled={!caption.trim() || queued || uploadProgress !== null}
+        onPublish={() => publishFormRef.current?.requestSubmit()}
+        onSaveDraft={() => saveDraftButtonRef.current?.click()}
+        onCancel={() => void nav({ to: "/" })}
+        advancedEditor={media && mediaType?.startsWith("video/") && userPlan === "studio" ? (
+          <AdvancedVideoStudioEditor
+            key={originalMedia || media} videoSrc={originalMedia || media}
+            onExported={(file) => {
+              const mimeType = file.type.split(";")[0] || "video/webm";
+              const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+              const editedFile = new File([file], \`edited.\${extension}\`, { type: mimeType });
+              pickMedia([editedFile], {
+                contentType, tier: uploadTier, setError, setNote,
+                accept: (editedUrl, files, detectedType, classification) => {
+                  setMedia(editedUrl); setOriginalMedia(editedUrl); setMediaFiles(files);
+                  setMediaType(detectedType); setMediaClassification(classification);
+                  setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
+                  if (contentType !== "collab") setContentType(classification.contentType);
+                  setCover(null); setNote("Your edited video is ready. Publishing will upload the edited copy.");
+                },
+              });
+            }}
+          />
+        ) : null}
+      />
+      <div className="hidden lg:block space-y-6">
     <div className="space-y-6">
       <PageHeader title="Creator Studio Plus" subtitle={user ? "Publish to your account" : "Sign in to publish"} />
       <ContentTypePicker
@@ -210,37 +318,8 @@ const previewFilter =
               <Image className="m-auto h-12 w-12 text-muted-foreground" />
             )}
           </div>
-          <StudioCapture
-            onCapture={(url, type) => {
-  setMedia(url);
-  setOriginalMedia(url);
-  setMediaType(type);
-  setError("");
-  void fetch(url)
-    .then((response) => response.blob())
-    .then((blob) => {
-      const extension = type.startsWith("video/") ? "webm" : "jpg";
-      const file = new File([blob], `capture.${extension}`, { type });
-      pickMedia([file], {
-        contentType,
-        tier: uploadTier,
-        setError,
-        setNote,
-        accept: (previewUrl, files, mimeType, classification) => {
-          setMedia(previewUrl);
-          setOriginalMedia(previewUrl);
-          setMediaFiles(files);
-          setMediaType(mimeType);
-          setMediaClassification(classification);
-          setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
-          if (mimeType.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
-        },
-      });
-    })
-    .catch(() => setError("Captured media could not be prepared for upload."));
-}}
-            onError={setError}
-          />
+          <StudioCapture onCapture={handleCapture} onError={setError} />
+
           {media && mediaType?.startsWith("video/") && (
             <CoverPicker videoSrc={media} onCoverChange={(c) => setCover(c?.blob ?? null)} />
           )}
@@ -393,7 +472,8 @@ const previewFilter =
           )}
         </div>
         <form
-          className="space-y-4"
+          ref={publishFormRef}
+          className="hidden space-y-4"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
@@ -709,6 +789,7 @@ const previewFilter =
             {queued ? "Already queued" : user ? "Publish" : "Sign in to publish"}
           </Button>
           <Button
+            ref={saveDraftButtonRef}
             type="button"
             variant="outline"
             className="w-full"
@@ -851,5 +932,7 @@ Draft captions, media, tags and audience are saved privately to your account.
         })}
       </section>
     </div>
+      </div>
+    </>
   );
     }
