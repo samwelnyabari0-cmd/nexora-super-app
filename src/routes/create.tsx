@@ -408,6 +408,16 @@ const previewFilter =
             let thumbnailStorageProvider: "supabase" | "r2" = "supabase";
             let thumbnailStorageKey: string | null = null;
             const pendingR2Keys: string[] = [];
+            let generatedPoster: Awaited<ReturnType<typeof createMediaPoster>> | null = null;
+            if (mediaFiles.length === 1) {
+              try {
+                generatedPoster = await createMediaPoster(mediaFiles[0] as File);
+                if (generatedPoster) setDominantColor(generatedPoster.dominantColor);
+              } catch (posterError) {
+                console.warn("Automatic poster generation skipped:", posterError);
+              }
+            }
+            const posterBlob = cover ?? generatedPoster?.blob ?? null;
             if (mediaFiles.length) {
               // First rollout: route a single video to R2. Images and multi-file posts
               // retain the existing Supabase Storage path until their flows are migrated.
@@ -418,7 +428,7 @@ const previewFilter =
                 mediaFiles[0].size <= 5 * 1024 ** 3;
               const uploadedPaths: string[] = [];
               const totalUploadBytes = mediaFiles.reduce((total, file) => total + file.size, 0) +
-                (mediaFiles.length === 1 && mediaFiles[0].type.startsWith("video/") ? cover?.size ?? 0 : 0);
+                (mediaFiles.length === 1 ? posterBlob?.size ?? 0 : 0);
               let completedUploadBytes = 0;
               setUploadProgress(0);
               setUploadStatus("Preparing upload...");
@@ -447,23 +457,24 @@ const previewFilter =
                     mediaStorageKey = verified.key;
                     mediaPath = verified.key;
 
-                    if (cover) {
+                    if (posterBlob) {
+                      const posterType = posterBlob.type === "image/webp" ? "image/webp" : "image/jpeg";
                       const coverSigned = await createR2MediaUploadUrl({
-                        data: { contentType: "image/jpeg", size: cover.size },
+                        data: { contentType: posterType, size: posterBlob.size },
                       });
                       pendingR2Keys.push(coverSigned.key);
-                      setUploadStatus("Uploading video cover...");
+                      setUploadStatus("Uploading media poster...");
                       await uploadFileWithProgress(
                         coverSigned.uploadUrl,
-                        cover,
+                        posterBlob,
                         coverSigned.uploadHeaders,
                         (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
                       );
-                      completedUploadBytes += cover.size;
+                      completedUploadBytes += posterBlob.size;
                       const coverVerified = await verifyR2MediaUpload({
-                        data: { key: coverSigned.key, contentType: "image/jpeg", size: cover.size },
+                        data: { key: coverSigned.key, contentType: posterType, size: posterBlob.size },
                       });
-                      if (!coverVerified.verified) throw new Error("Video cover could not be verified.");
+                      if (!coverVerified.verified) throw new Error("Media poster could not be verified.");
                       thumbnailStorageProvider = "r2";
                       thumbnailStorageKey = coverVerified.key;
                     }
@@ -508,8 +519,9 @@ const previewFilter =
                   completedUploadBytes += file.size;
                   const { data: publicData } = supabase.storage.from("post-media").getPublicUrl(storagePath);
                   uploadedPaths.push(publicData.publicUrl);
-                  if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
-                    const coverPath = storagePath.replace(/\.[^./]+$/, "-cover.jpg");
+                  if (posterBlob && mediaFiles.length === 1) {
+                    const posterExtension = posterBlob.type === "image/webp" ? "webp" : "jpg";
+                    const coverPath = storagePath.replace(/\.[^./]+$/, "-poster." + posterExtension);
                     const { data: signedCover, error: signCoverError } = await supabase.storage
                       .from("post-media")
                       .createSignedUploadUrl(coverPath, { upsert: false });
@@ -523,8 +535,8 @@ const previewFilter =
                     try {
                       await uploadFileWithProgress(
                         signedCover.signedUrl,
-                        cover,
-                        { "Content-Type": "image/jpeg" },
+                        posterBlob,
+                        { "Content-Type": posterBlob.type === "image/webp" ? "image/webp" : "image/jpeg" },
                         (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
                       );
                     } catch (coverFailure) {
@@ -533,7 +545,9 @@ const previewFilter =
                       setError(coverFailure instanceof Error ? coverFailure.message : "Video cover upload failed. Please try again.");
                       return;
                     }
-                    completedUploadBytes += cover.size;
+                    completedUploadBytes += posterBlob.size;
+                    thumbnailStorageProvider = "supabase";
+                    thumbnailStorageKey = coverPath;
                     thumbnailUrl = supabase.storage.from("post-media").getPublicUrl(coverPath).data.publicUrl;
                   }
                 }
@@ -560,6 +574,11 @@ const previewFilter =
                 thumbnail_storage_key: thumbnailStorageKey,
                 content_type: strictContentType,
                 aspect_ratio: mediaClassification.aspectRatio,
+                framing_aspect_ratio: frameRatio,
+                focal_x: normalizeMediaFraming({ focalX, focalY, zoom }).focalX,
+                focal_y: normalizeMediaFraming({ focalX, focalY, zoom }).focalY,
+                zoom: normalizeMediaFraming({ focalX, focalY, zoom }).zoom,
+                dominant_color: generatedPoster?.dominantColor ?? dominantColor,
                 duration_seconds: mediaClassification.durationSeconds,
                 audience,
                 tags: typedTags,
@@ -592,6 +611,13 @@ const previewFilter =
                 audience,
                 filter,
                 format,
+                aspectRatio: mediaClassification.aspectRatio,
+                frameRatio,
+                focalX,
+                focalY,
+                zoom,
+                dominantColor: generatedPoster?.dominantColor ?? dominantColor,
+                thumbnailUrl: thumbnailUrl ?? undefined,
                 kind: kindFor(contentType, !!mediaType?.startsWith("video/")),
                 tags: typedTags,
               },
