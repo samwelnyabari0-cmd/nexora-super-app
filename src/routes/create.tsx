@@ -86,7 +86,8 @@ function Create() {
     audience,
     filter,
     format,
-    mediaPath: drafts.find((item) => item.id === key)?.mediaPath,
+    mediaPaths: drafts.find((item) => item.id === key)?.mediaPaths,
+    contentType,
   });
   useEffect(() => {
     let active = true;
@@ -99,7 +100,7 @@ function Create() {
     void (async () => {
       const { data, error: loadError } = await (supabase as any)
         .from("creator_drafts")
-        .select("id, caption, media_path, media_type, tags, audience, filter, format")
+        .select("id, caption, media_paths, media_type, content_type, tags, audience, filter, format")
         .order("updated_at", { ascending: false });
       if (!active) return;
       if (loadError) {
@@ -111,7 +112,8 @@ function Create() {
           id: row.id,
           caption: row.caption ?? "",
           mediaType: row.media_type ?? undefined,
-          mediaPath: row.media_path ?? undefined,
+          mediaPaths: Array.isArray(row.media_paths) ? row.media_paths : [],
+          contentType: row.content_type ?? "post",
           tags: Array.isArray(row.tags) ? row.tags : [],
           audience: row.audience === "private" ? "private" : "public",
           filter: row.filter ?? "original",
@@ -462,27 +464,28 @@ const previewFilter =
               }
               const key = id || crypto.randomUUID();
               const existing = drafts.find((item) => item.id === key);
-              let mediaPath = media ? existing?.mediaPath ?? null : null;
-              let uploadedPath: string | null = null;
+              let mediaPaths = media ? existing?.mediaPaths ?? [] : [];
+              const uploadedPaths: string[] = [];
               setSavingDraft(true);
               setError("");
               try {
-                const file = mediaFiles[0];
-                if (file) {
+                for (const file of mediaFiles) {
                   const extension = file.type.split(";")[0].split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
-                  uploadedPath = `${user.id}/${key}/${crypto.randomUUID()}.${extension}`;
+                  const uploadedPath = `${user.id}/${key}/${crypto.randomUUID()}.${extension}`;
                   const { error: uploadError } = await supabase.storage
                     .from("creator-drafts")
                     .upload(uploadedPath, file, { contentType: file.type, upsert: false });
                   if (uploadError) throw uploadError;
-                  mediaPath = uploadedPath;
+                  uploadedPaths.push(uploadedPath);
                 }
+                if (uploadedPaths.length) mediaPaths = uploadedPaths;
                 const draftData = {
                   id: key,
                   user_id: user.id,
                   caption: caption.trim(),
-                  media_path: mediaPath,
+                  media_paths: mediaPaths,
                   media_type: mediaType ?? null,
+                  content_type: contentType,
                   tags: tagList,
                   audience,
                   filter,
@@ -493,15 +496,16 @@ const previewFilter =
                   .from("creator_drafts")
                   .upsert(draftData, { onConflict: "id" });
                 if (saveError) throw saveError;
-                if (existing?.mediaPath && existing.mediaPath !== mediaPath) {
-                  await supabase.storage.from("creator-drafts").remove([existing.mediaPath]);
+                const oldPaths = (existing?.mediaPaths ?? []).filter((path) => !mediaPaths.includes(path));
+                if (oldPaths.length) {
+                  await supabase.storage.from("creator-drafts").remove(oldPaths);
                 }
                 setId(key);
-                saveDraft({ ...draft(key), mediaPath: mediaPath ?? undefined });
+                saveDraft({ ...draft(key), mediaPaths, contentType });
                 setNote("Draft saved securely to your account.");
               } catch (saveError) {
-                if (uploadedPath) {
-                  await supabase.storage.from("creator-drafts").remove([uploadedPath]);
+                if (uploadedPaths.length) {
+                  await supabase.storage.from("creator-drafts").remove(uploadedPaths);
                 }
                 console.error("Draft save failed:", saveError);
                 setError("Draft could not be saved. Please check your connection and try again.");
@@ -538,22 +542,24 @@ Draft captions, media, tags and audience are saved privately to your account.
                   setOriginalMedia(undefined);
                   setMediaFiles([]);
                   setMediaType(d.mediaType);
+                  setContentType((d.contentType as ContentType) || "post");
                   setAudience(d.audience);
                   setFilter(d.filter || "original");
                   setFormat(d.format || "landscape");
                   setError("");
-                  if (d.mediaPath) {
-                    const { data: file, error: downloadError } = await supabase.storage
-                      .from("creator-drafts")
-                      .download(d.mediaPath);
-                    if (downloadError || !file) {
-                      setError("This draft's video could not be restored. Please try again.");
+                  if (d.mediaPaths?.length) {
+                    const downloads = await Promise.all(
+                      d.mediaPaths.map((path) => supabase.storage.from("creator-drafts").download(path)),
+                    );
+                    if (downloads.some(({ data, error }) => error || !data)) {
+                      setError("Some media in this draft could not be restored. Please try again.");
                       return;
                     }
-                    const url = URL.createObjectURL(file);
-                    setMedia(url);
-                    setOriginalMedia(url);
-                    setMediaFiles([file]);
+                    const files = downloads.map(({ data }) => data as Blob);
+                    const urls = files.map((file) => URL.createObjectURL(file));
+                    setMedia(urls[0]);
+                    setOriginalMedia(urls[0]);
+                    setMediaFiles(files);
                   }
                 }}
               >
@@ -574,8 +580,8 @@ Draft captions, media, tags and audience are saved privately to your account.
                     setError("Draft could not be deleted. Please try again.");
                     return;
                   }
-                  if (d.mediaPath) {
-                    await supabase.storage.from("creator-drafts").remove([d.mediaPath]);
+                  if (d.mediaPaths?.length) {
+                    await supabase.storage.from("creator-drafts").remove(d.mediaPaths);
                   }
                   removeDraft(d.id);
                   if (id === d.id) reset();
