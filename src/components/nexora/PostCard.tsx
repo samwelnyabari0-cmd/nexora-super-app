@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { useApp } from "@/features/core/store";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./ui";
@@ -43,8 +44,9 @@ export function PostCard({ post }: { post: Post }) {
     hue: fallbackCreator.hue,
     verified: post.creatorId === "me" ? false : fallbackCreator.verified,
   };
-  const { following, toggleFollow, muted, toggleMute, report } = useWorkspace();
+  const { muted, toggleMute, report } = useWorkspace();
   const { user } = useSession();
+  const socialGraph = useSocialGraph(post.creatorId === "me" ? "" : post.creatorId);
   const [safety, setSafety] = useState(false);
   const [reason, setReason] = useState("Spam");
   const mediaSources = (() => {
@@ -372,8 +374,8 @@ export function PostCard({ post }: { post: Post }) {
   <Dialog open={safety} onOpenChange={setSafety}>
         <DialogContent>
           <DialogTitle>{c.name}</DialogTitle>
-          <Button variant="outline" onClick={() => toggleFollow(post.creatorId)}>
-            {following.includes(post.creatorId) ? "Unfollow" : "Follow"}
+          <Button variant="outline" disabled={!user || socialGraph.loading} onClick={() => { void socialGraph.toggleFollow(); setSafety(false); }}>
+            {!user ? "Sign in to follow" : socialGraph.isFollowing ? "Unfollow" : "Follow"}
           </Button>
           <Button
             variant="outline"
