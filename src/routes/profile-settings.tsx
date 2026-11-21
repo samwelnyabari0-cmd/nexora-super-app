@@ -134,6 +134,7 @@ function ProfileSettings() {
       const { error } = await (supabase as any).from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
       if (error) throw error;
       setAvatarUrl(data.publicUrl);
+      updatePassport({ avatarUrl: data.publicUrl });
       toast.success("Profile photo updated.");
     } catch (error) {
       console.error("Profile photo update failed:", error);
