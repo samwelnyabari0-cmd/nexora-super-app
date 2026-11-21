@@ -43,6 +43,8 @@ type GroupMessage = {
   expires_at?: string | null;
   created_at: string;
   reply_to_message_id?: string | null;
+  edited_at?: string | null;
+  deleted_at?: string | null;
 };
 
 type SenderProfile = {
@@ -208,7 +210,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             .maybeSingle(),
           (supabase as any)
             .from("chat_group_messages")
-            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
+            .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at, edited_at, deleted_at")
             .eq("group_id", groupId)
             .order("created_at", { ascending: true }),
         ]);
@@ -306,7 +308,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
     async function refreshMessages() {
       const { data, error: loadError } = await (supabase as any)
         .from("chat_group_messages")
-        .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
+        .select("id, group_id, sender_id, body, media_path, media_type, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at, edited_at, deleted_at")
         .eq("group_id", groupId)
         .order("created_at", { ascending: true });
 
@@ -395,6 +397,25 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [groupId, messages]);
+
+  async function editMessage(message: GroupMessage) {
+    const nextBody = window.prompt("Edit your message", message.body);
+    if (nextBody === null || !nextBody.trim() || nextBody.trim() === message.body) return;
+    const { data, error: editError } = await (supabase as any).rpc("edit_group_message", {
+      p_message_id: message.id,
+      p_body: nextBody.trim(),
+    });
+    if (editError) { setError(editError.message || "Your message could not be edited."); return; }
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, body: nextBody.trim(), edited_at: data } : item));
+  }
+
+  async function deleteMessage(message: GroupMessage) {
+    if (!window.confirm("Delete this message for everyone in the group?")) return;
+    const { data, error: deleteError } = await (supabase as any).rpc("delete_group_message", { p_message_id: message.id });
+    if (deleteError) { setError(deleteError.message || "Your message could not be deleted."); return; }
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, body: "", media_path: null, media_type: null, attachment_name: null, attachment_mime_type: null, attachment_size_bytes: null, location_latitude: null, location_longitude: null, location_accuracy_m: null, location_captured_at: null, location_session_id: null, shared_content_source: null, shared_content_id: null, shared_content_type: null, deleted_at: data } : item));
+    setMediaUrls((current) => { const next = { ...current }; delete next[message.id]; return next; });
+  }
 
   async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
     const existing = reactions.find((item) => item.message_id === messageId && item.user_id === userId);
@@ -607,7 +628,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[85dvh] min-h-[500px] max-w-3xl flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[94dvh] min-h-[560px] max-w-3xl flex-col p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
@@ -636,7 +657,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log} className="flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
+      <div ref={log} className="min-h-[52dvh] flex-1 space-y-3 overflow-y-auto py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
@@ -664,6 +685,10 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                   )
                 )}
                 <div className={`min-w-0 rounded-2xl px-4 py-2 ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  {message.deleted_at ? (
+                    <p className="py-2 text-sm italic opacity-75">This message was deleted</p>
+                  ) : (
+                    <>
                   {!mine && (
                     <p className="mb-1 text-xs font-semibold">
                       {sender?.display_name || "NEXORA User"}
@@ -685,7 +710,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                         sizeBytes={message.attachment_size_bytes}
                       />
                     ) : message.media_type === "video" ? (
-                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-72 max-w-full rounded-lg" />
+                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-[52dvh] w-full max-w-full rounded-lg object-contain" />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
@@ -714,11 +739,18 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                   {message.body && <p className="whitespace-pre-wrap break-words text-sm">{message.body}</p>}
                   <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
                     <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
+                    {mine && message.body && !message.media_path && message.location_latitude == null && !message.location_session_id && !message.shared_content_id && (
+                      <button type="button" onClick={() => void editMessage(message)} className="underline-offset-2 hover:underline" aria-label="Edit message">Edit</button>
+                    )}
+                    {mine && <button type="button" onClick={() => void deleteMessage(message)} className="underline-offset-2 hover:underline" aria-label="Delete message">Delete</button>}
+                    {message.edited_at && <span>Edited</span>}
                     <span>
                     {formatMessageTime(message.created_at)}
                     </span>
                   </div>
                   <MessageReactions messageId={message.id} userId={userId} reactions={reactions} onToggle={(id, emoji) => void toggleReaction(id, emoji)} />
+                    </>
+                  )}
                 </div>
               </div>
               </div>
@@ -797,13 +829,14 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
         <Button type="button" variant="outline" size="icon" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
           {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
-        <input
+        <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           maxLength={2000}
+          rows={2}
           placeholder="Message the group..."
           aria-label="Message the group"
-          className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+          className="min-h-16 max-h-32 min-w-0 flex-1 resize-y rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
         />
         <Button type="submit" size="icon" aria-label="Send group message" disabled={(!draft.trim() && !attachment) || sending || recording}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

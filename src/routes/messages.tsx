@@ -50,6 +50,8 @@ type DirectMessage = {
   seen_at?: string | null;
   created_at: string;
   reply_to_message_id?: string | null;
+  edited_at?: string | null;
+  deleted_at?: string | null;
 };
 
 type RecipientProfile = {
@@ -291,7 +293,7 @@ function Messages() {
 
   const { data, error: inboxError } = await (supabase as any)
     .from("direct_messages")
-    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
+    .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at, edited_at, deleted_at")
     .order("created_at", { ascending: false });
 
   if (cancelled) return;
@@ -355,7 +357,7 @@ function Messages() {
           displayName: profile?.display_name || "NEXORA User",
           handle: profile?.handle || "",
           avatarUrl: profile?.avatar_url || null,
-          lastMessage: hasStoredChatLock(user.id, "direct", userId) ? "🔒 Locked chat" : message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
+          lastMessage: hasStoredChatLock(user.id, "direct", userId) ? "🔒 Locked chat" : message.deleted_at ? "This message was deleted" : message.body || (message.media_type === "video" ? "🎥 Video" : message.media_type === "image" ? "📷 Photo" : message.media_type === "audio" ? "🎤 Voice message" : message.media_type === "document" ? "📄 Document" : ""),
           lastMessageAt: message.created_at,
           unreadCount: unreadByUser.get(userId) ?? 0,
           isOnline,
@@ -384,7 +386,7 @@ function Messages() {
           .in("id", groupIds),
         (supabase as any)
           .from("chat_group_messages")
-          .select("id, group_id, body, media_type, created_at, location_latitude, location_session_id")
+          .select("id, group_id, body, media_type, created_at, location_latitude, location_session_id, deleted_at")
           .in("group_id", groupIds)
           .order("created_at", { ascending: false }),
       ]);
@@ -409,7 +411,7 @@ function Messages() {
           groupId: item.id,
           name: item.name,
           avatarUrl: signedAvatar,
-          lastMessage: hasStoredChatLock(user.id, "group", item.id) ? "🔒 Locked group" : latest?.body || (
+          lastMessage: hasStoredChatLock(user.id, "group", item.id) ? "🔒 Locked group" : latest?.deleted_at ? "This message was deleted" : latest?.body || (
             latest?.media_type === "video" ? "🎥 Video" :
             latest?.media_type === "image" ? "📷 Photo" :
             latest?.media_type === "audio" ? "🎤 Voice message" :
@@ -440,14 +442,14 @@ if (recipient === user.id) {
         await Promise.all([
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at, edited_at, deleted_at")
             .eq("sender_id", user.id)
             .eq("recipient_id", recipient)
             .order("created_at", { ascending: true }),
 
           (supabase as any)
             .from("direct_messages")
-            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at")
+            .select("id, sender_id, recipient_id, body, media_path, media_type, delivered_at, seen_at, created_at, reply_to_message_id, attachment_name, attachment_mime_type, attachment_size_bytes, location_latitude, location_longitude, location_accuracy_m, location_captured_at, location_session_id, shared_content_source, shared_content_id, shared_content_type, expires_at, edited_at, deleted_at")
             .eq("sender_id", recipient)
             .eq("recipient_id", user.id)
             .order("created_at", { ascending: true }),
@@ -623,6 +625,25 @@ if (recipient === user.id) {
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [recipient, user?.id, messages, chatLock.status]);
+
+  async function editMessage(message: DirectMessage) {
+    const nextBody = window.prompt("Edit your message", message.body);
+    if (nextBody === null || !nextBody.trim() || nextBody.trim() === message.body) return;
+    const { data, error: editError } = await (supabase as any).rpc("edit_direct_message", {
+      p_message_id: message.id,
+      p_body: nextBody.trim(),
+    });
+    if (editError) { setError(editError.message || "Your message could not be edited."); return; }
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, body: nextBody.trim(), edited_at: data } : item));
+  }
+
+  async function deleteMessage(message: DirectMessage) {
+    if (!window.confirm("Delete this message for everyone in the conversation?")) return;
+    const { data, error: deleteError } = await (supabase as any).rpc("delete_direct_message", { p_message_id: message.id });
+    if (deleteError) { setError(deleteError.message || "Your message could not be deleted."); return; }
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, body: "", media_path: null, media_type: null, attachment_name: null, attachment_mime_type: null, attachment_size_bytes: null, location_latitude: null, location_longitude: null, location_accuracy_m: null, location_captured_at: null, location_session_id: null, shared_content_source: null, shared_content_id: null, shared_content_type: null, deleted_at: data } : item));
+    setMediaUrls((current) => { const next = { ...current }; delete next[message.id]; return next; });
+  }
 
   async function toggleReaction(messageId: string, emoji: MessageReactionEmoji) {
     if (!user) return;
@@ -1052,7 +1073,7 @@ if (recipient === user.id) {
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
-    <main className="mx-auto flex h-[85dvh] min-h-[500px] max-w-3xl flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[94dvh] min-h-[560px] max-w-3xl flex-col p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
@@ -1099,7 +1120,7 @@ if (recipient === user.id) {
 
       <div
         ref={log}
-        className="flex-1 space-y-3 overflow-y-auto py-4"
+        className="min-h-[52dvh] flex-1 space-y-3 overflow-y-auto py-4"
         aria-live="polite"
         role="log"
       >
@@ -1135,6 +1156,10 @@ if (recipient === user.id) {
                       : "bg-muted"
                   }`}
                 >
+                  {message.deleted_at ? (
+                    <p className="py-2 text-sm italic opacity-75">This message was deleted</p>
+                  ) : (
+                    <>
                   {message.reply_to_message_id && (
                     <button type="button" onClick={() => messageRefs.current[message.reply_to_message_id!]?.scrollIntoView({ behavior: "smooth", block: "center" })} className="mb-2 block w-full rounded-lg border-l-2 border-primary/70 bg-background/20 px-2 py-1 text-left text-xs">
                       <span className="block font-semibold">Replying to</span>
@@ -1154,7 +1179,7 @@ if (recipient === user.id) {
                         src={mediaUrls[message.id]}
                         controls
                         playsInline
-                        className="mb-2 max-h-72 max-w-full rounded-lg"
+                        className="mb-2 max-h-[52dvh] w-full max-w-full rounded-lg object-contain"
                       />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
@@ -1192,6 +1217,11 @@ if (recipient === user.id) {
                   )}
                   <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
                     <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
+                    {mine && message.body && !message.media_path && message.location_latitude == null && !message.location_session_id && !message.shared_content_id && (
+                      <button type="button" onClick={() => void editMessage(message)} className="underline-offset-2 hover:underline" aria-label="Edit message">Edit</button>
+                    )}
+                    {mine && <button type="button" onClick={() => void deleteMessage(message)} className="underline-offset-2 hover:underline" aria-label="Delete message">Delete</button>}
+                    {message.edited_at && <span>Edited</span>}
                     <span className="flex items-center gap-1">
                     <span>{formatMessageTime(message.created_at)}</span>
                     {mine && (
@@ -1211,6 +1241,8 @@ if (recipient === user.id) {
                     </span>
                   </div>
                   <MessageReactions messageId={message.id} userId={user.id} reactions={reactions} onToggle={(id, emoji) => void toggleReaction(id, emoji)} />
+                    </>
+                  )}
                 </div>
                 </div>
               </div>
@@ -1319,13 +1351,14 @@ if (recipient === user.id) {
             <Mic className="h-4 w-4" />
           )}
         </Button>
-        <input
+        <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder="Write a message..."
           maxLength={2000}
+          rows={2}
           aria-label="Write a message"
-          className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+          className="min-h-16 max-h-32 min-w-0 flex-1 resize-y rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
         />
 
         <Button
