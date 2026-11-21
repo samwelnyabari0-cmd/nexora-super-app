@@ -34,10 +34,14 @@ import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
     useApp();
-  const c =
-    post.creatorId === "me"
-      ? { name: passport.name, handle: passport.handle, hue: 295, verified: false }
-      : creatorById(post.creatorId);
+  const fallbackCreator = creatorById(post.creatorId);
+  const c = {
+    name: post.creatorId === "me" ? passport.name : post.creatorName ?? fallbackCreator.name,
+    handle: post.creatorId === "me" ? passport.handle : post.creatorHandle ?? fallbackCreator.handle,
+    avatarUrl: post.creatorAvatarUrl ?? null,
+    hue: fallbackCreator.hue,
+    verified: post.creatorId === "me" ? false : fallbackCreator.verified,
+  };
   const { following, toggleFollow, muted, toggleMute, report } = useWorkspace();
   const { user } = useSession();
   const [safety, setSafety] = useState(false);
@@ -113,7 +117,7 @@ export function PostCard({ post }: { post: Post }) {
 
   const header = (
     <div className="flex items-center gap-3">
-      <Avatar name={c.name} hue={c.hue} size={38} />
+      <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1 text-sm font-semibold">
           {c.name}
