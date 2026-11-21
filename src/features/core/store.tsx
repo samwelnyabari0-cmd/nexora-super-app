@@ -35,6 +35,7 @@ export type Passport = {
   name: string;
   handle: string;
   bio: string;
+  avatarUrl?: string | null;
   reputation: number;
   interests: string[];
   share: { interests: boolean; location: boolean; reputation: boolean; activity: boolean };
@@ -111,6 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   name: "NEXORA User",
   handle: "nexorauser",
   bio: "",
+  avatarUrl: null,
   reputation: 0,
   interests: [],
   share: { interests: false, location: false, reputation: false, activity: false },
@@ -147,6 +149,7 @@ if (ownProfile) {
       emailName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
       user.id.slice(0, 8),
     bio: ownProfile.bio || "",
+    avatarUrl: ownProfile.avatar_url ?? null,
     interests: ownProfile.interests ?? current.interests,
     share: ownProfile.settings?.share ?? current.share,
   }));
