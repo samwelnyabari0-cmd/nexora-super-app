@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -85,6 +85,36 @@ export default function CreatorStudioMobileFlow(props: Props) {
   const [cameraRequest, setCameraRequest] = useState(0);
   const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
+  const pinchStart = useRef<{ distance: number; zoom: number } | null>(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
+
+  useEffect(() => {
+    setPreviewZoom(1);
+    pinchStart.current = null;
+  }, [props.media]);
+
+  const touchDistance = (touches: TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const handlePreviewTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length === 2) {
+      pinchStart.current = { distance: touchDistance(event.touches), zoom: previewZoom };
+    }
+  };
+
+  const handlePreviewTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2 || !pinchStart.current) return;
+    event.preventDefault();
+    const nextZoom = pinchStart.current.zoom * (touchDistance(event.touches) / pinchStart.current.distance);
+    setPreviewZoom(Math.min(3, Math.max(0.5, nextZoom)));
+  };
+
+  const handlePreviewTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length < 2) pinchStart.current = null;
+  };
 
   const moveNext = () => {
     if (step === "select") setStep("edit");
@@ -123,7 +153,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {step === "select" && (
           <section className="flex min-h-0 flex-1 flex-col gap-3 p-3">
-            <div className="relative flex min-h-0 flex-[1.2] items-center justify-center overflow-hidden rounded-2xl border bg-neutral-950">
+            <div className="relative flex min-h-[190px] max-h-[42dvh] min-w-0 flex-[0.9] items-center justify-center overflow-hidden rounded-2xl border bg-neutral-950">
               {props.media ? (
                 props.mediaType?.startsWith("video/") ? (
                   <video src={props.media} controls playsInline className="h-full w-full object-contain" />
@@ -209,12 +239,18 @@ export default function CreatorStudioMobileFlow(props: Props) {
 
         {step === "edit" && (
           <section className="flex min-h-0 flex-1 flex-col">
-            <div className="relative flex min-h-0 flex-[55] items-center justify-center overflow-hidden bg-neutral-950 p-3">
+            <div
+              className="relative flex min-h-0 flex-[52] touch-none items-center justify-center overflow-hidden bg-neutral-950 p-3"
+              onTouchStart={handlePreviewTouchStart}
+              onTouchMove={handlePreviewTouchMove}
+              onTouchEnd={handlePreviewTouchEnd}
+              onTouchCancel={() => { pinchStart.current = null; }}
+            >
               {props.media ? (
                 props.mediaType?.startsWith("video/") ? (
-                  <video src={props.media} controls playsInline className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", height: "100%", width: "auto", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
+                  <video src={props.media} controls playsInline className="max-h-full max-w-full rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", height: "100%", width: "auto", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter, transform: `scale(${previewZoom})`, transition: "transform 80ms ease-out" }} />
                 ) : (
-                  <img src={props.media} alt="Edit preview" className="rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter }} />
+                  <img src={props.media} alt="Edit preview" className="max-h-full max-w-full rounded-xl object-cover" style={{ aspectRatio: props.frameRatio === "4:5" ? "4 / 5" : props.frameRatio === "16:9" ? "16 / 9" : props.frameRatio === "9:16" ? "9 / 16" : "1 / 1", maxHeight: "100%", maxWidth: "100%", filter: props.previewFilter, transform: `scale(${previewZoom})`, transition: "transform 80ms ease-out" }} />
                 )
               ) : (
                 <div className="text-center text-sm text-white/70">
@@ -222,6 +258,14 @@ export default function CreatorStudioMobileFlow(props: Props) {
                   Select media to start editing
                 </div>
               )}
+              <div className="absolute bottom-2 left-1/2 z-10 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-black/65 px-3 py-1.5 text-[10px] text-white shadow-lg">
+                <span className="whitespace-nowrap">Pinch with two fingers to zoom in or out</span>
+                {Math.abs(previewZoom - 1) > 0.01 && (
+                  <button type="button" className="shrink-0 font-semibold underline underline-offset-2" onClick={() => setPreviewZoom(1)}>
+                    Reset {Math.round(previewZoom * 100)}%
+                  </button>
+                )}
+              </div>
               <div className="absolute left-3 right-3 top-3 flex justify-between gap-2">
                 {FRAME_OPTIONS.map((frame) => (
                   <Button
@@ -238,7 +282,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
                 ))}
               </div>
             </div>
-            <div className="flex min-h-0 flex-[45] flex-col overflow-hidden border-t bg-background">
+            <div className="flex min-h-0 flex-[48] flex-col overflow-hidden border-t bg-background">
               <TierGatedCreatorStudio
                 userPlan={props.userPlan}
                 selectedFilter={props.filter}
