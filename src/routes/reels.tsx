@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Heart, MessageCircle, Share2, Film } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
@@ -17,6 +17,10 @@ function Reels() {
   const [liked, setLiked] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const videoRefs = useRef(new Map<string, HTMLVideoElement>());
+  const itemIdsKey = items.map((item) => item.id).join("|");
 
   useEffect(() => {
     let active = true;
@@ -26,6 +30,53 @@ function Reels() {
     });
     return () => { active = false; };
   }, [user?.id]);
+
+  useEffect(() => {
+    const feed = feedRef.current;
+    if (!feed) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible || visible.intersectionRatio < 0.5) return;
+
+      const nextId = (visible.target as HTMLElement).dataset.reelId;
+      if (!nextId) return;
+
+      // Stop every other Reel immediately, before starting the newly visible one.
+      videoRefs.current.forEach((video, id) => {
+        if (id !== nextId) video.pause();
+      });
+      setActiveReelId(nextId);
+    }, { root: feed, threshold: [0.25, 0.5, 0.65, 0.8, 1] });
+
+    feed.querySelectorAll<HTMLElement>("[data-reel-id]").forEach((article) => observer.observe(article));
+    return () => {
+      observer.disconnect();
+      videoRefs.current.forEach((video) => video.pause());
+    };
+  }, [itemIdsKey]);
+
+  useEffect(() => {
+    if (!activeReelId) return;
+    const activeVideo = videoRefs.current.get(activeReelId);
+    videoRefs.current.forEach((video, id) => {
+      if (id !== activeReelId) video.pause();
+    });
+    if (!activeVideo) return;
+
+    // Try audible autoplay first. Mobile browsers may block it until the
+    // viewer interacts; in that case start silently rather than staying stopped.
+    activeVideo.muted = false;
+    const playAttempt = activeVideo.play();
+    if (playAttempt) {
+      void playAttempt.catch(() => {
+        activeVideo.muted = true;
+        void activeVideo.play().catch(() => undefined);
+      });
+    }
+  }, [activeReelId]);
 
   async function toggleLike(postId: string) {
     if (!user) return toast.error("Sign in to like Reels.");
@@ -68,10 +119,27 @@ function Reels() {
         <span className="rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold">NEXORA REELS</span>
         <Link to="/create" className="rounded-full bg-black/50 px-3 py-2 text-xs font-semibold">＋ Create</Link>
       </div>
-      <div className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain">
+      <div ref={feedRef} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain">
         {ordered.map((item) => (
-          <article key={item.id} className="relative flex h-[100svh] min-h-[100svh] snap-start snap-always items-center justify-center bg-black">
-            {item.mediaSrc ? <video src={item.mediaSrc} poster={item.thumbnailSrc} controls playsInline loop preload="metadata" className="h-full w-full object-contain" /> : <p className="p-8 text-center">{item.caption}</p>}
+          <article key={item.id} data-reel-id={item.id} className="relative flex h-[100svh] min-h-[100svh] snap-start snap-always items-center justify-center bg-black">
+            {item.mediaSrc ? (
+              <video
+                ref={(element) => {
+                  if (element) videoRefs.current.set(item.id, element);
+                  else videoRefs.current.delete(item.id);
+                }}
+                src={item.mediaSrc}
+                poster={item.thumbnailSrc}
+                controls
+                playsInline
+                loop
+                preload="metadata"
+                onPlay={(event) => {
+                  if (activeReelId && activeReelId !== item.id) event.currentTarget.pause();
+                }}
+                className="h-full w-full object-contain"
+              />
+            ) : <p className="p-8 text-center">{item.caption}</p>}
             <div className="absolute bottom-8 left-4 right-20 z-20 space-y-2 bg-gradient-to-t from-black/70 to-transparent pb-3 pt-10">
               <p className="text-xs font-semibold">NEXORA Creator</p>
               <p className="whitespace-pre-wrap text-sm">{item.caption}</p>
@@ -88,3 +156,4 @@ function Reels() {
     </main>
   );
 }
+
