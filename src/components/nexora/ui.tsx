@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,14 +15,15 @@ export function Avatar({
   ring?: boolean;
   src?: string | null;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const initials = name
     .split(" ")
     .map((s) => s[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
-  const inner = src ? (
-    <img src={src} alt={name} className="block rounded-full object-cover" style={{ width: size, height: size }} />
+  const inner = src && !imageFailed ? (
+    <img src={src} alt={name} loading="lazy" onError={() => setImageFailed(true)} className="block rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
     <span aria-hidden className="grid place-items-center rounded-full font-display font-semibold text-foreground" style={{ width: size, height: size, fontSize: size * 0.36, background: `linear-gradient(135deg, oklch(0.55 0.2 ${hue}), oklch(0.35 0.12 ${hue + 40}))` }}>{initials}</span>
   );
