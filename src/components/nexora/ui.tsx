@@ -7,11 +7,13 @@ export function Avatar({
   hue = 295,
   size = 40,
   ring,
+  src,
 }: {
   name: string;
   hue?: number;
   size?: number;
   ring?: boolean;
+  src?: string | null;
 }) {
   const initials = name
     .split(" ")
@@ -19,19 +21,10 @@ export function Avatar({
     .slice(0, 2)
     .join("")
     .toUpperCase();
-  const inner = (
-    <span
-      aria-hidden
-      className="grid place-items-center rounded-full font-display font-semibold text-foreground"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.36,
-        background: `linear-gradient(135deg, oklch(0.55 0.2 ${hue}), oklch(0.35 0.12 ${hue + 40}))`,
-      }}
-    >
-      {initials}
-    </span>
+  const inner = src ? (
+    <img src={src} alt={name} className="block rounded-full object-cover" style={{ width: size, height: size }} />
+  ) : (
+    <span aria-hidden className="grid place-items-center rounded-full font-display font-semibold text-foreground" style={{ width: size, height: size, fontSize: size * 0.36, background: `linear-gradient(135deg, oklch(0.55 0.2 ${hue}), oklch(0.35 0.12 ${hue + 40}))` }}>{initials}</span>
   );
   return ring ? (
     <span className="ring-brand inline-block rounded-full">
