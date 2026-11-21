@@ -20,6 +20,7 @@ function Reels() {
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
+  const itemIdsKey = items.map((item) => item.id).join("|");
 
   useEffect(() => {
     let active = true;
@@ -55,7 +56,7 @@ function Reels() {
       observer.disconnect();
       videoRefs.current.forEach((video) => video.pause());
     };
-  }, [orderedItemsKey(items)]);
+  }, [itemIdsKey]);
 
   useEffect(() => {
     if (!activeReelId) return;
@@ -156,6 +157,3 @@ function Reels() {
   );
 }
 
-function orderedItemsKey(items: { id: string }[]) {
-  return items.map((item) => item.id).join("|");
-}
