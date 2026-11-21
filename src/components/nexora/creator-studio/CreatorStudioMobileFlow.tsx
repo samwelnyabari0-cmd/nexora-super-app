@@ -55,6 +55,7 @@ type Props = {
   uploadProgress: number | null;
   uploadStatus: string;
   publishDisabled: boolean;
+  saveDraftDisabled: boolean;
   onPublish: () => void;
   onSaveDraft: () => void;
   onCancel: () => void;
@@ -163,6 +164,9 @@ export default function CreatorStudioMobileFlow(props: Props) {
                 <span className="text-xs">New composition</span>
               </Button>
             </div>
+
+            {props.error && <p role="alert" className="text-xs text-destructive">{props.error}</p>}
+            {props.note && !props.error && <p className="text-xs text-muted-foreground">{props.note}</p>}
 
             <input
               ref={fileInput}
@@ -319,7 +323,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
 
             <footer className="shrink-0 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="shrink-0" onClick={props.onSaveDraft}>Save draft</Button>
+                <Button type="button" variant="outline" className="shrink-0" disabled={props.saveDraftDisabled} onClick={props.onSaveDraft}>Save draft</Button>
                 <Button type="button" className="flex-1" disabled={props.publishDisabled} onClick={props.onPublish}>Publish to Nexora</Button>
               </div>
             </footer>
