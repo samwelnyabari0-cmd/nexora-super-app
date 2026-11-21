@@ -20,6 +20,7 @@ import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } fr
 import { uploadFileWithProgress } from "@/lib/media-upload";
 import { MediaFramingEditor } from "@/components/nexora/MediaFramingEditor";
 import { createMediaPoster } from "@/lib/media-poster";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { getMediaAspectRatioValue, normalizeMediaFraming, type MediaFrameRatio } from "@/lib/media-framing";
 
 export const Route = createFileRoute("/create")({
@@ -602,11 +603,27 @@ const previewFilter =
             }
 
             const key = id || crypto.randomUUID();
+            let displayMediaUrl = mediaStorageProvider === "r2" ? media : mediaPath ?? undefined;
+            let displayThumbnailUrl = thumbnailUrl ?? undefined;
+            if (mediaStorageProvider === "r2") {
+              try {
+                const [freshMediaUrl, freshThumbnailUrl] = await Promise.all([
+                  getFreshR2MediaPlaybackUrl(savedPost.id, "media"),
+                  thumbnailStorageProvider === "r2"
+                    ? getFreshR2MediaPlaybackUrl(savedPost.id, "thumbnail")
+                    : Promise.resolve(undefined),
+                ]);
+                displayMediaUrl = freshMediaUrl ?? displayMediaUrl;
+                displayThumbnailUrl = freshThumbnailUrl ?? displayThumbnailUrl;
+              } catch (playbackError) {
+                console.warn("Fresh R2 playback URLs could not be prepared:", playbackError);
+              }
+            }
 
             createPost(
               {
                 caption: caption.trim(),
-                image: mediaStorageProvider === "r2" ? media : mediaPath ?? undefined,
+                image: displayMediaUrl,
                 mediaType,
                 mediaPostId: savedPost.id,
                 mediaStorageProvider,
@@ -619,7 +636,7 @@ const previewFilter =
                 focalY,
                 zoom,
                 dominantColor: generatedPoster?.dominantColor ?? dominantColor,
-                thumbnailUrl: thumbnailUrl ?? undefined,
+                thumbnailUrl: displayThumbnailUrl,
                 kind: kindFor(contentType, !!mediaType?.startsWith("video/")),
                 tags: typedTags,
               },
