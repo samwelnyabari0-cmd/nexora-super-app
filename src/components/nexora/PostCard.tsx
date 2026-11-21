@@ -118,8 +118,10 @@ export function PostCard({ post }: { post: Post }) {
 
   const header = (
     <div className="flex items-center gap-3">
-      <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
-      <div className="min-w-0 flex-1">
+      <Link to="/profile" search={{ handle: c.handle }} className="shrink-0" aria-label={`Open ${c.name}'s profile`}>
+        <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
+      </Link>
+      <Link to="/profile" search={{ handle: c.handle }} className="min-w-0 flex-1">
         <p className="flex items-center gap-1 text-sm font-semibold">
           {c.name}
           {c.verified && <BadgeCheck className="h-4 w-4 text-accent" aria-label="Verified" />}
@@ -132,9 +134,7 @@ export function PostCard({ post }: { post: Post }) {
           ) : null}
           <span>{typeLabel}</span>
           <span aria-hidden="true">·</span>
-          <span>
-            @{c.handle} · {post.createdAt}
-          </span>
+          <span>@{c.handle} · {post.createdAt}</span>
         </p>
       </Link>
       {post.creatorId === "me" ? (
