@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/media-framing-editorial-feed
+      - feature/media-framing-editorial-final
   pull_request:
     branches:
       - main
