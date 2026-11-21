@@ -93,6 +93,7 @@ function Profile() {
   function OwnProfile() {
   const { passport, updatePassport } = useApp();
   const { user, ready } = useSession();
+  const userId = user?.id;
   const { followers, following } = useSocialGraph();
   const [bio, setBio] = useState(passport.bio);
   const [bioLinks, setBioLinks] = useState<Array<{ title: string; url: string }>>([]);
@@ -120,7 +121,7 @@ function Profile() {
   }, []);
 
   useEffect(() => {
-    if (!user || (socialTab !== "followers" && socialTab !== "following")) return;
+    if (!userId || (socialTab !== "followers" && socialTab !== "following")) return;
     let active = true;
     void (async () => {
       setConnectionsLoading(true);
@@ -130,7 +131,7 @@ function Profile() {
         const { data: rows, error: followsError } = await (supabase as any)
           .from("follows")
           .select(column)
-          .eq(relationColumn, user.id);
+          .eq(relationColumn, userId);
         if (followsError) throw followsError;
         const ids = [...new Set((rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean))];
         if (!ids.length) {
@@ -150,7 +151,7 @@ function Profile() {
       }
     })();
     return () => { active = false; };
-  }, [socialTab, user?.id]);
+  }, [socialTab, userId]);
 
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
