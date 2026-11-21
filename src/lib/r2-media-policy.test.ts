@@ -11,22 +11,13 @@ describe("R2 media object validation and upload verification", () => {
     expect(isValidR2PostObjectKey("owner-1", "owner-1/posts/../secret")).toBe(false);
   });
 
-  it("accepts an upload only when size, type and ownership metadata match", () => {
+  it("verifies uploads using the owner-scoped key, content type and file size without custom metadata", () => {
     const expected = { ownerId: "owner-1", contentType: "video/mp4", size: 1024 };
-    const validObject = {
-      ContentLength: 1024,
-      ContentType: "video/mp4",
-      Metadata: {
-        owner: "owner-1",
-        purpose: "post-media",
-        expected_size: "1024",
-      },
-    };
+    const validObject = { ContentLength: 1024, ContentType: "video/mp4" };
+
     expect(isVerifiedR2Upload(expected, validObject)).toBe(true);
     expect(isVerifiedR2Upload(expected, { ...validObject, ContentLength: 100 })).toBe(false);
-    expect(isVerifiedR2Upload(expected, {
-      ...validObject,
-      Metadata: { ...validObject.Metadata, owner: "owner-2" },
-    })).toBe(false);
+    expect(isVerifiedR2Upload(expected, { ...validObject, ContentType: "video/webm" })).toBe(false);
+    expect(isVerifiedR2Upload(expected, { ContentType: "video/mp4" })).toBe(false);
   });
 });
