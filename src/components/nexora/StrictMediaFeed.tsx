@@ -143,7 +143,7 @@ export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFe
           <div className={`group relative ${tall ? "row-span-2" : wide ? "col-span-2" : ""} h-full min-h-0 overflow-hidden rounded-xl border border-white/10`}
             style={{ backgroundColor: item.dominant_color || "#14141f" }}>
             {preview && item.media_type?.startsWith("video/") ? (
-              <video src={item.mediaSrc} poster={item.thumbnailSrc} onError={(event) => void refreshItemUrl(item, "media", event.currentTarget.currentSrc)} muted playsInline preload="metadata" className="h-full w-full"
+              <video src={item.mediaSrc} poster={item.thumbnailSrc} onError={(event) => void refreshItemUrl(item, "media", event.currentTarget.currentSrc)} onMouseEnter={(event) => void event.currentTarget.play().catch(() => undefined)} onMouseLeave={(event) => event.currentTarget.pause()} muted playsInline preload="metadata" className="h-full w-full"
                 style={{ objectFit: fixedFrame ? "cover" : "contain", objectPosition: `${item.focal_x ?? 50}% ${item.focal_y ?? 50}%`, transform: `scale(${Math.max(1, Math.min(3, item.zoom ?? 1))})` }} />
             ) : preview ? (
               <img src={preview} alt={item.caption || `NEXORA ${label}`} onError={(event) => void refreshItemUrl(item, item.thumbnailSrc ? "thumbnail" : "media", event.currentTarget.currentSrc)} loading="lazy" className="h-full w-full"
