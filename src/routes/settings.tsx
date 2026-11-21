@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useWorkspace, type Preferences } from "@/features/core/workspace";
 import { creators } from "@/features/core/data";
-import { PageHeader } from "@/components/nexora/ui";
+import { Avatar, PageHeader } from "@/components/nexora/ui";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/settings")({
@@ -34,6 +34,18 @@ function Settings() {
   const navigate = useNavigate();
   const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
   const shownName = meta.display_name ?? meta.full_name ?? user?.email?.split("@")[0] ?? "Nexora user";
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(meta.avatar_url ?? null);
+
+  useEffect(() => {
+    if (!user) { setProfileAvatarUrl(null); return; }
+    let active = true;
+    void (supabase as any).from("profiles").select("avatar_url").eq("id", user.id).maybeSingle()
+      .then(({ data, error }: { data: { avatar_url?: string | null } | null; error: unknown }) => {
+        if (!active) return;
+        if (!error) setProfileAvatarUrl(data?.avatar_url ?? null);
+      });
+    return () => { active = false; };
+  }, [user?.id]);
 
   async function logOut() {
     const { error } = await supabase.auth.signOut();
