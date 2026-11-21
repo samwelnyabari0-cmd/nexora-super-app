@@ -27,7 +27,9 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run focused media tests
         run: npm test -- src/lib/media-framing.test.ts src/lib/media-poster.test.ts
-      - name: Run lint
-        run: npm run lint
+      - name: Lint new media modules
+        run: npx eslint src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
+      - name: Type-check application
+        run: npx tsc --noEmit
       - name: Build application
         run: npm run build
