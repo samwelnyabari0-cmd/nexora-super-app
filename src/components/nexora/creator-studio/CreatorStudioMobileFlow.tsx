@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Camera,
@@ -6,8 +7,6 @@ import {
   ChevronDown,
   Clapperboard,
   ImagePlus,
-  LockKeyhole,
-  Music2,
   Plus,
   Sparkles,
   Upload,
@@ -77,6 +76,8 @@ export default function CreatorStudioMobileFlow(props: Props) {
   const [step, setStep] = useState<Step>("select");
   const [limitsOpen, setLimitsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cameraRequest, setCameraRequest] = useState(0);
+  const navigate = useNavigate();
   const fileInput = useRef<HTMLInputElement>(null);
 
   const moveNext = () => {
@@ -124,10 +125,11 @@ export default function CreatorStudioMobileFlow(props: Props) {
                   <img src={props.media} alt="Selected media preview" className="h-full w-full object-contain" />
                 )
               ) : (
-                <div className="w-full px-3">
-                  <StudioCapture onCapture={props.onCapture} onError={props.onCaptureError} />
-                </div>
+                <div className="text-center text-sm text-white/70"><Camera className="mx-auto mb-2 h-8 w-8" />Tap Camera to capture a moment</div>
               )}
+              <div className="absolute inset-x-3 bottom-3">
+                <StudioCapture onCapture={props.onCapture} onError={props.onCaptureError} openRequest={cameraRequest} hiddenWhenIdle />
+              </div>
               {props.media && (
                 <Button
                   type="button"
@@ -143,7 +145,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
             </div>
 
             <div className="grid shrink-0 grid-cols-3 gap-2">
-              <Button type="button" variant="outline" className="h-14 flex-col gap-1" onClick={() => document.getElementById("nexora-mobile-camera")?.scrollIntoView({ block: "nearest" })}>
+              <Button type="button" variant="outline" className="h-14 flex-col gap-1" onClick={() => setCameraRequest((request) => request + 1)}>
                 <Camera className="h-5 w-5" />
                 <span className="text-xs">Camera</span>
               </Button>
@@ -234,7 +236,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
                 onFilterChange={props.onFilterChange}
                 filterIntensity={props.filterIntensity}
                 onFilterIntensityChange={props.onFilterIntensityChange}
-                onNavigateToSubscriptions={() => window.location.assign("/subscriptions")}
+                onNavigateToSubscriptions={() => void navigate({ to: "/subscriptions" })}
               />
               {props.advancedEditor}
             </div>
