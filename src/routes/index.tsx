@@ -149,7 +149,7 @@ function Home() {
             <EmptyState icon={<SearchX className="h-6 w-6" />}
               title={filter === "Following" ? "Your Following feed is empty" : "No posts yet"}
               body={filter === "Following" ? "Follow real NEXORA accounts to see their posts here." : "When people publish public posts, they will appear here."}
-              action={<Link to="/explore"><Button variant="outline">Explore accounts</Button></Link>} />
+              action={<Link to="/explore" className="rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted">Explore accounts</Link>} />
           ) : shown.map((post) => <PostCard key={post.id} post={post} />)}
         </div>
       </div>
