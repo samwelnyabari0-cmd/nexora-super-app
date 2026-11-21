@@ -188,7 +188,8 @@ function Explore() {
                 const framing = normalizeMediaFraming({ focalX: p.focalX, focalY: p.focalY, zoom: p.zoom });
                 return (
                   <button key={p.id} type="button" onClick={() => setSelectedPost(p)}
-                    aria-label="Open post" className="relative h-full min-h-0 overflow-hidden rounded-xl border bg-muted text-left"
+                    aria-label="Open post"
+                    className={`relative h-full min-h-0 overflow-hidden rounded-xl border bg-muted text-left ${p.kind === "short" ? "row-span-2" : p.kind === "video" || p.mediaType?.startsWith("video/") ? "col-span-2" : ""}`}
                     style={{ backgroundColor: p.dominantColor || "#171717" }}>
                     {preview ? (
                       <img src={preview} alt={p.caption || "NEXORA post"} loading="lazy"

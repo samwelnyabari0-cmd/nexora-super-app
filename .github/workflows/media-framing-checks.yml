@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - feature/media-framing-editorial-feed
+      - feature/media-framing-editorial-final
   pull_request:
     branches:
       - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -25,17 +26,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Format new media modules
-        run: npx prettier --write src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
-      - name: Commit formatting changes
-        run: |
-          git add src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "format media framing modules"
-            git push
-          fi
+      - name: Check formatting of new media modules
+        run: npx prettier --check src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
       - name: Run focused media tests
         run: npm test -- src/lib/media-framing.test.ts src/lib/media-poster.test.ts
       - name: Lint new media modules

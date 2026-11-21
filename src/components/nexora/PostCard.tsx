@@ -66,6 +66,12 @@ export function PostCard({ post }: { post: Post }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoMuted, setVideoMuted] = useState(true);
   const displayedMediaSource = refreshedMediaUrl ?? mediaSource;
+  const mediaFrameRatio = post.frameRatio && post.frameRatio !== "original"
+    ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
+    : getMediaAspectRatioValue(post.aspectRatio);
+  const mediaFrameWidth = mediaFrameRatio
+    ? `min(100%, calc(78svh * ${mediaFrameRatio}))`
+    : "100%";
   const refreshMediaUrl = async (failedUrl: string) => {
     if (post.mediaStorageProvider !== "r2" || !post.mediaPostId || !failedUrl) return;
     if (attemptedRefresh.current.has(failedUrl)) return;
@@ -200,9 +206,9 @@ export function PostCard({ post }: { post: Post }) {
       {mediaSource && post.mediaType?.startsWith("video/") ? (
         <div className="relative w-full overflow-hidden bg-muted" style={{
           backgroundColor: post.dominantColor || "#171717",
-          aspectRatio: post.frameRatio && post.frameRatio !== "original"
-            ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
-            : getMediaAspectRatioValue(post.aspectRatio) ?? undefined,
+          aspectRatio: mediaFrameRatio ?? undefined,
+          width: mediaFrameWidth,
+          marginInline: "auto",
           maxHeight: "78svh",
         }}>
           <video ref={videoRef} src={displayedMediaSource} poster={post.thumbnailUrl}
@@ -235,9 +241,9 @@ export function PostCard({ post }: { post: Post }) {
       ) : post.image ? (
         <div className="w-full overflow-hidden bg-muted" style={{
           backgroundColor: post.dominantColor || "#171717",
-          aspectRatio: post.frameRatio && post.frameRatio !== "original"
-            ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
-            : getMediaAspectRatioValue(post.aspectRatio) ?? undefined,
+          aspectRatio: mediaFrameRatio ?? undefined,
+          width: mediaFrameWidth,
+          marginInline: "auto",
           maxHeight: "78svh",
         }}>
           <img src={displayedMediaSource} onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
