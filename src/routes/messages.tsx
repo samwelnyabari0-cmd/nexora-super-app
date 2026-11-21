@@ -112,6 +112,7 @@ function Messages() {
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [draftExpanded, setDraftExpanded] = useState(false);
   const [shareContentOpen, setShareContentOpen] = useState(false);
   const [startingCall, setStartingCall] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
@@ -1073,7 +1074,7 @@ if (recipient === user.id) {
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
-    <main className="mx-auto flex h-[94dvh] min-h-[560px] max-w-3xl flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl md:h-[94dvh] md:min-h-[560px] flex-col p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
@@ -1120,7 +1121,7 @@ if (recipient === user.id) {
 
       <div
         ref={log}
-        className="min-h-[52dvh] flex-1 space-y-3 overflow-y-auto py-4"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4"
         aria-live="polite"
         role="log"
       >
@@ -1300,7 +1301,7 @@ if (recipient === user.id) {
           </div>
         </div>
       )}
-      <form onSubmit={sendMessage} className="flex items-center gap-2 border-t pt-3">
+      <form onSubmit={sendMessage} className="shrink-0 space-y-2 border-t pt-3 pb-[env(safe-area-inset-bottom)]">
         <input
           ref={fileInput}
           type="file"
@@ -1312,63 +1313,59 @@ if (recipient === user.id) {
             if (file) setSelectedFile(file);
           }}
         />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Attach file"
-          disabled={sending}
-          onClick={() => fileInput.current?.click()}
-        >
-          <ImagePlus className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
-          <MapPin className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
-          <Radio className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
-          <span className="text-[10px] font-bold">1h</span>
-        </Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
-          <Share2 className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
-          <Sparkles className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={recording ? "Stop voice recording" : "Record voice message"}
-          disabled={sending}
-          onClick={recording ? stopVoiceRecording : startVoiceRecording}
-        >
-          {recording ? (
-            <Square className="h-4 w-4" />
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending} onClick={() => fileInput.current?.click()}>
+            <ImagePlus className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+            <MapPin className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+            <Radio className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+            <span className="text-[10px] font-bold">1h</span>
+          </Button>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
+            <Share2 className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
+            <Sparkles className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+            {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        </div>
+        <div className="flex min-w-0 items-end gap-2">
+          {draftExpanded ? (
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Write a message..."
+              maxLength={2000}
+              rows={3}
+              aria-label="Write a message"
+              className="min-h-20 max-h-40 min-w-0 flex-1 resize-y rounded-xl border bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
+            />
           ) : (
-            <Mic className="h-4 w-4" />
+            <input
+              type="text"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Write a message..."
+              maxLength={2000}
+              aria-label="Write a message"
+              className="h-12 min-w-0 flex-1 rounded-xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary"
+            />
           )}
-        </Button>
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Write a message..."
-          maxLength={2000}
-          rows={2}
-          aria-label="Write a message"
-          className="min-h-16 max-h-32 min-w-0 flex-1 resize-y rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
-        />
-
-        <Button
-          type="submit"
-          size="icon"
-          aria-label="Send message"
-          disabled={(!draft.trim() && !selectedFile) || sending || recording}
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+          <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" aria-label={draftExpanded ? "Collapse message draft" : "Expand message draft"} onClick={() => setDraftExpanded((value) => !value)}>
+            <span className="text-xs font-semibold">{draftExpanded ? "Less" : "Expand"}</span>
+          </Button>
+          <Button type="submit" size="icon" className="h-12 w-12 shrink-0" aria-label="Send message" disabled={(!draft.trim() && !selectedFile) || sending || recording}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </form>
       <p className="px-3 pb-2 text-[10px] text-muted-foreground">When requested, only the latest six text messages are sent to AI for draft suggestions. Nothing is sent automatically.</p>
       <ShareContentDialog
