@@ -18,6 +18,10 @@ import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
 import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
 import { uploadFileWithProgress } from "@/lib/media-upload";
+import { MediaFramingEditor } from "@/components/nexora/MediaFramingEditor";
+import { createMediaPoster } from "@/lib/media-poster";
+import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
+import { getMediaAspectRatioValue, normalizeMediaFraming, type MediaFrameRatio } from "@/lib/media-framing";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -59,6 +63,11 @@ function Create() {
   const [filter, setFilter] = useState("original");
   const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
+  const [frameRatio, setFrameRatio] = useState<MediaFrameRatio>("original");
+  const [focalX, setFocalX] = useState(50);
+  const [focalY, setFocalY] = useState(50);
+  const [zoom, setZoom] = useState(1);
+  const [dominantColor, setDominantColor] = useState("#171717");
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
   const [mediaClassification, setMediaClassification] = useState<UploadClassification>({ contentType: "post", aspectRatio: null, durationSeconds: null });
@@ -148,6 +157,11 @@ function Create() {
     setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
     setFilter("original");
     setFormat("landscape");
+    setFrameRatio("original");
+    setFocalX(50);
+    setFocalY(50);
+    setZoom(1);
+    setDominantColor("#171717");
     setError("");
   };
   const intensity = filterIntensity / 100;
@@ -218,6 +232,7 @@ const previewFilter =
           setMediaFiles(files);
           setMediaType(mimeType);
           setMediaClassification(classification);
+          setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
           if (mimeType.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
         },
       });
@@ -297,6 +312,7 @@ const previewFilter =
                   setMediaFiles(files);
                   setMediaType(type);
                   setMediaClassification(classification);
+                  setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
                   if (type.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
                 },
               });
@@ -340,6 +356,7 @@ const previewFilter =
                       setMediaFiles(files);
                       setMediaType(detectedType);
                       setMediaClassification(classification);
+                      setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
                       if (contentType !== "collab") setContentType(classification.contentType);
                       setCover(null);
                       setNote("Your edited video is ready. Publishing will upload the edited copy.");
@@ -355,30 +372,25 @@ const previewFilter =
               </section>
             )
           )}
-          <section className="space-y-3 rounded-xl border p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Frame</h2>
-              <span className="text-xs text-muted-foreground">
-                Square is optimized for feed
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Media frame">
-              {["landscape", "portrait", "square"].map((f) => (
-                <Button
-                  key={f}
-                  type="button"
-                  size="sm"
-                  variant={format === f ? "default" : "outline"}
-                  aria-pressed={format === f}
-                  className="capitalize"
-                  onClick={() => setFormat(f)}
-                >
-                  <Film />
-                  {f}
-                </Button>
-              ))}
-            </div>
-          </section>
+          {media && (
+            <MediaFramingEditor
+              src={media}
+              mediaType={mediaType}
+              originalAspectRatio={getMediaAspectRatioValue(mediaClassification.aspectRatio)}
+              frameRatio={frameRatio}
+              focalX={focalX}
+              focalY={focalY}
+              zoom={zoom}
+              onFrameRatioChange={(value) => {
+                setFrameRatio(value);
+                setFormat(value === "9:16" ? "portrait" : value === "16:9" ? "landscape" : value === "original" ? "landscape" : "square");
+              }}
+              onFramingChange={(value) => {
+                const next = normalizeMediaFraming(value);
+                setFocalX(next.focalX); setFocalY(next.focalY); setZoom(next.zoom);
+              }}
+            />
+          )}
         </div>
         <form
           className="space-y-4"
@@ -397,6 +409,19 @@ const previewFilter =
             let thumbnailStorageProvider: "supabase" | "r2" = "supabase";
             let thumbnailStorageKey: string | null = null;
             const pendingR2Keys: string[] = [];
+            let generatedPoster: Awaited<ReturnType<typeof createMediaPoster>> | null = null;
+            if (cover || mediaFiles.length === 1) {
+              try {
+                const posterSource = cover
+                  ? new File([cover], "selected-cover", { type: cover.type || "image/jpeg" })
+                  : (mediaFiles[0] as File);
+                generatedPoster = await createMediaPoster(posterSource);
+                if (generatedPoster) setDominantColor(generatedPoster.dominantColor);
+              } catch (posterError) {
+                console.warn("Automatic poster generation skipped:", posterError);
+              }
+            }
+            const posterBlob = generatedPoster?.blob ?? cover ?? null;
             if (mediaFiles.length) {
               // First rollout: route a single video to R2. Images and multi-file posts
               // retain the existing Supabase Storage path until their flows are migrated.
@@ -407,7 +432,7 @@ const previewFilter =
                 mediaFiles[0].size <= 5 * 1024 ** 3;
               const uploadedPaths: string[] = [];
               const totalUploadBytes = mediaFiles.reduce((total, file) => total + file.size, 0) +
-                (mediaFiles.length === 1 && mediaFiles[0].type.startsWith("video/") ? cover?.size ?? 0 : 0);
+                (mediaFiles.length === 1 ? posterBlob?.size ?? 0 : 0);
               let completedUploadBytes = 0;
               setUploadProgress(0);
               setUploadStatus("Preparing upload...");
@@ -436,23 +461,24 @@ const previewFilter =
                     mediaStorageKey = verified.key;
                     mediaPath = verified.key;
 
-                    if (cover) {
+                    if (posterBlob) {
+                      const posterType = posterBlob.type === "image/webp" ? "image/webp" : "image/jpeg";
                       const coverSigned = await createR2MediaUploadUrl({
-                        data: { contentType: "image/jpeg", size: cover.size },
+                        data: { contentType: posterType, size: posterBlob.size },
                       });
                       pendingR2Keys.push(coverSigned.key);
-                      setUploadStatus("Uploading video cover...");
+                      setUploadStatus("Uploading media poster...");
                       await uploadFileWithProgress(
                         coverSigned.uploadUrl,
-                        cover,
+                        posterBlob,
                         coverSigned.uploadHeaders,
                         (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
                       );
-                      completedUploadBytes += cover.size;
+                      completedUploadBytes += posterBlob.size;
                       const coverVerified = await verifyR2MediaUpload({
-                        data: { key: coverSigned.key, contentType: "image/jpeg", size: cover.size },
+                        data: { key: coverSigned.key, contentType: posterType, size: posterBlob.size },
                       });
-                      if (!coverVerified.verified) throw new Error("Video cover could not be verified.");
+                      if (!coverVerified.verified) throw new Error("Media poster could not be verified.");
                       thumbnailStorageProvider = "r2";
                       thumbnailStorageKey = coverVerified.key;
                     }
@@ -497,8 +523,9 @@ const previewFilter =
                   completedUploadBytes += file.size;
                   const { data: publicData } = supabase.storage.from("post-media").getPublicUrl(storagePath);
                   uploadedPaths.push(publicData.publicUrl);
-                  if (cover && file.type.startsWith("video/") && mediaFiles.length === 1) {
-                    const coverPath = storagePath.replace(/\.[^./]+$/, "-cover.jpg");
+                  if (posterBlob && mediaFiles.length === 1) {
+                    const posterExtension = posterBlob.type === "image/webp" ? "webp" : "jpg";
+                    const coverPath = storagePath.replace(/\.[^./]+$/, "-poster." + posterExtension);
                     const { data: signedCover, error: signCoverError } = await supabase.storage
                       .from("post-media")
                       .createSignedUploadUrl(coverPath, { upsert: false });
@@ -512,8 +539,8 @@ const previewFilter =
                     try {
                       await uploadFileWithProgress(
                         signedCover.signedUrl,
-                        cover,
-                        { "Content-Type": "image/jpeg" },
+                        posterBlob,
+                        { "Content-Type": posterBlob.type === "image/webp" ? "image/webp" : "image/jpeg" },
                         (loaded) => setUploadProgress(Math.min(99, Math.round(((completedUploadBytes + loaded) / totalUploadBytes) * 100))),
                       );
                     } catch (coverFailure) {
@@ -522,7 +549,9 @@ const previewFilter =
                       setError(coverFailure instanceof Error ? coverFailure.message : "Video cover upload failed. Please try again.");
                       return;
                     }
-                    completedUploadBytes += cover.size;
+                    completedUploadBytes += posterBlob.size;
+                    thumbnailStorageProvider = "supabase";
+                    thumbnailStorageKey = coverPath;
                     thumbnailUrl = supabase.storage.from("post-media").getPublicUrl(coverPath).data.publicUrl;
                   }
                 }
@@ -549,6 +578,11 @@ const previewFilter =
                 thumbnail_storage_key: thumbnailStorageKey,
                 content_type: strictContentType,
                 aspect_ratio: mediaClassification.aspectRatio,
+                framing_aspect_ratio: frameRatio,
+                focal_x: normalizeMediaFraming({ focalX, focalY, zoom }).focalX,
+                focal_y: normalizeMediaFraming({ focalX, focalY, zoom }).focalY,
+                zoom: normalizeMediaFraming({ focalX, focalY, zoom }).zoom,
+                dominant_color: generatedPoster?.dominantColor ?? dominantColor,
                 duration_seconds: mediaClassification.durationSeconds,
                 audience,
                 tags: typedTags,
@@ -572,15 +606,40 @@ const previewFilter =
             }
 
             const key = id || crypto.randomUUID();
+            let displayMediaUrl = mediaStorageProvider === "r2" ? media : mediaPath ?? undefined;
+            let displayThumbnailUrl = thumbnailUrl ?? undefined;
+            if (mediaStorageProvider === "r2") {
+              try {
+                const [freshMediaUrl, freshThumbnailUrl] = await Promise.all([
+                  getFreshR2MediaPlaybackUrl(savedPost.id, "media"),
+                  thumbnailStorageProvider === "r2"
+                    ? getFreshR2MediaPlaybackUrl(savedPost.id, "thumbnail")
+                    : Promise.resolve(undefined),
+                ]);
+                displayMediaUrl = freshMediaUrl ?? displayMediaUrl;
+                displayThumbnailUrl = freshThumbnailUrl ?? displayThumbnailUrl;
+              } catch (playbackError) {
+                console.warn("Fresh R2 playback URLs could not be prepared:", playbackError);
+              }
+            }
 
             createPost(
               {
                 caption: caption.trim(),
-                image: mediaStorageProvider === "r2" ? media : mediaPath ?? undefined,
+                image: displayMediaUrl,
                 mediaType,
+                mediaPostId: savedPost.id,
+                mediaStorageProvider,
                 audience,
                 filter,
                 format,
+                aspectRatio: mediaClassification.aspectRatio,
+                frameRatio,
+                focalX,
+                focalY,
+                zoom,
+                dominantColor: generatedPoster?.dominantColor ?? dominantColor,
+                thumbnailUrl: displayThumbnailUrl,
                 kind: kindFor(contentType, !!mediaType?.startsWith("video/")),
                 tags: typedTags,
               },

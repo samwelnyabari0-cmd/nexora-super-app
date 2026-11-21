@@ -10,6 +10,8 @@ import { PostCard } from "@/components/nexora/PostCard";
 import { Avatar, DemoBadge, EmptyState, PageHeader } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { StrictMediaGrid } from "@/components/nexora/StrictMediaFeed";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { normalizeMediaFraming } from "@/lib/media-framing";
 export const Route = createFileRoute("/explore")({
   validateSearch: (search: Record<string, unknown>) => ({
     post: typeof search.post === "string" ? search.post : "",
@@ -35,6 +37,7 @@ function Explore() {
   const { muted } = useWorkspace();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("All");
+  const [selectedPost, setSelectedPost] = useState<(typeof posts)[number] | null>(null);
   const [people, setPeople] = useState<{
     id: string;
     display_name: string | null;
@@ -173,13 +176,45 @@ function Explore() {
         {show("Posts") && r.length > 0 && (
           <section>
             <h2 className="mb-3 text-lg font-semibold">Posts</h2>
-            <div className="grid gap-5 lg:grid-cols-2">
-              {r.map((p) => (
-                <PostCard key={p.id} post={p} />
-              ))}
+            <div className="grid grid-cols-3 auto-rows-[112px] gap-2 sm:auto-rows-[144px]">
+              {r.map((p) => {
+                let preview = p.thumbnailUrl || p.image || "";
+                if (preview.startsWith("[")) {
+                  try {
+                    const sources = JSON.parse(preview);
+                    preview = Array.isArray(sources) ? String(sources[0] || "") : preview;
+                  } catch { /* Keep the original source when it is not a JSON media list. */ }
+                }
+                const framing = normalizeMediaFraming({ focalX: p.focalX, focalY: p.focalY, zoom: p.zoom });
+                return (
+                  <button key={p.id} type="button" onClick={() => setSelectedPost(p)}
+                    aria-label="Open post" className="relative h-full min-h-0 overflow-hidden rounded-xl border bg-muted text-left"
+                    style={{ backgroundColor: p.dominantColor || "#171717" }}>
+                    {preview ? (
+                      <img src={preview} alt={p.caption || "NEXORA post"} loading="lazy"
+                        className="h-full w-full object-cover"
+                        style={{
+                          objectPosition: framing.focalX + "% " + framing.focalY + "%",
+                          transform: "scale(" + framing.zoom + ")",
+                        }} />
+                    ) : (
+                      <span className="line-clamp-5 flex h-full items-center justify-center p-3 text-xs text-foreground">{p.caption}</span>
+                    )}
+                    {p.caption && preview && (
+                      <span className="absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-5 text-[10px] text-white">{p.caption}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}
+        <Dialog open={Boolean(selectedPost)} onOpenChange={(open) => { if (!open) setSelectedPost(null); }}>
+          <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
+            <DialogTitle className="sr-only">Post details</DialogTitle>
+            {selectedPost && <PostCard post={selectedPost} />}
+          </DialogContent>
+        </Dialog>
         {!count && tab !== "All" && (
           <EmptyState icon={<SearchX />} title="No matches" body="Try another keyword or explore more accounts." />
         )}

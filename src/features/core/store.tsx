@@ -164,7 +164,7 @@ if (ownProfile) {
         (supabase as any)
           .from("user_media_posts")
           .select(
-            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, duration_seconds, thumbnail_url, media_storage_provider, media_storage_key, created_at, like_count, share_count, repost_count, comment_count, view_count",
+            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, framing_aspect_ratio, focal_x, focal_y, zoom, dominant_color, duration_seconds, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, created_at, like_count, share_count, repost_count, comment_count, view_count",
           )
           .order("created_at", { ascending: false }),
         (supabase as any)
@@ -221,6 +221,7 @@ if (bookmarkError) {
         const hydratedPosts = await Promise.all(
           savedPosts.map(async (row: any) => {
             let image: string | undefined;
+            let thumbnailUrl: string | undefined;
             const media = row.media_url ?? undefined;
             if (row.media_storage_provider === "r2") {
               image = await getFreshR2MediaPlaybackUrl(row.id, "media");
@@ -230,6 +231,16 @@ if (bookmarkError) {
               } else {
                 const { data } = await supabase.storage.from("post-media").createSignedUrl(row.media_storage_key || media, 3600);
                 image = data?.signedUrl ?? undefined;
+              }
+            }
+            if (row.thumbnail_storage_provider === "r2") {
+              thumbnailUrl = await getFreshR2MediaPlaybackUrl(row.id, "thumbnail");
+            } else if (row.thumbnail_url) {
+              if (/^https?:\/\//i.test(row.thumbnail_url)) thumbnailUrl = row.thumbnail_url;
+              else {
+                const { data: thumbData } = await supabase.storage.from("post-media")
+                  .createSignedUrl(row.thumbnail_storage_key || row.thumbnail_url, 3600);
+                thumbnailUrl = thumbData?.signedUrl ?? undefined;
               }
             }
             return {
@@ -242,6 +253,7 @@ if (bookmarkError) {
               creatorAvatarUrl: row.user_id === user.id ? (ownProfile?.avatar_url ?? null) : (postAuthorById.get(row.user_id)?.avatar_url ?? null),
               caption: row.caption ?? "",
               image,
+              thumbnailUrl,
               mediaType: row.media_type ?? undefined,
               kind: row.content_type === "reel" ? "short" : row.content_type === "video" ? "video" : "post",
               duration: row.duration_seconds == null ? undefined : `${Math.floor(row.duration_seconds / 60)}:${String(row.duration_seconds % 60).padStart(2, "0")}`,
@@ -249,6 +261,12 @@ if (bookmarkError) {
               tags: row.tags ?? [],
               filter: "original",
               format: "landscape",
+              aspectRatio: row.aspect_ratio ?? null,
+              frameRatio: row.framing_aspect_ratio ?? "original",
+              focalX: Number(row.focal_x ?? 50),
+              focalY: Number(row.focal_y ?? 50),
+              zoom: Number(row.zoom ?? 1),
+              dominantColor: row.dominant_color ?? null,
               likes: Number(row.like_count ?? 0),
                             comments: (savedComments ?? [])
                 .filter((comment: any) => comment.post_id === row.id)

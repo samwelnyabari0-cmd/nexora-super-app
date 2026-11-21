@@ -19,6 +19,13 @@ export type Post = {
   mediaStorageProvider?: "supabase" | "r2" | null;
   filter?: string;
   format?: string;
+  aspectRatio?: string | null;
+  frameRatio?: string | null;
+  focalX?: number;
+  focalY?: number;
+  zoom?: number;
+  dominantColor?: string | null;
+  thumbnailUrl?: string;
   audience?: "public" | "private";
   caption: string;
   tags: string[];

@@ -1,0 +1,44 @@
+name: Media framing and feed checks
+
+on:
+  push:
+    branches:
+      - feature/media-framing-editorial-feed
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.12.0
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Format new media modules
+        run: npx prettier --write src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
+      - name: Commit formatting changes
+        run: |
+          git add src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "format media framing modules"
+            git push
+          fi
+      - name: Run focused media tests
+        run: npm test -- src/lib/media-framing.test.ts src/lib/media-poster.test.ts
+      - name: Lint new media modules
+        run: npx eslint src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
+      - name: Build application
+        run: npm run build

@@ -3,23 +3,24 @@ import {
   BadgeCheck,
   Heart,
   MessageCircle,
-  Play,
   Send,
   Share2,
   Repeat2,
-  Film,
-  Clapperboard,
   Zap,
-  MapPin,
   Trash2,
   Flag,
+  MoreHorizontal,
+  Volume2,
+  VolumeX,
+  Maximize2,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { compact, creatorById, type Post } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -32,6 +33,7 @@ import { ShareSheet } from "./ShareSheet";
 import { sharePost } from "@/lib/social-activity";
 import { typeFromTags, visibleTags } from "@/lib/post-types";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
+import { getFrameAspectRatio, getMediaAspectRatioValue, normalizeMediaFraming } from "@/lib/media-framing";
 
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
@@ -61,6 +63,8 @@ export function PostCard({ post }: { post: Post }) {
   const mediaSource = mediaSources[0];
   const [refreshedMediaUrl, setRefreshedMediaUrl] = useState<string | undefined>();
   const attemptedRefresh = useRef(new Set<string>());
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoMuted, setVideoMuted] = useState(true);
   const displayedMediaSource = refreshedMediaUrl ?? mediaSource;
   const refreshMediaUrl = async (failedUrl: string) => {
     if (post.mediaStorageProvider !== "r2" || !post.mediaPostId || !failedUrl) return;
@@ -69,12 +73,27 @@ export function PostCard({ post }: { post: Post }) {
     const freshUrl = await getFreshR2MediaPlaybackUrl(post.mediaPostId, "media");
     if (freshUrl && freshUrl !== failedUrl) setRefreshedMediaUrl(freshUrl);
   };
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
+        video.muted = true;
+        setVideoMuted(true);
+        void video.play().catch(() => undefined);
+      } else video.pause();
+    }, { threshold: [0, 0.55, 1] });
+    observer.observe(video);
+    return () => { observer.disconnect(); video.pause(); };
+  }, [displayedMediaSource]);
+
   const isLiked = liked.has(post.id);
   const isSaved = saved.has(post.id);
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState("");
   const [scene, setScene] = useState(false);
-  const [playing, setPlaying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedCaption, setEditedCaption] = useState(post.caption);
   const [shareOpen, setShareOpen] = useState(false);
@@ -119,58 +138,34 @@ export function PostCard({ post }: { post: Post }) {
   };
 
   const header = (
-    <div className="flex items-center gap-3">
-      <Link to="/profile" search={{ handle: c.handle }} className="shrink-0" aria-label={`Open ${c.name}'s profile`}>
+    <div className="flex min-w-0 items-center gap-3">
+      <Link to="/profile" search={{ handle: c.handle }} className="shrink-0" aria-label="Open creator profile">
         <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
       </Link>
       <Link to="/profile" search={{ handle: c.handle }} className="min-w-0 flex-1">
-        <p className="flex items-center gap-1 text-sm font-semibold">
-          {c.name}
-          {c.verified && <BadgeCheck className="h-4 w-4 text-accent" aria-label="Verified" />}
-        </p>
-        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-          {post.kind === "short" ? (
-            <Clapperboard className="h-3.5 w-3.5 text-accent" aria-label="Reel" />
-          ) : post.kind === "video" || post.mediaType?.startsWith("video/") ? (
-            <Film className="h-3.5 w-3.5 text-accent" aria-label="Video" />
-          ) : null}
-          <span>{typeLabel}</span>
-          <span aria-hidden="true">·</span>
-          <span>@{c.handle} · {post.createdAt}</span>
+        <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
+          aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
+          <span className="truncate">{c.name}</span>
+          {c.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-accent" aria-label="Verified" />}
+          <span aria-hidden="true" className="text-muted-foreground">·</span>
+          <span className="truncate text-xs font-normal text-muted-foreground">@{c.handle}</span>
         </p>
       </Link>
-      {post.creatorId === "me" ? (
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit post">Edit</Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            aria-label={`Delete ${post.kind === "video" ? "video" : "post"}`}
-            onClick={() => {
-              if (window.confirm(`Delete this ${post.kind === "video" ? "video" : "post"}? This cannot be undone.`)) void deletePost(post.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`Safety and follow controls for ${c.name}`}
-          onClick={() => setSafety(true)}
-        >
-          •••
-        </Button>
-      )}
-      <button
-        onClick={() => setScene(true)}
-        className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
-        aria-label="Scene to action"
-      >
-        <Zap className="h-3.5 w-3.5" /> Act
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="shrink-0" aria-label="Post actions"><MoreHorizontal className="h-5 w-5" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {post.creatorId === "me" ? <>
+            <DropdownMenuItem onSelect={() => setEditing(true)}>Edit post</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => {
+              if (window.confirm("Delete this post? This cannot be undone.")) void deletePost(post.id);
+            }}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+          </> : <DropdownMenuItem onSelect={() => setSafety(true)}>Follow, mute or report</DropdownMenuItem>}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setScene(true)}><Zap className="mr-2 h-4 w-4" />Act on this post</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
@@ -203,69 +198,57 @@ export function PostCard({ post }: { post: Post }) {
     <article className="overflow-hidden rounded-3xl border bg-card">
       <div className="p-4 pb-3">{header}</div>
       {mediaSource && post.mediaType?.startsWith("video/") ? (
-        <video
-          src={displayedMediaSource}
-          onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
-          controls
-          playsInline
-          className={cn(
-            "w-full bg-muted object-cover",
-            `media-${post.filter || "original"}`,
-            `format-${post.format || "landscape"}`,
-          )}
-        />
-      ) : post.image && post.creatorId === "me" ? (
-        <img
-          src={displayedMediaSource}
-          onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
-          alt={post.caption}
-          className={cn(
-            "block w-full aspect-[4/5] object-cover bg-muted",
-            `media-${post.filter || "original"}`,
-            `format-${post.format || "landscape"}`,
-          )}
-        />
-      ) : post.image ? (
-        <button
-          onClick={() => setPlaying((p) => !p)}
-          onDoubleClick={() => !isLiked && toggleLike(post.id)}
-          className={cn(
-            "relative block w-full overflow-hidden bg-muted",
-            post.kind === "video" ? "aspect-video" : "aspect-[4/5] sm:aspect-[3/4]",
-          )}
-          aria-label={playing ? "Pause preview" : "Play preview"}
-        >
-          <img
-            src={displayedMediaSource}
+        <div className="relative w-full overflow-hidden bg-muted" style={{
+          backgroundColor: post.dominantColor || "#171717",
+          aspectRatio: post.frameRatio && post.frameRatio !== "original"
+            ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
+            : getMediaAspectRatioValue(post.aspectRatio) ?? undefined,
+          maxHeight: "78svh",
+        }}>
+          <video ref={videoRef} src={displayedMediaSource} poster={post.thumbnailUrl}
             onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
-            alt={post.caption}
-            loading="lazy"
-            className={cn(
-              "h-full w-full object-cover transition duration-[4000ms]",
-              playing && "scale-110",
-            )}
-          />
-          <div className="bg-scrim absolute inset-0" />
-          <span className="absolute left-3 top-3 rounded-full bg-background/70 px-2 py-0.5 text-xs font-semibold uppercase backdrop-blur">
-            {post.kind === "short" ? "Short" : "Video"} · {post.duration}
-          </span>
-          {!playing && (
-            <span className="absolute inset-0 m-auto grid h-14 w-14 place-items-center rounded-full bg-background/50 backdrop-blur">
-              <Play className="h-6 w-6 fill-foreground" />
-            </span>
+            playsInline loop muted={videoMuted} preload="metadata"
+            onClick={(event) => {
+              const video = event.currentTarget;
+              if (video.paused) void video.play().catch(() => undefined);
+              else video.pause();
+            }}
+            className={cn("block w-full", post.frameRatio && post.frameRatio !== "original" ? "h-full" : "h-auto max-h-[78svh]")}
+            style={{
+              objectFit: post.frameRatio && post.frameRatio !== "original" ? "cover" : "contain",
+              objectPosition: (normalizeMediaFraming({ focalX: post.focalX, focalY: post.focalY, zoom: post.zoom }).focalX + "% ") + normalizeMediaFraming({ focalX: post.focalX, focalY: post.focalY, zoom: post.zoom }).focalY + "%",
+              transform: "scale(" + normalizeMediaFraming({ focalX: post.focalX, focalY: post.focalY, zoom: post.zoom }).zoom + ")",
+            }} />
+          <button type="button" onClick={() => setVideoMuted((muted) => !muted)}
+            aria-label={videoMuted ? "Unmute video" : "Mute video"}
+            className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-black/65 text-white backdrop-blur">
+            {videoMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+          {post.kind === "short" && (
+            <button type="button" onClick={() => { window.location.href = "/reels?post=" + encodeURIComponent(post.id); }}
+              aria-label="Open Reel full screen"
+              className="absolute bottom-3 right-16 grid h-10 w-10 place-items-center rounded-full bg-black/65 text-white backdrop-blur">
+              <Maximize2 className="h-5 w-5" />
+            </button>
           )}
-          {playing && (
-            <span className="absolute inset-x-0 bottom-0 h-1 bg-muted">
-              <span className="bg-brand block h-full w-1/3 animate-pulse" />
-            </span>
-          )}
-          {post.place && (
-            <span className="absolute bottom-3 left-3 flex items-center gap-1 text-xs font-medium">
-              <MapPin className="h-3.5 w-3.5 text-accent" />
-              {post.place}
-            </span>
-          )}
-        </button>
+        </div>
+      ) : post.image ? (
+        <div className="w-full overflow-hidden bg-muted" style={{
+          backgroundColor: post.dominantColor || "#171717",
+          aspectRatio: post.frameRatio && post.frameRatio !== "original"
+            ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
+            : getMediaAspectRatioValue(post.aspectRatio) ?? undefined,
+          maxHeight: "78svh",
+        }}>
+          <img src={displayedMediaSource} onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
+            alt={post.caption} loading="lazy"
+            className={cn("block w-full", post.frameRatio && post.frameRatio !== "original" ? "h-full" : "h-auto max-h-[78svh]")}
+            style={{
+              objectFit: post.frameRatio && post.frameRatio !== "original" ? "cover" : "contain",
+              objectPosition: (normalizeMediaFraming({ focalX: post.focalX, focalY: post.focalY, zoom: post.zoom }).focalX + "% ") + normalizeMediaFraming({ focalX: post.focalX, focalY: post.focalY, zoom: post.zoom }).focalY + "%",
+              transform: "scale(" + normalizeMediaFraming({ focalX: post.focalX, focalY: post.focalY, zoom: post.zoom }).zoom + ")",
+            }} />
+        </div>
       ) : null}
       <div className="space-y-2 p-4 pt-3">
         {actions}
