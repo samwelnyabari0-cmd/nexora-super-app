@@ -53,6 +53,19 @@ function Settings() {
     void navigate({ to: "/auth" });
   }
   const [savedReports, setSavedReports] = useState<Array<{ target_id: string; reason: string; status: string }>>([]);
+  const [mutedProfiles, setMutedProfiles] = useState<Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || muted.length === 0) { setMutedProfiles([]); return; }
+    void (supabase as any).rpc("get_post_author_profiles", { target_user_ids: muted })
+      .then(({ data, error }: { data: Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }> | null; error: unknown }) => {
+        if (!active) return;
+        if (error) { console.error("Could not load muted account profiles:", error); setMutedProfiles([]); }
+        else setMutedProfiles(data ?? []);
+      });
+    return () => { active = false; };
+  }, [user?.id, muted]);
   const [showOnlineStatus, setShowOnlineStatus] = useState(true);
   const [showLastSeen, setShowLastSeen] = useState(true);
 
@@ -219,16 +232,21 @@ function Settings() {
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold">Muted creators</h2>
         {muted.length ? (
-          muted.map((id) => (
-            <div key={id} className="flex items-center justify-between border-b py-3">
-              <span>{creators.find((c) => c.id === id)?.name ?? id}</span>
-              <Button variant="outline" onClick={() => toggleMute(id)}>
-                Unmute
-              </Button>
-            </div>
-          ))
+          muted.map((id) => {
+            const person = mutedProfiles.find((profile) => profile.id === id);
+            return (
+              <div key={id} className="flex items-center gap-3 border-b py-3">
+                <Avatar name={person?.display_name ?? person?.handle ?? "NEXORA member"} src={person?.avatar_url} size={36} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{person?.display_name ?? "NEXORA member"}</p>
+                  <p className="truncate text-xs text-muted-foreground">@{person?.handle ?? "account"}</p>
+                </div>
+                <Button variant="outline" onClick={() => toggleMute(id)}>Unmute</Button>
+              </div>
+            );
+          })
         ) : (
-          <p className="text-sm text-muted-foreground">No muted creators.</p>
+          <p className="text-sm text-muted-foreground">No muted accounts.</p>
         )}
         <h3 className="mt-5 font-semibold">Safety reports</h3>
         <p className="mt-2 text-sm text-muted-foreground">
