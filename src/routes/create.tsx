@@ -410,15 +410,18 @@ const previewFilter =
             let thumbnailStorageKey: string | null = null;
             const pendingR2Keys: string[] = [];
             let generatedPoster: Awaited<ReturnType<typeof createMediaPoster>> | null = null;
-            if (mediaFiles.length === 1) {
+            if (cover || mediaFiles.length === 1) {
               try {
-                generatedPoster = await createMediaPoster(mediaFiles[0] as File);
+                const posterSource = cover
+                  ? new File([cover], "selected-cover", { type: cover.type || "image/jpeg" })
+                  : (mediaFiles[0] as File);
+                generatedPoster = await createMediaPoster(posterSource);
                 if (generatedPoster) setDominantColor(generatedPoster.dominantColor);
               } catch (posterError) {
                 console.warn("Automatic poster generation skipped:", posterError);
               }
             }
-            const posterBlob = cover ?? generatedPoster?.blob ?? null;
+            const posterBlob = generatedPoster?.blob ?? cover ?? null;
             if (mediaFiles.length) {
               // First rollout: route a single video to R2. Images and multi-file posts
               // retain the existing Supabase Storage path until their flows are migrated.
