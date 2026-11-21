@@ -19,6 +19,9 @@ describe("private document attachment rules", () => {
     expect(resolveChatAttachment({ type: "video/mp4", name: "clip.mp4", size: 2048 })).toMatchObject({
       ok: true, mediaType: "video", contentType: "video/mp4", extension: "mp4",
     });
+    expect(resolveChatAttachment({ type: "image/jpeg", name: "photo", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "image", contentType: "image/jpeg", extension: "jpg",
+    });
   });
 
   it("rejects unsupported mobile media formats and files above the bucket limit", () => {
