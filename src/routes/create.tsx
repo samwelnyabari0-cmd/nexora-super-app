@@ -423,12 +423,15 @@ const previewFilter =
             }
             const posterBlob = generatedPoster?.blob ?? cover ?? null;
             if (mediaFiles.length) {
-              // First rollout: route a single video to R2. Images and multi-file posts
-              // retain the existing Supabase Storage path until their flows are migrated.
-              const r2VideoTypes = ["video/mp4", "video/webm", "video/quicktime", "video/x-matroska"];
+              // Keep single-file photos and videos together with their generated poster in R2.
+              // Multi-file posts and unsupported image formats retain the existing Supabase Storage path.
+              const r2MediaTypes = [
+                "video/mp4", "video/webm", "video/quicktime", "video/x-matroska",
+                "image/jpeg", "image/png", "image/webp", "image/avif",
+              ];
               const useR2 =
                 mediaFiles.length === 1 &&
-                r2VideoTypes.includes(mediaFiles[0].type) &&
+                r2MediaTypes.includes(mediaFiles[0].type) &&
                 mediaFiles[0].size <= 5 * 1024 ** 3;
               const uploadedPaths: string[] = [];
               const totalUploadBytes = mediaFiles.reduce((total, file) => total + file.size, 0) +
@@ -439,10 +442,10 @@ const previewFilter =
 
               for (const file of mediaFiles) {
                 if (useR2) {
-                  setUploadStatus("Uploading video...");
+                  setUploadStatus("Uploading media...");
                   try {
                     const signed = await createR2MediaUploadUrl({
-                      data: { contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
+                      data: { contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska" | "image/jpeg" | "image/png" | "image/webp" | "image/avif", size: file.size },
                     });
                     pendingR2Keys.push(signed.key);
                     await uploadFileWithProgress(
@@ -453,7 +456,7 @@ const previewFilter =
                     );
                     completedUploadBytes += file.size;
                     const verified = await verifyR2MediaUpload({
-                      data: { key: signed.key, contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska", size: file.size },
+                      data: { key: signed.key, contentType: file.type as "video/mp4" | "video/webm" | "video/quicktime" | "video/x-matroska" | "image/jpeg" | "image/png" | "image/webp" | "image/avif", size: file.size },
                     });
                     if (!verified.verified) throw new Error("R2 upload could not be verified.");
 
