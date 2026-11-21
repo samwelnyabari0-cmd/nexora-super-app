@@ -608,6 +608,8 @@ const previewFilter =
                 caption: caption.trim(),
                 image: mediaStorageProvider === "r2" ? media : mediaPath ?? undefined,
                 mediaType,
+                mediaPostId: savedPost.id,
+                mediaStorageProvider,
                 audience,
                 filter,
                 format,
