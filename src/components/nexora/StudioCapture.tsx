@@ -6,9 +6,13 @@ import { fileError, microphoneError } from "@/features/core/tools";
 export function StudioCapture({
   onCapture,
   onError,
+  openRequest = 0,
+  hiddenWhenIdle = false,
 }: {
   onCapture: (url: string, type: string) => void;
   onError: (message: string) => void;
+  openRequest?: number;
+  hiddenWhenIdle?: boolean;
 }) {
   const [stream, setStream] = useState<MediaStream>();
   const [busy, setBusy] = useState(false);
@@ -127,6 +131,14 @@ export function StudioCapture({
       onError("Video recording could not start. Try uploading a video.");
     }
   };
+  useEffect(() => {
+    if (openRequest > 0) void open();
+    // The request counter changes only when the user taps Camera.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest]);
+
+  if (hiddenWhenIdle && !stream && !busy) return null;
+
   return (
     <section className="space-y-3">
       {stream && (
