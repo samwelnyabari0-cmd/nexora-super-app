@@ -25,7 +25,6 @@ import {
 } from "@/lib/social-activity";
 import {
   seedConversations,
-  seedPosts,
   seedTxns,
   type Conversation,
   type Post,
@@ -99,7 +98,7 @@ const now = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "
 export function AppProvider({ children }: { children: ReactNode }) {
   const { notify, preferences, removeDraft } = useWorkspace();
   const { user } = useSession();
-  const [posts, setPosts] = useState(seedPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [reposted, setReposted] = useState<Set<string>>(new Set());
@@ -120,11 +119,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setConversations(user ? [] : seedConversations);
-    if (!user) return;
+    if (!user) { setPosts([]); return; }
     void (async () => {
             const { data: ownProfile, error: ownProfileError } = await (supabase as any)
   .from("profiles")
-  .select("display_name, handle, bio, interests, settings")
+  .select("display_name, handle, bio, interests, settings, avatar_url")
   .eq("id", user.id)
   .maybeSingle();
 
@@ -185,6 +184,11 @@ if (ownProfile) {
         ),
       );
             setReposted(new Set(myRepostedPostIds ?? []));
+      const postAuthorIds = [...new Set((savedPosts ?? []).map((post: any) => post.user_id).filter(Boolean))];
+      const { data: postAuthorProfiles, error: postAuthorError } = await (supabase as any)
+        .rpc("get_post_author_profiles", { target_user_ids: postAuthorIds });
+      if (postAuthorError) console.error("Could not load post authors:", postAuthorError.message);
+      const postAuthorById = new Map((postAuthorProfiles ?? []).map((profile: any) => [profile.id, profile]));
       const commentUserIds = [
   ...new Set((savedComments ?? []).map((comment: any) => comment.user_id)),
 ];
@@ -231,6 +235,9 @@ if (bookmarkError) {
               mediaPostId: row.id,
               mediaStorageProvider: row.media_storage_provider ?? "supabase",
               creatorId: row.user_id === user.id ? "me" : (row.user_id ?? "me"),
+              creatorName: row.user_id === user.id ? (ownProfile?.display_name ?? passport.name) : (postAuthorById.get(row.user_id)?.display_name ?? "NEXORA member"),
+              creatorHandle: row.user_id === user.id ? (ownProfile?.handle ?? passport.handle) : (postAuthorById.get(row.user_id)?.handle ?? ""),
+              creatorAvatarUrl: row.user_id === user.id ? (ownProfile?.avatar_url ?? null) : (postAuthorById.get(row.user_id)?.avatar_url ?? null),
               caption: row.caption ?? "",
               image,
               mediaType: row.media_type ?? undefined,
@@ -260,10 +267,9 @@ if (bookmarkError) {
             } as unknown as Post;
           }),
         );
-        setPosts((current) => [
-          ...hydratedPosts,
-          ...current.filter((post) => !savedPosts.some((row: any) => row.id === post.id)),
-        ]);
+        setPosts(hydratedPosts);
+      } else {
+        setPosts([]);
       }
       if (savedMessages?.length) {
         const grouped = savedMessages.reduce((groups: Record<string, any[]>, row: any) => {
