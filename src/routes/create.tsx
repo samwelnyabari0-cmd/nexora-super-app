@@ -18,6 +18,9 @@ import { ContentTypePicker } from "@/components/nexora/ContentTypePicker";
 import { CONTENT_TYPES, kindFor, pickMedia, typeTag, type ContentType, type UploadClassification } from "@/lib/post-types";
 import { cleanupR2MediaObjects, createR2MediaUploadUrl, verifyR2MediaUpload } from "@/lib/r2-media.functions";
 import { uploadFileWithProgress } from "@/lib/media-upload";
+import { MediaFramingEditor } from "@/components/nexora/MediaFramingEditor";
+import { createMediaPoster } from "@/lib/media-poster";
+import { getMediaAspectRatioValue, normalizeMediaFraming, type MediaFrameRatio } from "@/lib/media-framing";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -59,6 +62,11 @@ function Create() {
   const [filter, setFilter] = useState("original");
   const [filterIntensity, setFilterIntensity] = useState(80);
   const [format, setFormat] = useState("square");
+  const [frameRatio, setFrameRatio] = useState<MediaFrameRatio>("original");
+  const [focalX, setFocalX] = useState(50);
+  const [focalY, setFocalY] = useState(50);
+  const [zoom, setZoom] = useState(1);
+  const [dominantColor, setDominantColor] = useState("#171717");
   const [cover, setCover] = useState<Blob | null>(null);
   const [contentType, setContentType] = useState<ContentType>("post");
   const [mediaClassification, setMediaClassification] = useState<UploadClassification>({ contentType: "post", aspectRatio: null, durationSeconds: null });
@@ -148,6 +156,11 @@ function Create() {
     setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
     setFilter("original");
     setFormat("landscape");
+    setFrameRatio("original");
+    setFocalX(50);
+    setFocalY(50);
+    setZoom(1);
+    setDominantColor("#171717");
     setError("");
   };
   const intensity = filterIntensity / 100;
@@ -218,6 +231,7 @@ const previewFilter =
           setMediaFiles(files);
           setMediaType(mimeType);
           setMediaClassification(classification);
+          setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
           if (mimeType.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
         },
       });
@@ -297,6 +311,7 @@ const previewFilter =
                   setMediaFiles(files);
                   setMediaType(type);
                   setMediaClassification(classification);
+                  setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
                   if (type.startsWith("video/") && contentType !== "collab") setContentType(classification.contentType);
                 },
               });
@@ -340,6 +355,7 @@ const previewFilter =
                       setMediaFiles(files);
                       setMediaType(detectedType);
                       setMediaClassification(classification);
+                      setFrameRatio("original"); setFocalX(50); setFocalY(50); setZoom(1);
                       if (contentType !== "collab") setContentType(classification.contentType);
                       setCover(null);
                       setNote("Your edited video is ready. Publishing will upload the edited copy.");
@@ -355,30 +371,25 @@ const previewFilter =
               </section>
             )
           )}
-          <section className="space-y-3 rounded-xl border p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">Frame</h2>
-              <span className="text-xs text-muted-foreground">
-                Square is optimized for feed
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Media frame">
-              {["landscape", "portrait", "square"].map((f) => (
-                <Button
-                  key={f}
-                  type="button"
-                  size="sm"
-                  variant={format === f ? "default" : "outline"}
-                  aria-pressed={format === f}
-                  className="capitalize"
-                  onClick={() => setFormat(f)}
-                >
-                  <Film />
-                  {f}
-                </Button>
-              ))}
-            </div>
-          </section>
+          {media && (
+            <MediaFramingEditor
+              src={media}
+              mediaType={mediaType}
+              originalAspectRatio={getMediaAspectRatioValue(mediaClassification.aspectRatio)}
+              frameRatio={frameRatio}
+              focalX={focalX}
+              focalY={focalY}
+              zoom={zoom}
+              onFrameRatioChange={(value) => {
+                setFrameRatio(value);
+                setFormat(value === "9:16" ? "portrait" : value === "16:9" ? "landscape" : value === "original" ? "landscape" : "square");
+              }}
+              onFramingChange={(value) => {
+                const next = normalizeMediaFraming(value);
+                setFocalX(next.focalX); setFocalY(next.focalY); setZoom(next.zoom);
+              }}
+            />
+          )}
         </div>
         <form
           className="space-y-4"
