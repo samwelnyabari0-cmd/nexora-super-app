@@ -35,14 +35,15 @@ function Explore() {
   const { muted } = useWorkspace();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("All");
-  const [people, setPeople] = useState<
-  {
+  const [people, setPeople] = useState<{
     id: string;
     display_name: string | null;
     handle: string | null;
     avatar_url: string | null;
-  }[]
->([]);
+    account_type: string | null;
+    private_profile: boolean;
+  }[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(true);
   const query = q.trim().toLowerCase();
   useEffect(() => {
   if (query.length < 2) {
@@ -111,10 +112,10 @@ setPeople(
         {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
         {show("Videos") && <section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section>}
         {show("Collabs") && <section><h2 className="mb-3 text-lg font-semibold">Collabs</h2><StrictMediaGrid contentType="collab" /></section>}
-        {show("Creators") && query.length >= 2 && (
+        {show("Creators") && (
           <section>
             <h2 className="mb-3 text-lg font-semibold">People</h2>
-            {people.length > 0 ? (
+            {peopleLoading ? <p className="text-sm text-muted-foreground">Finding NEXORA accounts…</p> : people.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {people.map((person) => (
                   <Link
@@ -134,7 +135,7 @@ setPeople(
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{person.display_name ?? "NEXORA User"}</p>
-                      <p className="truncate text-xs text-muted-foreground">@{person.handle}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
                     </div>
                   </Link>
                 ))}
@@ -195,7 +196,7 @@ setPeople(
           </section>
         )}
         {!count && tab !== "All" && (
-          <EmptyState icon={<SearchX />} title="No matches" body="Try a different keyword." />
+          <EmptyState icon={<SearchX />} title="No matches" body="Try another keyword or explore more accounts." />
         )}
       </div>
     </div>
