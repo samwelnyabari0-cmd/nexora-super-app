@@ -24,7 +24,6 @@ import {
   unlikePost,
 } from "@/lib/social-activity";
 import {
-  seedConversations,
   seedTxns,
   type Conversation,
   type Post,
@@ -102,7 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [reposted, setReposted] = useState<Set<string>>(new Set());
-  const [conversations, setConversations] = useState(seedConversations);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [balance, setBalance] = useState(24680.5);
   const [txns, setTxns] = useState(seedTxns);
   const [online, setOnlineState] = useState(true);
@@ -118,7 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 });
 
   useEffect(() => {
-    setConversations(user ? [] : seedConversations);
+    setConversations([]);
     if (!user) { setPosts([]); return; }
     void (async () => {
             const { data: ownProfile, error: ownProfileError } = await (supabase as any)
