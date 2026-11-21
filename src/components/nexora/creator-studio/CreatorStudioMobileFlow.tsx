@@ -272,13 +272,13 @@ export default function CreatorStudioMobileFlow(props: Props) {
 
               <button type="button" onClick={() => setLimitsOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border bg-card px-3 py-3 text-left">
                 <span className="flex items-center gap-2 text-sm font-medium"><Clapperboard className="h-4 w-4" /> Plan limits</span>
-                <ChevronDown className={\`h-4 w-4 transition-transform \${limitsOpen ? "rotate-180" : ""}\`} />
+                <ChevronDown className={`h-4 w-4 transition-transform ${limitsOpen ? "rotate-180" : ""}`} />
               </button>
               {limitsOpen && <p className="rounded-xl bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">{props.uploadLimits}</p>}
 
               <button type="button" onClick={() => setSettingsOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border bg-card px-3 py-3 text-left">
                 <span className="flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4" /> Advanced settings</span>
-                <ChevronDown className={\`h-4 w-4 transition-transform \${settingsOpen ? "rotate-180" : ""}\`} />
+                <ChevronDown className={`h-4 w-4 transition-transform ${settingsOpen ? "rotate-180" : ""}`} />
               </button>
               {settingsOpen && (
                 <div className="space-y-3 rounded-xl border bg-card p-3">
@@ -307,7 +307,7 @@ export default function CreatorStudioMobileFlow(props: Props) {
               {props.uploadProgress !== null && (
                 <div className="space-y-2 rounded-xl border bg-card p-3" role="status" aria-live="polite">
                   <div className="flex justify-between gap-2 text-xs"><span>{props.uploadStatus || "Uploading media…"}</span><span className="font-semibold tabular-nums">{props.uploadProgress}%</span></div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: \`\${props.uploadProgress}%\` }} /></div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${props.uploadProgress}%` }} /></div>
                 </div>
               )}
             </div>
