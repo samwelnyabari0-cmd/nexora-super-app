@@ -15,6 +15,7 @@ import {
   Flag,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { compact, creatorById, type Post } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
@@ -135,7 +136,7 @@ export function PostCard({ post }: { post: Post }) {
             @{c.handle} · {post.createdAt}
           </span>
         </p>
-      </div>
+      </Link>
       {post.creatorId === "me" ? (
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label="Edit post">Edit</Button>
