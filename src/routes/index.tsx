@@ -112,11 +112,11 @@ function Home() {
       <div className="mx-auto min-w-0 w-full max-w-xl">
         <section className="mb-5" aria-label="Discover accounts">
           <div className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-2">
-            <Link to="/create" className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
+            <Link to="/explore" className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
               <span className="grid h-16 w-16 place-items-center rounded-full border-2 border-dashed border-muted-foreground/40">
-                <Plus className="h-6 w-6" />
+                <Users className="h-6 w-6" />
               </span>
-              Your story
+              Find people
             </Link>
             {people.slice(0, 12).map((person) => (
               <Link key={person.id} to="/profile" search={{ handle: person.handle }}
