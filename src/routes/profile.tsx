@@ -426,11 +426,15 @@ useEffect(() => {
           ).map(({ value, label, Icon: IconComponent }) => (
             <Button
               key={value}
-              variant={socialTab === value ? "default" : "outline"}
+              type="button"
+              variant="ghost"
               size="sm"
+              aria-pressed={socialTab === value}
+              className={`h-14 min-w-[68px] shrink-0 flex-col gap-1 rounded-none border-b-2 px-2 ${socialTab === value ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
               onClick={() => setSocialTab(value as typeof socialTab)}
             >
-              <IconComponent className="h-4 w-4" /> {label}
+              <IconComponent className="h-5 w-5" />
+              <span className="text-[10px] sm:text-xs">{label}</span>
             </Button>
           ))}
         </div>
