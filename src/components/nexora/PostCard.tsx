@@ -6,8 +6,6 @@ import {
   Send,
   Share2,
   Repeat2,
-  Film,
-  Clapperboard,
   Zap,
   Trash2,
   Flag,
@@ -145,15 +143,12 @@ export function PostCard({ post }: { post: Post }) {
         <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
       </Link>
       <Link to="/profile" search={{ handle: c.handle }} className="min-w-0 flex-1">
-        <p className="flex items-center gap-1 truncate text-sm font-semibold">
-          {c.name}
-          {c.verified && <BadgeCheck className="h-4 w-4 text-accent" aria-label="Verified" />}
-        </p>
-        <p className="flex min-w-0 items-center gap-1 truncate text-xs text-muted-foreground">
-          {post.kind === "short" ? <Clapperboard className="h-3.5 w-3.5 shrink-0 text-accent" aria-label="Reel" /> :
-            post.kind === "video" || post.mediaType?.startsWith("video/") ? <Film className="h-3.5 w-3.5 shrink-0 text-accent" aria-label="Video" /> : null}
-          <span>{typeLabel}</span><span aria-hidden="true">·</span>
-          <span className="truncate">@{c.handle} · {post.createdAt}</span>
+        <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
+          aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
+          <span className="truncate">{c.name}</span>
+          {c.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-accent" aria-label="Verified" />}
+          <span aria-hidden="true" className="text-muted-foreground">·</span>
+          <span className="truncate text-xs font-normal text-muted-foreground">@{c.handle}</span>
         </p>
       </Link>
       <DropdownMenu>
