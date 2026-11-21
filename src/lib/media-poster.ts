@@ -84,7 +84,7 @@ export async function createMediaPoster(
   let source: CanvasImageSource;
   let width: number;
   let height: number;
-  let cleanup = () => undefined;
+  let cleanup: () => void = () => undefined;
 
   if (file.type.startsWith("image/")) {
     if (typeof createImageBitmap !== "function") return null;
