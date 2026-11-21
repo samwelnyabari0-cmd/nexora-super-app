@@ -34,13 +34,13 @@ export default function TierGatedCreatorStudio({
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <nav className="grid shrink-0 grid-cols-3 border-b bg-background" aria-label="Studio tools">
-        <button type="button" onClick={() => setTab("filters")} aria-pressed={tab === "filters"} className={\`flex flex-col items-center gap-1 border-b-2 px-2 py-3 text-xs font-medium \${tab === "filters" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}\`}>
+        <button type="button" onClick={() => setTab("filters")} aria-pressed={tab === "filters"} className={`flex flex-col items-center gap-1 border-b-2 px-2 py-3 text-xs font-medium ${tab === "filters" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
           <SlidersHorizontal className="h-5 w-5" /> Filters
         </button>
-        <button type="button" onClick={() => setTab("audio")} aria-pressed={tab === "audio"} className={\`flex flex-col items-center gap-1 border-b-2 px-2 py-3 text-xs font-medium \${tab === "audio" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}\`}>
+        <button type="button" onClick={() => setTab("audio")} aria-pressed={tab === "audio"} className={`flex flex-col items-center gap-1 border-b-2 px-2 py-3 text-xs font-medium ${tab === "audio" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
           <AudioLines className="h-5 w-5" /> Audio
         </button>
-        <button type="button" onClick={() => setTab("studio")} aria-pressed={tab === "studio"} className={\`flex flex-col items-center gap-1 border-b-2 px-2 py-3 text-xs font-medium \${tab === "studio" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}\`}>
+        <button type="button" onClick={() => setTab("studio")} aria-pressed={tab === "studio"} className={`flex flex-col items-center gap-1 border-b-2 px-2 py-3 text-xs font-medium ${tab === "studio" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
           <Clapperboard className="h-5 w-5" /> Studio
         </button>
       </nav>
