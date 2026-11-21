@@ -65,11 +65,6 @@ export const createR2MediaUploadUrl = createServerFn({ method: "POST" })
       Bucket: bucket,
       Key: key,
       ContentType: data.contentType,
-      Metadata: {
-        owner: context.userId,
-        purpose: "post-media",
-        expected_size: String(data.size),
-      },
     });
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 });
 
@@ -78,12 +73,10 @@ export const createR2MediaUploadUrl = createServerFn({ method: "POST" })
       key,
       uploadUrl,
       contentType: data.contentType,
-      // The browser must send these exact headers with the PUT request.
+      // Keep the browser PUT request to the required content-type header only.
+      // Ownership is enforced by the user-scoped object key and server-side checks.
       uploadHeaders: {
         "Content-Type": data.contentType,
-        "x-amz-meta-owner": context.userId,
-        "x-amz-meta-purpose": "post-media",
-        "x-amz-meta-expected_size": String(data.size),
       },
       expiresInSeconds: 300,
     };
