@@ -237,8 +237,8 @@ export default function CreatorStudioMobileFlow(props: Props) {
                 filterIntensity={props.filterIntensity}
                 onFilterIntensityChange={props.onFilterIntensityChange}
                 onNavigateToSubscriptions={() => void navigate({ to: "/subscriptions" })}
+                advancedEditor={props.advancedEditor}
               />
-              {props.advancedEditor}
             </div>
           </section>
         )}
