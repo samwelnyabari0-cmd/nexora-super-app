@@ -40,77 +40,6 @@ export const creators: Creator[] = [];
 
 export const creatorById = (id: string): Creator => creators.find((creator) => creator.id === id) ?? { id, name: "NEXORA member", handle: "", hue: 295 };
 
-export const seedPosts: Post[] = [
-  {
-    id: "p1",
-    creatorId: "c1",
-    kind: "short",
-    image: m1,
-    duration: "0:42",
-    caption:
-      "Golden hour over the CBD — shot entirely on phone. Full colour grade breakdown in comments.",
-    tags: ["city", "creators"],
-    likes: 12840,
-    shares: 412,
-    place: "Upper Hill Rooftop, Nairobi",
-    createdAt: "2h",
-    comments: [{ id: "k1", author: "lena.studio", text: "That purple sky is unreal 😮" }],
-  },
-  {
-    id: "p2",
-    creatorId: "c2",
-    kind: "short",
-    image: m2,
-    duration: "0:58",
-    caption: "Night market mshikaki run. 3 stalls, 1 winner. Who's coming Friday?",
-    tags: ["food", "nearby"],
-    likes: 8320,
-    shares: 960,
-    place: "Kenyatta Night Market",
-    createdAt: "4h",
-    comments: [{ id: "k2", author: "kibet.dev", text: "Stall #2 every time." }],
-  },
-  {
-    id: "p3",
-    creatorId: "c3",
-    kind: "short",
-    image: m3,
-    duration: "1:05",
-    caption: "New choreo drop 💜 Learn it in 3 steps — tutorial on my Watch channel.",
-    tags: ["music", "dance"],
-    likes: 30211,
-    shares: 2210,
-    createdAt: "6h",
-    comments: [],
-  },
-  {
-    id: "p4",
-    creatorId: "c4",
-    kind: "video",
-    image: m4,
-    duration: "18:20",
-    caption: "Maasai Mara at dusk — a slow film about the last light.",
-    tags: ["travel", "nature"],
-    likes: 5402,
-    shares: 188,
-    place: "Maasai Mara Reserve",
-    createdAt: "1d",
-    comments: [{ id: "k3", author: "amani.frames", text: "Cinematic 🔥" }],
-  },
-  {
-    id: "p5",
-    creatorId: "c5",
-    kind: "post",
-    caption:
-      "Shipping offline-first is a feature, not an afterthought. Queue locally, sync later, show the user what's pending. That's how you build for real networks.",
-    tags: ["tech", "creators"],
-    likes: 1204,
-    shares: 96,
-    createdAt: "1d",
-    comments: [],
-  },
-];
-
 export const feedFilters = [
   "For you",
   "Following",
@@ -132,38 +61,6 @@ export type Message = {
   edited?: boolean;
 };
 export type Conversation = { id: string; creatorId: string; messages: Message[]; unread: number; ownerId?: string };
-
-export const seedConversations: Conversation[] = [
-  {
-    id: "t1",
-    creatorId: "c2",
-    unread: 2,
-    messages: [
-      {
-        id: "a",
-        from: "them",
-        text: "Are you still coming to the night market Friday?",
-        at: "18:02",
-      },
-      { id: "b", from: "them", text: "I'll save you a seat at stall #2 😄", at: "18:03" },
-    ],
-  },
-  {
-    id: "t2",
-    creatorId: "c1",
-    unread: 0,
-    messages: [
-      { id: "a", from: "me", text: "Loved the rooftop short. What LUT was that?", at: "Yesterday" },
-      { id: "b", from: "them", text: "Custom one — I'll send it over tonight.", at: "Yesterday" },
-    ],
-  },
-  {
-    id: "t3",
-    creatorId: "c5",
-    unread: 1,
-    messages: [{ id: "a", from: "them", text: "Hackathon team is forming. You in?", at: "Mon" }],
-  },
-];
 
 export type Place = {
   id: string;
