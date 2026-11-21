@@ -77,24 +77,28 @@ export function DisappearingSettingsControl({ chatKind, chatId }: DisappearingSe
   const selected = OPTIONS.find((option) => option.value === retentionSeconds)?.label ?? "Off";
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-      <Clock3 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-      <label htmlFor={`message-expiry-${chatKind}-${chatId}`} className="text-xs font-medium">New message expiry</label>
-      <select
-        id={`message-expiry-${chatKind}-${chatId}`}
-        aria-label="New message expiry"
-        className="rounded-lg border bg-background px-2 py-1 text-xs"
-        value={retentionSeconds}
-        disabled={loading || saving}
-        onChange={(event) => void changeRetention(Number(event.target.value))}
-      >
-        {OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-      <span className="text-[11px] text-muted-foreground">{loading ? "Loading…" : saving ? "Saving…" : selected}</span>
-      <p className="basis-full text-[11px] text-muted-foreground">
-        Applies to new messages only. Expired messages are hidden by server access rules; automatic physical deletion is not scheduled.
-      </p>
-      {error && <p role="alert" className="basis-full text-xs text-destructive">{error}</p>}
-    </div>
+    <details className="shrink-0 border-b px-3 py-1">
+      <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-xs font-medium text-muted-foreground">
+        <Clock3 className="h-3.5 w-3.5" aria-hidden />
+        <span>Expiry · {loading ? "Loading…" : saving ? "Saving…" : selected}</span>
+      </summary>
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        <label htmlFor={`message-expiry-${chatKind}-${chatId}`} className="text-xs font-medium">New message expiry</label>
+        <select
+          id={`message-expiry-${chatKind}-${chatId}`}
+          aria-label="New message expiry"
+          className="rounded-lg border bg-background px-2 py-1 text-xs"
+          value={retentionSeconds}
+          disabled={loading || saving}
+          onChange={(event) => void changeRetention(Number(event.target.value))}
+        >
+          {OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+        <p className="basis-full text-[11px] text-muted-foreground">
+          Applies to new messages only. Expired messages are hidden by server access rules; automatic physical deletion is not scheduled.
+        </p>
+        {error && <p role="alert" className="basis-full text-xs text-destructive">{error}</p>}
+      </div>
+    </details>
   );
 }
