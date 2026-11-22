@@ -104,7 +104,7 @@ function ClubsPage() {
             className={"min-w-0 rounded-2xl border p-3 text-left transition " + (club.id === guild.id ? "border-accent bg-card" : "bg-card/50 hover:bg-card")}>
             <span className="flex min-w-0 items-center gap-2">
               <span className="bg-brand grid h-8 w-8 shrink-0 place-items-center rounded-xl text-primary-foreground"><Trophy className="h-4 w-4" /></span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{club.name}</span><span className="block text-xs capitalize text-muted-foreground">{club.kind} · {club.active_member_count} members</span></span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{club.name}</span><span className="block text-xs capitalize text-muted-foreground">{club.kind} · {club.active_member_count} members</span>{(data.unreadCounts[club.id] ?? 0) > 0 && <span className="mt-1 inline-flex rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">{data.unreadCounts[club.id]} unread</span>}</span>
             </span>
           </button>
         ))}
