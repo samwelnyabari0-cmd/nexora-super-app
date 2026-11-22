@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Image, MapPin, Radio, Clock3, Sparkles, Plus, X } from "lucide-react";
+import { Clock3, FileText, Image, MapPin, Plus, Radio, Sparkles, X } from "lucide-react";
 
 type ChatAttachmentActions = {
   gallery: () => void;
@@ -41,7 +41,9 @@ export function ChatAttachmentTray({ actions, disabled = false }: ChatAttachment
       </button>
       {open && (
         <div className="absolute bottom-full left-0 z-40 mb-2 w-[min(19rem,calc(100vw-2rem))] rounded-2xl border bg-background p-3 shadow-xl">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">Share with this conversation</p>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">
+            Share with this conversation
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {ACTIONS.map(({ key, label, icon: Icon }) => (
               <button
