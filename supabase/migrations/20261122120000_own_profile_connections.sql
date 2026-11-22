@@ -17,7 +17,7 @@ begin
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  if p_connection_type not in ('followers', 'following') then
+  if p_connection_type is null or p_connection_type not in ('followers', 'following') then
     raise exception 'Invalid connection type' using errcode = '22023';
   end if;
 
