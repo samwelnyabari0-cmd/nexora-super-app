@@ -35,8 +35,21 @@ export function useClubData(clubId: string) {
   const [events, setEvents] = useState<ClubEvent[]>([]);
   const [myRsvps, setMyRsvps] = useState<Record<string, ClubRsvpStatus>>({});
   const [rsvpCounts, setRsvpCounts] = useState<ClubRsvpCounts>({});
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refreshUnreadCounts = useCallback(async () => {
+    if (!user) {
+      setUnreadCounts({});
+      return;
+    }
+    const { data, error: unreadError } = await (supabase.rpc("get_club_unread_counts" as never) as any);
+    if (unreadError) return;
+    const counts: Record<string, number> = {};
+    for (const row of data ?? []) counts[row.club_id] = Number(row.unread_count ?? 0);
+    setUnreadCounts(counts);
+  }, [user]);
 
   const refreshDirectory = useCallback(async () => {
     const { data, error: directoryError } = await (supabase.rpc("get_club_directory" as never) as any);
@@ -45,7 +58,8 @@ export function useClubData(clubId: string) {
       return;
     }
     setDirectory((data ?? []) as ClubDirectoryItem[]);
-  }, []);
+    await refreshUnreadCounts();
+  }, [refreshUnreadCounts]);
 
   const refreshClub = useCallback(async () => {
     setLoading(true);
@@ -126,9 +140,11 @@ export function useClubData(clubId: string) {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "club_events", filter: `club_id=eq.${clubId}` }, () => void refreshClub())
       .on("postgres_changes", { event: "*", schema: "public", table: "event_rsvps" }, () => void refreshClub())
+      .on("postgres_changes", { event: "*", schema: "public", table: "club_messages" }, () => void refreshUnreadCounts())
+      .on("postgres_changes", { event: "*", schema: "public", table: "club_channel_reads", filter: `club_id=eq.${clubId}` }, () => void refreshUnreadCounts())
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [clubId, ready, refreshDirectory, refreshClub]);
+  }, [clubId, ready, refreshDirectory, refreshClub, refreshUnreadCounts]);
 
   const requestMembership = useCallback(async () => {
     if (!user) return { error: "Sign in to join a club." };
@@ -180,7 +196,7 @@ export function useClubData(clubId: string) {
   }, [membership?.status, refreshClub, user]);
 
   return {
-    directory, membership, events, myRsvps, rsvpCounts, loading, error,
+    directory, membership, events, myRsvps, rsvpCounts, unreadCounts, loading, error,
     refreshDirectory, refreshClub, requestMembership, leaveClub, setRsvp, createEvent,
     authenticated: Boolean(user), userId: user?.id ?? null,
   };
