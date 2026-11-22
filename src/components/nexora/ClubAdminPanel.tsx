@@ -448,7 +448,7 @@ export function ClubAdminPanel({ clubId }: Props) {
                     </span>
                   </div>
 
-                  {isAdmin && isActive && member.role !== "creator" && (
+                  {isAdmin && isActive && member.role !== "creator" && (isCreator || member.role === "member") && (
                     <div className="flex flex-wrap gap-2">
                       {member.status === "pending" && (
                         <Button
