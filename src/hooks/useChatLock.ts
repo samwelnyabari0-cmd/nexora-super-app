@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   chatLockStorageKey,
   createDeviceLockRecord,
@@ -23,6 +23,8 @@ export type ChatLockState = {
   create: (code: string) => Promise<boolean>;
   unlock: (code: string) => Promise<boolean>;
   lockNow: () => void;
+  beginAttachmentPicker: () => void;
+  endAttachmentPicker: () => void;
   reset: () => void;
 };
 
@@ -34,6 +36,7 @@ export function useChatLock(userId: string, chatKind: ChatLockKind, chatId: stri
     status: "checking",
   });
   const [error, setError] = useState("");
+  const skipNextVisibilityLock = useRef(false);
 
   const current = snapshot.key === key && key
     ? snapshot
@@ -90,6 +93,28 @@ export function useChatLock(userId: string, chatKind: ChatLockKind, chatId: stri
     }
   }, [key, record]);
 
+  const beginAttachmentPicker = useCallback(() => {
+    skipNextVisibilityLock.current = true;
+  }, []);
+
+  const endAttachmentPicker = useCallback(() => {
+    skipNextVisibilityLock.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (status !== "unlocked" || !record) return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (skipNextVisibilityLock.current) return;
+        lockNow();
+      } else if (document.visibilityState === "visible") {
+        skipNextVisibilityLock.current = false;
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [status, record, lockNow]);
+
   const reset = useCallback(() => {
     if (!key) return;
     try {
@@ -108,6 +133,8 @@ export function useChatLock(userId: string, chatKind: ChatLockKind, chatId: stri
     create,
     unlock,
     lockNow,
+    beginAttachmentPicker,
+    endAttachmentPicker,
     reset,
   };
 }
