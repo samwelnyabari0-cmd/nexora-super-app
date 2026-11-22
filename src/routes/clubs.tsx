@@ -1,28 +1,14 @@
 import { ClubAdminPanel } from "@/components/nexora/ClubAdminPanel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MapPin, MessagesSquare, Send, Trophy, Users, Wallet } from "lucide-react";
+import { MapPin, Send, Trophy, Users, CalendarDays, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, DemoBadge, PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
-import { fmtKES } from "@/features/core/data";
 import { useApp } from "@/features/core/store";
-import {
-  daysUntilDate,
-  dueShare,
-  fixtures,
-  guilds,
-  kindLabel,
-  poolPercent,
-  seedChannels,
-  upcoming,
-  whenLabel,
-  type ChatMsg,
-  type Guild,
-} from "@/features/clubs/logic";
-import { clubMsgId, useClubs } from "@/features/clubs/useClubs";
+import { useClubData, type ClubRsvpStatus } from "@/features/clubs/useClubData";
+import type { ChatMsg } from "@/features/clubs/logic";
 import { useClubRealtime } from "@/features/clubs/useClubRealtime";
-import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
 
 export const Route = createFileRoute("/clubs")({
   head: () => ({
@@ -49,253 +35,166 @@ export const Route = createFileRoute("/clubs")({
 const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
 
 function ClubsPage() {
-  const { state, update } = useClubs();
-  const { passport } = useApp();
-  const [sel, setSel] = useState(guilds[0].id);
+  const [sel, setSel] = useState("g1");
+  const data = useClubData(sel);
   const realtime = useClubRealtime(sel);
-  const [today, setToday] = useState<Date | null>(null);
-  useEffect(() => setToday(new Date()), []);
+  const { passport } = useApp();
+  const [today, setToday] = useState("");
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [draft, setDraft] = useState({ title: "", kind: "match", venue: "", event_date: "", event_time: "", notes: "" });
 
-  const guild = guilds.find((g) => g.id === sel) ?? guilds[0];
-  const joined = state.joined.includes(guild.id);
-  const raised = guild.raisedBase + (state.duesPaid[guild.id] ?? 0);
-  const share = dueShare(guild.duesTarget, guild.members);
-  const pct = poolPercent(raised, guild.duesTarget);
-  const list = today
-    ? upcoming(guild.id, fixtures, today)
-    : fixtures.filter((f) => f.guildId === guild.id);
-  const msgs: ChatMsg[] = realtime.authenticated
-    ? realtime.messages
-    : [...(seedChannels[guild.id] ?? []), ...(state.messages[guild.id] ?? [])];
+  useEffect(() => setToday(new Date().toISOString().slice(0, 10)), []);
+  useEffect(() => {
+    if (data.directory.length && !data.directory.some((club) => club.id === sel)) setSel(data.directory[0].id);
+  }, [data.directory, sel]);
 
-  const toggleJoin = () =>
-    update((s) => ({
-      ...s,
-      joined: s.joined.includes(guild.id)
-        ? s.joined.filter((x) => x !== guild.id)
-        : [...s.joined, guild.id],
-    }));
+  const guild = data.directory.find((club) => club.id === sel) ?? data.directory[0];
+  const active = data.membership?.status === "active";
+  const canCreateEvents = active && ["creator", "admin", "moderator"].includes(data.membership?.role ?? "");
+  const events = data.events.filter((event) => !today || event.event_date >= today);
+  const labels: Record<ClubRsvpStatus, string> = { going: "Going", maybe: "Maybe", cant_make_it: "Can't make it" };
 
-  const rsvp = (fid: string) =>
-    update((s) => ({
-      ...s,
-      rsvps: s.rsvps.includes(fid) ? s.rsvps.filter((x) => x !== fid) : [...s.rsvps, fid],
-    }));
+  const joinOrLeave = async () => {
+    if (!data.authenticated) { toast.error("Sign in to join a club."); return; }
+    const result = active ? await data.leaveClub() : await data.requestMembership();
+    if (result.error) toast.error(result.error);
+    else toast.success(active ? "You left the club." : "Membership request sent for approval.");
+  };
 
-  const addDues = () => {
-    update((s) => ({
-      ...s,
-      duesPaid: { ...s.duesPaid, [guild.id]: (s.duesPaid[guild.id] ?? 0) + share },
-    }));
-    toast.success(`Recorded ${fmtKES(share)} in the ${guild.name} pool (demo — no money moved)`);
+  const updateRsvp = async (eventId: string, status: ClubRsvpStatus) => {
+    const next = data.myRsvps[eventId] === status ? null : status;
+    const result = await data.setRsvp(eventId, next);
+    if (result.error) toast.error(result.error);
+    else toast.success(next ? "RSVP updated: " + labels[next] : "RSVP removed.");
   };
 
   const send = async (text: string) => {
-    if (realtime.authenticated) {
-      const delivered = await realtime.send(text, passport.name);
-      if (!delivered && realtime.error) toast.error(realtime.error);
-      return;
-    }
-    update((s) => ({
-      ...s,
-      messages: {
-        ...s.messages,
-        [guild.id]: [...(s.messages[guild.id] ?? []), { id: clubMsgId(), from: "me", text, at: new Date().toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }) }],
-      },
-    }));
-    toast.error("Sign in to deliver messages to the club.");
+    if (!active) { toast.error("Join the club before sending messages."); return; }
+    const delivered = await realtime.send(text, passport.name);
+    if (!delivered && realtime.error) toast.error(realtime.error);
   };
 
-  return (
-    <div className="mx-auto max-w-5xl">
-      <PageHeader
-        title="Clubs & Guilds"
-        subtitle="Group spaces for football clubs, gaming guilds and tech clubs — a shared pin, fixtures, a dues pool and a club channel."
-      />
+  const publishEvent = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSavingEvent(true);
+    const result = await data.createEvent(draft);
+    setSavingEvent(false);
+    if (result.error) { toast.error(result.error); return; }
+    setDraft({ title: "", kind: "match", venue: "", event_date: "", event_time: "", notes: "" });
+    setShowEventForm(false);
+    toast.success("Event added to the shared club calendar.");
+  };
 
-      {/* Guild switcher */}
+  if (!guild && !data.loading) {
+    return <div className="mx-auto max-w-5xl"><PageHeader title="Clubs & Guilds" subtitle="Shared club spaces." /><Panel><p className="text-sm text-muted-foreground">{data.error ?? "No clubs available."}</p><Button className="mt-3" variant="outline" onClick={() => void data.refreshDirectory()}>Retry</Button></Panel></div>;
+  }
+  if (!guild) return <div className="mx-auto max-w-5xl"><PageHeader title="Clubs & Guilds" subtitle="Loading clubs..." /></div>;
+
+  const memberCount = Number(guild.active_member_count ?? 0);
+  const status = data.membership?.status;
+  const statusLabel = status === "active" ? "Member" : status === "pending" ? "Request pending" : status === "banned" ? "Access restricted" : "Not a member";
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      <PageHeader title="Clubs & Guilds" subtitle="Shared memberships, event RSVPs, maps and club channels." />
       <div className="mb-5 grid gap-2 sm:grid-cols-3">
-        {guilds.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            onClick={() => setSel(g.id)}
-            aria-pressed={g.id === guild.id}
-            className={`rounded-2xl border p-3 text-left transition ${
-              g.id === guild.id ? "border-accent bg-card" : "bg-card/50 hover:bg-card"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <span className="bg-brand grid h-8 w-8 place-items-center rounded-xl text-primary-foreground">
-                <Trophy className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{g.name}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {kindLabel[g.kind]} · {g.members} members
-                </span>
-              </span>
+        {data.directory.map((club) => (
+          <button key={club.id} type="button" onClick={() => setSel(club.id)} aria-pressed={club.id === guild.id}
+            className={"min-w-0 rounded-2xl border p-3 text-left transition " + (club.id === guild.id ? "border-accent bg-card" : "bg-card/50 hover:bg-card")}>
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="bg-brand grid h-8 w-8 shrink-0 place-items-center rounded-xl text-primary-foreground"><Trophy className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{club.name}</span><span className="block text-xs capitalize text-muted-foreground">{club.kind} · {club.active_member_count} members</span></span>
             </span>
-            {state.joined.includes(g.id) && (
-              <span className="mt-2 inline-block rounded-full bg-success/15 px-2 text-[11px] font-semibold text-success">
-                Joined
-              </span>
-            )}
           </button>
         ))}
       </div>
 
-      {/* Guild header */}
-      <Panel className="mb-4">
+      <Panel>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="font-display text-xl font-bold">{guild.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{guild.blurb}</p>
-            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-              <Users className="h-3.5 w-3.5" /> {guild.members} members · {guild.city}
-            </p>
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Users className="h-3.5 w-3.5" />{memberCount} active members · {guild.city}</p>
           </div>
-          <Button variant={joined ? "outline" : "default"} onClick={toggleJoin}>
-            {joined ? "Leave guild" : "Join guild"}
-          </Button>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <span className="rounded-full border px-3 py-1.5 text-xs">{statusLabel}</span>
+            <Button className="flex-1 sm:flex-none" variant={active ? "outline" : "default"} onClick={() => void joinOrLeave()} disabled={status === "pending" || status === "banned" || (active && data.membership?.role === "creator")}>
+              {active ? "Leave club" : status === "pending" ? "Awaiting approval" : status === "banned" ? "Access restricted" : "Request to join"}
+            </Button>
+          </div>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Membership saves on this device only — shared accounts are not connected yet.
-        </p>
+        {data.error && <p className="mt-3 text-xs text-destructive">{data.error}</p>}
+        {status === "pending" && <p className="mt-2 text-xs text-muted-foreground">Your request is saved to Supabase and awaits approval.</p>}
+        {!data.authenticated && <p className="mt-2 text-xs text-muted-foreground">Sign in to join, RSVP and post in the club channel.</p>}
       </Panel>
-<ClubAdminPanel clubId={guild.id} />
+
+      {data.authenticated && <ClubAdminPanel clubId={guild.id} />}
+
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Shared pin */}
         <Panel>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-display font-semibold">Shared pin</h3>
-
+          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-semibold">Shared venue</h3><span className="text-xs text-muted-foreground">Club location</span></div>
+          <div className="overflow-hidden rounded-xl border bg-muted"><div className="aspect-[4/3]"><iframe title={"Map for " + guild.name} className="h-full w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={"https://www.google.com/maps?q=" + encodeURIComponent(guild.venue + ", " + guild.city) + "&output=embed"} /></div></div>
+          <p className="mt-3 flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 shrink-0 text-accent" /><span className="min-w-0 break-words">{guild.venue} · {guild.city}</span></p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a className="inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium hover:bg-muted" href={"https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(guild.venue + ", " + guild.city)} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" />Get directions</a>
+            <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(guild.venue + ", " + guild.city).then(() => toast.success("Venue copied.")); }}><Copy className="mr-1.5 h-3.5 w-3.5" />Copy venue</Button>
+            <Button asChild size="sm" variant="outline"><Link to="/maps" search={{ q: undefined }}>Open Maps</Link></Button>
           </div>
-          <div className="aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
-            <iframe
-              title={`Google Maps location for ${guild.name}`}
-              className="h-full w-full border-0"
-              loading="lazy"
-              src={`https://www.google.com/maps?q=${encodeURIComponent(`${guild.place}, ${guild.city}`)}&output=embed`}
-            />
-          </div>
-          <p className="mt-2 flex items-center gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-accent" /> {guild.place} · {guild.city}
-          </p>
-          <Button asChild variant="outline" size="sm" className="mt-2">
-            <Link to="/maps" search={{ q: undefined }}>
-              Open Maps
-            </Link>
-          </Button>
-
         </Panel>
 
-        {/* Group wallet pool */}
         <Panel>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-display font-semibold">Group wallet pool</h3>
-            <DemoBadge>No real money</DemoBadge>
+          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-semibold">Club information</h3><span className="rounded-full bg-muted px-2.5 py-1 text-xs">Shared</span></div>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Active members</span><strong>{memberCount}</strong></div>
+            <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Upcoming events</span><strong>{events.length}</strong></div>
+            <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Your membership</span><strong>{statusLabel}</strong></div>
+            <p className="border-t pt-3 text-xs text-muted-foreground">Membership and RSVPs are stored in Supabase. Payments and dues collection are disabled for now.</p>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-center text-sm">
-            <div>
-              <p className="text-xl font-bold">{fmtKES(raised)}</p>
-              <p className="text-muted-foreground">raised</p>
-            </div>
-            <div>
-              <p className="text-xl font-bold">{fmtKES(guild.duesTarget)}</p>
-              <p className="text-muted-foreground">target</p>
-            </div>
-            <div>
-              <p className="text-xl font-bold">{pct}%</p>
-              <p className="text-muted-foreground">funded</p>
-            </div>
-          </div>
-          <div className="mt-3 h-2 rounded-full bg-muted">
-            <div className="h-2 rounded-full bg-brand" style={{ width: `${pct}%` }} />
-          </div>
-          <p className="mt-3 flex items-center gap-2 text-sm">
-            <Wallet className="h-4 w-4 text-accent" /> Your share: {fmtKES(share)} / month across{" "}
-            {guild.members} members
-          </p>
-          <div className="mt-3">
-            <PaystackTopUp />
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Dues are collected through the Paystack checkout. A verified webhook should mark the club ledger paid.
-          </p>
         </Panel>
 
-        {/* Fixtures & events */}
         <Panel className="md:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-display font-semibold">Fixtures & events</h3>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div><h3 className="font-display font-semibold">Fixtures & events</h3><p className="text-xs text-muted-foreground">Shared calendar and member responses</p></div>
+            {canCreateEvents && <Button size="sm" onClick={() => setShowEventForm((value) => !value)}><CalendarDays className="mr-1.5 h-4 w-4" />{showEventForm ? "Close" : "Add event"}</Button>}
           </div>
-          <ul className="grid gap-2 md:grid-cols-2">
-            {list.map((f) => {
-              const days = today ? daysUntilDate(f.date, today) : 0;
-              const going = state.rsvps.includes(f.id);
-              const base = fixtures.find((x) => x.id === f.id)?.rsvpBase ?? 0;
-              return (
-                <li key={f.id} className="rounded-xl border p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-semibold">{f.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {f.venue} · {f.kind}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant={going ? "default" : "outline"}
-                        aria-pressed={going}
-                        onClick={() => rsvp(f.id)}
-                      >
-                        {going ? "Going ✓" : "RSVP"}
-                      </Button>
-                      <a
-                        className="inline-flex items-center rounded-md border px-2 text-xs hover:bg-muted"
-                        href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(f.title)}&location=${encodeURIComponent(`${f.venue}, ${guild.city}`)}&dates=${f.date.replaceAll("-", "")}T${f.time.replace(":", "")}00/${f.date.replaceAll("-", "")}T${f.time.replace(":", "")}00`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Calendar
-                      </a>
-                    </div>
+          {showEventForm && canCreateEvents && (
+            <form className="mb-4 grid gap-3 rounded-xl border p-3 sm:grid-cols-2" onSubmit={publishEvent}>
+              <input className={input} placeholder="Event title" value={draft.title} onChange={(e) => setDraft((v) => ({ ...v, title: e.target.value }))} required />
+              <select className={input} value={draft.kind} onChange={(e) => setDraft((v) => ({ ...v, kind: e.target.value }))}>{["match","tournament","training","meetup","jam"].map((kind) => <option key={kind} value={kind}>{kind}</option>)}</select>
+              <input className={input} placeholder="Venue / pitch" value={draft.venue} onChange={(e) => setDraft((v) => ({ ...v, venue: e.target.value }))} required />
+              <div className="grid grid-cols-2 gap-2"><input className={input} type="date" min={today || undefined} value={draft.event_date} onChange={(e) => setDraft((v) => ({ ...v, event_date: e.target.value }))} required /><input className={input} type="time" value={draft.event_time} onChange={(e) => setDraft((v) => ({ ...v, event_time: e.target.value }))} required /></div>
+              <textarea className={input + " sm:col-span-2"} placeholder="Notes (optional)" rows={2} value={draft.notes} onChange={(e) => setDraft((v) => ({ ...v, notes: e.target.value }))} />
+              <Button type="submit" className="sm:col-span-2" disabled={savingEvent || !draft.title.trim() || !draft.venue.trim() || !draft.event_date || !draft.event_time}>{savingEvent ? "Saving..." : "Publish event"}</Button>
+            </form>
+          )}
+          {data.loading ? <p className="py-4 text-sm text-muted-foreground">Loading shared events...</p> : events.length ? (
+            <ul className="grid gap-2 md:grid-cols-2">
+              {events.map((event) => {
+                const mine = data.myRsvps[event.id];
+                const counts = data.rsvpCounts[event.id] ?? { going: 0, maybe: 0, cant_make_it: 0 };
+                const dateLabel = new Date(event.event_date + "T" + event.event_time + ":00").toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+                return <li key={event.id} className="min-w-0 rounded-xl border p-3">
+                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="break-words font-semibold">{event.title}</p><p className="mt-1 text-xs capitalize text-muted-foreground">{event.kind} · {event.venue}</p></div>
+                    <a className="shrink-0 rounded-lg border px-2 py-1.5 text-xs hover:bg-muted" href={"https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(event.title) + "&location=" + encodeURIComponent(event.venue) + "&dates=" + event.event_date.replaceAll("-", "") + "T" + event.event_time.replace(":", "") + "00/" + event.event_date.replaceAll("-", "") + "T" + event.event_time.replace(":", "") + "00"} target="_blank" rel="noreferrer">Calendar</a>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {today ? whenLabel(days) : f.date} · {f.date} at {f.time} ·{" "}
-                    <span className={today !== null && days <= 3 ? "text-warning" : ""}>
-                      {base + (going ? 1 : 0)} going
-                    </span>
-                  </p>
-                </li>
-              );
-            })}
-            {!list.length && (
-              <li className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                No upcoming events.
-              </li>
-            )}
-          </ul>
-          <p className="mt-2 text-xs text-muted-foreground">
-            RSVPs save on this device only — a shared club calendar needs accounts.
-          </p>
+                  <p className="mt-2 text-xs text-muted-foreground">{dateLabel}</p>
+                  {event.notes && <p className="mt-2 whitespace-pre-wrap text-sm">{event.notes}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2">{(Object.keys(labels) as ClubRsvpStatus[]).map((status) => <Button key={status} size="sm" variant={mine === status ? "default" : "outline"} disabled={!active} onClick={() => void updateRsvp(event.id, status)}>{labels[status]}{mine === status ? " ✓" : ""}</Button>)}</div>
+                  <p className="mt-2 text-xs text-muted-foreground">{counts.going} going · {counts.maybe} maybe · {counts.cant_make_it} can't make it</p>
+                </li>;
+              })}
+            </ul>
+          ) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No upcoming events yet.</p>}
+          {!active && <p className="mt-2 text-xs text-muted-foreground">Join this club and get approved to RSVP.</p>}
         </Panel>
 
-        {/* Club channel */}
         <Panel className="md:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-display font-semibold">Club channel</h3>
-            <DemoBadge>{realtime.authenticated ? "Realtime" : "Sign in to chat"}</DemoBadge>
-          </div>
-          <Channel guildId={guild.id} msgs={msgs} onSend={send} name={passport.name} />
-          <p className="mt-2 text-xs text-muted-foreground">
-            {realtime.authenticated ? "Messages deliver through Supabase Realtime." : "Sign in to deliver messages across devices."}
-          </p>
+          <div className="mb-3 flex items-center justify-between gap-2"><div><h3 className="font-display font-semibold">Club channel</h3><p className="text-xs text-muted-foreground">Messages update across club members</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs">{active ? "Realtime" : "Members only"}</span></div>
+          <Channel guildId={guild.id} msgs={realtime.messages} onSend={send} name={passport.name} disabled={!active} />
+          {realtime.error && <p className="mt-2 text-xs text-destructive">{realtime.error}</p>}
         </Panel>
       </div>
-
     </div>
   );
 }
