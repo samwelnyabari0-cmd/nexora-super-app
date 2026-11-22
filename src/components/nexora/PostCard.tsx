@@ -145,10 +145,10 @@ export function PostCard({ post }: { post: Post }) {
 
   const header = (
     <div className="flex min-w-0 items-center gap-3">
-      <Link to="/profile" search={{ handle: c.handle }} className="shrink-0" aria-label="Open creator profile">
+      <Link to="/profile/$handle" params={{ handle: c.handle }} className="shrink-0" aria-label="Open creator profile">
         <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
       </Link>
-      <Link to="/profile" search={{ handle: c.handle }} className="min-w-0 flex-1">
+      <Link to="/profile/$handle" params={{ handle: c.handle }} className="min-w-0 flex-1">
         <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
           aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
           <span className="truncate">{c.name}</span>
