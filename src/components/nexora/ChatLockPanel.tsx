@@ -102,8 +102,8 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
   }
 
   return (
-    <details className="shrink-0 border-b px-3 py-1">
-      <summary className="cursor-pointer list-none py-1 text-xs font-medium text-muted-foreground">
+    <details className="w-fit max-w-full shrink-0 self-start rounded-lg border px-2 py-0.5">
+      <summary className="cursor-pointer list-none py-0.5 text-xs font-medium text-muted-foreground">
         {lock.configured ? "Privacy settings · chat lock enabled" : "Privacy & encryption settings"}
       </summary>
       <div className="pb-2">
