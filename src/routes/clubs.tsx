@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { MapPin, Send, Trophy, Users, CalendarDays, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, DemoBadge, PageHeader, Panel } from "@/components/nexora/ui";
+import { Avatar, PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { useClubData, type ClubRsvpStatus } from "@/features/clubs/useClubData";
@@ -17,13 +17,13 @@ export const Route = createFileRoute("/clubs")({
       {
         name: "description",
         content:
-          "Group spaces for football clubs, gaming guilds and tech clubs: shared pin, fixtures, dues pool and a club channel. Saved on your device.",
+          "Shared memberships, fixtures, event RSVPs, venue maps and club channels.",
       },
       { property: "og:title", content: "Clubs & Guilds — NEXORA" },
       {
         property: "og:description",
         content:
-          "Fixtures, dues pools and club channels for local football, gaming and tech crews.",
+          "Shared memberships, fixtures, event RSVPs and club channels.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -204,11 +204,13 @@ function Channel({
   msgs,
   onSend,
   name,
+  disabled,
 }: {
   guildId: string;
   msgs: ChatMsg[];
   onSend: (text: string) => void;
   name: string;
+  disabled: boolean;
 }) {
   const [t, setT] = useState("");
   const submit = () => {
@@ -239,10 +241,11 @@ function Channel({
           aria-label="Message the club channel"
           value={t}
           onChange={(e) => setT(e.target.value)}
-          placeholder={`Message ${guildId.toUpperCase()}…`}
+          placeholder={disabled ? "Join the club to send messages" : "Message the club..."}
+          disabled={disabled}
           className={input}
         />
-        <Button type="submit" disabled={!t.trim()} aria-label="Send">
+        <Button type="submit" disabled={disabled || !t.trim()} aria-label="Send">
           <Send className="h-4 w-4" />
         </Button>
       </form>
