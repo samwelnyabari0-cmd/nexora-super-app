@@ -16,7 +16,14 @@ describe("ChatAttachmentTray", () => {
     render(<ChatAttachmentTray actions={actions} />);
     fireEvent.click(screen.getByRole("button", { name: "Open attachment options" }));
 
-    for (const label of ["Gallery", "Document", "Location", "Go Live", "1h live location", "AI Assist"]) {
+    for (const label of [
+      "Gallery",
+      "Document",
+      "Location",
+      "Go Live",
+      "1h live location",
+      "AI Assist",
+    ]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
