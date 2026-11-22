@@ -1,35 +1,32 @@
 import { describe, expect, it } from "vitest";
-import {
-  dueShare,
-  emptyClubs,
-  fixtures,
-  guilds,
-  poolPercent,
-  sanitizeClubs,
-  upcoming,
-  whenLabel,
-} from "./logic";
+import { aggregateClubRsvps, upcoming, whenLabel, type Fixture } from "./logic";
 
 describe("clubs & guilds", () => {
+  it("aggregates shared RSVP counts and the signed-in member's selection", () => {
+    const result = aggregateClubRsvps([
+      { event_id: "e1", user_id: "u1", status: "going" },
+      { event_id: "e1", user_id: "u2", status: "going" },
+      { event_id: "e1", user_id: "u3", status: "maybe" },
+      { event_id: "e2", user_id: "u1", status: "cant_make_it" },
+    ], "u1");
+
+    expect(result.counts.e1).toEqual({ going: 2, maybe: 1, cant_make_it: 0 });
+    expect(result.counts.e2).toEqual({ going: 0, maybe: 0, cant_make_it: 1 });
+    expect(result.myRsvps).toEqual({ e1: "going", e2: "cant_make_it" });
+  });
+
+
   it("shows only upcoming fixtures, soonest first", () => {
+    const fixtures: Fixture[] = [
+      { id: "f1", guildId: "g1", date: "2026-11-04", time: "18:30" },
+      { id: "f2", guildId: "g1", date: "2026-11-08", time: "15:00" },
+      { id: "f3", guildId: "g1", date: "2026-10-25", time: "15:00" },
+      { id: "f4", guildId: "g2", date: "2026-11-05", time: "19:00" },
+    ];
     const g1 = upcoming("g1", fixtures, new Date("2026-11-02T09:00:00"));
     expect(g1.length).toBeGreaterThan(0);
     expect(g1.some((f) => f.date < "2026-11-02")).toBe(false);
     for (let i = 1; i < g1.length; i++) expect(g1[i - 1].date <= g1[i].date).toBe(true);
-  });
-
-  it("splits dues fairly and rounds up", () => {
-    expect(dueShare(9600, 48)).toBe(200);
-    expect(dueShare(100, 3)).toBe(34);
-    expect(dueShare(0, 3)).toBe(0);
-    expect(dueShare(100, 0)).toBe(0);
-  });
-
-  it("clamps pool progress between 0 and 100", () => {
-    expect(poolPercent(0, 100)).toBe(0);
-    expect(poolPercent(50, 100)).toBe(50);
-    expect(poolPercent(150, 100)).toBe(100);
-    expect(poolPercent(10, 0)).toBe(0);
   });
 
   it("labels days until an event", () => {
@@ -38,24 +35,5 @@ describe("clubs & guilds", () => {
     expect(whenLabel(5)).toBe("in 5d");
   });
 
-  it("sanitizes stored state and drops unknown ids", () => {
-    expect(sanitizeClubs(null)).toEqual(emptyClubs);
-    const s = sanitizeClubs({
-      joined: ["g1", "gX"],
-      rsvps: ["f2", "nope"],
-      duesPaid: { g1: 400, gX: 10, g2: -5 },
-      messages: {
-        g1: [
-          { id: "m1", from: "me", text: "hi", at: "10:00" },
-          { bad: true },
-        ],
-        gX: [{ id: "z", from: "me", text: "orphan", at: "" }],
-      },
-    });
-    expect(s.joined).toEqual(["g1"]);
-    expect(s.rsvps).toEqual(["f2"]);
-    expect(s.duesPaid).toEqual({ g1: 400 });
-    expect(s.messages.g1).toHaveLength(1);
-    expect(s.messages.gX).toBeUndefined();
-  });
+
 });

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 type Membership = {
   id: string;
   user_id: string;
-  role: "creator" | "admin" | "member";
+  role: "creator" | "admin" | "moderator" | "member";
   status: "pending" | "active" | "banned";
   created_at: string;
   appointed_by: string | null;
@@ -48,7 +48,8 @@ export function ClubAdminPanel({ clubId }: Props) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [adminUserId, setAdminUserId] = useState("");
+  const [selectedAdminId, setSelectedAdminId] = useState("");
+  const [candidateSearch, setCandidateSearch] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [error, setError] = useState<string | null>(null);
@@ -132,8 +133,8 @@ export function ClubAdminPanel({ clubId }: Props) {
   );
 
   const isCreator = currentMembership?.role === "creator";
-  const isAdmin =
-    isCreator || currentMembership?.role === "admin";
+  const isModerator = currentMembership?.role === "moderator";
+  const isAdmin = isCreator || currentMembership?.role === "admin";
   const isActive = currentMembership?.status === "active";
 
   const filteredMembers = useMemo(() => {
@@ -156,6 +157,13 @@ export function ClubAdminPanel({ clubId }: Props) {
       return matchesSearch && matchesStatus;
     });
   }, [members, profiles, search, statusFilter]);
+
+  const adminCandidates = members.filter((member) => {
+    if (member.status !== "active" || member.role !== "member") return false;
+    const profile = profiles[member.user_id];
+    const term = candidateSearch.trim().toLowerCase();
+    return !term || `${profile?.display_name ?? ""} ${profile?.handle ?? ""}`.toLowerCase().includes(term);
+  });
 
   const getMemberName = (id: string | null) => {
     if (!id) return "System";
@@ -207,69 +215,29 @@ export function ClubAdminPanel({ clubId }: Props) {
       toast.error("Only the active creator can appoint administrators.");
       return;
     }
-
-    const newUserId = adminUserId.trim();
-
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        newUserId
-      )
-    ) {
-      toast.error("Enter a valid Supabase Auth user UUID.");
+    const candidate = members.find((member) => member.user_id === selectedAdminId);
+    if (!candidate || candidate.role !== "member" || candidate.status !== "active") {
+      toast.error("Choose an active club member.");
       return;
     }
-
-    if (newUserId === user.id) {
-      toast.error("You are already the creator.");
+    if (candidate.user_id === user.id) {
+      toast.error("You cannot promote yourself.");
       return;
     }
-
-    const existing = members.find(
-      (member) => member.user_id === newUserId
-    );
 
     setSaving(true);
-
-    let actionError: { message: string } | null = null;
-
-    if (existing) {
-      if (existing.role === "creator") {
-        setSaving(false);
-        toast.error("This user is already a creator.");
-        return;
-      }
-
-      const result = await (
-        supabase.from("club_memberships" as never) as any
-      )
-        .update({ role: "admin", status: "active" })
-        .eq("id", existing.id)
-        .eq("club_id", clubId);
-
-      actionError = result.error;
-    } else {
-      const result = await (
-        supabase.from("club_memberships" as never) as any
-      )
-        .insert({
-          club_id: clubId,
-          user_id: newUserId,
-          role: "admin",
-          status: "active",
-          appointed_by: user.id,
-        });
-
-      actionError = result.error;
-    }
-
+    const { error: actionError } = await (supabase.from("club_memberships" as never) as any)
+      .update({ role: "admin" })
+      .eq("id", candidate.id)
+      .eq("club_id", clubId);
     setSaving(false);
 
     if (actionError) {
       toast.error(actionError.message || "Could not appoint administrator.");
       return;
     }
-
-    setAdminUserId("");
+    setSelectedAdminId("");
+    setCandidateSearch("");
     toast.success("Administrator appointed.");
     await loadMembers();
   };
@@ -302,7 +270,7 @@ export function ClubAdminPanel({ clubId }: Props) {
         </div>
 
         <span className="rounded-full border px-3 py-1 text-xs font-semibold">
-          {isCreator ? "Creator" : isAdmin ? "Administrator" : "Member"}
+          {isCreator ? "Creator" : isAdmin ? "Administrator" : isModerator ? "Moderator" : "Member"}
         </span>
       </div>
 
@@ -324,6 +292,16 @@ export function ClubAdminPanel({ clubId }: Props) {
         </p>
       )}
 
+      <div className="space-y-2 rounded-xl border p-3">
+        <h3 className="text-sm font-semibold">Role permissions</h3>
+        <ul className="space-y-1.5 text-xs text-muted-foreground">
+          <li><strong className="text-foreground">Creator:</strong> full club control, appoint admins and moderators, manage roles and membership.</li>
+          <li><strong className="text-foreground">Admin:</strong> approve, suspend or restore regular members; create fixtures and announcements.</li>
+          <li><strong className="text-foreground">Moderator:</strong> create fixtures, events and announcements; cannot change member roles or ban members.</li>
+          <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to club events.</li>
+        </ul>
+      </div>
+
       {error && (
         <div className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
           {error}
@@ -338,30 +316,43 @@ export function ClubAdminPanel({ clubId }: Props) {
         </div>
       )}
 
-      {/* Administrator appointment */}
+      {/* Searchable administrator picker */}
       {isCreator && isActive && (
         <div className="space-y-3 rounded-xl border p-3">
           <div>
-            <h3 className="font-semibold">Appoint an administrator</h3>
+            <h3 className="font-semibold">Make a member an admin</h3>
             <p className="text-xs text-muted-foreground">
-              Enter the person's Supabase Auth user UUID.
+              Search active club members by name or @handle. Only the creator can appoint admins.
             </p>
           </div>
-
           <input
-            value={adminUserId}
-            onChange={(event) => setAdminUserId(event.target.value)}
-            placeholder="Enter user UUID"
+            value={candidateSearch}
+            onChange={(event) => setCandidateSearch(event.target.value)}
+            placeholder="Search members..."
             className="w-full rounded-lg border bg-background px-3 py-3 text-sm"
           />
-
+          <select
+            value={selectedAdminId}
+            onChange={(event) => setSelectedAdminId(event.target.value)}
+            className="w-full min-w-0 rounded-lg border bg-background px-3 py-3 text-sm"
+          >
+            <option value="">Choose an active member</option>
+            {adminCandidates.map((member) => {
+              const profile = profiles[member.user_id];
+              const label = profile?.display_name || (profile?.handle ? `@${profile.handle}` : "Nexora member");
+              return <option key={member.id} value={member.user_id}>{label}{profile?.handle ? ` · @${profile.handle}` : ""}</option>;
+            })}
+          </select>
           <Button
             onClick={() => void appointAdmin()}
-            disabled={saving || !adminUserId.trim()}
+            disabled={saving || !selectedAdminId}
             className="w-full"
           >
-            {saving ? "Saving..." : "Appoint administrator"}
+            {saving ? "Saving..." : "Make Admin"}
           </Button>
+          {candidateSearch && adminCandidates.length === 0 && (
+            <p className="text-xs text-muted-foreground">No active members match that search.</p>
+          )}
         </div>
       )}
 
@@ -467,7 +458,7 @@ export function ClubAdminPanel({ clubId }: Props) {
                     </span>
                   </div>
 
-                  {isAdmin && isActive && member.role !== "creator" && (
+                  {isAdmin && isActive && member.role !== "creator" && (isCreator || member.role === "member") && (
                     <div className="flex flex-wrap gap-2">
                       {member.status === "pending" && (
                         <Button
@@ -513,22 +504,15 @@ export function ClubAdminPanel({ clubId }: Props) {
                         </Button>
                       )}
 
-                      {isCreator &&
-                        member.role === "member" &&
-                        member.status === "active" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={saving}
-                            onClick={() =>
-                              void updateMembership(member, {
-                                role: "admin",
-                              })
-                            }
-                          >
-                            Promote to admin
-                          </Button>
-                        )}
+                      {isCreator && member.role === "member" && member.status === "active" && (
+                        <>
+                          <Button size="sm" variant="outline" disabled={saving} onClick={() => void updateMembership(member, { role: "admin" })}>Promote to admin</Button>
+                          <Button size="sm" variant="outline" disabled={saving} onClick={() => void updateMembership(member, { role: "moderator" })}>Make moderator</Button>
+                        </>
+                      )}
+                      {isCreator && member.role === "moderator" && (
+                        <Button size="sm" variant="outline" disabled={saving} onClick={() => void updateMembership(member, { role: "member" })}>Remove moderator role</Button>
+                      )}
 
                       {isCreator && member.role === "admin" && (
                         <Button
@@ -572,11 +556,11 @@ export function ClubAdminPanel({ clubId }: Props) {
               {activities.map((activity) => {
                 const details = activity.details ?? {};
                 const eventLabel =
-                  activity.event_type === "membership_created"
-                    ? "Created membership"
-                    : activity.event_type === "membership_deleted"
+                  activity.event_type === "membership_joined" || activity.event_type === "membership_created"
+                    ? "Member joined"
+                    : activity.event_type === "membership_removed" || activity.event_type === "membership_deleted"
                       ? "Removed membership"
-                      : "Updated membership";
+                      : activity.event_type === "membership_role_changed" ? "Role changed" : activity.event_type === "membership_banned" ? "Member banned" : activity.event_type === "membership_restored" ? "Member restored" : "Membership updated";
 
                 return (
                   <div
