@@ -77,8 +77,8 @@ export function DisappearingSettingsControl({ chatKind, chatId }: DisappearingSe
   const selected = OPTIONS.find((option) => option.value === retentionSeconds)?.label ?? "Off";
 
   return (
-    <details className="shrink-0 border-b px-3 py-1">
-      <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-xs font-medium text-muted-foreground">
+    <details className="w-fit max-w-full shrink-0 self-start rounded-lg border px-2 py-0.5">
+      <summary className="flex cursor-pointer list-none items-center gap-2 py-0.5 text-xs font-medium text-muted-foreground">
         <Clock3 className="h-3.5 w-3.5" aria-hidden />
         <span>Expiry · {loading ? "Loading…" : saving ? "Saving…" : selected}</span>
       </summary>
