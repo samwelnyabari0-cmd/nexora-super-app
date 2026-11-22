@@ -126,12 +126,15 @@ export function resolveChatAttachment(
   }
 
   const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : "";
-  const declaredType = file.type.trim().toLowerCase();
+  // Android MediaRecorder and gallery pickers commonly append codec parameters
+  // (for example, audio/webm;codecs=opus). Storage expects the canonical MIME.
+  const declaredType = file.type.trim().toLowerCase().split(";", 1)[0].trim();
   const aliases: Record<string, string> = {
     "image/jpg": "image/jpeg",
     "image/pjpeg": "image/jpeg",
     "audio/mp3": "audio/mpeg",
     "audio/x-m4a": "audio/mp4",
+    "audio/x-wav": "audio/wav",
   };
   const normalizedType = aliases[declaredType] ?? declaredType;
   const contentType =
