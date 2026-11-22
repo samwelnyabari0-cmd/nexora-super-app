@@ -20,6 +20,8 @@ import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
 import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
 import { ConversationDetailsSheet } from "@/components/nexora/ConversationDetailsSheet";
+import { ChatAttachmentTray } from "@/components/nexora/ChatAttachmentTray";
+import { ChatComposer } from "@/components/nexora/ChatComposer";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
@@ -112,7 +114,6 @@ function Messages() {
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [draftExpanded, setDraftExpanded] = useState(false);
   const [shareContentOpen, setShareContentOpen] = useState(false);
   const [startingCall, setStartingCall] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
@@ -1089,6 +1090,7 @@ if (recipient === user.id) {
           chatId={recipient}
           lock={chatLock}
           profileHref={profile?.handle ? `/profile/${profile.handle.replace(/^@+/, "")}` : undefined}
+          trailing={<Button type="button" variant="outline" size="sm" onClick={() => setShareContentOpen(true)}>Share Nexora content</Button>}
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <Button type="button" variant="outline" size="icon" aria-label="Start voice call" disabled={!user?.id || !recipient || startingCall} onClick={() => void startDirectCall("audio")}>
@@ -1295,59 +1297,32 @@ if (recipient === user.id) {
             if (file) setSelectedFile(file);
           }}
         />
-        <div className="flex min-w-0 flex-nowrap gap-2 overflow-x-auto pb-1">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
-            <ImagePlus className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
-            <MapPin className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
-            <Radio className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
-            <span className="text-[10px] font-bold">1h</span>
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
-            <Share2 className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
-            <Sparkles className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
-            {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
-        </div>
-        <div className="flex min-w-0 items-end gap-2">
-          {draftExpanded ? (
-            <textarea
-              autoFocus
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Write a message..."
-              maxLength={2000}
-              rows={3}
-              aria-label="Write a message"
-              className="min-h-20 max-h-40 min-w-0 flex-1 resize-y rounded-xl border bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
+        <ChatComposer
+          value={draft}
+          onValueChange={setDraft}
+          placeholder="Write a message..."
+          disabled={sending || recording}
+          canSend={Boolean(draft.trim() || selectedFile)}
+          sendLabel="Send message"
+          leadingAction={
+            <ChatAttachmentTray
+              disabled={sending || recording}
+              actions={{
+                gallery: () => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); },
+                document: () => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); },
+                location: () => { locationSharing.clearError(); void locationSharing.shareOnce(); },
+                goLive: () => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); },
+                ephemeral: () => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); },
+                aiAssist: () => void suggestSmartReplies(),
+              }}
             />
-          ) : (
-            <input
-              type="text"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Write a message..."
-              maxLength={2000}
-              aria-label="Write a message"
-              className="h-12 min-w-0 flex-1 rounded-xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary"
-            />
-          )}
-          <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" aria-label={draftExpanded ? "Collapse message draft" : "Expand message draft"} onClick={() => setDraftExpanded((value) => !value)}>
-            <span className="text-xs font-semibold">{draftExpanded ? "Less" : "Expand"}</span>
-          </Button>
-          <Button type="submit" size="icon" className="h-12 w-12 shrink-0" aria-label="Send message" disabled={(!draft.trim() && !selectedFile) || sending || recording}>
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
+          }
+          trailingAction={
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+              {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          }
+        />
       </form>
       <ShareContentDialog
         open={shareContentOpen}
