@@ -1,40 +1,33 @@
 import Peer from "peerjs";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Radio,
   Users,
   MapPin,
-  Gift,
   Zap,
   Tv,
   BarChart2,
   MessageSquare,
-  Square,
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, DemoBadge, Panel, Avatar, Chip } from "@/components/nexora/ui";
+import { PageHeader, Panel, Avatar, Chip } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
-import { creators, fmtKES } from "@/features/core/data";
+import { creators } from "@/features/core/data";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
-import { useApp } from "@/features/core/store";
 import {
   seedLive,
   prioritizeLive,
-  tipError,
-  leaderboard,
   vote,
   bus,
   type Poll,
-  type Tip,
   streak,
 } from "@/features/live/logic";
 import { useLocal } from "@/features/live/useLocal";
-
 import { aiChat } from "@/lib/ai.functions";
-import { PaystackTopUp } from "@/components/nexora/PaystackTopUp";
+import { LiveSectionTabs, type LiveSection } from "@/features/live/LiveSectionTabs";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -42,8 +35,7 @@ export const Route = createFileRoute("/live")({
       { title: "LIVE — streams, co-watch & check-ins — NEXORA" },
       {
         name: "description",
-        content:
-          "Discover LIVE creators, go live with your camera, tip, run polls, co-watch and check in with consent.",
+        content: "Watch live creators, host a stream, ask questions, join polls and co-watch.",
       },
       { property: "og:title", content: "NEXORA LIVE" },
       {
@@ -58,16 +50,14 @@ export const Route = createFileRoute("/live")({
 });
 
 type Preset = { name: string; action: string };
-const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
+const input = "w-full min-w-0 rounded-xl border bg-background px-3 py-2 text-sm";
 
 function LivePage() {
-  const { balance, sendMoney } = useApp();
   const { user } = useSession();
   const ranked = useMemo(() => prioritizeLive(creators, seedLive), []);
+  const [section, setSection] = useState<LiveSection>("watch");
   const [watching, setWatching] = useState(seedLive[0].id);
-  const stream = seedLive.find((s) => s.id === watching) ?? seedLive[0];
-  const [tips, setTips] = useLocal<Tip[]>("nx.tips", []);
-  const [tipAmt, setTipAmt] = useState("100");
+  const stream = seedLive.find((item) => item.id === watching) ?? seedLive[0];
   const [pollChoice, setPollChoice] = useState<number | null>(null);
   const [poll, setPoll] = useState<Poll>({
     question: "Which spot next?",
@@ -80,10 +70,10 @@ function LivePage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [asking, setAsking] = useState(false);
-  const [presets, setPresets] = useLocal<Preset[]>("nx.actPresets", []);
   const [checkins, setCheckins] = useState<{ place: string; day: string }[]>([]);
   const [consent, setConsent] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
+
   useEffect(() => {
     if (!user) return;
     void (supabase as any)
@@ -98,23 +88,16 @@ function LivePage() {
           data: Array<{ venue: string; checked_in_at: string }> | null;
           error: unknown;
         }) => {
-          if (!error && data)
-            setCheckins(
-              data.map((row) => ({ place: row.venue, day: row.checked_in_at.slice(0, 10) })),
-            );
+          if (!error && data) {
+            setCheckins(data.map((row) => ({
+              place: row.venue,
+              day: row.checked_in_at.slice(0, 10),
+            })));
+          }
         },
       );
   }, [user]);
 
-  function tip() {
-    const amt = Number(tipAmt);
-    const err = tipError(amt, balance);
-    if (err) {
-      toast.error(err);
-      return;
-    }
-    toast.error("Tips require a verified wallet balance. Open the Paystack checkout above first.");
-  }
   async function checkIn() {
     const place = stream.place;
     if (!consent || !place) return;
@@ -131,262 +114,237 @@ function LivePage() {
       toast.error("Check-in could not be saved.");
       return;
     }
-    setCheckins((c) => [{ place, day: today }, ...c]);
+    setCheckins((current) => [{ place, day: today }, ...current]);
     bus.emit("checkin:made", { place });
-    toast.success(`Checked in at ${stream.place}`);
+    toast.success(`Checked in at ${place}`);
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="LIVE"
-        subtitle="Live discovery, Go LIVE studio, tips, polls and co-watch"
-        action={<DemoBadge>Provider-backed controls</DemoBadge>}
+        subtitle="Watch creators, host a stream, or join a room"
       />
-      <PaystackTopUp />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-rose-500" />
+          LIVE PREVIEW
+        </span>
+        <span className="text-xs text-muted-foreground">Low-clutter live studio</span>
+      </div>
+      <LiveSectionTabs active={section} onChange={setSection} />
 
-      <section aria-label="LIVE creators" className="flex gap-4 overflow-x-auto pb-2">
-        {ranked.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => c.live && setWatching(c.live.id)}
-            className="flex w-20 shrink-0 flex-col items-center gap-1 text-xs"
-            aria-label={c.live ? `${c.name} is LIVE` : c.name}
-          >
-            <span className={c.live ? "rounded-full p-0.5 bg-destructive" : "rounded-full p-0.5"}>
-              <Avatar name={c.name} hue={c.hue} size={56} />
-            </span>
-            {c.live && (
-              <span className="-mt-3 rounded bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                LIVE
-              </span>
-            )}
-            <span className="truncate w-full text-center">{c.name.split(" ")[0]}</span>
-          </button>
-        ))}
-      </section>
+      {section === "watch" && (
+        <section aria-label="Watch live creators" className="space-y-3">
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {ranked.map((creator) => (
+              <button
+                key={creator.id}
+                type="button"
+                onClick={() => creator.live && setWatching(creator.live.id)}
+                disabled={!creator.live}
+                aria-label={creator.live ? `Watch ${creator.name}` : creator.name}
+                aria-pressed={creator.live?.id === watching}
+                className="flex w-16 shrink-0 flex-col items-center gap-1 text-xs disabled:opacity-50"
+              >
+                <span className={creator.live ? "rounded-full p-0.5 ring-2 ring-rose-500" : "rounded-full p-0.5"}>
+                  <Avatar name={creator.name} hue={creator.hue} size={48} />
+                </span>
+                <span className="w-full truncate text-center">{creator.name.split(" ")[0]}</span>
+              </button>
+            ))}
+          </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Panel className="space-y-3">
-          <div className="map-grid relative grid aspect-video place-items-center overflow-hidden rounded-2xl border bg-muted">
-            <span className="absolute left-3 top-3 flex items-center gap-1 rounded bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
-              <Radio className="h-3 w-3" />
-              LIVE · demo
-            </span>
-            <span className="absolute right-3 top-3 flex items-center gap-1 rounded bg-background/80 px-2 py-0.5 text-xs">
-              <Users className="h-3 w-3" />
-              {stream.viewers.toLocaleString()}
-            </span>
-            <p className="px-6 text-center font-display text-xl font-semibold">{stream.title}</p>
-            <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-xl bg-background/85 p-2">
-              <Gift className="h-4 w-4 text-accent" aria-hidden />
-              <label className="sr-only" htmlFor="tip">
-                Tip amount (KES)
-              </label>
-              <input
-                id="tip"
-                inputMode="numeric"
-                value={tipAmt}
-                onChange={(e) => setTipAmt(e.target.value)}
-                className="w-24 rounded-lg border bg-background px-2 py-1 text-sm"
-              />
-              <Button size="sm" onClick={tip}>
-                Tip {stream.creator.split(" ")[0]}
-              </Button>
-              <span className="ml-auto text-[11px] text-muted-foreground">
-                Demo wallet · {fmtKES(balance)}
+          <Panel className="space-y-3 p-3 sm:p-4">
+            <div className="map-grid relative grid aspect-video place-items-center overflow-hidden rounded-xl border bg-muted">
+              <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-1 text-[10px] font-bold text-white">
+                <Radio className="h-3 w-3" /> LIVE PREVIEW
               </span>
+              <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-1 text-xs">
+                <Users className="h-3 w-3" /> {stream.viewers.toLocaleString()}
+              </span>
+              <p className="px-6 text-center font-display text-lg font-semibold sm:text-xl">{stream.title}</p>
             </div>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {stream.creator}
-            {stream.place ? ` · ${stream.place}` : ""}
-            {stream.sponsored ? " · Sponsored" : ""}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {seedLive.map((s) => (
-              <Chip key={s.id} active={s.id === watching} onClick={() => setWatching(s.id)}>
-                {s.creator.split(" ")[0]}
-              </Chip>
-            ))}
-          </div>
-        </Panel>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{stream.creator}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {stream.place || "Nexora LIVE"}{stream.sponsored ? " · Sponsored" : ""}
+                </p>
+              </div>
+              <span className="rounded-full border px-2.5 py-1 text-[11px] text-muted-foreground">Preview stream</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {seedLive.map((item) => (
+                <Chip key={item.id} active={item.id === watching} onClick={() => setWatching(item.id)}>
+                  {item.creator.split(" ")[0]}
+                </Chip>
+              ))}
+            </div>
+          </Panel>
 
-        <Panel className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <BarChart2 className="h-4 w-4" />
-            Poll
-          </h2>
-          <p className="text-sm">{poll.question}</p>
-          {poll.options.map((o, i) => (
-            <Button
-              key={o.label}
-              variant="outline"
-              className="w-full justify-between"
-              onClick={() => { if (pollChoice === null) { setPollChoice(i); setPoll(vote(poll, i)); } }}
-              disabled={pollChoice !== null}
-            >
-              {o.label}
-              <span>{o.votes}</span>
+          <Panel className="space-y-3 p-3 sm:p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
+                  <BarChart2 className="h-4 w-4" /> Poll
+                </h2>
+                <p className="text-sm">{poll.question}</p>
+                {poll.options.map((option, index) => (
+                  <Button
+                    key={option.label}
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => {
+                      if (pollChoice === null) {
+                        setPollChoice(index);
+                        setPoll((current) => vote(current, index));
+                      }
+                    }}
+                    disabled={pollChoice !== null}
+                  >
+                    {option.label}<span>{option.votes}</span>
+                  </Button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
+                  <MessageSquare className="h-4 w-4" /> Q&amp;A
+                </h2>
+                <form
+                  className="flex min-w-0 gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (event.nativeEvent.isComposing || !q.trim() || asking) return;
+                    const question = q.trim();
+                    if (!user) {
+                      toast.error("Sign in to ask the AI co-host questions.");
+                      return;
+                    }
+                    setQuestions((current) => [question, ...current]);
+                    setQ("");
+                    setAsking(true);
+                    void aiChat({
+                      data: {
+                        messages: [{
+                          role: "user",
+                          content: `Live stream: ${stream.title}. Host: ${stream.creator}. Answer this audience question concisely: ${question}`,
+                        }],
+                      },
+                    })
+                      .then((result) => {
+                        if (result.error) toast.error(result.error);
+                        else setAnswers((current) => ({ ...current, [question]: result.text }));
+                      })
+                      .catch(() => toast.error("The AI co-host could not answer right now."))
+                      .finally(() => setAsking(false));
+                  }}
+                >
+                  <input
+                    aria-label="Ask a question"
+                    className={input}
+                    value={q}
+                    onChange={(event) => setQ(event.target.value)}
+                    placeholder="Ask the host"
+                  />
+                  <Button type="submit" disabled={asking}>Ask</Button>
+                </form>
+                <ul className="max-h-36 space-y-1 overflow-y-auto text-sm">
+                  {questions.map((question, index) => (
+                    <li key={`${question}-${index}`} className="space-y-1 rounded-lg bg-muted px-2 py-1.5">
+                      <p>{question}</p>
+                      {answers[question] && <p className="text-primary">AI co-host: {answers[question]}</p>}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-muted-foreground">
+                  {asking ? "AI co-host is answering…" : user ? "AI co-host ready" : "Sign in to ask questions"}
+                </p>
+              </div>
+            </div>
+          </Panel>
+        </section>
+      )}
+
+      {section === "studio" && (
+        <section aria-label="Go Live and Studio" className="grid min-w-0 gap-3 lg:grid-cols-2">
+          <GoLive />
+          <ActPresets />
+        </section>
+      )}
+
+      {section === "map" && (
+        <section aria-label="Map and co-watch" className="grid min-w-0 gap-3 lg:grid-cols-2">
+          <Panel className="min-w-0 space-y-3 p-3 sm:p-4">
+            <h2 className="flex items-center gap-2 font-semibold">
+              <MapPin className="h-4 w-4" /> Live map
+            </h2>
+            <iframe
+              title="Live Google map"
+              src={`https://www.google.com/maps?q=${encodeURIComponent(stream.place || "Nairobi, Kenya")}&output=embed`}
+              className="h-48 w-full rounded-xl border"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={consent}
+                onChange={(event) => setConsent(event.target.checked)}
+              />
+              <span>Save venue check-ins to my Pulse Passport</span>
+            </label>
+            <Button className="w-full" disabled={!consent || !stream.place} onClick={checkIn}>
+              <ShieldCheck className="h-4 w-4" />
+              Check in at {stream.place ?? "—"}
             </Button>
-          ))}
-          <h2 className="flex items-center gap-2 pt-2 font-semibold">
-            <MessageSquare className="h-4 w-4" />
-            Q&amp;A
-          </h2>
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (e.nativeEvent.isComposing || e.keyCode === 229 || !q.trim() || asking) return;
-              const question = q.trim();
-              if (!user) {
-                toast.error("Sign in to ask the AI co-host questions.");
-                return;
-              }
-              setQuestions((x) => [question, ...x]);
-              setQ("");
-              setAsking(true);
-              void aiChat({
-                data: {
-                  messages: [
-                    {
-                      role: "user",
-                      content: `Live stream: ${stream.title}. Host: ${stream.creator}. Answer this audience question concisely: ${question}`,
-                    },
-                  ],
-                },
-              })
-                .then((result) => {
-                  if (result.error) toast.error(result.error);
-                  else setAnswers((current) => ({ ...current, [question]: result.text }));
-                })
-                .catch(() => toast.error("The AI co-host could not answer right now."))
-                .finally(() => setAsking(false));
-            }}
-          >
-            <input
-              aria-label="Ask a question"
-              className={input}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Ask the host"
-            />
-            <Button type="submit">Ask</Button>
-          </form>
-          <ul className="space-y-1 text-sm">
-            {questions.map((x, i) => (
-              <li key={`${x}-${i}`} className="space-y-1 rounded-lg bg-muted px-2 py-1">
-                <p>{x}</p>
-                {answers[x] && <p className="text-primary">AI co-host: {answers[x]}</p>}
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            {asking
-              ? "AI co-host is answering…"
-              : user
-                ? "AI co-host ready · OpenAI via Vercel AI Gateway"
-                : "Sign in to connect the AI co-host."}
-          </p>
-        </Panel>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <GoLive />
-        <Panel className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <MapPin className="h-4 w-4" />
-            Live map
-          </h2>
-          <iframe
-            title="Live Google map"
-            src={`https://www.google.com/maps?q=${encodeURIComponent(stream.place || "Nairobi, Kenya")}&output=embed`}
-            className="h-48 w-full rounded-2xl border"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-            />
-            I agree to save venue check-ins to my Pulse Passport
-          </label>
-          <Button disabled={!consent || !stream.place} onClick={checkIn}>
-            <ShieldCheck className="h-4 w-4" />
-            Check in at {stream.place ?? "—"}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {checkins.length} check-ins · City Explorer streak{" "}
-            {streak(
-              checkins.map((c) => c.day),
-              today,
-            )}{" "}
-            day(s). No location is read from your device.
-          </p>
-        </Panel>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <CoWatch />
-        <Panel className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <Zap className="h-4 w-4" />⚡ Act presets
-          </h2>
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              const name = String(f.get("n") || "").trim();
-              if (!name) return;
-              setPresets((p) => [...p, { name, action: String(f.get("a")) }]);
-              bus.emit("act:preset", { name });
-              e.currentTarget.reset();
-            }}
-          >
-            <input
-              name="n"
-              aria-label="Preset name"
-              className={input}
-              placeholder="e.g. Save venue + invite crew"
-            />
-            <select
-              name="a"
-              aria-label="Action"
-              className="rounded-xl border bg-background px-2 text-sm"
-            >
-              <option>event</option>
-              <option>place</option>
-              <option>chat</option>
-              <option>checkout</option>
-            </select>
-            <Button type="submit">Save</Button>
-          </form>
-          <ul className="space-y-1 text-sm">
-            {presets.map((p, i) => (
-              <li key={i} className="flex justify-between rounded-lg bg-muted px-2 py-1">
-                {p.name}
-                <span className="text-muted-foreground">{p.action}</span>
-              </li>
-            ))}
-          </ul>
-          <h3 className="pt-2 font-semibold">Verified tips leaderboard</h3>
-          <ol className="text-sm">
-            {leaderboard(tips).map((l) => (
-              <li key={l.name}>
-                {l.name} — {fmtKES(l.total)}
-              </li>
-            ))}
-          </ol>
-          <p className="text-xs text-muted-foreground">
-            Tips appear here only after the payment provider verifies the wallet transaction.
-          </p>
-        </Panel>
-      </div>
+            <p className="text-xs text-muted-foreground">
+              {checkins.length} check-ins · Explorer streak {streak(checkins.map((item) => item.day), today)} day(s)
+            </p>
+            <p className="text-[11px] text-muted-foreground">No device location is accessed.</p>
+          </Panel>
+          <CoWatch />
+        </section>
+      )}
     </div>
+  );
+}
+
+function ActPresets() {
+  const [presets, setPresets] = useLocal<Preset[]>("nx.actPresets", []);
+  return (
+    <Panel className="min-w-0 space-y-3 p-3 sm:p-4">
+      <h2 className="flex items-center gap-2 font-semibold">
+        <Zap className="h-4 w-4" /> Act presets
+      </h2>
+      <form
+        className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          const name = String(form.get("n") || "").trim();
+          if (!name) return;
+          setPresets((current) => [...current, { name, action: String(form.get("a")) }]);
+          bus.emit("act:preset", { name });
+          event.currentTarget.reset();
+        }}
+      >
+        <input name="n" aria-label="Preset name" className={input} placeholder="Preset label" maxLength={48} />
+        <select name="a" aria-label="Action" className="max-w-28 rounded-xl border bg-background px-2 text-xs sm:text-sm">
+          <option>event</option><option>place</option><option>chat</option><option>checkout</option>
+        </select>
+        <Button type="submit">Save</Button>
+      </form>
+      <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+        {presets.map((preset, index) => (
+          <li key={`${preset.name}-${index}`} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-muted px-2 py-1.5">
+            <span className="min-w-0 truncate">{preset.name}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{preset.action}</span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }
 
