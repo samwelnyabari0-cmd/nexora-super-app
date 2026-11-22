@@ -652,7 +652,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log} className="min-h-[55dvh] min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
+      <div ref={log} className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
@@ -794,7 +794,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           </div>
         </div>
       )}
-      <form onSubmit={sendMessage} className="shrink-0 space-y-2 border-t pt-3 pb-[env(safe-area-inset-bottom)]">
+      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
         <input
           ref={fileInput}
           type="file"
@@ -803,7 +803,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           aria-label="Choose a group photo, video, audio, or document"
           onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
         />
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
+        <div className="grid grid-cols-4 gap-2 pb-1 sm:grid-cols-7">
           <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
             <ImagePlus className="h-4 w-4" />
           </Button>
