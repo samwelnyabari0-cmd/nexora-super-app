@@ -14,6 +14,7 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
   const [busy, setBusy] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmRemoveLock, setConfirmRemoveLock] = useState(false);
   const [formError, setFormError] = useState("");
 
   async function createLock(event: FormEvent<HTMLFormElement>) {
@@ -107,9 +108,24 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
       </summary>
       <div className="pb-2">
         {lock.configured ? (
-          <Button type="button" size="sm" variant="outline" onClick={lock.lockNow}>
-            <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Lock this chat
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={lock.lockNow}>
+              <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Lock this chat
+            </Button>
+            {!confirmRemoveLock ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmRemoveLock(true)}>
+                Remove lock setup
+              </Button>
+            ) : (
+              <div className="w-full space-y-2 rounded-xl border p-3 text-xs">
+                <p>Remove this device's lock? Your conversation and messages will stay unchanged.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setConfirmRemoveLock(false)}>Keep lock</Button>
+                  <Button type="button" size="sm" variant="destructive" onClick={() => { lock.reset(); setConfirmRemoveLock(false); }}>Remove lock</Button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : !showSetup ? (
           <Button type="button" size="sm" variant="outline" onClick={() => setShowSetup(true)}>
             <LockKeyhole className="mr-2 h-3.5 w-3.5" /> Set device lock
