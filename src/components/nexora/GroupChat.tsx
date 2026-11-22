@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2, Sparkles } from "lucide-react";
+import { ArrowLeft, X, Mic, Square, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { GroupMembersDialog } from "@/components/nexora/GroupMembersDialog";
@@ -16,7 +16,9 @@ import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
 import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
 import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
-import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
+import { ConversationDetailsSheet } from "@/components/nexora/ConversationDetailsSheet";
+import { ChatAttachmentTray } from "@/components/nexora/ChatAttachmentTray";
+import { ChatComposer } from "@/components/nexora/NexoraChatComposer";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
@@ -141,7 +143,6 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
-  const [draftExpanded, setDraftExpanded] = useState(false);
   const [shareContentOpen, setShareContentOpen] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [smartRepliesLoading, setSmartRepliesLoading] = useState(false);
@@ -624,34 +625,29 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-12rem)] min-h-[24rem] max-h-[calc(100dvh-12rem)] max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4">
-      <header className="flex items-center gap-3 border-b pb-4">
+    <main className="mx-auto flex h-[100dvh] min-h-0 min-w-0 max-w-3xl flex-col gap-2 overflow-hidden px-3 pb-0 pt-2 sm:px-4">
+      <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/95 py-2 backdrop-blur">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-lg font-bold">
-            {group.name.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-semibold">{group.name}</h1>
-          <p className="truncate text-xs text-muted-foreground">
-            {remoteActivity.length > 0
-              ? `${profiles[remoteActivity[0].user_id]?.display_name || "A member"} ${remoteActivity[0].activity === "recording" ? "is recording audio…" : "is typing…"}`
-              : group.description || "Group conversation"}
-          </p>
-        </div>
+        <ConversationDetailsSheet
+          title={group.name}
+          subtitle={remoteActivity.length > 0
+            ? `${profiles[remoteActivity[0].user_id]?.display_name || "A member"} ${remoteActivity[0].activity === "recording" ? "is recording audio…" : "is typing…"}`
+            : group.description || "Group conversation"}
+          avatarUrl={avatarUrl}
+          initials={group.name.charAt(0).toUpperCase()}
+          chatKind="group"
+          chatId={groupId}
+          lock={chatLock}
+          trailing={<Button type="button" variant="outline" size="sm" onClick={() => setShareContentOpen(true)}>Share Nexora content</Button>}
+        />
         <GroupMembersDialog
           groupId={groupId}
           userId={userId}
           onLeave={onBack}
         />
       </header>
-      <ChatLockPanel lock={chatLock} />
-      <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
       <div ref={log} className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
@@ -670,7 +666,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                 </div>
               )}
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`flex max-w-[88%] gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+              <div className={`mx-3 flex max-w-[82%] min-w-0 gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
                   sender?.handle ? (
                     <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} aria-label={`Open @${sender.handle}'s profile`} className="mt-5 shrink-0">
@@ -690,7 +686,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     </span>
                   )
                 )}
-                <div className={`min-w-0 rounded-2xl px-4 py-2 ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                <div className={`min-w-0 max-w-full break-words [overflow-wrap:anywhere] rounded-2xl px-3 py-2.5 ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {message.deleted_at ? (
                     <p className="py-2 text-sm italic opacity-75">This message was deleted</p>
                   ) : (
@@ -809,7 +805,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           </div>
         </div>
       )}
-      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]">
         <input
           ref={fileInput}
           type="file"
@@ -821,59 +817,32 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
             setAttachment(event.target.files?.[0] ?? null);
           }}
         />
-        <div className="flex min-w-0 flex-nowrap gap-2 overflow-x-auto pb-1">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending || recording} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
-            <ImagePlus className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || recording || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
-            <MapPin className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 15 minutes" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
-            <Radio className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 1 hour" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
-            <span className="text-[10px] font-bold">1h</span>
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share Nexora content" disabled={sending || recording} onClick={() => setShareContentOpen(true)}>
-            <Share2 className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Suggest AI replies" disabled={sending || recording || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
-            <Sparkles className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
-            {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
-        </div>
-        <div className="flex min-w-0 items-end gap-2">
-          {draftExpanded ? (
-            <textarea
-              autoFocus
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              maxLength={2000}
-              rows={3}
-              placeholder="Message the group..."
-              aria-label="Message the group"
-              className="min-h-20 max-h-40 min-w-0 flex-1 resize-y rounded-xl border bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
+        <NexoraChatComposer
+          value={draft}
+          onValueChange={setDraft}
+          placeholder="Message the group..."
+          disabled={sending || recording}
+          canSend={Boolean(draft.trim() || attachment)}
+          sendLabel="Send group message"
+          leadingAction={
+            <ChatAttachmentTray
+              disabled={sending || recording}
+              actions={{
+                gallery: () => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); },
+                document: () => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); },
+                location: () => { locationSharing.clearError(); void locationSharing.shareOnce(); },
+                goLive: () => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); },
+                ephemeral: () => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); },
+                aiAssist: () => void suggestSmartReplies(),
+              }}
             />
-          ) : (
-            <input
-              type="text"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              maxLength={2000}
-              placeholder="Message the group..."
-              aria-label="Message the group"
-              className="h-12 min-w-0 flex-1 rounded-xl border bg-background px-4 text-base outline-none focus:ring-2 focus:ring-primary"
-            />
-          )}
-          <Button type="button" variant="outline" size="icon" className="h-12 w-12 shrink-0" aria-label={draftExpanded ? "Collapse message draft" : "Expand message draft"} onClick={() => setDraftExpanded((value) => !value)}>
-            <span className="text-xs font-semibold">{draftExpanded ? "Less" : "Expand"}</span>
-          </Button>
-          <Button type="submit" size="icon" className="h-12 w-12 shrink-0" aria-label="Send group message" disabled={(!draft.trim() && !attachment) || sending || recording}>
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
+          }
+          trailingAction={
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+              {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+          }
+        />
       </form>
       <ShareContentDialog
         open={shareContentOpen}
