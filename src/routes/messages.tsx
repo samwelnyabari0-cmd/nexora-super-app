@@ -1303,12 +1303,13 @@ if (recipient === user.id) {
           className="hidden"
           aria-label="Choose a photo, video, audio, or document"
           onChange={(event) => {
+            chatLock.endAttachmentPicker();
             const file = event.target.files?.[0] || null;
             if (file) setSelectedFile(file);
           }}
         />
         <div className="grid grid-cols-4 gap-2 pb-1 sm:grid-cols-7">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending} onClick={() => fileInput.current?.click()}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
             <ImagePlus className="h-4 w-4" />
           </Button>
           <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
