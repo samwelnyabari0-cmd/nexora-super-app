@@ -801,10 +801,13 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
           aria-label="Choose a group photo, video, audio, or document"
-          onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
+          onChange={(event) => {
+            chatLock.endAttachmentPicker();
+            setAttachment(event.target.files?.[0] ?? null);
+          }}
         />
         <div className="grid grid-cols-4 gap-2 pb-1 sm:grid-cols-7">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending || recording} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
             <ImagePlus className="h-4 w-4" />
           </Button>
           <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || recording || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
