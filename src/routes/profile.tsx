@@ -112,6 +112,7 @@ function Profile() {
   >([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [connectionsError, setConnectionsError] = useState<string | null>(null);
+  const [connectionsReload, setConnectionsReload] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
@@ -148,7 +149,7 @@ function Profile() {
       }
     })();
     return () => { active = false; };
-  }, [socialTab, userId]);
+  }, [socialTab, userId, connectionsReload]);
 
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
@@ -447,7 +448,7 @@ useEffect(() => {
               <div className="space-y-3 py-8 text-center">
                 <p className="text-sm text-destructive" role="alert">Could not load your {socialTab} accounts.</p>
                 <p className="text-xs text-muted-foreground">{connectionsError}</p>
-                <Button type="button" size="sm" variant="outline" onClick={() => setSocialTab((tab) => tab)}>Try again</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setConnectionsReload((value) => value + 1)}>Try again</Button>
               </div>
             ) : connections.map((connection) => (
               <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
