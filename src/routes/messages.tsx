@@ -83,6 +83,7 @@ export const Route = createFileRoute("/messages")({
     recipient:
       typeof search.recipient === "string" ? search.recipient : "",
     group: typeof search.group === "string" ? search.group : "",
+    prompt: typeof search.prompt === "string" ? search.prompt.slice(0, 500) : "",
     returnTo:
       typeof search.returnTo === "string" &&
       search.returnTo.startsWith("/profile")
@@ -97,7 +98,7 @@ export const Route = createFileRoute("/messages")({
 
 function Messages() {
   const navigate = useNavigate();
-  const { recipient, group, returnTo } = Route.useSearch();
+  const { recipient, group, returnTo, prompt } = Route.useSearch();
   const { user, ready } = useSession();
   const chatLock = useChatLock(user?.id ?? "", "direct", recipient);
 
@@ -112,12 +113,16 @@ function Messages() {
   const [inboxSearch, setInboxSearch] = useState("");
   const [inboxFilter, setInboxFilter] = useState<"all" | "unread" | "groups">("all");
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(prompt);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [shareContentOpen, setShareContentOpen] = useState(false);
   const [startingCall, setStartingCall] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [smartRepliesLoading, setSmartRepliesLoading] = useState(false);
+
+  useEffect(() => {
+    if (prompt) setDraft(prompt);
+  }, [recipient, prompt]);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     const timers = messages.flatMap((message) => {

@@ -66,6 +66,7 @@ const mobileNav = ["/", "/explore", "/reels", "/create", "/videos", "/messages",
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const isPublicProfile = path.startsWith("/profile/");
   const search = useRouterState({ select: (s) => s.location.search });
   const activeConversation = path === "/messages" && Boolean(
     (search as Record<string, unknown>).recipient || (search as Record<string, unknown>).group
@@ -230,7 +231,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {!activeConversation && (
+      {!activeConversation && !isPublicProfile && (
       <>
       {/* Top bar */}
       <header className="glass sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 md:px-6">
@@ -321,7 +322,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </>
       )}
 
-      <main className={cn(activeConversation ? "w-full max-w-none p-0" : "mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12", !activeConversation && keyboardOpen && "pb-5")}>{children}</main>
+      <main className={cn(activeConversation ? "w-full max-w-none p-0" : isPublicProfile ? "mx-auto w-full max-w-3xl px-0 pb-28 pt-0 md:px-0 md:pb-12" : "mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12", !activeConversation && keyboardOpen && "pb-5")}>{children}</main>
 
       {/* Mobile bottom nav */}
       {!activeConversation && <nav
