@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
+import { recordUserMediaPostView } from "@/lib/post-views";
 
 export const Route = createFileRoute("/reels")({
   head: () => ({ meta: [{ title: "Reels — NEXORA" }, { name: "description", content: "Vertical short-form videos on NEXORA." }] }),
@@ -57,6 +58,10 @@ function Reels() {
       videoRefs.current.forEach((video) => video.pause());
     };
   }, [itemIdsKey]);
+
+  useEffect(() => {
+    if (activeReelId && user?.id) void recordUserMediaPostView(activeReelId);
+  }, [activeReelId, user?.id]);
 
   useEffect(() => {
     if (!activeReelId) return;
