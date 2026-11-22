@@ -222,9 +222,11 @@ function Channel({
         className="max-h-64 space-y-2 overflow-y-auto"
         aria-label={`${guildId} channel messages`}
       >
-        {msgs.map((m) => (
+        {msgs.length ? msgs.map((m) => (
           <Bubble key={m.id} m={m} name={name} />
-        ))}
+        )) : (
+          <p className="py-4 text-center text-sm text-muted-foreground">No messages yet. Start the conversation.</p>
+        )}
       </div>
       <form
         className="mt-3 flex gap-2"
@@ -264,8 +266,14 @@ function Bubble({ m, name }: { m: ChatMsg; name: string }) {
           mine ? "bg-brand text-primary-foreground" : "bg-muted"
         }`}
       >
-        <p>{m.text}</p>
-        <p className={`text-right text-[11px] ${mine ? "opacity-75" : "text-muted-foreground"}`}>
+        {!mine && (
+          <p className="mb-1 text-[11px] font-semibold">
+            {m.senderName || "Club member"}
+            {m.role && m.role !== "member" && <span className="ml-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] capitalize">{m.role}</span>}
+          </p>
+        )}
+        <p className="break-words">{m.text}</p>
+        <p className={`mt-1 text-right text-[11px] ${mine ? "opacity-75" : "text-muted-foreground"}`}>
           {m.at}
         </p>
       </div>
