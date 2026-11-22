@@ -92,6 +92,9 @@ function PublicProfile() {
   const [connections, setConnections] = useState<
     Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>
   >([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
+  const [connectionsError, setConnectionsError] = useState("");
+  const [connectionsReload, setConnectionsReload] = useState(0);
 
   const owner = Boolean(user && profile && user.id === profile.id);
   const privateProfile = Boolean(
@@ -238,33 +241,44 @@ const row = profileRows?.[0] ?? null;
     let cancelled = false;
     if (!profile || !socialTab || !owner) {
       setConnections([]);
+      setConnectionsError("");
+      setConnectionsLoading(false);
       return;
     }
 
     void (async () => {
-      const column = socialTab === "followers" ? "follower_id" : "following_id";
-      const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
-      const { data: rows } = await (supabase as any)
-        .from("follows")
-        .select(column)
-        .eq(relationColumn, profile.id)
-        .limit(100);
-      const ids = (rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean);
-      if (!ids.length) {
-        if (!cancelled) setConnections([]);
-        return;
+      setConnectionsLoading(true);
+      setConnectionsError("");
+      setConnections([]);
+      try {
+        const column = socialTab === "followers" ? "follower_id" : "following_id";
+        const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
+        const { data: rows, error: followsError } = await (supabase as any)
+          .from("follows")
+          .select(column)
+          .eq(relationColumn, profile.id)
+          .limit(100);
+        if (followsError) throw followsError;
+        const ids = [...new Set((rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean))];
+        if (!ids.length) return;
+
+        // Reuse the approved identity RPC; direct profiles SELECT is restricted by profile RLS.
+        const { data, error } = await (supabase as any)
+          .rpc("get_post_author_profiles", { target_user_ids: ids });
+        if (error) throw error;
+        if (!cancelled) setConnections(data ?? []);
+      } catch (reason) {
+        console.error(`Could not load profile ${socialTab}:`, reason);
+        if (!cancelled) setConnectionsError(reason instanceof Error ? reason.message : "Could not load accounts.");
+      } finally {
+        if (!cancelled) setConnectionsLoading(false);
       }
-      const { data } = await (supabase as any)
-        .from("profiles")
-        .select("id, display_name, handle, avatar_url")
-        .in("id", ids);
-      if (!cancelled) setConnections(data ?? []);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [profile?.id, socialTab, owner]);
+  }, [profile?.id, socialTab, owner, connectionsReload]);
 
   const visiblePosts = useMemo(() => {
     switch (tab) {
@@ -350,7 +364,7 @@ const row = profileRows?.[0] ?? null;
           <span className="h-8 border-r border-slate-800" />
           {owner ? <Link to="/saved" className="min-w-0 flex-1 text-xs"><Bookmark className="mx-auto mb-1 h-4 w-4" />Saved</Link> : <span className="min-w-0 flex-1 text-xs text-slate-500"><Bookmark className="mx-auto mb-1 h-4 w-4" />Saved</span>}
         </div>
-        {socialTab && <div className="mt-3 border-t border-slate-800 pt-3"><div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold">{socialTab === "followers" ? "Followers" : "Following"}</h3><button type="button" className="text-xs text-slate-400" onClick={() => setSocialTab(null)}>Close</button></div>{owner ? connections.length ? <ul className="space-y-2">{connections.map((person) => <li key={person.id} className="flex items-center gap-2 text-sm">{person.handle ? <Link to="/profile/$handle" params={{ handle: person.handle.replace(/^@+/, "") }} className="flex min-w-0 items-center gap-2 rounded-lg py-1 hover:bg-slate-800/70"><span className="shrink-0">{person.avatar_url ? <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Avatar name={person.display_name ?? person.handle ?? "Member"} size={32} />}</span><span className="min-w-0 truncate font-medium">{person.display_name ?? "NEXORA member"}</span><span className="shrink-0 text-xs text-slate-400">@{person.handle}</span></Link> : <><span>{person.display_name ?? "NEXORA member"}</span><span className="text-xs text-slate-400">@{person.handle}</span></>}</li>)}</ul> : <p className="text-xs text-slate-400">No {socialTab} to show yet.</p> : <p className="text-xs text-slate-400">Follower lists are visible to the owner only.</p>}</div>}
+        {socialTab && <div className="mt-3 border-t border-slate-800 pt-3"><div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold">{socialTab === "followers" ? "Followers" : "Following"}</h3><button type="button" className="text-xs text-slate-400" onClick={() => setSocialTab(null)}>Close</button></div>{owner ? connectionsLoading ? <p className="py-4 text-center text-xs text-slate-400" role="status">Loading {socialTab}…</p> : connectionsError ? <div className="space-y-2 py-3 text-center"><p className="text-xs text-rose-400" role="alert">Could not load {socialTab} accounts.</p><button type="button" className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs" onClick={() => setConnectionsReload((value) => value + 1)}>Try again</button></div> : connections.length ? <ul className="max-h-72 space-y-2 overflow-y-auto">{connections.map((person) => <li key={person.id} className="flex items-center gap-2 text-sm">{person.handle ? <Link to="/profile/$handle" params={{ handle: person.handle.replace(/^@+/, "") }} className="flex min-w-0 items-center gap-2 rounded-lg py-1 hover:bg-slate-800/70"><span className="shrink-0">{person.avatar_url ? <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Avatar name={person.display_name ?? person.handle ?? "Member"} size={32} />}</span><span className="min-w-0 truncate font-medium">{person.display_name ?? "NEXORA member"}</span><span className="shrink-0 text-xs text-slate-400">@{person.handle}</span></Link> : <><span>{person.display_name ?? "NEXORA member"}</span><span className="text-xs text-slate-400">@{person.handle}</span></>}</li>)}</ul> : <p className="text-xs text-slate-400">No {socialTab} to show yet.</p> : <p className="text-xs text-slate-400">Follower lists are visible to the owner only.</p>}</div>}
       </section>
 
       {/* Analytics dashboard is private to the owner and uses only persisted metrics. */}
