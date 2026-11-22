@@ -55,7 +55,13 @@ export function NexoraChatComposer({
         className="max-h-[10.5rem] min-h-11 min-w-0 flex-1 resize-none overflow-y-hidden rounded-3xl border bg-background px-4 py-3 text-base leading-6 outline-none focus:ring-2 focus:ring-primary"
       />
       {trailingAction}
-      <Button type="submit" size="icon" className="h-11 w-11 shrink-0 rounded-full" aria-label={sendLabel} disabled={!canSend || disabled}>
+      <Button
+        type="submit"
+        size="icon"
+        className="h-11 w-11 shrink-0 rounded-full"
+        aria-label={sendLabel}
+        disabled={!canSend || disabled}
+      >
         <Send className="h-4 w-4" />
       </Button>
     </div>
