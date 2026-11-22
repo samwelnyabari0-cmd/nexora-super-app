@@ -37,6 +37,9 @@ import { PostCard } from "@/components/nexora/PostCard";
 import { useStrictMediaItems, type StrictFeedType } from "@/components/nexora/StrictMediaFeed";
 import type { Post } from "@/features/core/data";
 export const Route = createFileRoute("/profile")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    handle: typeof search.handle === "string" ? search.handle : "",
+  }),
   head: () => ({
     meta: [
       { property: "og:type", content: "website" },
@@ -63,24 +66,16 @@ const profileCategories = [
 
 function Profile() {
   const navigate = useNavigate();
-  const [publicHandle, setPublicHandle] = useState<string | null>(null);
-  const [checkedUrl, setCheckedUrl] = useState(false);
+  const { handle: publicHandle } = Route.useSearch();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const handle = params.get("handle")?.trim();
-
-    setPublicHandle(handle || null);
-    setCheckedUrl(true);
-  }, []);
-
-  useEffect(() => {
-    if (publicHandle) {
-      void navigate({ to: "/profile/$handle", params: { handle: publicHandle }, replace: true });
+    const normalizedHandle = publicHandle.trim().replace(/^@+/, "");
+    if (normalizedHandle) {
+      void navigate({ to: "/profile/$handle", params: { handle: normalizedHandle }, replace: true });
     }
   }, [publicHandle, navigate]);
 
-  if (!checkedUrl || publicHandle) {
+  if (publicHandle.trim()) {
     return (
       <div className="p-8 text-center">
         Loading profile...
