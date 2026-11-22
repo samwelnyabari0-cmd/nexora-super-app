@@ -1068,7 +1068,7 @@ if (recipient === user.id) {
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
-    <main className="mx-auto flex h-[75dvh] min-h-0 max-h-[75dvh] max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-12rem)] min-h-[24rem] max-h-[calc(100dvh-12rem)] max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
@@ -1318,26 +1318,26 @@ if (recipient === user.id) {
             if (file) setSelectedFile(file);
           }}
         />
-        <div className="grid grid-cols-4 gap-2 pb-1 sm:grid-cols-7">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Attach file" disabled={sending} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
+        <div className="flex min-w-0 flex-nowrap gap-2 overflow-x-auto pb-1">
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
             <ImagePlus className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
             <MapPin className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
             <Radio className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
             <span className="text-[10px] font-bold">1h</span>
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
             <Share2 className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
             <Sparkles className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
             {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
         </div>
@@ -1372,7 +1372,6 @@ if (recipient === user.id) {
           </Button>
         </div>
       </form>
-      <p className="px-3 pb-2 text-[10px] text-muted-foreground">When requested, only the latest six text messages are sent to AI for draft suggestions. Nothing is sent automatically.</p>
       <ShareContentDialog
         open={shareContentOpen}
         onOpenChange={setShareContentOpen}
