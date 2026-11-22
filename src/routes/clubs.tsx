@@ -44,7 +44,10 @@ function ClubsPage() {
   const [savingEvent, setSavingEvent] = useState(false);
   const [draft, setDraft] = useState({ title: "", kind: "match", venue: "", event_date: "", event_time: "", notes: "" });
 
-  useEffect(() => setToday(new Date().toISOString().slice(0, 10)), []);
+  useEffect(() => {
+    const now = new Date();
+    setToday([now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-"));
+  }, []);
   useEffect(() => {
     if (data.directory.length && !data.directory.some((club) => club.id === sel)) setSel(data.directory[0].id);
   }, [data.directory, sel]);
@@ -191,7 +194,7 @@ function ClubsPage() {
 
         <Panel className="md:col-span-2">
           <div className="mb-3 flex items-center justify-between gap-2"><div><h3 className="font-display font-semibold">Club channel</h3><p className="text-xs text-muted-foreground">Messages update across club members</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs">{active ? "Realtime" : "Members only"}</span></div>
-          <Channel guildId={guild.id} msgs={realtime.messages} onSend={send} name={passport.name} disabled={!active} canManage={canCreateEvents} onPin={realtime.pinMessage} />
+          <Channel key={guild.id} guildId={guild.id} msgs={realtime.messages} onSend={send} name={passport.name} disabled={!active} canManage={canCreateEvents} onPin={realtime.pinMessage} />
           {realtime.error && <p className="mt-2 text-xs text-destructive">{realtime.error}</p>}
         </Panel>
       </div>
