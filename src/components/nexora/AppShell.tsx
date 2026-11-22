@@ -66,6 +66,10 @@ const mobileNav = ["/", "/explore", "/reels", "/create", "/videos", "/messages",
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search });
+  const activeConversation = path === "/messages" && Boolean(
+    (search as Record<string, unknown>).recipient || (search as Record<string, unknown>).group
+  );
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
   const { user } = useSession();
@@ -226,6 +230,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {!activeConversation && (
+      <>
       {/* Top bar */}
       <header className="glass sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 md:px-6">
         {isFeaturePage && (
@@ -312,11 +318,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </header>
+      </>
+      )}
 
-      <main className={cn("mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12", keyboardOpen && "pb-5")}>{children}</main>
+      <main className={cn(activeConversation ? "w-full max-w-none p-0" : "mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12", !activeConversation && keyboardOpen && "pb-5")}>{children}</main>
 
       {/* Mobile bottom nav */}
-      <nav
+      {!activeConversation && <nav
         aria-label="Main"
         className={cn("glass fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 md:hidden", keyboardOpen && "hidden")}
       >
@@ -353,7 +361,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-      </nav>
+      </nav>}
     </div>
   );
 }
