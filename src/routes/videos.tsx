@@ -19,7 +19,6 @@ function Videos() {
     if (requestedId) setActiveId(requestedId);
   }, []);
   const active = items.find((item) => item.id === activeId) ?? items[0];
-  useEffect(() => { if (active?.id && user?.id) void recordUserMediaPostView(active.id); }, [active?.id, user?.id]);
 
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
   if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
@@ -35,7 +34,7 @@ function Videos() {
         <section className="min-w-0 space-y-3">
           <div className="overflow-hidden rounded-2xl border bg-black">
             <div className="aspect-video">
-              {active?.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls playsInline className="h-full w-full object-contain" />}
+              {active?.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls playsInline onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" />}
             </div>
             <div className="space-y-2 p-4">
               <h2 className="font-semibold">{active?.caption || "NEXORA Video"}</h2>
