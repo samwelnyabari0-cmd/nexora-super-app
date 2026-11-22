@@ -318,7 +318,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile bottom nav */}
       <nav
         aria-label="Main"
-        className={cn("glass fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 md:flex", keyboardOpen && "hidden")}
+        className={cn("glass fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 md:hidden", keyboardOpen && "hidden")}
       >
         {navItems
           .filter((n) => mobileNav.includes(n.to))
