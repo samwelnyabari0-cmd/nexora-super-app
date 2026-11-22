@@ -133,8 +133,8 @@ export function ClubAdminPanel({ clubId }: Props) {
   );
 
   const isCreator = currentMembership?.role === "creator";
-  const isAdmin =
-    isCreator || currentMembership?.role === "admin";
+  const isModerator = currentMembership?.role === "moderator";
+  const isAdmin = isCreator || currentMembership?.role === "admin";
   const isActive = currentMembership?.status === "active";
 
   const filteredMembers = useMemo(() => {
@@ -270,7 +270,7 @@ export function ClubAdminPanel({ clubId }: Props) {
         </div>
 
         <span className="rounded-full border px-3 py-1 text-xs font-semibold">
-          {isCreator ? "Creator" : isAdmin ? "Administrator" : "Member"}
+          {isCreator ? "Creator" : isAdmin ? "Administrator" : isModerator ? "Moderator" : "Member"}
         </span>
       </div>
 
@@ -494,22 +494,15 @@ export function ClubAdminPanel({ clubId }: Props) {
                         </Button>
                       )}
 
-                      {isCreator &&
-                        member.role === "member" &&
-                        member.status === "active" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={saving}
-                            onClick={() =>
-                              void updateMembership(member, {
-                                role: "admin",
-                              })
-                            }
-                          >
-                            Promote to admin
-                          </Button>
-                        )}
+                      {isCreator && member.role === "member" && member.status === "active" && (
+                        <>
+                          <Button size="sm" variant="outline" disabled={saving} onClick={() => void updateMembership(member, { role: "admin" })}>Promote to admin</Button>
+                          <Button size="sm" variant="outline" disabled={saving} onClick={() => void updateMembership(member, { role: "moderator" })}>Make moderator</Button>
+                        </>
+                      )}
+                      {isCreator && member.role === "moderator" && (
+                        <Button size="sm" variant="outline" disabled={saving} onClick={() => void updateMembership(member, { role: "member" })}>Remove moderator role</Button>
+                      )}
 
                       {isCreator && member.role === "admin" && (
                         <Button
