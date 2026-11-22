@@ -720,7 +720,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                         sizeBytes={message.attachment_size_bytes}
                       />
                     ) : message.media_type === "video" ? (
-                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 h-[75dvh] max-h-[75dvh] w-full max-w-full rounded-lg bg-black object-contain" />
+                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 block w-full max-w-full shrink-0 rounded-lg bg-black object-contain" style={{ height: "75dvh", minHeight: "75dvh", maxHeight: "75dvh" }} />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
