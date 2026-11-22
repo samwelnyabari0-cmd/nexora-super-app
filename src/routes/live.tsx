@@ -78,6 +78,59 @@ function GoLive() {
   const [sharedLocation, setSharedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const locationWatchId = useRef<number | null>(null);
 
+  async function stopLocationSharing() {
+  if (locationWatchId.current !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(locationWatchId.current);
+    locationWatchId.current = null;
+  }
+  setLocationEnabled(false);
+  if (hostSessionId) {
+    const { error } = await (supabase as any).from("live_session_locations").delete().eq("session_id", hostSessionId);
+    if (error) toast.error("Location sharing stopped, but the saved location could not be cleared.");
+  }
+  }
+
+  function toggleLocationSharing() {
+  if (locationEnabled) { void stopLocationSharing(); return; }
+  if (!hostSessionId) { toast.error("Start a live stream before sharing your location."); return; }
+  if (!navigator.geolocation) { toast.error("Location is not supported by this browser."); return; }
+  locationWatchId.current = navigator.geolocation.watchPosition(async (position) => {
+    const { error } = await (supabase as any).from("live_session_locations").upsert({
+      session_id: hostSessionId, host_user_id: user?.id,
+      latitude: position.coords.latitude, longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy, updated_at: new Date().toISOString(),
+    }, { onConflict: "session_id" });
+    if (error) { console.error(error); toast.error("Could not share your live location."); void stopLocationSharing(); }
+  }, (error) => {
+    console.error(error); toast.error("Location permission was denied or your location is unavailable.");
+    void stopLocationSharing();
+  }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+  setLocationEnabled(true);
+  toast.success("Live location is ON for approved viewers only.");
+  }
+
+  async function requestLocationAccess() {
+  if (!watchingSessionId || !user) { toast.error("Sign in to request location access."); return; }
+  const session = sessions.find((item) => item.id === watchingSessionId);
+  if (!session) return;
+  const { error } = await (supabase as any).from("live_location_access").insert({
+    session_id: watchingSessionId, host_user_id: session.host_user_id,
+    viewer_user_id: user.id, status: "pending",
+  });
+  if (error) { console.error(error); toast.error("Could not send your location-access request."); return; }
+  setLocationRequestStatus("pending");
+  toast.success("Request sent to the host.");
+  }
+
+  async function decideLocationAccess(requestId: string, decision: "approved" | "denied") {
+  const { error } = await (supabase as any).from("live_location_access")
+    .update({ status: decision, decided_at: new Date().toISOString() }).eq("id", requestId);
+  if (error) { toast.error("Could not update location access."); return; }
+  setLocationRequests((current) => current.map((item) => item.id === requestId ? { ...item, status: decision } : item));
+  toast.success(decision === "approved" ? "Viewer approved for live location." : "Request declined.");
+  }
+
+
   // Show the host's camera preview.
   useEffect(() => {
     if (hostVideoRef.current) {
@@ -113,58 +166,6 @@ function GoLive() {
 
     void loadSessions();
     const timer = window.setInterval(() => void loadSessions(), 10000);
-
-    async function stopLocationSharing() {
-    if (locationWatchId.current !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(locationWatchId.current);
-      locationWatchId.current = null;
-    }
-    setLocationEnabled(false);
-    if (hostSessionId) {
-      const { error } = await (supabase as any).from("live_session_locations").delete().eq("session_id", hostSessionId);
-      if (error) toast.error("Location sharing stopped, but the saved location could not be cleared.");
-    }
-  }
-
-  function toggleLocationSharing() {
-    if (locationEnabled) { void stopLocationSharing(); return; }
-    if (!hostSessionId) { toast.error("Start a live stream before sharing your location."); return; }
-    if (!navigator.geolocation) { toast.error("Location is not supported by this browser."); return; }
-    locationWatchId.current = navigator.geolocation.watchPosition(async (position) => {
-      const { error } = await (supabase as any).from("live_session_locations").upsert({
-        session_id: hostSessionId, host_user_id: user?.id,
-        latitude: position.coords.latitude, longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy, updated_at: new Date().toISOString(),
-      }, { onConflict: "session_id" });
-      if (error) { console.error(error); toast.error("Could not share your live location."); void stopLocationSharing(); }
-    }, (error) => {
-      console.error(error); toast.error("Location permission was denied or your location is unavailable.");
-      void stopLocationSharing();
-    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
-    setLocationEnabled(true);
-    toast.success("Live location is ON for approved viewers only.");
-  }
-
-  async function requestLocationAccess() {
-    if (!watchingSessionId || !user) { toast.error("Sign in to request location access."); return; }
-    const session = sessions.find((item) => item.id === watchingSessionId);
-    if (!session) return;
-    const { error } = await (supabase as any).from("live_location_access").insert({
-      session_id: watchingSessionId, host_user_id: session.host_user_id,
-      viewer_user_id: user.id, status: "pending",
-    });
-    if (error) { console.error(error); toast.error("Could not send your location-access request."); return; }
-    setLocationRequestStatus("pending");
-    toast.success("Request sent to the host.");
-  }
-
-  async function decideLocationAccess(requestId: string, decision: "approved" | "denied") {
-    const { error } = await (supabase as any).from("live_location_access")
-      .update({ status: decision, decided_at: new Date().toISOString() }).eq("id", requestId);
-    if (error) { toast.error("Could not update location access."); return; }
-    setLocationRequests((current) => current.map((item) => item.id === requestId ? { ...item, status: decision } : item));
-    toast.success(decision === "approved" ? "Viewer approved for live location." : "Request declined.");
-  }
 
   return () => {
       active = false;
@@ -429,8 +430,8 @@ function GoLive() {
   }
 
   async function joinLive(session: LiveSessionRow) {
-    setWatchingSessionId(session.id);
     leaveLive();
+    setWatchingSessionId(session.id);
 
     setBusy(true);
     setWatchingTitle(session.title);
@@ -594,11 +595,11 @@ function GoLive() {
         disabled={Boolean(hostSessionId)}
       />
 
-      {hostSessionId && (
+      {(
         <div className="space-y-2 rounded-xl border p-3">
           <div className="flex items-center justify-between gap-3">
-            <div><p className="text-sm font-medium">Live location</p><p className="text-xs text-muted-foreground">Only viewers you approve can see it</p></div>
-            <Button type="button" size="sm" variant={locationEnabled ? "default" : "outline"} onClick={toggleLocationSharing}>
+            <div><p className="text-sm font-medium">Live location</p><p className="text-xs text-muted-foreground">{hostSessionId ? "Only viewers you approve can see it" : "Start a live stream to enable location sharing"}</p></div>
+            <Button type="button" size="sm" variant={locationEnabled ? "default" : "outline"} onClick={toggleLocationSharing} disabled={!hostSessionId}>
               {locationEnabled ? <MapPin className="mr-2 h-4 w-4" /> : <MapPinOff className="mr-2 h-4 w-4" />}
               {locationEnabled ? "Location ON" : "Location OFF"}
             </Button>
