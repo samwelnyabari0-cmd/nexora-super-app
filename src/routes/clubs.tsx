@@ -69,9 +69,9 @@ function ClubsPage() {
     else toast.success(next ? "RSVP updated: " + labels[next] : "RSVP removed.");
   };
 
-  const send = async (text: string) => {
+  const send = async (text: string, isAnnouncement: boolean) => {
     if (!active) { toast.error("Join the club before sending messages."); return; }
-    const delivered = await realtime.send(text, passport.name);
+    const delivered = await realtime.send(text, isAnnouncement);
     if (!delivered && realtime.error) toast.error(realtime.error);
   };
 
@@ -191,7 +191,7 @@ function ClubsPage() {
 
         <Panel className="md:col-span-2">
           <div className="mb-3 flex items-center justify-between gap-2"><div><h3 className="font-display font-semibold">Club channel</h3><p className="text-xs text-muted-foreground">Messages update across club members</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs">{active ? "Realtime" : "Members only"}</span></div>
-          <Channel guildId={guild.id} msgs={realtime.messages} onSend={send} name={passport.name} disabled={!active} />
+          <Channel guildId={guild.id} msgs={realtime.messages} onSend={send} name={passport.name} disabled={!active} canManage={canCreateEvents} onPin={realtime.pinMessage} />
           {realtime.error && <p className="mt-2 text-xs text-destructive">{realtime.error}</p>}
         </Panel>
       </div>
@@ -205,17 +205,22 @@ function Channel({
   onSend,
   name,
   disabled,
+  canManage,
+  onPin,
 }: {
   guildId: string;
   msgs: ChatMsg[];
-  onSend: (text: string) => void;
+  onSend: (text: string, isAnnouncement: boolean) => void;
   name: string;
   disabled: boolean;
+  canManage: boolean;
+  onPin: (messageId: string, pinned: boolean) => Promise<boolean>;
 }) {
   const [t, setT] = useState("");
+  const [announcement, setAnnouncement] = useState(false);
   const submit = () => {
     if (!t.trim()) return;
-    onSend(t.trim());
+    onSend(t.trim(), announcement && canManage);
     setT("");
   };
   return (
@@ -225,11 +230,17 @@ function Channel({
         aria-label={`${guildId} channel messages`}
       >
         {msgs.length ? msgs.map((m) => (
-          <Bubble key={m.id} m={m} name={name} />
+          <Bubble key={m.id} m={m} name={name} canManage={canManage} onPin={onPin} />
         )) : (
           <p className="py-4 text-center text-sm text-muted-foreground">No messages yet. Start the conversation.</p>
         )}
       </div>
+      {canManage && (
+        <label className="mb-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
+          <input type="checkbox" checked={announcement} onChange={(e) => setAnnouncement(e.target.checked)} />
+          Post as announcement
+        </label>
+      )}
       <form
         className="mt-3 flex gap-2"
         onSubmit={(e) => {
@@ -253,7 +264,7 @@ function Channel({
   );
 }
 
-function Bubble({ m, name }: { m: ChatMsg; name: string }) {
+function Bubble({ m, name, canManage, onPin }: { m: ChatMsg; name: string; canManage: boolean; onPin: (messageId: string, pinned: boolean) => Promise<boolean> }) {
   const mine = m.from === "me";
   return (
     <div className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
@@ -269,6 +280,7 @@ function Bubble({ m, name }: { m: ChatMsg; name: string }) {
           mine ? "bg-brand text-primary-foreground" : "bg-muted"
         }`}
       >
+        {m.isAnnouncement && <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-accent">Announcement</p>}
         {!mine && (
           <p className="mb-1 text-[11px] font-semibold">
             {m.senderName || "Club member"}
@@ -276,9 +288,12 @@ function Bubble({ m, name }: { m: ChatMsg; name: string }) {
           </p>
         )}
         <p className="break-words">{m.text}</p>
-        <p className={`mt-1 text-right text-[11px] ${mine ? "opacity-75" : "text-muted-foreground"}`}>
-          {m.at}
-        </p>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          {canManage && <button type="button" className="text-[10px] underline" onClick={() => void onPin(m.id, !m.pinnedAt)}>{m.pinnedAt ? "Unpin" : "Pin"}</button>}
+          <p className={`ml-auto text-right text-[11px] ${mine ? "opacity-75" : "text-muted-foreground"}`}>
+            {m.pinnedAt ? "Pinned · " : ""}{m.at}
+          </p>
+        </div>
       </div>
     </div>
   );
