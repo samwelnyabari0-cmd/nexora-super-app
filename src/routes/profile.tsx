@@ -111,8 +111,6 @@ function Profile() {
     Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>
   >([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
-  const [connectionsError, setConnectionsError] = useState<string | null>(null);
-  const [connectionsReload, setConnectionsReload] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
@@ -127,29 +125,33 @@ function Profile() {
     let active = true;
     void (async () => {
       setConnectionsLoading(true);
-      setConnectionsError(null);
-      setConnections([]);
       try {
-        // A single owner-authorized SECURITY DEFINER RPC avoids follows/profile RLS
-        // hiding one side of the relationship from the signed-in account owner.
-        const { data, error } = await (supabase as any).rpc(
-          "get_my_profile_connections",
-          { p_connection_type: socialTab },
-        );
-        if (error) throw error;
-        if (active) setConnections(Array.isArray(data) ? data : []);
+        const column = socialTab === "followers" ? "follower_id" : "following_id";
+        const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
+        const { data: rows, error: followsError } = await (supabase as any)
+          .from("follows")
+          .select(column)
+          .eq(relationColumn, userId);
+        if (followsError) throw followsError;
+        const ids = [...new Set((rows ?? []).map((row: Record<string, string>) => row[column]).filter(Boolean))];
+        if (!ids.length) {
+          if (active) setConnections([]);
+          return;
+        }
+        // Use the safe identity RPC; profile rows are not directly readable to every signed-in user.
+        const { data: profiles, error: profilesError } = await (supabase as any)
+          .rpc("get_post_author_profiles", { target_user_ids: ids });
+        if (profilesError) throw profilesError;
+        if (active) setConnections(profiles ?? []);
       } catch (error) {
         console.error(`Could not load ${socialTab}:`, error);
-        if (active) {
-          setConnections([]);
-          setConnectionsError(error instanceof Error ? error.message : "Could not load accounts. Please try again.");
-        }
+        if (active) setConnections([]);
       } finally {
         if (active) setConnectionsLoading(false);
       }
     })();
     return () => { active = false; };
-  }, [socialTab, userId, connectionsReload]);
+  }, [socialTab, userId]);
 
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
