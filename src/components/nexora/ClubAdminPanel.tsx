@@ -296,8 +296,8 @@ export function ClubAdminPanel({ clubId }: Props) {
         <h3 className="text-sm font-semibold">Role permissions</h3>
         <ul className="space-y-1.5 text-xs text-muted-foreground">
           <li><strong className="text-foreground">Creator:</strong> full club control, appoint admins and moderators, manage roles and membership.</li>
-          <li><strong className="text-foreground">Admin:</strong> approve, suspend or restore regular members; create and manage fixtures.</li>
-          <li><strong className="text-foreground">Moderator:</strong> create fixtures and events; cannot change member roles or ban members.</li>
+          <li><strong className="text-foreground">Admin:</strong> approve, suspend or restore regular members; create fixtures and announcements.</li>
+          <li><strong className="text-foreground">Moderator:</strong> create fixtures, events and announcements; cannot change member roles or ban members.</li>
           <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to club events.</li>
         </ul>
       </div>
@@ -557,7 +557,7 @@ export function ClubAdminPanel({ clubId }: Props) {
                 const details = activity.details ?? {};
                 const eventLabel =
                   activity.event_type === "membership_joined" || activity.event_type === "membership_created"
-                    ? "Created membership"
+                    ? "Member joined"
                     : activity.event_type === "membership_removed" || activity.event_type === "membership_deleted"
                       ? "Removed membership"
                       : activity.event_type === "membership_role_changed" ? "Role changed" : activity.event_type === "membership_banned" ? "Member banned" : activity.event_type === "membership_restored" ? "Member restored" : "Membership updated";
