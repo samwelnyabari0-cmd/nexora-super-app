@@ -623,7 +623,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl md:h-[94dvh] md:min-h-[560px] flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4 md:h-[94dvh] md:min-h-[560px]">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
@@ -652,7 +652,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       <ChatLockPanel lock={chatLock} />
       <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
-      <div ref={log} className="min-h-[55dvh] min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
+      <div ref={log} className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No messages yet. Say hello to the group.
@@ -794,35 +794,38 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           </div>
         </div>
       )}
-      <form onSubmit={sendMessage} className="shrink-0 space-y-2 border-t pt-3 pb-[env(safe-area-inset-bottom)]">
+      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
         <input
           ref={fileInput}
           type="file"
           accept="image/*,video/*,audio/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
           className="hidden"
           aria-label="Choose a group photo, video, audio, or document"
-          onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
+          onChange={(event) => {
+            chatLock.endAttachmentPicker();
+            setAttachment(event.target.files?.[0] ?? null);
+          }}
         />
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending || recording} onClick={() => fileInput.current?.click()}>
+        <div className="grid grid-cols-4 gap-2 pb-1 sm:grid-cols-7">
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Attach file" disabled={sending || recording} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
             <ImagePlus className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || recording || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Share current location" disabled={sending || recording || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
             <MapPin className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 15 minutes" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Start live location for 15 minutes" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
             <Radio className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 1 hour" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Start live location for 1 hour" disabled={sending || recording || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
             <span className="text-[10px] font-bold">1h</span>
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share Nexora content" disabled={sending || recording} onClick={() => setShareContentOpen(true)}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Share Nexora content" disabled={sending || recording} onClick={() => setShareContentOpen(true)}>
             <Share2 className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Suggest AI replies" disabled={sending || recording || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Suggest AI replies" disabled={sending || recording || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
             <Sparkles className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
             {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
         </div>

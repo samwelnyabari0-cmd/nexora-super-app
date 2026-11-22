@@ -1068,7 +1068,7 @@ if (recipient === user.id) {
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl md:h-[94dvh] md:min-h-[560px] flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4 md:h-[94dvh] md:min-h-[560px]">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
@@ -1115,7 +1115,7 @@ if (recipient === user.id) {
 
       <div
         ref={log}
-        className="min-h-[55dvh] min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4"
+        className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-3"
         aria-live="polite"
         role="log"
       >
@@ -1295,7 +1295,7 @@ if (recipient === user.id) {
           </div>
         </div>
       )}
-      <form onSubmit={sendMessage} className="shrink-0 space-y-2 border-t pt-3 pb-[env(safe-area-inset-bottom)]">
+      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
         <input
           ref={fileInput}
           type="file"
@@ -1303,30 +1303,31 @@ if (recipient === user.id) {
           className="hidden"
           aria-label="Choose a photo, video, audio, or document"
           onChange={(event) => {
+            chatLock.endAttachmentPicker();
             const file = event.target.files?.[0] || null;
             if (file) setSelectedFile(file);
           }}
         />
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Attach file" disabled={sending} onClick={() => fileInput.current?.click()}>
+        <div className="grid grid-cols-4 gap-2 pb-1 sm:grid-cols-7">
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Attach file" disabled={sending} onClick={() => { chatLock.beginAttachmentPicker(); fileInput.current?.click(); }}>
             <ImagePlus className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Share current location" disabled={sending || locationSharing.busy} onClick={() => { locationSharing.clearError(); void locationSharing.shareOnce(); }}>
             <MapPin className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Start live location for 15 minutes" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(15); }}>
             <Radio className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Start live location for 1 hour" disabled={sending || locationSharing.busy || Boolean(locationSharing.activeSessionId)} onClick={() => { locationSharing.clearError(); void locationSharing.startLiveSharing(60); }}>
             <span className="text-[10px] font-bold">1h</span>
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Share Nexora content" disabled={sending} onClick={() => setShareContentOpen(true)}>
             <Share2 className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label="Suggest AI replies" disabled={sending || smartRepliesLoading} onClick={() => void suggestSmartReplies()}>
             <Sparkles className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-full" aria-label={recording ? "Stop voice recording" : "Record voice message"} disabled={sending} onClick={recording ? stopVoiceRecording : startVoiceRecording}>
             {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
         </div>

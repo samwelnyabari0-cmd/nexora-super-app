@@ -70,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { notices } = useWorkspace();
   const { user } = useSession();
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
     let active = true;
     if (!user?.id) {
@@ -81,6 +82,32 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
     return () => { active = false; };
   }, [user?.id]);
+  useEffect(() => {
+    const isTextEntry = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      (target.matches("input:not([type='file']):not([type='button']):not([type='submit']), textarea, [contenteditable='true']") ||
+        target.isContentEditable);
+
+    const updateKeyboardState = () => {
+      const viewport = window.visualViewport;
+      const viewportReduced = Boolean(viewport && window.innerHeight - viewport.height > 120);
+      setKeyboardOpen(viewportReduced || isTextEntry(document.activeElement));
+    };
+    const handleFocusOut = () => window.setTimeout(updateKeyboardState, 0);
+
+    document.addEventListener("focusin", updateKeyboardState);
+    document.addEventListener("focusout", handleFocusOut);
+    window.addEventListener("resize", updateKeyboardState);
+    window.visualViewport?.addEventListener("resize", updateKeyboardState);
+    updateKeyboardState();
+    return () => {
+      document.removeEventListener("focusin", updateKeyboardState);
+      document.removeEventListener("focusout", handleFocusOut);
+      window.removeEventListener("resize", updateKeyboardState);
+      window.visualViewport?.removeEventListener("resize", updateKeyboardState);
+    };
+  }, []);
+
   const navItems = isPlatformAdmin
     ? [...nav, { to: "/admin/finance" as const, label: "Admin Finance", icon: ShieldCheck }]
     : nav;
@@ -286,12 +313,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12">{children}</main>
+      <main className={cn("mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12", keyboardOpen && "pb-5")}>{children}</main>
 
       {/* Mobile bottom nav */}
       <nav
         aria-label="Main"
-        className="glass fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 md:hidden"
+        className={cn("glass fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 md:hidden", keyboardOpen && "hidden")}
       >
         {navItems
           .filter((n) => mobileNav.includes(n.to))

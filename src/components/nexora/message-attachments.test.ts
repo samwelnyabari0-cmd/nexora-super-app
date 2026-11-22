@@ -24,6 +24,15 @@ describe("private document attachment rules", () => {
     });
   });
 
+  it("accepts browser voice recordings whose MIME types include codec parameters", () => {
+    expect(resolveChatAttachment({ type: "audio/webm;codecs=opus", name: "voice-message.webm", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "audio", contentType: "audio/webm", extension: "webm",
+    });
+    expect(resolveChatAttachment({ type: "audio/mp4; codecs=mp4a.40.2", name: "voice-message.m4a", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "audio", contentType: "audio/mp4", extension: "m4a",
+    });
+  });
+
   it("rejects unsupported mobile media formats and files above the bucket limit", () => {
     expect(resolveChatAttachment({ type: "image/heic", name: "photo.heic", size: 2048 }).ok).toBe(false);
     expect(resolveChatAttachment({ type: "video/mp4", name: "clip.mp4", size: 50 * 1024 * 1024 + 1 }).ok).toBe(false);

@@ -40,6 +40,14 @@ describe("useChatLock", () => {
     });
     expect(result.current.status).toBe("unlocked");
 
+    // Opening Android's file picker can hide the browser temporarily; keep this chat unlocked.
+    act(() => result.current.beginAttachmentPicker());
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(result.current.status).toBe("unlocked");
+
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     act(() => document.dispatchEvent(new Event("visibilitychange")));
     expect(result.current.status).toBe("locked");
