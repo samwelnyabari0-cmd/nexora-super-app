@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { aggregateClubRsvps, type ClubRsvpStatus, type ClubRsvpCounts } from "./logic";
 
 export type ClubDirectoryItem = {
   id: string;
@@ -25,8 +26,6 @@ export type ClubEvent = {
   notes: string;
 };
 
-export type ClubRsvpStatus = "going" | "maybe" | "cant_make_it";
-export type ClubRsvpCounts = Record<string, { going: number; maybe: number; cant_make_it: number }>;
 
 export function useClubData(clubId: string) {
   const { user, ready } = useSession();
@@ -109,17 +108,9 @@ export function useClubData(clubId: string) {
       setMyRsvps({});
       setRsvpCounts({});
     } else {
-      const mine: Record<string, ClubRsvpStatus> = {};
-      const counts: ClubRsvpCounts = {};
-      for (const row of rsvpData ?? []) {
-        const eventId = row.event_id as string;
-        const status = row.status as ClubRsvpStatus;
-        counts[eventId] ??= { going: 0, maybe: 0, cant_make_it: 0 };
-        if (status in counts[eventId]) counts[eventId][status] += 1;
-        if (row.user_id === user.id) mine[eventId] = status;
-      }
-      setMyRsvps(mine);
-      setRsvpCounts(counts);
+      const aggregated = aggregateClubRsvps(rsvpData ?? [], user.id);
+      setMyRsvps(aggregated.myRsvps);
+      setRsvpCounts(aggregated.counts);
     }
     setLoading(false);
   }, [clubId, user]);
