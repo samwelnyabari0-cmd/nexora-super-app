@@ -1,7 +1,7 @@
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2, Phone, Video, Sparkles } from "lucide-react";
+import { ArrowLeft, X, Mic, Square, Search, Radio, Phone, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
