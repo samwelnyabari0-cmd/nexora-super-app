@@ -1,6 +1,6 @@
 import { ClubAdminPanel } from "@/components/nexora/ClubAdminPanel";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { MapPin, Send, Trophy, Users, CalendarDays, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, DemoBadge, PageHeader, Panel } from "@/components/nexora/ui";
@@ -75,7 +75,7 @@ function ClubsPage() {
     if (!delivered && realtime.error) toast.error(realtime.error);
   };
 
-  const publishEvent = async (event: React.FormEvent<HTMLFormElement>) => {
+  const publishEvent = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSavingEvent(true);
     const result = await data.createEvent(draft);
@@ -138,7 +138,7 @@ function ClubsPage() {
           <p className="mt-3 flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 shrink-0 text-accent" /><span className="min-w-0 break-words">{guild.venue} · {guild.city}</span></p>
           <div className="mt-3 flex flex-wrap gap-2">
             <a className="inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium hover:bg-muted" href={"https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(guild.venue + ", " + guild.city)} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" />Get directions</a>
-            <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(guild.venue + ", " + guild.city).then(() => toast.success("Venue copied.")); }}><Copy className="mr-1.5 h-3.5 w-3.5" />Copy venue</Button>
+            <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard?.writeText(guild.venue + ", " + guild.city).then(() => toast.success("Venue copied.")); }}><Copy className="mr-1.5 h-3.5 w-3.5" />Copy venue</Button>
             <Button asChild size="sm" variant="outline"><Link to="/maps" search={{ q: undefined }}>Open Maps</Link></Button>
           </div>
         </Panel>
@@ -266,7 +266,7 @@ function Bubble({ m, name }: { m: ChatMsg; name: string }) {
       >
         <p>{m.text}</p>
         <p className={`text-right text-[11px] ${mine ? "opacity-75" : "text-muted-foreground"}`}>
-          {m.at} · demo
+          {m.at}
         </p>
       </div>
     </div>
