@@ -218,6 +218,18 @@ function GoLive() {
     return () => { active = false; window.clearInterval(timer); };
   }, [watchingSessionId, user?.id]);
 
+  useEffect(() => {
+    if (!hostSessionId) return;
+    const sessionId = hostSessionId;
+    return () => {
+      if (locationWatchId.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(locationWatchId.current);
+        locationWatchId.current = null;
+      }
+      void (supabase as any).from("live_session_locations").delete().eq("session_id", sessionId);
+    };
+  }, [hostSessionId]);
+
   // Clean up local camera and peer connections if this component closes.
   useEffect(() => {
     return () => {
