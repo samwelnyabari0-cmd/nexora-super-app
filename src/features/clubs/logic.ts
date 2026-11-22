@@ -182,7 +182,7 @@ export const fixtures: Fixture[] = [
   },
 ];
 
-export type ChatMsg = { id: string; from: "me" | "them"; text: string; at: string };
+export type ChatMsg = { id: string; from: "me" | "them" | "club"; text: string; at: string; senderName?: string; role?: string };
 
 export const seedChannels: Record<string, ChatMsg[]> = {
   g1: [
