@@ -40,13 +40,9 @@ describe("useChatLock", () => {
     });
     expect(result.current.status).toBe("unlocked");
 
+    // Opening Android's file picker can hide the browser temporarily; it must not relock the chat.
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     act(() => document.dispatchEvent(new Event("visibilitychange")));
-    expect(result.current.status).toBe("locked");
-
-    await act(async () => {
-      await expect(result.current.unlock("private device phrase")).resolves.toBe(true);
-    });
     expect(result.current.status).toBe("unlocked");
 
     act(() => result.current.lockNow());
