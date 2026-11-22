@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Play, Video, ArrowLeft, BarChart3 } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { useSession } from "@/lib/session";
-import { supabase } from "@/integrations/supabase/client";
 import { recordUserMediaPostView } from "@/lib/post-views";
 
 export const Route = createFileRoute("/videos")({
