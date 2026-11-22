@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type PointerEvent, type ReactNode } from "react";
 import {
   ArrowLeft, Users, FileText, Heart, MessageCircle, Share2,
-  Bookmark, TrendingUp, Play, Image as ImageIcon, Video, Clock3, Eye, BarChart3,
+  Bookmark, TrendingUp, Play, Image as ImageIcon, Video, Clock3, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
@@ -246,20 +246,20 @@ function ViewsChart({ data }: { data: DailyPoint[] }) {
   );
 }
 
-async function fetchPagedRows(table: "post_interactions" | "post_comments", postIds: string[]) {
-  const rows: { post_id: string; created_at: string; kind?: string }[] = [];
+async function fetchPagedRows(table: "user_media_post_likes" | "user_media_post_comments" | "user_media_post_reposts", postIds: string[]) {
+  const rows: { post_id: string; created_at: string }[] = [];
   for (let start = 0; start < postIds.length; start += 150) {
     const batch = postIds.slice(start, start + 150);
     let offset = 0;
     while (true) {
       const { data, error } = await (supabase as any)
         .from(table)
-        .select(table === "post_interactions" ? "post_id,created_at,kind" : "post_id,created_at")
+        .select("post_id,created_at")
         .in("post_id", batch)
         .order("created_at", { ascending: true })
         .range(offset, offset + 999);
       if (error) throw error;
-      const page = (data ?? []) as { post_id: string; created_at: string; kind?: string }[];
+      const page = (data ?? []) as { post_id: string; created_at: string }[];
       rows.push(...page);
       if (page.length < 1000) break;
       offset += 1000;
@@ -315,12 +315,12 @@ function Dashboard() {
       setAnalyticsError(null);
       try {
         const { data: postRows, error: postsError } = await (supabase as any)
-          .from("posts")
-          .select("id,created_at,media_type")
-          .eq("author_id", user.id)
+          .from("user_media_posts")
+          .select("id,created_at,content_type")
+          .eq("user_id", user.id)
           .order("created_at", { ascending: true });
         if (postsError) throw postsError;
-        const ownedPosts = (postRows ?? []) as { id: string; created_at: string; media_type: string | null }[];
+        const ownedPosts = (postRows ?? []) as { id: string; created_at: string; content_type: string | null }[];
         const ids = ownedPosts.map((post) => post.id);
         if (!ids.length) {
           if (!cancelled) {
@@ -331,10 +331,12 @@ function Dashboard() {
           return;
         }
 
-        const [interactionRows, commentRows] = await Promise.all([
-          fetchPagedRows("post_interactions", ids),
-          fetchPagedRows("post_comments", ids),
+        const [likeRows, commentRows, repostRows] = await Promise.all([
+          fetchPagedRows("user_media_post_likes", ids),
+          fetchPagedRows("user_media_post_comments", ids),
+          fetchPagedRows("user_media_post_reposts", ids),
         ]);
+        const interactionRows = [...likeRows, ...repostRows];
         if (cancelled) return;
 
         const today = new Date();
@@ -369,10 +371,10 @@ function Dashboard() {
           ["Videos", { engagements: 0, posts: 0, icon: Video }],
         ]);
         ownedPosts.forEach((post) => {
-          const type = (post.media_type ?? "").toLowerCase();
-          const label = type.includes("reel") || type.includes("short")
+          const type = (post.content_type ?? "").toLowerCase();
+          const label = type === "reel"
             ? "Reels"
-            : type.includes("video")
+            : type === "video"
               ? "Videos"
               : "Posts";
           const current = formatStats.get(label)!;
@@ -630,14 +632,14 @@ function Dashboard() {
             ) : dailyEngagement.length ? (
               <EngagementChart data={dailyEngagement} />
             ) : (
-              <div className="mt-4"><EmptyInsight>There are no dated likes or comments on your published posts in this period yet. New activity will appear here automatically.</EmptyInsight></div>
+              <div className="mt-4"><EmptyInsight>There are no dated likes, comments or reposts on your published content in this period yet. New activity will appear here automatically.</EmptyInsight></div>
             )}
           </section>
 
           <section className="space-y-3">
             <div>
               <h2 className="text-sm font-semibold">Performance by format</h2>
-              <p className="mt-1 text-[11px] text-white/40">Actual likes, shares and comments grouped by content type</p>
+              <p className="mt-1 text-[11px] text-white/40">Actual likes, comments and reposts grouped by content type</p>
             </div>
             <div className="rounded-xl border border-white/[0.08] bg-[#14141B] p-4">
               {analyticsLoading ? (
