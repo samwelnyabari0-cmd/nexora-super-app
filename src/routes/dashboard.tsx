@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, Users, FileText, Heart, MessageCircle, Share2, Eye,
+  ArrowLeft, Users, FileText, Heart, MessageCircle, Share2,
   Bookmark, TrendingUp, Play, Image as ImageIcon, Video, Clock3,
 } from "lucide-react";
 import { PageHeader } from "@/components/nexora/ui";
@@ -42,7 +42,7 @@ function MetricCard({ label, value, icon: Icon, note }: {
   );
 }
 
-function EmptyInsight({ children }: { children: React.ReactNode }) {
+function EmptyInsight({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-7 text-center">
       <Clock3 className="mx-auto mb-2 h-5 w-5 text-white/35" />
@@ -54,7 +54,7 @@ function EmptyInsight({ children }: { children: React.ReactNode }) {
 function Dashboard() {
   const [tab, setTab] = useState<DashboardTab>("Overview");
   const [period, setPeriod] = useState("all");
-  const { posts, saved } = useApp();
+  const { posts } = useApp();
   const { drafts } = useWorkspace();
   const { followers, following, loading: socialLoading } = useSocialGraph();
 
