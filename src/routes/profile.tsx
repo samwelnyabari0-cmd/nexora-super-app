@@ -35,6 +35,7 @@ import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
+import { recordUserMediaPostView } from "@/lib/post-views";
 import { useStrictMediaItems, type StrictFeedType } from "@/components/nexora/StrictMediaFeed";
 import type { Post } from "@/features/core/data";
 export const Route = createFileRoute("/profile")({
@@ -527,6 +528,10 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
 
   const selectedPost =
     viewerIndex === null ? null : activeItems[viewerIndex] ?? null;
+
+  useEffect(() => {
+    if (selectedPost && user?.id && selectedPost.creatorId !== "me") void recordUserMediaPostView(selectedPost.id);
+  }, [selectedPost?.id, user?.id]);
 
   useEffect(() => {
     if (viewerIndex === null) return;
