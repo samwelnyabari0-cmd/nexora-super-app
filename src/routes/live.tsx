@@ -221,6 +221,7 @@ function GoLive() {
   // Clean up local camera and peer connections if this component closes.
   useEffect(() => {
     return () => {
+      if (locationWatchId.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(locationWatchId.current);
       peerRef.current?.destroy();
       hostStreamRef.current?.getTracks().forEach((track) => track.stop());
       hostConnections.current.forEach((connection) => connection.close());
@@ -599,7 +600,12 @@ function GoLive() {
               </div>
             </div>
           ))}
-          {locationRequests.some((r) => r.status === "approved") && <p className="text-xs text-muted-foreground">Approved viewers: {locationRequests.filter((r) => r.status === "approved").length}</p>}
+          {locationRequests.filter((r) => r.status === "approved").map((request) => (
+            <div key={request.id} className="flex items-center justify-between gap-2 text-xs">
+              <span>Approved viewer {request.viewer_user_id.slice(0, 8)}…</span>
+              <Button size="sm" variant="outline" onClick={() => void decideLocationAccess(request.id, "denied")}>Revoke</Button>
+            </div>
+          ))}
         </div>
       )}
 
