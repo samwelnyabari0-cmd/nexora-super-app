@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  emptyClubs,
-  fixtures,
-  guilds,
-  upcoming,
-  whenLabel,
-  aggregateClubRsvps,
-} from "./logic";
+import { aggregateClubRsvps, upcoming, whenLabel, type Fixture } from "./logic";
 
 describe("clubs & guilds", () => {
   it("aggregates shared RSVP counts and the signed-in member's selection", () => {
@@ -24,6 +17,12 @@ describe("clubs & guilds", () => {
 
 
   it("shows only upcoming fixtures, soonest first", () => {
+    const fixtures: Fixture[] = [
+      { id: "f1", guildId: "g1", date: "2026-11-04", time: "18:30" },
+      { id: "f2", guildId: "g1", date: "2026-11-08", time: "15:00" },
+      { id: "f3", guildId: "g1", date: "2026-10-25", time: "15:00" },
+      { id: "f4", guildId: "g2", date: "2026-11-05", time: "19:00" },
+    ];
     const g1 = upcoming("g1", fixtures, new Date("2026-11-02T09:00:00"));
     expect(g1.length).toBeGreaterThan(0);
     expect(g1.some((f) => f.date < "2026-11-02")).toBe(false);
