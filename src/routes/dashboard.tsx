@@ -286,9 +286,25 @@ function Dashboard() {
         ]);
         if (cancelled) return;
 
+        const today = new Date();
+        const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        const allEventDates = [...interactionRows, ...commentRows].map((event) => dateKey(event.created_at)).sort();
+        const start = period === "30"
+          ? new Date(end.getTime() - 29 * 86_400_000)
+          : period === "90"
+            ? new Date(end.getTime() - 89 * 86_400_000)
+            : new Date((allEventDates[0] ?? dateKey(end)) + "T00:00:00.000Z");
+        const startKey = dateKey(start);
+        const endKey = dateKey(end);
+        const isInRange = (createdAt: string) => {
+          const key = dateKey(createdAt);
+          return key >= startKey && key <= endKey;
+        };
+
         const interactionByPost = new Map<string, number>();
         const dailyCounts = new Map<string, number>();
         const addEvent = (postId: string, createdAt: string) => {
+          if (!isInRange(createdAt)) return;
           const key = dateKey(createdAt);
           dailyCounts.set(key, (dailyCounts.get(key) ?? 0) + 1);
           interactionByPost.set(postId, (interactionByPost.get(postId) ?? 0) + 1);
@@ -314,17 +330,9 @@ function Dashboard() {
         });
         setFormatPerformance(Array.from(formatStats, ([label, value]) => ({ label, ...value })));
 
-        const eventDates = Array.from(dailyCounts.keys()).sort();
-        if (!eventDates.length) {
+        if (!dailyCounts.size) {
           setDailyEngagement([]);
         } else {
-          const today = new Date();
-          const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-          const start = period === "30"
-            ? new Date(end.getTime() - 29 * 86_400_000)
-            : period === "90"
-              ? new Date(end.getTime() - 89 * 86_400_000)
-              : new Date(eventDates[0] + "T00:00:00.000Z");
           const points: DailyPoint[] = [];
           for (let cursor = start; cursor <= end; cursor = new Date(cursor.getTime() + 86_400_000)) {
             const key = dateKey(cursor);
