@@ -7,6 +7,8 @@ export type ClubRealtimeMessage = {
   from: "me" | "club";
   text: string;
   at: string;
+  senderName: string;
+  role: string;
 };
 
 export function useClubRealtime(clubId: string) {
@@ -21,8 +23,24 @@ export function useClubRealtime(clubId: string) {
       .eq("club_id", clubId)
       .order("created_at", { ascending: true })
       .limit(100);
-    if (queryError) setError("Unable to load club messages.");
-    else setMessages((data ?? []).map((item: any) => ({ id: item.id, from: item.sender_id === user.id ? "me" : "club", text: item.body, at: new Date(item.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }) })));
+    if (queryError) {
+      setError("Unable to load club messages.");
+    } else {
+      const senderIds = [...new Set((data ?? []).map((item: any) => item.sender_id))];
+      const { data: roles } = senderIds.length
+        ? await (supabase.from("club_memberships" as never) as any)
+            .select("user_id,role").eq("club_id", clubId).in("user_id", senderIds)
+        : { data: [] };
+      const roleByUser = new Map((roles ?? []).map((item: any) => [item.user_id, item.role]));
+      setMessages((data ?? []).map((item: any) => ({
+        id: item.id,
+        from: item.sender_id === user.id ? "me" : "club",
+        text: item.body,
+        senderName: item.sender_name,
+        role: roleByUser.get(item.sender_id) ?? "member",
+        at: new Date(item.created_at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }),
+      })));
+    }
   }, [clubId, user]);
 
   useEffect(() => {
