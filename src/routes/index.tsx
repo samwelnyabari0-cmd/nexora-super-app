@@ -119,7 +119,7 @@ function Home() {
               Find people
             </Link>
             {people.slice(0, 12).map((person) => (
-              <Link key={person.id} to="/profile" search={{ handle: person.handle }}
+              <Link key={person.id} to="/profile/$handle" params={{ handle: person.handle }}
                 className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
                 <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={60} />
                 <span className="w-full truncate text-center text-muted-foreground">{person.handle}</span>
@@ -184,10 +184,10 @@ function SuggestedAccount({ person }: { person: DirectoryPerson }) {
   const { user } = useSession();
   return (
     <div className="flex items-center gap-3 py-2">
-      <Link to="/profile" search={{ handle: person.handle }}>
+      <Link to="/profile/$handle" params={{ handle: person.handle }}>
         <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={38} />
       </Link>
-      <Link to="/profile" search={{ handle: person.handle }} className="min-w-0 flex-1">
+      <Link to="/profile/$handle" params={{ handle: person.handle }} className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{person.display_name ?? person.handle}</p>
         <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
       </Link>
