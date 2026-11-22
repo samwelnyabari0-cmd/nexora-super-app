@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type PointerEvent, type ReactNode } from "react";
 import {
   ArrowLeft, Users, FileText, Heart, MessageCircle, Share2,
   Bookmark, TrendingUp, Play, Image as ImageIcon, Video, Clock3,
@@ -128,9 +128,9 @@ function EngagementChart({ data }: { data: DailyPoint[] }) {
     : "";
   const selected = activeIndex === null ? null : data[activeIndex];
   const selectedPoint = activeIndex === null ? null : chartPoints[activeIndex];
-  const selectedX = selectedPoint ? (selectedPoint.x / width) * 100 : 50;
+  const selectedX = selectedPoint ? Math.max(18, Math.min(82, (selectedPoint.x / width) * 100)) : 50;
 
-  const updateFromPointer = (event: React.PointerEvent<SVGSVGElement>) => {
+  const updateFromPointer = (event: PointerEvent<SVGSVGElement>) => {
     if (data.length < 2) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
