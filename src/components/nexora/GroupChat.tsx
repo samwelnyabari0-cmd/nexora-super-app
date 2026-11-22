@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ImagePlus, Loader2, Send, X, Mic, Square, MapPin, Radio, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -671,7 +672,17 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`flex max-w-[88%] gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
-                  sender?.avatar_url ? (
+                  sender?.handle ? (
+                    <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} aria-label={`Open @${sender.handle}'s profile`} className="mt-5 shrink-0">
+                      {sender.avatar_url ? (
+                        <img src={sender.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                          {(sender.display_name || sender.handle || "N").charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </Link>
+                  ) : sender?.avatar_url ? (
                     <img src={sender.avatar_url} alt="" className="mt-5 h-8 w-8 rounded-full object-cover" />
                   ) : (
                     <span className="mt-5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
@@ -686,8 +697,12 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     <>
                   {!mine && (
                     <p className="mb-1 text-xs font-semibold">
-                      {sender?.display_name || "NEXORA User"}
-                      {sender?.handle ? <span className="ml-1 font-normal opacity-70">@{sender.handle}</span> : null}
+                      {sender?.handle ? (
+                        <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} className="hover:underline">
+                          {sender?.display_name || "NEXORA User"}
+                          <span className="ml-1 font-normal opacity-70">@{sender.handle}</span>
+                        </Link>
+                      ) : (sender?.display_name || "NEXORA User")}
                     </p>
                   )}
                   {message.reply_to_message_id && (
@@ -705,7 +720,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                         sizeBytes={message.attachment_size_bytes}
                       />
                     ) : message.media_type === "video" ? (
-                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 max-h-[52dvh] w-full max-w-full rounded-lg object-contain" />
+                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 h-[75dvh] max-h-[75dvh] w-full max-w-full rounded-lg bg-black object-contain" />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (

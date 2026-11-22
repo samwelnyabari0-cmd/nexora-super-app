@@ -1,5 +1,5 @@
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send, ImagePlus, X, Mic, Square, Search, MapPin, Radio, Share2, Phone, Video, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1076,12 +1076,18 @@ if (recipient === user.id) {
           </a>
         </Button>
 
-        {profile?.avatar_url ? (
-          <img
-            src={profile.avatar_url}
-            alt=""
-            className="h-10 w-10 rounded-full object-cover"
-          />
+        {profile?.handle ? (
+          <Link to="/profile/$handle" params={{ handle: profile.handle.replace(/^@+/, "") }} aria-label={`Open @${profile.handle}'s profile`} className="shrink-0">
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold">
+                {recipientName.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </Link>
+        ) : profile?.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold">
             {recipientName.charAt(0).toUpperCase()}
@@ -1089,7 +1095,11 @@ if (recipient === user.id) {
         )}
 
         <div className="min-w-0">
-          <h1 className="truncate font-semibold">{recipientName}</h1>
+          {profile?.handle ? (
+            <Link to="/profile/$handle" params={{ handle: profile.handle.replace(/^@+/, "") }} className="block truncate font-semibold hover:underline">{recipientName}</Link>
+          ) : (
+            <h1 className="truncate font-semibold">{recipientName}</h1>
+          )}
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {recipientIsOnline && (
               <span className="h-2 w-2 rounded-full bg-green-500" aria-label="Online" />
@@ -1174,7 +1184,7 @@ if (recipient === user.id) {
                         src={mediaUrls[message.id]}
                         controls
                         playsInline
-                        className="mb-2 max-h-[52dvh] w-full max-w-full rounded-lg object-contain"
+                        className="mb-2 h-[75dvh] max-h-[75dvh] w-full max-w-full rounded-lg bg-black object-contain"
                       />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />

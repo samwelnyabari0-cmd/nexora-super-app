@@ -448,18 +448,30 @@ useEffect(() => {
               <p className="py-8 text-center text-sm text-muted-foreground" role="status">Loading {socialTab}…</p>
             ) : connections.map((connection) => (
               <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
-                {connection.avatar_url ? (
+                {connection.handle ? (
+                  <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }} aria-label={`Open @${connection.handle}'s profile`} className="shrink-0">
+                    {connection.avatar_url ? (
+                      <img src={connection.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover" />
+                    ) : (
+                      <Avatar name={connection.display_name ?? connection.handle} size={44} />
+                    )}
+                  </Link>
+                ) : connection.avatar_url ? (
                   <img src={connection.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
                 ) : (
-                  <Avatar name={connection.display_name ?? connection.handle ?? "NEXORA user"} size={44} />
+                  <Avatar name={connection.display_name ?? "NEXORA user"} size={44} />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                  {connection.handle ? (
+                    <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
+                  ) : (
+                    <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                  )}
                   <p className="truncate text-sm text-muted-foreground">@{connection.handle ?? connection.id.slice(0, 8)}</p>
                 </div>
                 {connection.handle && (
                   <Button asChild className="shrink-0" variant="outline" size="sm">
-                    <Link to="/profile/$handle" params={{ handle: connection.handle }}>View</Link>
+                    <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }}>View</Link>
                   </Button>
                 )}
               </div>

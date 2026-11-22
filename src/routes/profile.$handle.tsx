@@ -132,8 +132,9 @@ function PublicProfile() {
 
     void (async () => {
       try {
+        const normalizedHandle = handle.trim().replace(/^@+/, "");
         const { data: profileRows, error: profileError } = await (supabase as any)
-  .rpc("get_public_profile", { p_handle: handle });
+  .rpc("get_public_profile", { p_handle: normalizedHandle });
 
 if (cancelled) return;
 
@@ -349,7 +350,7 @@ const row = profileRows?.[0] ?? null;
           <span className="h-8 border-r border-slate-800" />
           {owner ? <Link to="/saved" className="min-w-0 flex-1 text-xs"><Bookmark className="mx-auto mb-1 h-4 w-4" />Saved</Link> : <span className="min-w-0 flex-1 text-xs text-slate-500"><Bookmark className="mx-auto mb-1 h-4 w-4" />Saved</span>}
         </div>
-        {socialTab && <div className="mt-3 border-t border-slate-800 pt-3"><div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold">{socialTab === "followers" ? "Followers" : "Following"}</h3><button type="button" className="text-xs text-slate-400" onClick={() => setSocialTab(null)}>Close</button></div>{owner ? connections.length ? <ul className="space-y-2">{connections.map((person) => <li key={person.id} className="flex items-center gap-2 text-sm">{person.avatar_url ? <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Avatar name={person.display_name ?? person.handle ?? "Member"} size={32} />}<span>{person.display_name ?? "NEXORA member"}</span><span className="text-xs text-slate-400">@{person.handle}</span></li>)}</ul> : <p className="text-xs text-slate-400">No {socialTab} to show yet.</p> : <p className="text-xs text-slate-400">Follower lists are visible to the owner only.</p>}</div>}
+        {socialTab && <div className="mt-3 border-t border-slate-800 pt-3"><div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold">{socialTab === "followers" ? "Followers" : "Following"}</h3><button type="button" className="text-xs text-slate-400" onClick={() => setSocialTab(null)}>Close</button></div>{owner ? connections.length ? <ul className="space-y-2">{connections.map((person) => <li key={person.id} className="flex items-center gap-2 text-sm">{person.handle ? <Link to="/profile/$handle" params={{ handle: person.handle.replace(/^@+/, "") }} className="flex min-w-0 items-center gap-2 rounded-lg py-1 hover:bg-slate-800/70"><span className="shrink-0">{person.avatar_url ? <img src={person.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Avatar name={person.display_name ?? person.handle ?? "Member"} size={32} />}</span><span className="min-w-0 truncate font-medium">{person.display_name ?? "NEXORA member"}</span><span className="shrink-0 text-xs text-slate-400">@{person.handle}</span></Link> : <><span>{person.display_name ?? "NEXORA member"}</span><span className="text-xs text-slate-400">@{person.handle}</span></>}</li>)}</ul> : <p className="text-xs text-slate-400">No {socialTab} to show yet.</p> : <p className="text-xs text-slate-400">Follower lists are visible to the owner only.</p>}</div>}
       </section>
 
       {/* Analytics dashboard is private to the owner and uses only persisted metrics. */}
