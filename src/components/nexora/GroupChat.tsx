@@ -624,7 +624,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4 md:h-[94dvh] md:min-h-[560px]">
+    <main className="mx-auto flex h-[75dvh] min-h-0 max-h-[75dvh] max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
@@ -720,11 +720,11 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                         sizeBytes={message.attachment_size_bytes}
                       />
                     ) : message.media_type === "video" ? (
-                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 block w-full max-w-full shrink-0 rounded-lg bg-black object-contain" style={{ height: "75dvh", minHeight: "75dvh", maxHeight: "75dvh" }} />
+                      <video src={mediaUrls[message.id]} controls playsInline className="mb-2 block aspect-video w-full max-w-[240px] rounded-lg bg-black object-contain" />
                     ) : message.media_type === "audio" ? (
                       <VoiceNotePlayer src={mediaUrls[message.id]} mine={mine} />
                     ) : (
-                      <img src={mediaUrls[message.id]} alt="Shared group attachment" className="mb-2 max-h-72 max-w-full rounded-lg object-contain" />
+                      <img src={mediaUrls[message.id]} alt="Shared group attachment" className="mb-2 max-h-44 max-w-[240px] rounded-lg object-contain" />
                     )
                   )}
                   {message.location_session_id ? (
