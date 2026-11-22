@@ -19,7 +19,7 @@ import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
 import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
 import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
-import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
+import { ConversationDetailsSheet } from "@/components/nexora/ConversationDetailsSheet";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
@@ -1069,48 +1069,27 @@ if (recipient === user.id) {
 
   return (
     <main className="mx-auto flex h-[100dvh] min-h-0 min-w-0 max-w-3xl flex-col gap-2 overflow-hidden px-3 pb-[calc(16px+env(safe-area-inset-bottom))] pt-2 sm:px-4">
-      <header className="flex items-center gap-3 border-b pb-4">
+      <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/95 py-2 backdrop-blur">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
             <ArrowLeft />
           </a>
         </Button>
 
-        {profile?.handle ? (
-          <Link to="/profile/$handle" params={{ handle: profile.handle.replace(/^@+/, "") }} aria-label={`Open @${profile.handle}'s profile`} className="shrink-0">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold">
-                {recipientName.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </Link>
-        ) : profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold">
-            {recipientName.charAt(0).toUpperCase()}
-          </div>
-        )}
-
-        <div className="min-w-0">
-          {profile?.handle ? (
-            <Link to="/profile/$handle" params={{ handle: profile.handle.replace(/^@+/, "") }} className="block truncate font-semibold hover:underline">{recipientName}</Link>
-          ) : (
-            <h1 className="truncate font-semibold">{recipientName}</h1>
-          )}
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {recipientIsOnline && (
-              <span className="h-2 w-2 rounded-full bg-green-500" aria-label="Online" />
-            )}
-            <span>{remoteActivity.some((activity) => activity.activity === "recording")
-              ? "Recording audio…"
-              : remoteActivity.some((activity) => activity.activity === "typing")
-                ? "Typing…"
-                : recipientStatus}</span>
-          </p>
-        </div>
+        <ConversationDetailsSheet
+          title={recipientName}
+          subtitle={remoteActivity.some((activity) => activity.activity === "recording")
+            ? "Recording audio…"
+            : remoteActivity.some((activity) => activity.activity === "typing")
+              ? "Typing…"
+              : recipientStatus}
+          avatarUrl={profile?.avatar_url}
+          initials={recipientName.charAt(0).toUpperCase()}
+          chatKind="direct"
+          chatId={recipient}
+          lock={chatLock}
+          profileHref={profile?.handle ? `/profile/${profile.handle.replace(/^@+/, "")}` : undefined}
+        />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <Button type="button" variant="outline" size="icon" aria-label="Start voice call" disabled={!user?.id || !recipient || startingCall} onClick={() => void startDirectCall("audio")}>
             <Phone className="h-4 w-4" />
@@ -1120,8 +1099,6 @@ if (recipient === user.id) {
           </Button>
         </div>
       </header>
-      <ChatLockPanel lock={chatLock} />
-      <DisappearingSettingsControl chatKind="direct" chatId={recipient} />
 
       <div
         ref={log}
@@ -1155,7 +1132,7 @@ if (recipient === user.id) {
                 )}
                 <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] break-words rounded-2xl px-4 py-2 ${
+                  className={`mx-3 max-w-[82%] min-w-0 break-words [overflow-wrap:anywhere] rounded-2xl px-3 py-2.5 ${
                     mine
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
