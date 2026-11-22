@@ -292,6 +292,16 @@ export function ClubAdminPanel({ clubId }: Props) {
         </p>
       )}
 
+      <div className="space-y-2 rounded-xl border p-3">
+        <h3 className="text-sm font-semibold">Role permissions</h3>
+        <ul className="space-y-1.5 text-xs text-muted-foreground">
+          <li><strong className="text-foreground">Creator:</strong> full club control, appoint admins and moderators, manage roles and membership.</li>
+          <li><strong className="text-foreground">Admin:</strong> approve, suspend or restore regular members; create and manage fixtures.</li>
+          <li><strong className="text-foreground">Moderator:</strong> create fixtures and events; cannot change member roles or ban members.</li>
+          <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to club events.</li>
+        </ul>
+      </div>
+
       {error && (
         <div className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
           {error}
