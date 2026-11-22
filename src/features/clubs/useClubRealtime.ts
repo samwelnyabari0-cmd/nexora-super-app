@@ -19,6 +19,7 @@ export function useClubRealtime(clubId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!clubId) { setMessages([]); setError(null); return; }
     if (!user) return;
     const { data, error: queryError } = await (supabase.from("club_messages" as never) as any)
       .select("id,sender_id,sender_name,body,created_at,is_announcement,pinned_at")

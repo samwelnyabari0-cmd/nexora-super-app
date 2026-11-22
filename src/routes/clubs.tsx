@@ -1,13 +1,13 @@
 import { ClubAdminPanel } from "@/components/nexora/ClubAdminPanel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { MapPin, Send, Trophy, Users, CalendarDays, Copy, ExternalLink } from "lucide-react";
+import { MapPin, Send, Trophy, Users, CalendarDays, Copy, ExternalLink, Plus, Lock, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, PageHeader, Panel } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { useClubData, type ClubRsvpStatus } from "@/features/clubs/useClubData";
-import type { ChatMsg } from "@/features/clubs/logic";
+import { getInitialClubId, type ChatMsg } from "@/features/clubs/logic";
 import { useClubRealtime } from "@/features/clubs/useClubRealtime";
 
 export const Route = createFileRoute("/clubs")({
@@ -35,12 +35,15 @@ export const Route = createFileRoute("/clubs")({
 const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
 
 function ClubsPage() {
-  const [sel, setSel] = useState("g1");
+  const [sel, setSel] = useState("");
   const data = useClubData(sel);
   const realtime = useClubRealtime(sel);
   const { passport } = useApp();
   const [today, setToday] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
+  const [showCreateClub, setShowCreateClub] = useState(false);
+  const [savingClub, setSavingClub] = useState(false);
+  const [clubDraft, setClubDraft] = useState({ name: "", kind: "football" as "football" | "gaming" | "tech", city: "", venue: "", blurb: "", visibility: "public" as "public" | "private" });
   const [savingEvent, setSavingEvent] = useState(false);
   const [draft, setDraft] = useState({ title: "", kind: "match", venue: "", event_date: "", event_time: "", notes: "" });
 
@@ -49,14 +52,54 @@ function ClubsPage() {
     setToday([now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-"));
   }, []);
   useEffect(() => {
-    if (data.directory.length && !data.directory.some((club) => club.id === sel)) setSel(data.directory[0].id);
+    const token = new URLSearchParams(window.location.search).get("invite");
+    if (!token || !data.authenticated) return;
+    void data.acceptInvitation(token).then((result) => {
+      if (result.error || !result.clubId) { toast.error(result.error ?? "This invitation could not be accepted."); return; }
+      setSel(result.clubId);
+      window.history.replaceState({}, "", window.location.pathname);
+      toast.success("You joined the private club.");
+    });
+  }, [data.authenticated, data.acceptInvitation]);
+  useEffect(() => {
+    const nextClubId = getInitialClubId(data.directory, sel);
+    if (nextClubId !== sel) setSel(nextClubId);
   }, [data.directory, sel]);
 
-  const guild = data.directory.find((club) => club.id === sel) ?? data.directory[0];
+  const guild = data.directory.find((club) => club.id === sel);
   const active = data.membership?.status === "active";
   const canCreateEvents = active && ["creator", "admin", "moderator"].includes(data.membership?.role ?? "");
   const events = data.events.filter((event) => !today || event.event_date >= today);
   const labels: Record<ClubRsvpStatus, string> = { going: "Going", maybe: "Maybe", cant_make_it: "Can't make it" };
+
+  const submitCreateClub = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (savingClub) return;
+    setSavingClub(true);
+    const result = await data.createClub(clubDraft);
+    setSavingClub(false);
+    if (result.error || !result.clubId) { toast.error(result.error ?? "Unable to create club."); return; }
+    setSel(result.clubId);
+    setShowCreateClub(false);
+    setClubDraft({ name: "", kind: "football", city: "", venue: "", blurb: "", visibility: "public" });
+    toast.success("Your club has been created.");
+  };
+
+  const createClubPanel = showCreateClub ? (
+    <Panel>
+      <form className="grid gap-3 sm:grid-cols-2" onSubmit={submitCreateClub}>
+        <div className="sm:col-span-2"><h3 className="font-semibold">Create your club</h3><p className="text-xs text-muted-foreground">You become its Creator and can manage members and roles.</p></div>
+        <input className={input} required minLength={3} maxLength={60} placeholder="Club name" value={clubDraft.name} onChange={(e) => setClubDraft((v) => ({ ...v, name: e.target.value }))} />
+        <select className={input} value={clubDraft.kind} onChange={(e) => setClubDraft((v) => ({ ...v, kind: e.target.value as typeof v.kind }))}><option value="football">Football</option><option value="gaming">Gaming</option><option value="tech">Tech</option></select>
+        <input className={input} maxLength={80} placeholder="City (or Online)" value={clubDraft.city} onChange={(e) => setClubDraft((v) => ({ ...v, city: e.target.value }))} />
+        <input className={input} maxLength={120} placeholder="Venue (or Online)" value={clubDraft.venue} onChange={(e) => setClubDraft((v) => ({ ...v, venue: e.target.value }))} />
+        <textarea className={`${input} sm:col-span-2`} rows={2} maxLength={240} placeholder="What is this club about?" value={clubDraft.blurb} onChange={(e) => setClubDraft((v) => ({ ...v, blurb: e.target.value }))} />
+        <label className="flex items-center gap-2 rounded-xl border p-3 text-sm"><input type="radio" name="club-visibility" checked={clubDraft.visibility === "public"} onChange={() => setClubDraft((v) => ({ ...v, visibility: "public" }))} /><Globe className="h-4 w-4" /> Public <span className="text-xs text-muted-foreground">Discoverable; people can request to join.</span></label>
+        <label className="flex items-center gap-2 rounded-xl border p-3 text-sm"><input type="radio" name="club-visibility" checked={clubDraft.visibility === "private"} onChange={() => setClubDraft((v) => ({ ...v, visibility: "private" }))} /><Lock className="h-4 w-4" /> Private <span className="text-xs text-muted-foreground">Invitation link only.</span></label>
+        <div className="sm:col-span-2 flex flex-wrap gap-2"><Button type="submit" disabled={savingClub || !data.authenticated}>{savingClub ? "Creating..." : "Create club"}</Button><Button type="button" variant="outline" onClick={() => setShowCreateClub(false)}>Cancel</Button>{!data.authenticated && <span className="self-center text-xs text-muted-foreground">Sign in to create a club.</span>}</div>
+      </form>
+    </Panel>
+  ) : null;
 
   const joinOrLeave = async () => {
     if (!data.authenticated) { toast.error("Sign in to join a club."); return; }
@@ -89,8 +132,8 @@ function ClubsPage() {
     toast.success("Event added to the shared club calendar.");
   };
 
-  if (!guild && !data.loading) {
-    return <div className="mx-auto max-w-5xl"><PageHeader title="Clubs & Guilds" subtitle="Shared club spaces." /><Panel><p className="text-sm text-muted-foreground">{data.error ?? "No clubs available."}</p><Button className="mt-3" variant="outline" onClick={() => void data.refreshDirectory()}>Retry</Button></Panel></div>;
+  if (!guild && !data.loading && !data.directoryLoading) {
+    return <div className="mx-auto max-w-5xl space-y-4"><PageHeader title="Clubs & Guilds" subtitle="Create your own community or discover public clubs." /><div className="flex flex-wrap gap-2"><Button onClick={() => setShowCreateClub((value) => !value)}><Plus className="mr-2 h-4 w-4" />Create a club</Button><Button variant="outline" onClick={() => void data.refreshDirectory()}>Refresh directory</Button></div>{createClubPanel}<Panel><h3 className="font-semibold">No clubs to show yet</h3><p className="mt-1 text-sm text-muted-foreground">Create a club to start your community. Public clubs will appear here; private clubs are available through invitations.</p>{data.error && <p className="mt-2 text-xs text-destructive">{data.error}</p>}</Panel></div>;
   }
   if (!guild) return <div className="mx-auto max-w-5xl"><PageHeader title="Clubs & Guilds" subtitle="Loading clubs..." /></div>;
 
@@ -100,14 +143,16 @@ function ClubsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <PageHeader title="Clubs & Guilds" subtitle="Shared memberships, event RSVPs, maps and club channels." />
+      <PageHeader title="Clubs & Guilds" subtitle="Create communities, manage roles, host events and connect with members." />
+      <div className="flex flex-wrap gap-2"><Button onClick={() => setShowCreateClub((value) => !value)}><Plus className="mr-2 h-4 w-4" />Create a club</Button><Link to="/match-center" className="inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-muted">Football Match Center</Link></div>
+      {createClubPanel}
       <div className="mb-5 grid gap-2 sm:grid-cols-3">
         {data.directory.map((club) => (
           <button key={club.id} type="button" onClick={() => setSel(club.id)} aria-pressed={club.id === guild.id}
             className={"min-w-0 rounded-2xl border p-3 text-left transition " + (club.id === guild.id ? "border-accent bg-card" : "bg-card/50 hover:bg-card")}>
             <span className="flex min-w-0 items-center gap-2">
               <span className="bg-brand grid h-8 w-8 shrink-0 place-items-center rounded-xl text-primary-foreground"><Trophy className="h-4 w-4" /></span>
-              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{club.name}</span><span className="block text-xs capitalize text-muted-foreground">{club.kind} · {club.active_member_count} members</span>{(data.unreadCounts[club.id] ?? 0) > 0 && <span className="mt-1 inline-flex rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">{data.unreadCounts[club.id]} unread</span>}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{club.name}</span><span className="block text-xs capitalize text-muted-foreground">{club.kind} · {club.active_member_count} members · {club.visibility}</span>{(data.unreadCounts[club.id] ?? 0) > 0 && <span className="mt-1 inline-flex rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">{data.unreadCounts[club.id]} unread</span>}</span>
             </span>
           </button>
         ))}

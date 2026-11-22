@@ -43,3 +43,8 @@ export type ChatMsg = {
   isAnnouncement?: boolean;
   pinnedAt?: string | null;
 };
+
+export function getInitialClubId<T extends { id: string }>(clubs: T[], preferredId: string): string {
+  if (clubs.some((club) => club.id === preferredId)) return preferredId;
+  return clubs[0]?.id ?? "";
+}

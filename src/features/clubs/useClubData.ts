@@ -13,6 +13,9 @@ export type ClubDirectoryItem = {
   latitude: number | null;
   longitude: number | null;
   active_member_count: number;
+  visibility: "public" | "private";
+  my_role: string | null;
+  my_status: string | null;
 };
 
 export type ClubEvent = {
@@ -36,6 +39,7 @@ export function useClubData(clubId: string) {
   const [rsvpCounts, setRsvpCounts] = useState<ClubRsvpCounts>({});
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshUnreadCounts = useCallback(async () => {
@@ -51,16 +55,23 @@ export function useClubData(clubId: string) {
   }, [user]);
 
   const refreshDirectory = useCallback(async () => {
+    setDirectoryLoading(true);
     const { data, error: directoryError } = await (supabase.rpc("get_club_directory" as never) as any);
     if (directoryError) {
       setError("Unable to load the club directory.");
+      setDirectoryLoading(false);
       return;
     }
     setDirectory((data ?? []) as ClubDirectoryItem[]);
+    setDirectoryLoading(false);
     await refreshUnreadCounts();
   }, [refreshUnreadCounts]);
 
   const refreshClub = useCallback(async () => {
+    if (!clubId) {
+      setMembership(null); setEvents([]); setMyRsvps({}); setRsvpCounts({}); setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -137,6 +148,24 @@ export function useClubData(clubId: string) {
     return () => { void supabase.removeChannel(channel); };
   }, [clubId, ready, refreshDirectory, refreshClub, refreshUnreadCounts]);
 
+  const createClub = useCallback(async (input: { name: string; kind: "football" | "gaming" | "tech"; city: string; venue: string; blurb: string; visibility: "public" | "private" }) => {
+    if (!user) return { error: "Sign in to create a club.", clubId: null as string | null };
+    const { data, error: createError } = await (supabase.rpc("create_club" as never, {
+      p_name: input.name, p_kind: input.kind, p_city: input.city, p_venue: input.venue, p_blurb: input.blurb, p_visibility: input.visibility,
+    } as never) as unknown as Promise<{ data: string | null; error: { message: string } | null }>);
+    if (createError) return { error: createError.message, clubId: null as string | null };
+    await refreshDirectory();
+    return { error: null, clubId: String(data) };
+  }, [refreshDirectory, user]);
+
+  const acceptInvitation = useCallback(async (token: string) => {
+    if (!user) return { error: "Sign in to accept this club invitation.", clubId: null as string | null };
+    const { data, error: acceptError } = await (supabase.rpc("accept_club_invitation" as never, { p_token: token } as never) as unknown as Promise<{ data: string | null; error: { message: string } | null }>);
+    if (acceptError) return { error: acceptError.message, clubId: null as string | null };
+    await refreshDirectory();
+    return { error: null, clubId: String(data) };
+  }, [refreshDirectory, user]);
+
   const requestMembership = useCallback(async () => {
     if (!user) return { error: "Sign in to join a club." };
     if (membership?.status === "banned") return { error: "You cannot rejoin this club." };
@@ -187,8 +216,8 @@ export function useClubData(clubId: string) {
   }, [membership?.status, refreshClub, user]);
 
   return {
-    directory, membership, events, myRsvps, rsvpCounts, unreadCounts, loading, error,
-    refreshDirectory, refreshClub, requestMembership, leaveClub, setRsvp, createEvent,
+    directory, membership, events, myRsvps, rsvpCounts, unreadCounts, loading, directoryLoading, error,
+    refreshDirectory, refreshClub, requestMembership, leaveClub, setRsvp, createEvent, createClub, acceptInvitation,
     authenticated: Boolean(user), userId: user?.id ?? null,
   };
 }
