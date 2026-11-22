@@ -22,6 +22,7 @@ import { toast } from "sonner";
   X,
   Play,
   Link2,
+  BarChart3,
 } from "lucide-react";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
@@ -599,10 +600,12 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                 post.mediaType?.startsWith("video/");
 
               return (
-                <button
+                <div
                   key={post.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => tab === "videos" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : tab === "reels" ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`) : setViewerIndex(index)}
+                  onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); tab === "videos" ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`) : tab === "reels" ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`) : setViewerIndex(index); } }}
                   className={`group relative ${tab === "reels" ? "aspect-[9/16]" : tab === "videos" ? "aspect-video" : "aspect-square"} overflow-hidden rounded-xl border bg-muted text-left`}
                   aria-label={`Open ${post.caption || "profile content"}`}
                 >
@@ -648,8 +651,17 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                         {post.comments.length}
                       </span>
                     </div>
+                    <Link
+                      to="/dashboard"
+                      search={{ postId: post.id }}
+                      onClick={(event) => event.stopPropagation()}
+                      className="absolute right-2 top-2 z-20 inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/75 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur hover:bg-black"
+                      aria-label="Open insights for this content"
+                    >
+                      <BarChart3 className="h-3 w-3" /> Insights
+                    </Link>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
