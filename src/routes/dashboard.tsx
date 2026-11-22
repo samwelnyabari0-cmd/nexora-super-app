@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type PointerEvent, type ReactNode } from "react";
 import {
   ArrowLeft, Users, FileText, Heart, MessageCircle, Share2,
-  Bookmark, TrendingUp, Play, Image as ImageIcon, Video, Clock3,
+  Bookmark, TrendingUp, Play, Image as ImageIcon, Video, Clock3, Eye, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
@@ -14,9 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 type DashboardTab = "Overview" | "Engagement" | "Audience";
 type DailyPoint = { date: string; count: number };
+type InsightPost = { id: string; caption: string | null; content_type: string; created_at: string; view_count: number | null; like_count: number | null; comment_count: number | null; share_count: number | null };
 type FormatPerformance = { label: string; engagements: number; posts: number; icon: typeof Play };
 
 export const Route = createFileRoute("/dashboard")({
+  validateSearch: (search: Record<string, unknown>) => ({ postId: typeof search.postId === "string" ? search.postId : "" }),
   head: () => ({
     meta: [
       { title: "Creator dashboard — NEXORA" },
@@ -199,6 +201,51 @@ function EngagementChart({ data }: { data: DailyPoint[] }) {
   );
 }
 
+
+function ViewsChart({ data }: { data: DailyPoint[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const width = 320;
+  const height = 150;
+  const paddingX = 10;
+  const paddingY = 16;
+  const maxValue = Math.max(1, ...data.map((point) => point.count));
+  const points = data.map((point, index) => ({
+    x: paddingX + (data.length <= 1 ? 0 : index / (data.length - 1)) * (width - paddingX * 2),
+    y: height - paddingY - (point.count / maxValue) * (height - paddingY * 2),
+  }));
+  const linePath = buildSmoothPath(points);
+  const first = points[0];
+  const last = points[points.length - 1];
+  const areaPath = linePath && first && last
+    ? `${linePath} L ${last.x} ${height - paddingY} L ${first.x} ${height - paddingY} Z`
+    : "";
+  const selected = activeIndex === null ? null : data[activeIndex];
+  const selectedPoint = activeIndex === null ? null : points[activeIndex];
+  const selectedX = selectedPoint ? Math.max(18, Math.min(82, (selectedPoint.x / width) * 100)) : 50;
+  const updateFromPointer = (event: PointerEvent<SVGSVGElement>) => {
+    if (data.length < 2) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    setActiveIndex(Math.round(ratio * (data.length - 1)));
+  };
+  return (
+    <div className="relative pt-10">
+      {selected && <div className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#09090D] px-3 py-1.5 text-[11px] font-medium text-white shadow-xl" style={{ left: `${selectedX}%` }}>
+        <span className="text-cyan-300">{compact(selected.count)} views</span><span className="mx-1.5 text-white/30">·</span><span className="text-white/75">{formatDay(selected.date)}</span>
+      </div>}
+      <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full overflow-visible touch-pan-y" role="img" aria-label="Daily views history. Drag across the chart to inspect each date." onPointerDown={updateFromPointer} onPointerMove={(event) => { if (event.buttons > 0 || event.pointerType === "touch") updateFromPointer(event); }} onPointerLeave={() => setActiveIndex(null)}>
+        <defs><linearGradient id="nexora-views-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#22D3EE" stopOpacity="0.34" /><stop offset="100%" stopColor="#22D3EE" stopOpacity="0" /></linearGradient></defs>
+        {[0.25, 0.5, 0.75].map((fraction) => <line key={fraction} x1="0" x2={width} y1={height * fraction} y2={height * fraction} stroke="white" strokeOpacity="0.07" strokeDasharray="3 5" />)}
+        {areaPath && <path d={areaPath} fill="url(#nexora-views-fill)" />}
+        {linePath && <path d={linePath} fill="none" stroke="#22D3EE" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />}
+        {selectedPoint && <><line x1={selectedPoint.x} x2={selectedPoint.x} y1="5" y2={height - paddingY} stroke="#67E8F9" strokeOpacity="0.7" strokeDasharray="3 4" /><circle cx={selectedPoint.x} cy={selectedPoint.y} r="5" fill="#22D3EE" stroke="#ECFEFF" strokeWidth="2" /></>}
+      </svg>
+      <div className="mt-1 flex justify-between text-[10px] text-white/40"><span>{data.length ? formatDay(data[0].date) : ""}</span><span>{data.length > 2 ? formatDay(data[Math.floor((data.length - 1) / 2)].date) : ""}</span><span>{data.length ? formatDay(data[data.length - 1].date) : ""}</span></div>
+      <p className="mt-2 text-center text-[10px] text-white/35">Drag across the cyan line to explore daily views</p>
+    </div>
+  );
+}
+
 async function fetchPagedRows(table: "post_interactions" | "post_comments", postIds: string[]) {
   const rows: { post_id: string; created_at: string; kind?: string }[] = [];
   for (let start = 0; start < postIds.length; start += 150) {
@@ -225,6 +272,10 @@ function Dashboard() {
   const [tab, setTab] = useState<DashboardTab>("Overview");
   const [period, setPeriod] = useState("all");
   const [dailyEngagement, setDailyEngagement] = useState<DailyPoint[]>([]);
+  const [dailyViews, setDailyViews] = useState<DailyPoint[]>([]);
+  const [insightPost, setInsightPost] = useState<InsightPost | null>(null);
+  const [viewsLoading, setViewsLoading] = useState(true);
+  const { postId } = Route.useSearch();
   const [formatPerformance, setFormatPerformance] = useState<FormatPerformance[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -354,9 +405,75 @@ function Dashboard() {
     return () => { cancelled = true; };
   }, [period, sessionReady, user?.id]);
 
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadViews() {
+      if (!sessionReady || !user?.id) return;
+      setViewsLoading(true);
+      try {
+        let query = (supabase as any).from("user_media_posts")
+          .select("id,caption,content_type,created_at,view_count,like_count,comment_count,share_count")
+          .eq("user_id", user.id);
+        if (postId) query = query.eq("id", postId);
+        const { data: postsData, error: postsError } = await query.order("created_at", { ascending: true });
+        if (postsError) throw postsError;
+        const owned = (postsData ?? []) as InsightPost[];
+        if (postId && !owned.length) throw new Error("This content could not be found in your account.");
+        const ids = owned.map((post) => post.id);
+        if (!ids.length) {
+          if (!cancelled) { setInsightPost(null); setDailyViews([]); }
+          return;
+        }
+        let rows: { viewed_on: string; post_id: string }[] = [];
+        for (let start = 0; start < ids.length; start += 150) {
+          const batch = ids.slice(start, start + 150);
+          let offset = 0;
+          while (true) {
+            const { data, error } = await (supabase as any).from("user_media_post_views")
+              .select("post_id,viewed_on").in("post_id", batch).order("viewed_on", { ascending: true }).range(offset, offset + 999);
+            if (error) throw error;
+            const page = (data ?? []) as { viewed_on: string; post_id: string }[];
+            rows.push(...page);
+            if (page.length < 1000) break;
+            offset += 1000;
+          }
+        }
+        if (cancelled) return;
+        const selected = postId ? owned[0] : null;
+        setInsightPost(selected ?? null);
+        const today = new Date();
+        const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        const allDates = rows.map((row) => row.viewed_on).sort();
+        const startDate = period === "30" ? new Date(end.getTime() - 29 * 86400000)
+          : period === "90" ? new Date(end.getTime() - 89 * 86400000)
+          : new Date((allDates[0] ?? dateKey(end)) + "T00:00:00.000Z");
+        const startKey = dateKey(startDate);
+        const endKey = dateKey(end);
+        const counts = new Map<string, number>();
+        rows.forEach((row) => {
+          if (row.viewed_on >= startKey && row.viewed_on <= endKey) counts.set(row.viewed_on, (counts.get(row.viewed_on) ?? 0) + 1);
+        });
+        const points: DailyPoint[] = [];
+        for (let cursor = startDate; cursor <= end; cursor = new Date(cursor.getTime() + 86400000)) {
+          const key = dateKey(cursor);
+          points.push({ date: key, count: counts.get(key) ?? 0 });
+        }
+        setDailyViews(points.some((point) => point.count > 0) ? points : []);
+      } catch (error) {
+        if (!cancelled) { setInsightPost(null); setDailyViews([]); setAnalyticsError(error instanceof Error ? error.message : "Could not load view analytics."); }
+      } finally {
+        if (!cancelled) setViewsLoading(false);
+      }
+    }
+    void loadViews();
+    return () => { cancelled = true; };
+  }, [period, postId, sessionReady, user?.id]);
+
   const periodLabel = period === "all" ? "All available" : period === "30" ? "Last 30 days" : "Last 90 days";
   const formatMax = Math.max(1, ...formatPerformance.map((format) => format.engagements));
   const datedTotal = dailyEngagement.reduce((sum, point) => sum + point.count, 0);
+  const datedViewsTotal = dailyViews.reduce((sum, point) => sum + point.count, 0);
 
   return (
     <main className="min-h-screen space-y-5 bg-[#0B0B0F] px-3 pb-8 pt-3 text-white sm:px-5">
@@ -366,8 +483,8 @@ function Dashboard() {
             <Link to="/profile" aria-label="Back to profile"><ArrowLeft className="h-5 w-5" /></Link>
           </Button>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold tracking-tight">Creator dashboard</h1>
-            <p className="text-[11px] text-white/45">Your professional insights</p>
+            <h1 className="truncate text-base font-semibold tracking-tight">{postId ? "Content insights" : "Creator dashboard"}</h1>
+            <p className="text-[11px] text-white/45">{postId ? "Performance of this post" : "Your professional insights"}</p>
           </div>
         </div>
         <label className="shrink-0">
@@ -384,7 +501,34 @@ function Dashboard() {
         </label>
       </header>
 
-      <nav className="grid grid-cols-3 border-b border-white/10" role="tablist" aria-label="Creator analytics">
+      {postId && (
+        <section className="space-y-4">
+          {insightPost ? <>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#14141B] p-4">
+              <p className="text-xs text-white/45">{insightPost.content_type.toUpperCase()} · Published {new Date(insightPost.created_at).toLocaleDateString()}</p>
+              <h2 className="mt-2 line-clamp-3 text-base font-semibold">{insightPost.caption || "Your published content"}</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <MetricCard label="Views" value={compact(insightPost.view_count ?? 0)} icon={Eye} note="Unique viewer per day" />
+              <MetricCard label="Likes" value={compact(insightPost.like_count ?? 0)} icon={Heart} />
+              <MetricCard label="Comments" value={compact(insightPost.comment_count ?? 0)} icon={MessageCircle} />
+              <MetricCard label="Shares" value={compact(insightPost.share_count ?? 0)} icon={Share2} />
+            </div>
+          </> : viewsLoading ? <EmptyInsight>Loading this content’s insights…</EmptyInsight> : <EmptyInsight>{analyticsError || "This content is unavailable or does not belong to your account."}</EmptyInsight>}
+          <section className="rounded-2xl border border-white/[0.08] bg-[#14141B] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="text-xs text-white/55">Views over time</p><p className="mt-1 text-3xl font-bold tabular-nums">{viewsLoading ? "—" : compact(datedViewsTotal)}</p></div>
+              <Eye className="h-5 w-5 text-cyan-300" />
+            </div>
+            {viewsLoading ? <div className="mt-4"><EmptyInsight>Loading view history…</EmptyInsight></div>
+              : dailyViews.length ? <ViewsChart data={dailyViews} />
+              : <div className="mt-4"><EmptyInsight>Daily view history will appear as people view this content. Older total views are not backfilled into dates.</EmptyInsight></div>}
+          </section>
+          <p className="text-center text-[11px] text-white/40">View counts exclude your own views and count each signed-in viewer once per day.</p>
+        </section>
+      )}
+
+      {!postId && <nav className="grid grid-cols-3 border-b border-white/10" role="tablist" aria-label="Creator analytics">
         {(["Overview", "Engagement", "Audience"] as const).map((item) => (
           <button
             key={item}
@@ -398,13 +542,13 @@ function Dashboard() {
             {tab === item && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-violet-500" />}
           </button>
         ))}
-      </nav>
+      </nav>}
 
-      <p className="text-[11px] text-white/40">
+      {!postId && <p className="text-[11px] text-white/40">
         {periodLabel} · Based on your published content and account records
       </p>
 
-      {tab === "Overview" && (
+      {!postId && tab === "Overview" && (
         <div className="space-y-5">
           <section className="rounded-2xl border border-white/[0.08] bg-[#14141B] p-4">
             <p className="text-xs font-medium text-white/55">Tracked interactions</p>
@@ -463,8 +607,14 @@ function Dashboard() {
         </div>
       )}
 
-      {tab === "Engagement" && (
+      {!postId && tab === "Engagement" && (
         <div className="space-y-5">
+          <section className="rounded-2xl border border-white/[0.08] bg-[#14141B] p-4">
+            <div className="flex items-center justify-between gap-3"><div><p className="text-xs text-white/55">Views over time</p><p className="mt-1 text-3xl font-bold tabular-nums">{viewsLoading ? "—" : compact(datedViewsTotal)}</p></div><Eye className="h-5 w-5 text-cyan-300" /></div>
+            {viewsLoading ? <div className="mt-4"><EmptyInsight>Loading view history…</EmptyInsight></div>
+              : dailyViews.length ? <ViewsChart data={dailyViews} />
+              : <div className="mt-4"><EmptyInsight>Daily view history will appear here as people view your posts. Older totals are not backfilled into dates.</EmptyInsight></div>}
+          </section>
           <section className="rounded-2xl border border-white/[0.08] bg-[#14141B] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -519,7 +669,7 @@ function Dashboard() {
         </div>
       )}
 
-      {tab === "Audience" && (
+      {!postId && tab === "Audience" && (
         <div className="space-y-4">
           <section className="grid grid-cols-2 gap-2.5">
             <MetricCard label="Followers" value={socialLoading ? "—" : compact(followers)} icon={Users} />
