@@ -13,6 +13,7 @@ import {
   Volume2,
   VolumeX,
   Maximize2,
+  BarChart3,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -34,6 +35,7 @@ import { sharePost } from "@/lib/social-activity";
 import { typeFromTags, visibleTags } from "@/lib/post-types";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { getFrameAspectRatio, getMediaAspectRatioValue, normalizeMediaFraming } from "@/lib/media-framing";
+import { recordUserMediaPostView } from "@/lib/post-views";
 
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
@@ -64,6 +66,7 @@ export function PostCard({ post }: { post: Post }) {
   const [refreshedMediaUrl, setRefreshedMediaUrl] = useState<string | undefined>();
   const attemptedRefresh = useRef(new Set<string>());
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
   const [videoMuted, setVideoMuted] = useState(true);
   const displayedMediaSource = refreshedMediaUrl ?? mediaSource;
   const mediaFrameRatio = post.frameRatio && post.frameRatio !== "original"
@@ -94,6 +97,32 @@ export function PostCard({ post }: { post: Post }) {
     observer.observe(video);
     return () => { observer.disconnect(); video.pause(); };
   }, [displayedMediaSource]);
+
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !user?.id || !isDbPost || typeof IntersectionObserver === "undefined") return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let recorded = false;
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.55 && !recorded && !timer) {
+        timer = setTimeout(() => {
+          recorded = true;
+          void recordUserMediaPostView(post.id);
+        }, 1200);
+      } else if ((!entry.isIntersecting || entry.intersectionRatio < 0.55) && timer) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    }, { threshold: [0, 0.55, 1] });
+    observer.observe(card);
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, [post.id, user?.id, isDbPost]);
 
   const isLiked = liked.has(post.id);
   const isSaved = saved.has(post.id);
@@ -163,6 +192,7 @@ export function PostCard({ post }: { post: Post }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {post.creatorId === "me" ? <>
+            <DropdownMenuItem onSelect={() => { window.location.href = `/dashboard?postId=${encodeURIComponent(post.id)}`; }}><BarChart3 className="mr-2 h-4 w-4" />View insights</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setEditing(true)}>Edit post</DropdownMenuItem>
             <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => {
               if (window.confirm("Delete this post? This cannot be undone.")) void deletePost(post.id);
@@ -201,7 +231,7 @@ export function PostCard({ post }: { post: Post }) {
   );
 
   return (
-    <article className="overflow-hidden rounded-3xl border bg-card">
+    <article ref={cardRef} className="overflow-hidden rounded-3xl border bg-card">
       <div className="p-4 pb-3">{header}</div>
       {mediaSource && post.mediaType?.startsWith("video/") ? (
         <div className="relative w-full overflow-hidden bg-muted" style={{
