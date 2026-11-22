@@ -53,7 +53,10 @@ export function ConversationDetailsSheet({
         </div>
         <div className="space-y-3">
           {profileHref && (
-            <a href={profileHref} className="block text-sm font-medium text-primary hover:underline">
+            <a
+              href={profileHref}
+              className="block text-sm font-medium text-primary hover:underline"
+            >
               View profile
             </a>
           )}
