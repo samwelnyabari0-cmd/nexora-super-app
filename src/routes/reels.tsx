@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, MessageCircle, Share2, Film } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
@@ -147,6 +147,7 @@ function Reels() {
             ) : <p className="p-8 text-center">{item.caption}</p>}
             <div className="absolute bottom-8 left-4 right-20 z-20 space-y-2 bg-gradient-to-t from-black/70 to-transparent pb-3 pt-10">
               <p className="text-xs font-semibold">NEXORA Creator</p>
+              {user?.id && item.user_id === user.id && <Link to="/dashboard" search={{ postId: item.id }} className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-[11px] font-semibold"><BarChart3 className="h-3.5 w-3.5" /> Insights</Link>}
               <p className="whitespace-pre-wrap text-sm">{item.caption}</p>
               <p className="text-[11px] text-white/70">{item.duration_seconds ?? "—"} sec · {Number(item.view_count ?? 0).toLocaleString()} views</p>
             </div>
