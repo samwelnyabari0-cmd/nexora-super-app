@@ -23,6 +23,7 @@ import { Route as HubRouteImport } from './routes/hub'
 import { Route as LearnRouteImport } from './routes/learn'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as MapsRouteImport } from './routes/maps'
+import { Route as MatchCenterRouteImport } from './routes/match-center'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PlatformRouteImport } from './routes/platform'
@@ -99,6 +100,11 @@ const LiveRoute = LiveRouteImport.update({
 const MapsRoute = MapsRouteImport.update({
   id: '/maps',
   path: '/maps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MatchCenterRoute = MatchCenterRouteImport.update({
+  id: '/match-center',
+  path: '/match-center',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MessagesRoute = MessagesRouteImport.update({
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/learn': typeof LearnRoute
   '/live': typeof LiveRoute
   '/maps': typeof MapsRoute
+  '/match-center': typeof MatchCenterRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
  '/platform': typeof PlatformRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/learn': typeof LearnRoute
   '/live': typeof LiveRoute
   '/maps': typeof MapsRoute
+  '/match-center': typeof MatchCenterRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/platform': typeof PlatformRoute  
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/learn': typeof LearnRoute
   '/live': typeof LiveRoute
   '/maps': typeof MapsRoute
+  '/match-center': typeof MatchCenterRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/platform': typeof PlatformRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/live'
     | '/maps'
+    | '/match-center'
     | '/messages'
     | '/notifications'
     | '/platform'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/live'
     | '/maps'
+    | '/match-center'
     | '/messages'
     | '/notifications'
     | '/platform'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/live'
     | '/maps'
+    | '/match-center'
     | '/messages'
     | '/notifications'
     | '/platform'
@@ -353,6 +365,7 @@ export interface RootRouteChildren {
   LearnRoute: typeof LearnRoute
   LiveRoute: typeof LiveRoute
   MapsRoute: typeof MapsRoute
+  MatchCenterRoute: typeof MatchCenterRoute
   MessagesRoute: typeof MessagesRoute
   NotificationsRoute: typeof NotificationsRoute
   PlatformRoute: typeof PlatformRoute
@@ -458,6 +471,13 @@ declare module '@tanstack/react-router' {
       path: '/maps'
       fullPath: '/maps'
       preLoaderRoute: typeof MapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/match-center': {
+      id: '/match-center'
+      path: '/match-center'
+      fullPath: '/match-center'
+      preLoaderRoute: typeof MatchCenterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/messages': {
@@ -578,6 +598,7 @@ const rootRouteChildren: RootRouteChildren = {
   LearnRoute: LearnRoute,
   LiveRoute: LiveRoute,
   MapsRoute: MapsRoute,
+  MatchCenterRoute: MatchCenterRoute,
   MessagesRoute: MessagesRoute,
   NotificationsRoute: NotificationsRoute,
   PlatformRoute: PlatformRoute,

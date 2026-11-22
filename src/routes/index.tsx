@@ -6,6 +6,7 @@ import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { PostCard } from "@/components/nexora/PostCard";
+import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
 import { Avatar, Chip, EmptyState } from "@/components/nexora/ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,6 +131,8 @@ function Home() {
             )}
           </div>
         </section>
+
+        <FootballMatchPreview />
 
         <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4" role="toolbar" aria-label="Feed filters">
           {feedFilters.map((item) => (

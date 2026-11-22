@@ -37,3 +37,17 @@ describe("clubs & guilds", () => {
 
 
 });
+
+describe("dynamic club selection", () => {
+  it("does not assume a seeded club and selects the first available club", async () => {
+    const { getInitialClubId } = await import("./logic");
+    expect(getInitialClubId([], "g1")).toBe("");
+    expect(getInitialClubId([{ id: "new-club" }], "g1")).toBe("new-club");
+  });
+
+  it("preserves a selected club only when it remains accessible", async () => {
+    const { getInitialClubId } = await import("./logic");
+    expect(getInitialClubId([{ id: "a" }, { id: "b" }], "b")).toBe("b");
+    expect(getInitialClubId([{ id: "a" }], "b")).toBe("a");
+  });
+});

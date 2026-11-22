@@ -53,6 +53,8 @@ export function ClubAdminPanel({ clubId }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [error, setError] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState("");
+  const [creatingInvite, setCreatingInvite] = useState(false);
 
   const loadMembers = useCallback(async () => {
     if (!user) {
@@ -127,6 +129,18 @@ export function ClubAdminPanel({ clubId }: Props) {
   useEffect(() => {
     if (ready) void loadMembers();
   }, [ready, loadMembers]);
+
+  const createInviteLink = async () => {
+    if (!isAdmin || !isActive) return;
+    setCreatingInvite(true);
+    const { data, error: inviteError } = await (supabase.rpc("create_club_invitation" as never, { p_club_id: clubId } as never) as unknown as Promise<{ data: string | null; error: { message: string } | null }>);
+    setCreatingInvite(false);
+    if (inviteError || !data) { toast.error(inviteError?.message ?? "Unable to create invite link."); return; }
+    const link = `${window.location.origin}/clubs?invite=${data}`;
+    setInviteLink(link);
+    try { await navigator.clipboard.writeText(link); toast.success("Private club invite link copied."); }
+    catch { toast.success("Invite link created. Copy it below to share."); }
+  };
 
   const currentMembership = members.find(
     (member) => member.user_id === user?.id
@@ -273,6 +287,16 @@ export function ClubAdminPanel({ clubId }: Props) {
           {isCreator ? "Creator" : isAdmin ? "Administrator" : isModerator ? "Moderator" : "Member"}
         </span>
       </div>
+
+      {isAdmin && isActive && (
+        <div className="space-y-2 rounded-xl border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><p className="text-sm font-semibold">Invite members</p><p className="text-xs text-muted-foreground">Create a secure, seven-day invite link for this club.</p></div>
+            <Button type="button" size="sm" variant="outline" disabled={creatingInvite} onClick={() => void createInviteLink()}>{creatingInvite ? "Creating…" : "Create invite link"}</Button>
+          </div>
+          {inviteLink && <div className="flex gap-2"><input className="min-w-0 flex-1 rounded-lg border bg-background px-2 py-1.5 text-xs" readOnly value={inviteLink} onFocus={(event) => event.currentTarget.select()} /><Button type="button" size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</Button></div>}
+        </div>
+      )}
 
       {isCreator && isActive && (
         <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
