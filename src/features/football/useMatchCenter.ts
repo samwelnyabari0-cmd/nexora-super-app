@@ -263,6 +263,22 @@ export function useMatchCenter() {
     [refresh, user],
   );
 
+  const disconnectTeamFromClub = useCallback(
+    async (teamProviderId: string, clubId: string) => {
+      if (!user) return { error: "Sign in to manage club team updates." };
+      if (!teamProviderId || !clubId) return { error: "Choose a team and club first." };
+      const { error: updateError } = await table<ClubTeamSync>("football_club_team_sync")
+        .update({ enabled: false })
+        .eq("team_provider_id", teamProviderId)
+        .eq("club_id", clubId)
+        .eq("created_by", user.id);
+      if (updateError) return { error: updateError.message };
+      await refresh();
+      return { error: null };
+    },
+    [refresh, user],
+  );
+
   const shareMatchToClub = useCallback(
     async (match: FootballMatch, clubId: string) => {
       if (!user) return { error: "Sign in to discuss this match." };
