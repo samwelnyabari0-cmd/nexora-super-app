@@ -1069,7 +1069,7 @@ if (recipient === user.id) {
   const recipientName = profile?.display_name || "NEXORA User";
 
   return (
-    <main className="mx-auto flex h-[100dvh] min-h-0 min-w-0 max-w-3xl flex-col gap-2 overflow-hidden px-3 pb-[calc(16px+env(safe-area-inset-bottom))] pt-2 sm:px-4">
+    <main className="mx-auto flex h-[100dvh] min-h-0 min-w-0 max-w-3xl flex-col gap-2 overflow-hidden px-3 pb-0 pt-2 sm:px-4">
       <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/95 py-2 backdrop-blur">
         <Button variant="ghost" size="icon" asChild>
           <a href={returnTo} aria-label="Back to profile">
@@ -1284,7 +1284,7 @@ if (recipient === user.id) {
           </div>
         </div>
       )}
-      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+      <form onSubmit={sendMessage} className="shrink-0 space-y-3 border-t pt-3 pb-[calc(16px+env(safe-area-inset-bottom))]">
         <input
           ref={fileInput}
           type="file"
