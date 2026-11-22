@@ -548,7 +548,7 @@ function Dashboard() {
 
       {!postId && <p className="text-[11px] text-white/40">
         {periodLabel} · Based on your published content and account records
-      </p>
+      </p>}
 
       {!postId && tab === "Overview" && (
         <div className="space-y-5">
