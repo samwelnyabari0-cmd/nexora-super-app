@@ -137,13 +137,29 @@ function PublicProfile() {
       try {
         const normalizedHandle = handle.trim().replace(/^@+/, "");
         const { data: profileRows, error: profileError } = await (supabase as any)
-  .rpc("get_public_profile", { p_handle: normalizedHandle });
+          .rpc("get_public_profile", { p_handle: normalizedHandle });
 
-if (cancelled) return;
+        if (cancelled) return;
 
-const row = profileRows?.[0] ?? null;
+        // Never trust a profile RPC result unless its handle matches the requested URL.
+        // Some legacy RPC deployments can return a different row; resolve the exact
+        // handle through the safe account-discovery RPC before rendering anything.
+        const normalize = (value: unknown) => String(value ?? "").trim().replace(/^@+/, "").toLowerCase();
+        let row = (Array.isArray(profileRows) ? profileRows[0] : profileRows) ?? null;
+        if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
+          const { data: discoveredRows, error: discoveryError } = await (supabase as any)
+            .rpc("get_discoverable_profiles", { p_query: normalizedHandle, p_limit: 60 });
+          if (cancelled) return;
+          if (!discoveryError && Array.isArray(discoveredRows)) {
+            row = discoveredRows.find((candidate: Record<string, unknown>) =>
+              normalize(candidate.handle) === normalize(normalizedHandle)
+            ) ?? null;
+          } else if (discoveryError) {
+            console.error("Could not resolve requested public profile:", profileError || discoveryError);
+          }
+        }
 
-      if (profileError || !row) {
+        if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
