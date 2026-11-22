@@ -1,4 +1,19 @@
 // Pure helpers + seed data for Clubs & Guilds. No network, no real payments.
+export type ClubRsvpStatus = "going" | "maybe" | "cant_make_it";
+export type ClubRsvpRecord = { event_id: string; user_id: string; status: ClubRsvpStatus };
+export type ClubRsvpCounts = Record<string, { going: number; maybe: number; cant_make_it: number }>;
+
+export function aggregateClubRsvps(rows: ClubRsvpRecord[], userId: string) {
+  const counts: ClubRsvpCounts = {};
+  const myRsvps: Record<string, ClubRsvpStatus> = {};
+  for (const row of rows) {
+    counts[row.event_id] ??= { going: 0, maybe: 0, cant_make_it: 0 };
+    counts[row.event_id][row.status] += 1;
+    if (row.user_id === userId) myRsvps[row.event_id] = row.status;
+  }
+  return { counts, myRsvps };
+}
+
 export type GuildKind = "football" | "gaming" | "tech";
 export type Guild = {
   id: string;
