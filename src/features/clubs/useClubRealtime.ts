@@ -35,8 +35,9 @@ export function useClubRealtime(clubId: string) {
             .select("user_id,role,status").eq("club_id", clubId).in("user_id", senderIds)
         : { data: [] };
       const roleByUser = new Map((roles ?? []).map((item: any) => [item.user_id, item.role]));
-      const myMembership = (roles ?? []).find((item: any) => item.user_id === user.id && item.status === "active");
-      if (myMembership) {
+      const { data: myMembership } = await (supabase.from("club_memberships" as never) as any)
+        .select("status").eq("club_id", clubId).eq("user_id", user.id).maybeSingle();
+      if (myMembership?.status === "active") {
         await (supabase.rpc("mark_club_channel_read" as never, { p_club_id: clubId } as never) as any);
       }
       setMessages((data ?? []).map((item: any) => ({
