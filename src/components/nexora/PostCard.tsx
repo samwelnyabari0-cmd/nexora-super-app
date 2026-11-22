@@ -67,6 +67,7 @@ export function PostCard({ post }: { post: Post }) {
   const attemptedRefresh = useRef(new Set<string>());
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLElement>(null);
+  const isDbPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id);
   const [videoMuted, setVideoMuted] = useState(true);
   const displayedMediaSource = refreshedMediaUrl ?? mediaSource;
   const mediaFrameRatio = post.frameRatio && post.frameRatio !== "original"
@@ -133,7 +134,6 @@ export function PostCard({ post }: { post: Post }) {
   const [editedCaption, setEditedCaption] = useState(post.caption);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareBump, setShareBump] = useState(0);
-  const isDbPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id);
   const contentType = typeFromTags(post.tags ?? []);
   const typeLabel =
     contentType === "ad"
