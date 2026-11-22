@@ -16,7 +16,7 @@ import type { ChatLocationPayload } from "@/components/nexora/location-sharing";
 import { ShareContentDialog } from "@/components/nexora/ShareContentDialog";
 import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
-import { DisappearingSettingsControl } from "@/components/nexora/DisappearingSettingsControl";
+import { ConversationDetailsSheet } from "@/components/nexora/ConversationDetailsSheet";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
@@ -625,33 +625,27 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
 
   return (
     <main className="mx-auto flex h-[100dvh] min-h-0 min-w-0 max-w-3xl flex-col gap-2 overflow-hidden px-3 pb-[calc(16px+env(safe-area-inset-bottom))] pt-2 sm:px-4">
-      <header className="flex items-center gap-3 border-b pb-4">
+      <header className="sticky top-0 z-20 flex items-center gap-2 border-b bg-background/95 py-2 backdrop-blur">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-lg font-bold">
-            {group.name.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-semibold">{group.name}</h1>
-          <p className="truncate text-xs text-muted-foreground">
-            {remoteActivity.length > 0
-              ? `${profiles[remoteActivity[0].user_id]?.display_name || "A member"} ${remoteActivity[0].activity === "recording" ? "is recording audio…" : "is typing…"}`
-              : group.description || "Group conversation"}
-          </p>
-        </div>
+        <ConversationDetailsSheet
+          title={group.name}
+          subtitle={remoteActivity.length > 0
+            ? `${profiles[remoteActivity[0].user_id]?.display_name || "A member"} ${remoteActivity[0].activity === "recording" ? "is recording audio…" : "is typing…"}`
+            : group.description || "Group conversation"}
+          avatarUrl={avatarUrl}
+          initials={group.name.charAt(0).toUpperCase()}
+          chatKind="group"
+          chatId={groupId}
+          lock={chatLock}
+        />
         <GroupMembersDialog
           groupId={groupId}
           userId={userId}
           onLeave={onBack}
         />
       </header>
-      <ChatLockPanel lock={chatLock} />
-      <DisappearingSettingsControl chatKind="group" chatId={groupId} />
 
       <div ref={log} className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain py-4" role="log" aria-live="polite">
         {visibleMessages.length === 0 ? (
@@ -670,7 +664,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                 </div>
               )}
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`flex max-w-[88%] gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+              <div className={`mx-3 flex max-w-[82%] min-w-0 gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
                   sender?.handle ? (
                     <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} aria-label={`Open @${sender.handle}'s profile`} className="mt-5 shrink-0">
@@ -690,7 +684,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     </span>
                   )
                 )}
-                <div className={`min-w-0 rounded-2xl px-4 py-2 ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                <div className={`min-w-0 max-w-full break-words [overflow-wrap:anywhere] rounded-2xl px-3 py-2.5 ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {message.deleted_at ? (
                     <p className="py-2 text-sm italic opacity-75">This message was deleted</p>
                   ) : (
