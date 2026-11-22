@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Play, Video, ArrowLeft } from "lucide-react";
+import { Play, Video, ArrowLeft, BarChart3 } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
+import { useSession } from "@/lib/session";
+import { supabase } from "@/integrations/supabase/client";
+import { recordUserMediaPostView } from "@/lib/post-views";
 
 export const Route = createFileRoute("/videos")({
   head: () => ({ meta: [{ title: "Videos — NEXORA" }, { name: "description", content: "Horizontal and long-form videos on NEXORA." }] }),
@@ -10,12 +13,14 @@ export const Route = createFileRoute("/videos")({
 
 function Videos() {
   const { items, loading, error } = useStrictMediaItems("video");
+  const { user } = useSession();
   const [activeId, setActiveId] = useState<string | null>(null);
   useEffect(() => {
     const requestedId = new URLSearchParams(window.location.search).get("post");
     if (requestedId) setActiveId(requestedId);
   }, []);
   const active = items.find((item) => item.id === activeId) ?? items[0];
+  useEffect(() => { if (active?.id && user?.id) void recordUserMediaPostView(active.id); }, [active?.id, user?.id]);
 
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
   if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
@@ -35,6 +40,7 @@ function Videos() {
             </div>
             <div className="space-y-2 p-4">
               <h2 className="font-semibold">{active?.caption || "NEXORA Video"}</h2>
+              {user?.id && active?.user_id === user.id && <Link to="/dashboard" search={{ postId: active.id }} className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold text-primary"><BarChart3 className="h-3.5 w-3.5" /> View insights</Link>}
               <p className="text-xs text-muted-foreground">{Number(active?.view_count ?? 0).toLocaleString()} views · {Number(active?.like_count ?? 0).toLocaleString()} likes · {Number(active?.comment_count ?? 0).toLocaleString()} comments · {Number(active?.share_count ?? 0).toLocaleString()} shares · {active?.duration_seconds ? `${Math.floor(active.duration_seconds / 60)}:${String(active.duration_seconds % 60).padStart(2, "0")}` : "Duration unavailable"}</p>
             </div>
           </div>
