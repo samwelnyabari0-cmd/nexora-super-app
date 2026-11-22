@@ -154,6 +154,20 @@ export function useClubData(clubId: string) {
     return { error: null };
   }, [clubId, membership, refreshClub, refreshDirectory, user]);
 
+  const createEvent = useCallback(async (event: Omit<ClubEvent, "id" | "club_id">) => {
+    if (!user || membership?.status !== "active" || !["creator", "admin", "moderator"].includes(membership.role)) {
+      return { error: "You do not have permission to create club events." };
+    }
+    const { error: insertError } = await (supabase.from("club_events" as never) as any).insert({
+      club_id: clubId, title: event.title, venue: event.venue,
+      event_date: event.event_date, event_time: event.event_time,
+      kind: event.kind, notes: event.notes, created_by: user.id,
+    });
+    if (insertError) return { error: insertError.message };
+    await refreshClub();
+    return { error: null };
+  }, [clubId, membership, refreshClub, user]);
+
   const setRsvp = useCallback(async (eventId: string, status: ClubRsvpStatus | null) => {
     if (!user || membership?.status !== "active") return { error: "Join the club before responding to an event." };
     const query = supabase.from("event_rsvps" as never) as any;
@@ -167,7 +181,7 @@ export function useClubData(clubId: string) {
 
   return {
     directory, membership, events, myRsvps, rsvpCounts, loading, error,
-    refreshDirectory, refreshClub, requestMembership, leaveClub, setRsvp,
+    refreshDirectory, refreshClub, requestMembership, leaveClub, setRsvp, createEvent,
     authenticated: Boolean(user), userId: user?.id ?? null,
   };
 }
