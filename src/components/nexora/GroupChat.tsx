@@ -623,7 +623,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl md:h-[94dvh] md:min-h-[560px] flex-col p-3 sm:p-4">
+    <main className="mx-auto flex h-[calc(100dvh-5rem)] min-h-0 max-w-3xl flex-col gap-2 overflow-hidden p-3 sm:p-4 md:h-[94dvh] md:min-h-[560px]">
       <header className="flex items-center gap-3 border-b pb-4">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5" />
