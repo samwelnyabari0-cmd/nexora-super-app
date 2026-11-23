@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Trash2, X, WifiOff } from "lucide-react";
+import { Download, Trash2, X, WifiOff, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   COMMUTE_CACHE,
@@ -99,18 +99,26 @@ export function OfflinePackManager() {
   }
 
   return (
-    <>
+    <section className="mb-8">
+      <h2 className="mb-1 text-lg font-semibold">Offline storage</h2>
+      <p className="mb-2 text-sm text-muted-foreground">
+        Manage Reels and Videos saved on this device for offline viewing.
+      </p>
       <Button
         type="button"
-        size="sm"
-        variant="secondary"
-        className="fixed bottom-24 right-3 z-[75] gap-2 rounded-full border shadow-lg md:bottom-5 md:right-5"
+        variant="ghost"
+        className="h-auto w-full justify-between rounded-none border-b px-0 py-4"
         onClick={() => setOpen(true)}
         aria-label={"Open offline pack, " + items.length + " saved items"}
       >
-        <Download className="h-4 w-4" />
-        Offline Pack
-        {items.length > 0 && <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{items.length}</span>}
+        <span className="flex items-center gap-3 text-sm">
+          <Download className="h-4 w-4" />
+          Daily Commute Pack
+        </span>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          {items.length} saved
+          <ChevronRight className="h-4 w-4" />
+        </span>
       </Button>
 
       {open && (
@@ -153,6 +161,6 @@ export function OfflinePackManager() {
           </section>
         </div>
       )}
-    </>
+    </section>
   );
 }
