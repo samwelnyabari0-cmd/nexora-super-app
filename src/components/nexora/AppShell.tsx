@@ -55,7 +55,7 @@ const nav = [
   { to: "/profile", label: "Profile", icon: User },
   { to: "/hub", label: "Hub", icon: LayoutGrid },
   { to: "/calls", label: "Calls", icon: Phone },
-  { to: "/clubs", label: "Clubs", icon: Trophy },
+  { to: "/clubs", label: "Squads", icon: Trophy },
   { to: "/learn", label: "Academy", icon: GraduationCap },
   { to: "/live", label: "LIVE", icon: Radio },
   { to: "/platform", label: "Platform", icon: Server },
