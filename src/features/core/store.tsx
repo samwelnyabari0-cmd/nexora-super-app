@@ -162,11 +162,10 @@ if (ownProfile) {
         { data: savedComments },
         ] = await Promise.all([
         (supabase as any)
-          .from("user_media_posts")
-          .select(
-            "id, user_id, caption, media_url, media_type, audience, tags, content_type, aspect_ratio, framing_aspect_ratio, focal_x, focal_y, zoom, dominant_color, duration_seconds, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, created_at, like_count, share_count, repost_count, comment_count, view_count",
-          )
-          .order("created_at", { ascending: false }),
+          .rpc("get_balanced_nexora_feed", {
+            p_limit: 500,
+            p_offset: 0,
+          }),
         (supabase as any)
           .from("message_threads")
           .select("id, conversation_key, body, metadata, created_at")
@@ -354,6 +353,12 @@ if (bookmarkError) {
             const updatedCount = await (
               isCurrentlyLiked ? unlikePost(id) : likePost(id)
             );
+            if (!isCurrentlyLiked) {
+              void (supabase as any).rpc("bump_nexora_pillar_affinity", {
+                p_post_id: id,
+                p_delta: 0.05,
+              });
+            }
 
             setPosts((currentPosts) =>
               currentPosts.map((post) =>
@@ -397,6 +402,10 @@ if (bookmarkError) {
         .insert({ user_id: user.id, post_id: id });
 
       if (error) throw error;
+      void (supabase as any).rpc("bump_nexora_pillar_affinity", {
+        p_post_id: id,
+        p_delta: 0.15,
+      });
       toast("Bookmarked");
     }
   } catch (error) {
