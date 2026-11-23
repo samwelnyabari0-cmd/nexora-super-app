@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -74,8 +74,26 @@ export const Route = createFileRoute("/profile/$handle")({
       },
     ],
   }),
+  errorComponent: PublicProfileErrorComponent,
   component: PublicProfile,
 });
+
+function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
+  return (
+    <main className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
+      <h1 className="text-xl font-semibold">We couldn't open this profile</h1>
+      <p className="text-sm text-muted-foreground">
+        The profile may be temporarily unavailable. Try again or return to your profile.
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button type="button" onClick={reset}>Try again</Button>
+        <Button asChild type="button" variant="outline">
+          <Link to="/profile">Back to profile</Link>
+        </Button>
+      </div>
+    </main>
+  );
+}
 
 function PublicProfile() {
   const { handle } = Route.useParams();
