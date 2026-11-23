@@ -102,7 +102,7 @@ export function OfflinePackManager() {
     <section className="mb-8">
       <h2 className="mb-1 text-lg font-semibold">Offline storage</h2>
       <p className="mb-2 text-sm text-muted-foreground">
-        Manage Reels and Videos saved on this device for offline viewing.
+        Manage your saved Reels and Videos here. Downloads stay on this device and use up to 150 MB of storage.
       </p>
       <Button
         type="button"
