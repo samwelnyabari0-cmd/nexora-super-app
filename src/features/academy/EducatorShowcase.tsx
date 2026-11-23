@@ -14,9 +14,6 @@ type EducatorCourse = {
   description: string;
   category: string;
   level: string;
-  price_usd: number;
-  price_kes: number;
-  currency: string;
   thumbnail_url: string | null;
 };
 
@@ -106,7 +103,7 @@ export function EducatorShowcase({
 
       const { data: courseRows, error: courseError } = await (supabase as any)
         .from("edu_courses")
-        .select("id, title, description, category, level, price_usd, price_kes, currency, thumbnail_url")
+        .select("id, title, description, category, level, thumbnail_url")
         .eq("instructor_id", educatorId)
         .eq("is_published", true)
         .order("created_at", { ascending: false });
