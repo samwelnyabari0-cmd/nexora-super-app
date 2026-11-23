@@ -44,7 +44,6 @@ function ProfileSettings() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [educationSkills, setEducationSkills] = useState<string[]>([]);
   const [newEducationSkill, setNewEducationSkill] = useState("");
-  const [discoverable, setDiscoverable] = useState(false);
   const [bioLinks, setBioLinks] = useState<BioLink[]>([]);
   const [bioLinksOpen, setBioLinksOpen] = useState(false);
   const [share, setShare] = useState<typeof passport.share>(passport.share);
@@ -69,7 +68,6 @@ function ProfileSettings() {
         setAccountType(data?.account_type ?? metadata.account_type ?? "personal");
         setCategory(data?.profile_category ?? metadata.profile_category ?? "");
         setPrivateProfile(Boolean(data?.private_profile ?? metadata.private_profile));
-        setDiscoverable(Boolean(data?.discoverable));
         setEducationSkills(normalizeEducationSkills(data?.education_skills));
         setSelectedInterests(Array.isArray(data?.interests) ? data.interests : passport.interests ?? []);
         setBioLinks(Array.isArray(data?.bio_links) ? data.bio_links.filter((item: any) => item && typeof item.title === "string" && typeof item.url === "string").slice(0, 5) : []);
@@ -103,13 +101,13 @@ function ProfileSettings() {
     const { error } = await (supabase as any).from("profiles").upsert({
       id: user.id, display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
       account_type: accountType, profile_category: category || null,
-      private_profile: privateProfile, discoverable, education_skills: cleanEducationSkills, interests: selectedInterests, bio_links: cleanBioLinks,
+      private_profile: privateProfile, discoverable: true, education_skills: cleanEducationSkills, interests: selectedInterests, bio_links: cleanBioLinks,
     });
     if (!error) {
       const { error: authError } = await supabase.auth.updateUser({ data: {
         display_name: name.trim(), handle: cleanHandle, bio: bio.trim(),
         account_type: accountType, profile_category: category || null, private_profile: privateProfile,
-        discoverable, education_skills: cleanEducationSkills,
+        discoverable: true, education_skills: cleanEducationSkills,
       } });
       if (authError) console.error("Auth metadata sync warning:", authError);
       updatePassport({ name: name.trim(), handle: cleanHandle, bio: bio.trim(), interests: selectedInterests, share });
@@ -211,7 +209,7 @@ function ProfileSettings() {
         <div className="grid gap-2 sm:grid-cols-3">
           {([{value:"personal",label:"Personal",desc:"Social and discovery features."},{value:"creator",label:"Creator",desc:"Creator Studio and monetization."},{value:"business",label:"Business",desc:"Business tools and storefront."}] as const).map(t=><button key={t.value} type="button" onClick={()=>setAccountType(t.value)} className={`rounded-xl border p-3 text-left ${accountType===t.value?"border-primary bg-primary/10":"hover:bg-muted"}`}><p className="font-semibold">{t.label}</p><p className="mt-1 text-xs text-muted-foreground">{t.desc}</p></button>)}
         </div>
-        {(accountType==="creator" || accountType==="business") && <div className="space-y-2"><p className="text-sm font-medium">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{categories.map(([value,label])=><button key={value} type="button" onClick={()=>{setCategory(value);if(value==="education"&&!privateProfile)setDiscoverable(true);}} className={`rounded-lg border p-2 text-xs ${category===value?"border-primary bg-primary/10":"hover:bg-muted"}`}>{label}</button>)}</div></div>}
+        {(accountType==="creator" || accountType==="business") && <div className="space-y-2"><p className="text-sm font-medium">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{categories.map(([value,label])=><button key={value} type="button" onClick={()=>{setCategory(value);}} className={`rounded-lg border p-2 text-xs ${category===value?"border-primary bg-primary/10":"hover:bg-muted"}`}>{label}</button>)}</div></div>}
         <ProfileBadges accountType={accountType} industryTag={categories.find(([v])=>v===category)?.[1] ?? "Tech & Gaming"} isVerified />
       </Panel>
 
@@ -219,7 +217,7 @@ function ProfileSettings() {
         <Panel className="space-y-3">
           <div>
             <h2 className="font-semibold">Education profile</h2>
-            <p className="text-xs text-muted-foreground">Add the subjects and skills you teach. Your public posts, Reels and videos will appear automatically in Academy Hub when this profile is discoverable.</p>
+            <p className="text-xs text-muted-foreground">Add the subjects and skills you teach. Your public posts, Reels and videos can appear automatically in Academy Hub. Private profiles remain limited to approved followers.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {suggestedEducationSkills.map(skill => (
@@ -270,13 +268,6 @@ function ProfileSettings() {
               ))}
             </div>
           )}
-          <div className="flex items-center justify-between gap-3 border-t pt-3">
-            <div>
-              <p className="text-sm font-medium">Make my profile discoverable</p>
-              <p className="text-xs text-muted-foreground">Turn this on to share your public education content in Academy Hub. Private profiles and non-public posts are never listed.</p>
-            </div>
-            <Switch checked={discoverable} onCheckedChange={setDiscoverable} />
-          </div>
         </Panel>
       )}
 
