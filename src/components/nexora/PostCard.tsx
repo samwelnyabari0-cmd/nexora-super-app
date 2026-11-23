@@ -37,6 +37,7 @@ import { typeFromTags, visibleTags } from "@/lib/post-types";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { getFrameAspectRatio, getMediaAspectRatioValue, normalizeMediaFraming } from "@/lib/media-framing";
 import { recordUserMediaPostView } from "@/lib/post-views";
+import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
 
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
