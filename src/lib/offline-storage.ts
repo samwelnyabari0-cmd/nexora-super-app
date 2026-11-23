@@ -30,7 +30,7 @@ const DB_VERSION = 1;
 export const COMMUTE_CACHE = "nexora-commute-media-v1";
 export const MAX_COMMUTE_PACK_BYTES = 150 * 1024 * 1024;
 export const MAX_COMMUTE_ITEM_BYTES = 60 * 1024 * 1024;
-const MAX_COMMUTE_ITEMS = 15;
+export const MAX_COMMUTE_ITEMS = 15;
 
 type OfflineDB = IDBDatabase;
 
