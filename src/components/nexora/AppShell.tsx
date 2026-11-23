@@ -433,7 +433,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
       </nav>}
-      <OfflinePackManager />
     </div>
   );
 }
