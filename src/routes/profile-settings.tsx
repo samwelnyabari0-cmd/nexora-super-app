@@ -19,6 +19,7 @@ export const Route = createFileRoute("/profile-settings")({
 });
 
 type BioLink = { title: string; url: string };
+type FollowRequest = { id: string; requester_id: string; display_name: string | null; handle: string | null; avatar_url: string | null; created_at: string };
 
 const interests = ["city", "food", "tech", "music", "dance", "travel", "nature", "creators"];
 const suggestedEducationSkills = ["React", "WebGL", "UI/UX", "Video Editing", "JavaScript", "Python", "Graphic Design", "Mathematics", "Science", "AI Tools", "Data Analysis", "Writing", "Photography", "Music", "Language Learning"];
@@ -45,6 +46,8 @@ function ProfileSettings() {
   const [educationSkills, setEducationSkills] = useState<string[]>([]);
   const [newEducationSkill, setNewEducationSkill] = useState("");
   const [bioLinks, setBioLinks] = useState<BioLink[]>([]);
+  const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   const [bioLinksOpen, setBioLinksOpen] = useState(false);
   const [share, setShare] = useState<typeof passport.share>(passport.share);
 
@@ -76,6 +79,34 @@ function ProfileSettings() {
     })();
     return () => { active = false; };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) { setFollowRequests([]); return; }
+    let active = true;
+    setRequestsLoading(true);
+    void (supabase as any).rpc("get_my_follow_requests").then(({ data, error }: { data: FollowRequest[] | null; error: any }) => {
+      if (!active) return;
+      if (error) {
+        console.error("Follow requests could not be loaded:", error);
+        setFollowRequests([]);
+      } else setFollowRequests(data ?? []);
+      setRequestsLoading(false);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  async function decideFollowRequest(requestId: string, decision: "approve" | "decline") {
+    const { error } = await (supabase as any).rpc(
+      decision === "approve" ? "approve_follow_request" : "decline_follow_request",
+      { p_request_id: requestId },
+    );
+    if (error) {
+      toast.error(decision === "approve" ? "Could not approve this request." : "Could not decline this request.");
+      return;
+    }
+    setFollowRequests((current) => current.filter((request) => request.id !== requestId));
+    toast.success(decision === "approve" ? "Follow request approved." : "Follow request declined.");
+  }
 
   async function save() {
     if (!user) { toast.error("Sign in to update your profile."); return; }
@@ -275,6 +306,28 @@ function ProfileSettings() {
         <h2 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-5 w-5" /> Privacy</h2>
         <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">Public profile</p><p className="text-xs text-muted-foreground">{privateProfile?"Only approved followers can see your profile and posts.":"Anyone can discover your profile and public posts."}</p></div><Switch checked={!privateProfile} onCheckedChange={v=>setPrivateProfile(!v)} /></div>
       </Panel>
+
+      {privateProfile && (
+        <Panel className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Follow requests</h2>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{followRequests.length}</span>
+          </div>
+          {requestsLoading ? <p className="text-sm text-muted-foreground">Loading requests…</p> : followRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending follow requests.</p>
+          ) : followRequests.map((request) => (
+            <div key={request.id} className="flex items-center gap-3 rounded-xl border p-3">
+              {request.avatar_url ? <img src={request.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <Avatar name={request.display_name || request.handle || "NEXORA"} size={40} />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{request.display_name || request.handle || "NEXORA member"}</p>
+                <p className="truncate text-xs text-muted-foreground">@{request.handle || "member"}</p>
+              </div>
+              <Button size="sm" onClick={() => void decideFollowRequest(request.id, "approve")}>Approve</Button>
+              <Button size="sm" variant="outline" onClick={() => void decideFollowRequest(request.id, "decline")}>Decline</Button>
+            </div>
+          ))}
+        </Panel>
+      )}
 
       <Panel className="space-y-3">
         <h2 className="flex items-center gap-2 font-semibold"><Sparkles className="h-5 w-5" /> Interests</h2>
