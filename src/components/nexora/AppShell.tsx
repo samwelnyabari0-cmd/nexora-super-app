@@ -67,7 +67,7 @@ const nav = [
   { to: "/help", label: "Help", icon: HelpCircle },
 ] as const;
 
-const mobileNav = ["/", "/match-center", "/create", "/clubs", "/profile"];
+const mobileNav = ["/", "/explore", "/reels", "/create", "/videos", "/messages", "/profile"];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
