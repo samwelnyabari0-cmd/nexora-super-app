@@ -560,7 +560,7 @@ function PublicProfile() {
               onClick={() => void graph.toggleFollow()}
               disabled={graph.loading || !user}
             >
-              {!user ? "Sign in to follow" : graph.isFollowing ? "Following" : "Follow"}
+              {!user ? "Sign in to follow" : graph.isFollowing ? "Following" : graph.isPending ? "Requested · Cancel request" : "Follow"}
             </Button>
             <Button
               asChild
