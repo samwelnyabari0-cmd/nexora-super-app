@@ -49,3 +49,32 @@ for select to authenticated using (
     ))
   ))
 );
+
+drop policy if exists "Authenticated users can add their own comments" on public.user_media_post_comments;
+create policy "Authenticated users can comment on visible media"
+on public.user_media_post_comments for insert to authenticated
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1 from public.user_media_posts p
+    where p.id = user_media_post_comments.post_id
+      and (
+        p.user_id = (select auth.uid())
+        or (
+          p.audience = 'public'
+          and (
+            not coalesce((select pr.private_profile from public.profiles pr where pr.id = p.user_id), false)
+            or exists (select 1 from public.follows f where f.follower_id = (select auth.uid()) and f.following_id = p.user_id)
+          )
+        )
+        or (
+          p.audience = 'subscribers'
+          and public.is_active_creator_subscriber(p.user_id)
+          and (
+            not coalesce((select pr.private_profile from public.profiles pr where pr.id = p.user_id), false)
+            or exists (select 1 from public.follows f where f.follower_id = (select auth.uid()) and f.following_id = p.user_id)
+          )
+        )
+      )
+  )
+);
