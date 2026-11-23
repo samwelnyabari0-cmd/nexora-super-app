@@ -558,7 +558,7 @@ function ArenaFanPoll({ match }: { match?: FootballMatch }) {
     setChoice("");
     setVoted(false);
     setCounts({ Home: 0, Away: 0, "No more goals": 0 });
-    const channel = supabase.channel("arena-fan-poll-" + match.id);
+    const channel = supabase.channel("arena-fan-poll-" + match.id, { config: { private: true } });
     channel
       .on("broadcast", { event: "vote" }, ({ payload }) => {
         const incoming = payload?.choice;
