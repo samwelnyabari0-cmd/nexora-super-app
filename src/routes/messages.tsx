@@ -99,7 +99,7 @@ export const Route = createFileRoute("/messages")({
   component: Messages,
 });
 
-function MessagesErrorComponent({ reset }: ErrorComponentProps) {
+function MessagesErrorComponent() {
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
       <h1 className="text-xl font-semibold">We couldn't open this conversation</h1>
