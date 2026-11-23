@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Play, Video, ArrowLeft, BarChart3, Heart, Share2, Repeat2, Bookmark,
   Download, Eye, Search, House, Music2, Trophy, Clapperboard, Tv, Radio,
-  Clock3, ListVideo,
+  ListVideo,
 } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { useSession } from "@/lib/session";
@@ -164,7 +164,7 @@ function Videos() {
         <section className="min-w-0 space-y-4">
           <div className="overflow-hidden rounded-xl bg-black">
             <div className="aspect-video">
-              {active.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls autoPlay playsInline onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" />}
+              {active.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls autoPlay muted playsInline onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" />}
             </div>
           </div>
           <div className="space-y-3">
