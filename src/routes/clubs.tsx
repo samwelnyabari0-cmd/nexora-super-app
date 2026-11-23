@@ -13,17 +13,17 @@ import { useClubRealtime } from "@/features/clubs/useClubRealtime";
 export const Route = createFileRoute("/clubs")({
   head: () => ({
     meta: [
-      { title: "Clubs & Guilds — NEXORA" },
+      { title: "Squads & Communities — NEXORA" },
       {
         name: "description",
         content:
-          "Shared memberships, fixtures, event RSVPs, venue maps and club channels.",
+          "Squad memberships, fixtures, event RSVPs, venue maps and community channels.",
       },
-      { property: "og:title", content: "Clubs & Guilds — NEXORA" },
+      { property: "og:title", content: "Squads & Communities — NEXORA" },
       {
         property: "og:description",
         content:
-          "Shared memberships, fixtures, event RSVPs and club channels.",
+          "Squad memberships, fixtures, event RSVPs and community channels.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -58,7 +58,7 @@ function ClubsPage() {
       if (result.error || !result.clubId) { toast.error(result.error ?? "This invitation could not be accepted."); return; }
       setSel(result.clubId);
       window.history.replaceState({}, "", window.location.pathname);
-      toast.success("You joined the private club.");
+      toast.success("You joined the private squad.");
     });
   }, [data.authenticated, data.acceptInvitation]);
   useEffect(() => {
@@ -78,34 +78,34 @@ function ClubsPage() {
     setSavingClub(true);
     const result = await data.createClub(clubDraft);
     setSavingClub(false);
-    if (result.error || !result.clubId) { toast.error(result.error ?? "Unable to create club."); return; }
+    if (result.error || !result.clubId) { toast.error(result.error ?? "Unable to create squad."); return; }
     setSel(result.clubId);
     setShowCreateClub(false);
     setClubDraft({ name: "", kind: "football", city: "", venue: "", blurb: "", visibility: "public" });
-    toast.success("Your club has been created.");
+    toast.success("Your squad has been created.");
   };
 
   const createClubPanel = showCreateClub ? (
     <Panel>
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={submitCreateClub}>
-        <div className="sm:col-span-2"><h3 className="font-semibold">Create your club</h3><p className="text-xs text-muted-foreground">You become its Creator and can manage members and roles.</p></div>
-        <input className={input} required minLength={3} maxLength={60} placeholder="Club name" value={clubDraft.name} onChange={(e) => setClubDraft((v) => ({ ...v, name: e.target.value }))} />
+        <div className="sm:col-span-2"><h3 className="font-semibold">Create your squad</h3><p className="text-xs text-muted-foreground">You become its Creator and can manage members and roles.</p></div>
+        <input className={input} required minLength={3} maxLength={60} placeholder="Squad name" value={clubDraft.name} onChange={(e) => setClubDraft((v) => ({ ...v, name: e.target.value }))} />
         <select className={input} value={clubDraft.kind} onChange={(e) => setClubDraft((v) => ({ ...v, kind: e.target.value as typeof v.kind }))}><option value="football">Football</option><option value="gaming">Gaming</option><option value="tech">Tech</option></select>
         <input className={input} maxLength={80} placeholder="City (or Online)" value={clubDraft.city} onChange={(e) => setClubDraft((v) => ({ ...v, city: e.target.value }))} />
         <input className={input} maxLength={120} placeholder="Venue (or Online)" value={clubDraft.venue} onChange={(e) => setClubDraft((v) => ({ ...v, venue: e.target.value }))} />
-        <textarea className={`${input} sm:col-span-2`} rows={2} maxLength={240} placeholder="What is this club about?" value={clubDraft.blurb} onChange={(e) => setClubDraft((v) => ({ ...v, blurb: e.target.value }))} />
+        <textarea className={`${input} sm:col-span-2`} rows={2} maxLength={240} placeholder="What is this squad about?" value={clubDraft.blurb} onChange={(e) => setClubDraft((v) => ({ ...v, blurb: e.target.value }))} />
         <label className="flex items-center gap-2 rounded-xl border p-3 text-sm"><input type="radio" name="club-visibility" checked={clubDraft.visibility === "public"} onChange={() => setClubDraft((v) => ({ ...v, visibility: "public" }))} /><Globe className="h-4 w-4" /> Public <span className="text-xs text-muted-foreground">Discoverable; people can request to join.</span></label>
         <label className="flex items-center gap-2 rounded-xl border p-3 text-sm"><input type="radio" name="club-visibility" checked={clubDraft.visibility === "private"} onChange={() => setClubDraft((v) => ({ ...v, visibility: "private" }))} /><Lock className="h-4 w-4" /> Private <span className="text-xs text-muted-foreground">Invitation link only.</span></label>
-        <div className="sm:col-span-2 flex flex-wrap gap-2"><Button type="submit" disabled={savingClub || !data.authenticated}>{savingClub ? "Creating..." : "Create club"}</Button><Button type="button" variant="outline" onClick={() => setShowCreateClub(false)}>Cancel</Button>{!data.authenticated && <span className="self-center text-xs text-muted-foreground">Sign in to create a club.</span>}</div>
+        <div className="sm:col-span-2 flex flex-wrap gap-2"><Button type="submit" disabled={savingClub || !data.authenticated}>{savingClub ? "Creating..." : "Create squad"}</Button><Button type="button" variant="outline" onClick={() => setShowCreateClub(false)}>Cancel</Button>{!data.authenticated && <span className="self-center text-xs text-muted-foreground">Sign in to create a squad.</span>}</div>
       </form>
     </Panel>
   ) : null;
 
   const joinOrLeave = async () => {
-    if (!data.authenticated) { toast.error("Sign in to join a club."); return; }
+    if (!data.authenticated) { toast.error("Sign in to join a squad."); return; }
     const result = active ? await data.leaveClub() : await data.requestMembership();
     if (result.error) toast.error(result.error);
-    else toast.success(active ? "You left the club." : "Membership request sent for approval.");
+    else toast.success(active ? "You left the squad." : "Membership request sent for approval.");
   };
 
   const updateRsvp = async (eventId: string, status: ClubRsvpStatus) => {
@@ -116,7 +116,7 @@ function ClubsPage() {
   };
 
   const send = async (text: string, isAnnouncement: boolean) => {
-    if (!active) { toast.error("Join the club before sending messages."); return; }
+    if (!active) { toast.error("Join the squad before sending messages."); return; }
     const delivered = await realtime.send(text, isAnnouncement);
     if (!delivered && realtime.error) toast.error(realtime.error);
   };
@@ -129,13 +129,13 @@ function ClubsPage() {
     if (result.error) { toast.error(result.error); return; }
     setDraft({ title: "", kind: "match", venue: "", event_date: "", event_time: "", notes: "" });
     setShowEventForm(false);
-    toast.success("Event added to the shared club calendar.");
+    toast.success("Event added to the shared squad calendar.");
   };
 
   if (!guild && !data.loading && !data.directoryLoading) {
-    return <div className="mx-auto max-w-5xl space-y-4"><PageHeader title="Clubs & Guilds" subtitle="Create your own community or discover public clubs." /><div className="flex flex-wrap gap-2"><Button onClick={() => setShowCreateClub((value) => !value)}><Plus className="mr-2 h-4 w-4" />Create a club</Button><Button variant="outline" onClick={() => void data.refreshDirectory()}>Refresh directory</Button></div>{createClubPanel}<Panel><h3 className="font-semibold">No clubs to show yet</h3><p className="mt-1 text-sm text-muted-foreground">Create a club to start your community. Public clubs will appear here; private clubs are available through invitations.</p>{data.error && <p className="mt-2 text-xs text-destructive">{data.error}</p>}</Panel></div>;
+    return <div className="mx-auto max-w-5xl space-y-4"><PageHeader title="Squads & Communities" subtitle="Create a squad for football, gaming or other interests, or discover public communities." /><div className="flex flex-wrap gap-2"><Button onClick={() => setShowCreateClub((value) => !value)}><Plus className="mr-2 h-4 w-4" />Create a squad</Button><Button variant="outline" onClick={() => void data.refreshDirectory()}>Refresh directory</Button></div>{createClubPanel}<Panel><h3 className="font-semibold">No clubs to show yet</h3><p className="mt-1 text-sm text-muted-foreground">Create a squad to start your community. Public clubs will appear here; private squads are available through invitations.</p>{data.error && <p className="mt-2 text-xs text-destructive">{data.error}</p>}</Panel></div>;
   }
-  if (!guild) return <div className="mx-auto max-w-5xl"><PageHeader title="Clubs & Guilds" subtitle="Loading clubs..." /></div>;
+  if (!guild) return <div className="mx-auto max-w-5xl"><PageHeader title="Squads & Communities" subtitle="Loading squads..." /></div>;
 
   const memberCount = Number(guild.active_member_count ?? 0);
   const status = data.membership?.status;
@@ -143,8 +143,8 @@ function ClubsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <PageHeader title="Clubs & Guilds" subtitle="Create communities, manage roles, host events and connect with members." />
-      <div className="flex flex-wrap gap-2"><Button onClick={() => setShowCreateClub((value) => !value)}><Plus className="mr-2 h-4 w-4" />Create a club</Button><Link to="/match-center" className="inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-muted">Football Match Center</Link></div>
+      <PageHeader title="Squads & Communities" subtitle="Create communities, manage roles, host events and connect with members." />
+      <div className="flex flex-wrap gap-2"><Button onClick={() => setShowCreateClub((value) => !value)}><Plus className="mr-2 h-4 w-4" />Create a squad</Button><Link to="/match-center" className="inline-flex items-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-muted">Nexora Arena</Link></div>
       {createClubPanel}
       <div className="mb-5 grid gap-2 sm:grid-cols-3">
         {data.directory.map((club) => (
@@ -168,20 +168,20 @@ function ClubsPage() {
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <span className="rounded-full border px-3 py-1.5 text-xs">{statusLabel}</span>
             <Button className="flex-1 sm:flex-none" variant={active ? "outline" : "default"} onClick={() => void joinOrLeave()} disabled={status === "pending" || status === "banned" || (active && data.membership?.role === "creator")}>
-              {active ? "Leave club" : status === "pending" ? "Awaiting approval" : status === "banned" ? "Access restricted" : "Request to join"}
+              {active ? "Leave squad" : status === "pending" ? "Awaiting approval" : status === "banned" ? "Access restricted" : "Request to join"}
             </Button>
           </div>
         </div>
         {data.error && <p className="mt-3 text-xs text-destructive">{data.error}</p>}
         {status === "pending" && <p className="mt-2 text-xs text-muted-foreground">Your request is saved to Supabase and awaits approval.</p>}
-        {!data.authenticated && <p className="mt-2 text-xs text-muted-foreground">Sign in to join, RSVP and post in the club channel.</p>}
+        {!data.authenticated && <p className="mt-2 text-xs text-muted-foreground">Sign in to join, RSVP and post in the squad channel.</p>}
       </Panel>
 
       {data.authenticated && <ClubAdminPanel clubId={guild.id} />}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Panel>
-          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-semibold">Shared venue</h3><span className="text-xs text-muted-foreground">Club location</span></div>
+          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-semibold">Shared venue</h3><span className="text-xs text-muted-foreground">Squad location</span></div>
           <div className="overflow-hidden rounded-xl border bg-muted"><div className="aspect-[4/3]"><iframe title={"Map for " + guild.name} className="h-full w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" src={"https://www.google.com/maps?q=" + encodeURIComponent(guild.venue + ", " + guild.city) + "&output=embed"} /></div></div>
           <p className="mt-3 flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 shrink-0 text-accent" /><span className="min-w-0 break-words">{guild.venue} · {guild.city}</span></p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -192,7 +192,7 @@ function ClubsPage() {
         </Panel>
 
         <Panel>
-          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-semibold">Club information</h3><span className="rounded-full bg-muted px-2.5 py-1 text-xs">Shared</span></div>
+          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-semibold">Squad information</h3><span className="rounded-full bg-muted px-2.5 py-1 text-xs">Shared</span></div>
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Active members</span><strong>{memberCount}</strong></div>
             <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">Upcoming events</span><strong>{events.length}</strong></div>
@@ -234,11 +234,11 @@ function ClubsPage() {
               })}
             </ul>
           ) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No upcoming events yet.</p>}
-          {!active && <p className="mt-2 text-xs text-muted-foreground">Join this club and get approved to RSVP.</p>}
+          {!active && <p className="mt-2 text-xs text-muted-foreground">Join this squad and get approved to RSVP.</p>}
         </Panel>
 
         <Panel className="md:col-span-2">
-          <div className="mb-3 flex items-center justify-between gap-2"><div><h3 className="font-display font-semibold">Club channel</h3><p className="text-xs text-muted-foreground">Messages update across club members</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs">{active ? "Realtime" : "Members only"}</span></div>
+          <div className="mb-3 flex items-center justify-between gap-2"><div><h3 className="font-display font-semibold">Squad channel</h3><p className="text-xs text-muted-foreground">Messages update across squad members</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs">{active ? "Realtime" : "Members only"}</span></div>
           <Channel key={guild.id} guildId={guild.id} msgs={realtime.messages} onSend={send} name={passport.name} disabled={!active} canManage={canCreateEvents} onPin={realtime.pinMessage} />
           {realtime.error && <p className="mt-2 text-xs text-destructive">{realtime.error}</p>}
         </Panel>
@@ -297,10 +297,10 @@ function Channel({
         }}
       >
         <input
-          aria-label="Message the club channel"
+          aria-label="Message the squad channel"
           value={t}
           onChange={(e) => setT(e.target.value)}
-          placeholder={disabled ? "Join the club to send messages" : "Message the club..."}
+          placeholder={disabled ? "Join the squad to send messages" : "Message the squad..."}
           disabled={disabled}
           className={input}
         />
@@ -331,7 +331,7 @@ function Bubble({ m, name, canManage, onPin }: { m: ChatMsg; name: string; canMa
         {m.isAnnouncement && <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-accent">Announcement</p>}
         {!mine && (
           <p className="mb-1 text-[11px] font-semibold">
-            {m.senderName || "Club member"}
+            {m.senderName || "Squad member"}
             {m.role && m.role !== "member" && <span className="ml-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] capitalize">{m.role}</span>}
           </p>
         )}
