@@ -162,6 +162,6 @@ function VideoCreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | nu
       {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-muted font-semibold">{label.slice(0,1).toUpperCase()}</span>}
       <span className="min-w-0"><span className="block truncate text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">@{profile?.handle || "creator"}</span></span>
     </Link>
-    {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">{social.isFollowing ? "Following" : "Follow"}</button>}
+    {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Follow"}</button>}
   </div>;
 }
