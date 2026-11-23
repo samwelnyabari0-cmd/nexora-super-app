@@ -149,33 +149,28 @@ function PublicProfile() {
 
         if (cancelled) return;
 
-        // Never trust a profile RPC result unless its handle matches the requested URL.
-        // Some legacy RPC deployments can return a different row; resolve the exact
-        // handle through the safe account-discovery RPC before rendering anything.
+        // Resolve the exact requested handle from the account directory first.
+        // This prevents a stale profile RPC result from ever displaying the signed-in user's page.
         const normalize = (value: unknown) =>
-          String(value ?? "")
-            .trim()
-            .replace(/^@+/, "")
-            .toLowerCase();
-        let row = (Array.isArray(profileRows) ? profileRows[0] : profileRows) ?? null;
-        if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
-          const { data: discoveredRows, error: discoveryError } = await (supabase as any).rpc(
-            "get_discoverable_profiles",
-            { p_query: normalizedHandle, p_limit: 60 },
-          );
-          if (cancelled) return;
-          if (!discoveryError && Array.isArray(discoveredRows)) {
-            row =
-              discoveredRows.find(
-                (candidate: Record<string, unknown>) =>
-                  normalize(candidate.handle) === normalize(normalizedHandle),
-              ) ?? null;
-          } else if (discoveryError) {
-            console.error(
-              "Could not resolve requested public profile:",
-              profileError || discoveryError,
-            );
-          }
+          String(value ?? "").trim().replace(/^@+/, "").toLowerCase();
+        const { data: discoveredRows, error: discoveryError } = await (supabase as any).rpc(
+          "get_discoverable_profiles",
+          { p_query: normalizedHandle, p_limit: 60 },
+        );
+        if (cancelled) return;
+        let row = !discoveryError && Array.isArray(discoveredRows)
+          ? discoveredRows.find(
+              (candidate: Record<string, unknown>) =>
+                normalize(candidate.handle) === normalize(normalizedHandle),
+            ) ?? null
+          : null;
+        if (!row) {
+          const rpcRow = (Array.isArray(profileRows) ? profileRows[0] : profileRows) ?? null;
+          if (rpcRow && normalize(rpcRow.handle) === normalize(normalizedHandle)) row = rpcRow;
+        }
+        if (discoveryError) {
+          console.error("Could not resolve requested public profile from discovery:", discoveryError);
+          if (profileError) console.error("Public profile RPC also reported:", profileError);
         }
 
         if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
