@@ -39,6 +39,7 @@ import { MediaComments } from "@/components/nexora/MediaComments";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useStrictMediaItems, type StrictFeedType } from "@/components/nexora/StrictMediaFeed";
 import type { Post } from "@/features/core/data";
+import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
 export const Route = createFileRoute("/profile")({
   validateSearch: (search: Record<string, unknown>) => ({
     handle: typeof search.handle === "string" ? search.handle : "",
