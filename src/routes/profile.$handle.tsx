@@ -645,7 +645,7 @@ function PublicProfile() {
           {[
             { label: "Courses", tab: "store" as const, mark: "✦" },
             { label: "Products", tab: "store" as const, mark: "▣" },
-            { label: "Clubs", tab: "communities" as const, mark: "◎" },
+            { label: "Squads", tab: "communities" as const, mark: "◎" },
           ].map((item) => (
             <button
               key={item.label}
