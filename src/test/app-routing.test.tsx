@@ -14,4 +14,16 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it.each([
+    ["/messages?recipient=00000000-0000-0000-0000-000000000001", "/messages"],
+    ["/profile/someone", "/profile/$handle"],
+    ["/profile?handle=someone", "/profile"],
+  ])("registers navigation path %s", (href, expectedRouteId) => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const matches = router.matchRoutes(href);
+
+    expect(matches.at(-1)?.routeId).toBe(expectedRouteId);
+  });
 });
