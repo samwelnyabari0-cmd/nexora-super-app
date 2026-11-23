@@ -1,6 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Play, Video, ArrowLeft, BarChart3, Heart, Share2, Repeat2, Bookmark, Download, Eye } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Play, Video, ArrowLeft, BarChart3, Heart, Share2, Repeat2, Bookmark,
+  Download, Eye, Search, House, Music2, Trophy, Clapperboard, Tv, Radio,
+  Clock3, ListVideo,
+} from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { useSession } from "@/lib/session";
 import { recordUserMediaPostView } from "@/lib/post-views";
@@ -8,26 +12,43 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 
+const categories = [
+  { label: "Home", icon: House, terms: [] as string[] },
+  { label: "Music", icon: Music2, terms: ["music", "song", "audio", "concert", "beat", "dj", "afrobeats", "gospel", "hip hop", "rap"] },
+  { label: "Sports", icon: Trophy, terms: ["sport", "football", "soccer", "basketball", "rugby", "tennis", "match", "goal", "fitness"] },
+  { label: "Movies", icon: Clapperboard, terms: ["movie", "film", "cinema", "trailer", "short film"] },
+  { label: "Series & Shows", icon: Tv, terms: ["series", "episode", "show", "season", "drama", "comedy", "documentary"] },
+] as const;
+
 export const Route = createFileRoute("/videos")({
-  head: () => ({ meta: [{ title: "Videos — NEXORA" }, { name: "description", content: "Horizontal and long-form videos on NEXORA." }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    post: typeof search.post === "string" ? search.post : undefined,
+  }),
+  head: () => ({ meta: [{ title: "Videos — NEXORA" }, { name: "description", content: "Discover, search and watch videos on NEXORA." }] }),
   component: Videos,
 });
 
 function Videos() {
   const { items, loading, error } = useStrictMediaItems("video");
   const { user } = useSession();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const navigate = useNavigate({ from: "/videos" });
+  const { post: requestedPostId } = Route.useSearch();
+  const [activeId, setActiveId] = useState<string | null>(requestedPostId ?? null);
+  const [searchText, setSearchText] = useState("");
+  const [submittedSearch, setSubmittedSearch] = useState("");
+  const [category, setCategory] = useState<string>("Home");
   const [liked, setLiked] = useState<string[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
   const [reposted, setReposted] = useState<string[]>([]);
   const [creatorProfiles, setCreatorProfiles] = useState<Record<string, { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+
   useEffect(() => {
-    const requestedId = new URLSearchParams(window.location.search).get("post");
-    if (requestedId) setActiveId(requestedId);
-  }, []);
+    setActiveId(requestedPostId ?? null);
+  }, [requestedPostId]);
+
   useEffect(() => {
-    let active = true;
+    let mounted = true;
     if (!user?.id) return;
     void Promise.all([
       supabase.rpc("get_my_liked_user_media_posts"),
@@ -35,7 +56,7 @@ function Videos() {
       supabase.rpc("get_my_reposted_user_media_posts"),
       (supabase as any).rpc("get_discoverable_profiles", { p_query: null, p_limit: 60 }),
     ]).then(([likes, saves, reposts, profiles]) => {
-      if (!active) return;
+      if (!mounted) return;
       if (!likes.error) setLiked((likes.data ?? []) as string[]);
       if (!saves.error) setSaved((saves.data ?? []).map((row: { post_id: string }) => row.post_id));
       if (!reposts.error) setReposted((reposts.data ?? []) as string[]);
@@ -45,11 +66,43 @@ function Videos() {
         setCreatorProfiles(next);
       }
     });
-    return () => { active = false; };
+    return () => { mounted = false; };
   }, [user?.id]);
 
-  const active = items.find((item) => item.id === activeId) ?? items[0];
+  const active = items.find((item) => item.id === activeId) ?? null;
+  const normalizedSearch = submittedSearch.trim().toLowerCase();
+  const filteredItems = useMemo(() => items.filter((item) => {
+    const text = (item.caption ?? "").toLowerCase();
+    const matchesSearch = !normalizedSearch || text.includes(normalizedSearch);
+    const selected = categories.find((entry) => entry.label === category);
+    const matchesCategory = !selected || selected.terms.length === 0 || selected.terms.some((term) => text.includes(term));
+    return matchesSearch && matchesCategory;
+  }), [items, normalizedSearch, category]);
 
+  const recommendations = useMemo(() => {
+    if (!active) return [];
+    const words = (active.caption ?? "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 3);
+    return items.filter((item) => item.id !== active.id)
+      .map((item) => {
+        const caption = (item.caption ?? "").toLowerCase();
+        const score = words.reduce((total, word) => total + (caption.includes(word) ? 1 : 0), 0);
+        return { item, score };
+      })
+      .sort((a, b) => b.score - a.score || new Date(b.item.created_at).getTime() - new Date(a.item.created_at).getTime())
+      .slice(0, 12)
+      .map(({ item }) => item);
+  }, [active, items]);
+
+  async function openVideo(postId: string) {
+    setActiveId(postId);
+    await navigate({ to: "/videos", search: { post: postId }, replace: false });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  async function backToVideos() {
+    setActiveId(null);
+    await navigate({ to: "/videos", search: { post: undefined }, replace: false });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   async function toggleLike(postId: string) {
     if (!user) return toast.error("Sign in to like videos.");
     const wasLiked = liked.includes(postId);
@@ -81,7 +134,7 @@ function Videos() {
       if (navigator.share) await navigator.share({ title: "NEXORA Video", text: active.caption || "Watch this video", url });
       else { await navigator.clipboard.writeText(url); toast.success("Video link copied."); }
       if (user) await (supabase as any).rpc("increment_user_media_post_shares", { target_post_id: active.id });
-    } catch (error) { if ((error as Error).name !== "AbortError") toast.error("Could not share video."); }
+    } catch (shareError) { if ((shareError as Error).name !== "AbortError") toast.error("Could not share video."); }
   }
   function downloadVideo() {
     if (!active?.mediaSrc) return toast.error("Video file is unavailable.");
@@ -97,60 +150,102 @@ function Videos() {
 
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
   if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!items.length) return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Horizontal or longer videos will appear here, separate from Reels.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
+  if (!items.length) return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
 
-  return (
-    <main className="mx-auto max-w-6xl space-y-5">
-      <header className="flex items-center gap-3">
-        <Link to="/explore" aria-label="Back to Explore" className="rounded-full border p-2"><ArrowLeft className="h-4 w-4" /></Link>
-        <div><h1 className="text-xl font-bold">Videos</h1><p className="text-xs text-muted-foreground">Widescreen and long-form creator videos</p></div>
+  if (activeId && !active) return <div className="mx-auto max-w-5xl py-12"><button onClick={() => void backToVideos()} className="mb-5 inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft className="h-4 w-4" /> Back to Videos</button><p className="text-sm text-muted-foreground">This video is unavailable or you do not have permission to view it.</p></div>;
+
+  if (active) return (
+    <main className="mx-auto max-w-7xl space-y-5">
+      <header className="flex items-center justify-between gap-3">
+        <button onClick={() => void backToVideos()} className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium"><ArrowLeft className="h-4 w-4" /> Videos</button>
+        <Link to="/videos" className="text-lg font-black tracking-tight">NEXORA <span className="text-primary">Videos</span></Link>
       </header>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="min-w-0 space-y-3">
-          <div className="overflow-hidden rounded-2xl border bg-black">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="min-w-0 space-y-4">
+          <div className="overflow-hidden rounded-xl bg-black">
             <div className="aspect-video">
-              {active?.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls playsInline onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" />}
-            </div>
-            <div className="space-y-2 p-4">
-              <h2 className="font-semibold">{active?.caption || "NEXORA Video"}</h2>
-              {active && <VideoCreatorFollow ownerId={active.user_id} profile={creatorProfiles[active.user_id ?? ""]} isSelf={user?.id === active.user_id} />}
-              {user?.id && active?.user_id === user.id && <Link to="/dashboard" search={{ postId: active.id }} className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold text-primary"><BarChart3 className="h-3.5 w-3.5" /> View insights</Link>}
-              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Eye className="h-3.5 w-3.5" /> {Number(active?.view_count ?? 0).toLocaleString()} views · {Number(active?.like_count ?? 0).toLocaleString()} likes · {Number(active?.comment_count ?? 0).toLocaleString()} comments · {Number(active?.share_count ?? 0).toLocaleString()} shares · {active?.duration_seconds ? `${Math.floor(active.duration_seconds / 60)}:${String(active.duration_seconds % 60).padStart(2, "0")}` : "Duration unavailable"}</p>
-              {active && <div className="flex flex-wrap gap-2 border-t pt-3">
-                <button type="button" onClick={() => void toggleLike(active.id)} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm ${liked.includes(active.id) ? "border-primary text-primary" : ""}`}><Heart className={`h-4 w-4 ${liked.includes(active.id) ? "fill-current" : ""}`} /> {Number(likeCounts[active.id] ?? active.like_count ?? 0).toLocaleString()} Like</button>
-                <button type="button" onClick={() => void shareVideo()} className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm"><Share2 className="h-4 w-4" /> Share</button>
-                <button type="button" onClick={() => void repostVideo(active.id)} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm ${reposted.includes(active.id) ? "text-emerald-600" : ""}`}><Repeat2 className="h-4 w-4" /> Repost</button>
-                <button type="button" onClick={() => void toggleSave(active.id)} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm ${saved.includes(active.id) ? "text-amber-600" : ""}`}><Bookmark className="h-4 w-4" /> {saved.includes(active.id) ? "Saved" : "Save"}</button>
-                <button type="button" onClick={downloadVideo} className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm"><Download className="h-4 w-4" /> Download</button>
-              </div>}
+              {active.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls autoPlay playsInline onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" />}
             </div>
           </div>
-          <h2 className="text-sm font-semibold">Up next · {items.length}</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {items.filter((item) => item.id !== active?.id).map((item) => (
-              <button key={item.id} type="button" onClick={() => setActiveId(item.id)} className="flex min-w-0 gap-3 rounded-xl border p-2 text-left transition hover:bg-muted/50">
-                <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-lg bg-black">
-                  {item.thumbnailSrc ? <img src={item.thumbnailSrc} alt="" className="h-full w-full object-cover" /> : item.mediaSrc ? <video src={item.mediaSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : null}
-                  <Play className="absolute bottom-2 right-2 h-4 w-4 fill-white text-white" />
-                </div>
-                <span className="line-clamp-3 min-w-0 text-sm font-medium">{item.caption || "NEXORA Video"}</span>
-              </button>
-            ))}
-            {items.length === 1 && <p className="text-sm text-muted-foreground">No other Videos to play next.</p>}
+          <div className="space-y-3">
+            <h1 className="text-lg font-bold leading-snug md:text-xl">{active.caption || "NEXORA Video"}</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <VideoCreatorFollow ownerId={active.user_id} profile={creatorProfiles[active.user_id ?? ""]} isSelf={user?.id === active.user_id} />
+                {user?.id && active.user_id === user.id && <Link to="/dashboard" search={{ postId: active.id }} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold text-primary"><BarChart3 className="h-3.5 w-3.5" /> Insights</Link>}
+              </div>
+              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Eye className="h-3.5 w-3.5" /> {Number(active.view_count ?? 0).toLocaleString()} views · {Number(active.created_at ? Math.max(0, Math.floor((Date.now() - new Date(active.created_at).getTime()) / 86400000)) : 0).toLocaleString()} days ago</p>
+            </div>
+            <div className="flex flex-wrap gap-2 border-y py-3">
+              <button type="button" onClick={() => void toggleLike(active.id)} className={`inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm ${liked.includes(active.id) ? "text-primary" : ""}`}><Heart className={`h-4 w-4 ${liked.includes(active.id) ? "fill-current" : ""}`} /> {Number(likeCounts[active.id] ?? active.like_count ?? 0).toLocaleString()} Like</button>
+              <button type="button" onClick={() => void shareVideo()} className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm"><Share2 className="h-4 w-4" /> Share</button>
+              <button type="button" onClick={() => void repostVideo(active.id)} className={`inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm ${reposted.includes(active.id) ? "text-emerald-600" : ""}`}><Repeat2 className="h-4 w-4" /> Repost</button>
+              <button type="button" onClick={() => void toggleSave(active.id)} className={`inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm ${saved.includes(active.id) ? "text-amber-600" : ""}`}><Bookmark className="h-4 w-4" /> {saved.includes(active.id) ? "Saved" : "Save"}</button>
+              <button type="button" onClick={downloadVideo} className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm"><Download className="h-4 w-4" /> Download</button>
+            </div>
+            <div className="rounded-xl bg-muted/60 p-3 text-sm">
+              <p className="font-semibold">{Number(active.view_count ?? 0).toLocaleString()} views</p>
+              <p className="mt-1 whitespace-pre-wrap">{active.caption || "No description added."}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Published {new Date(active.created_at).toLocaleDateString()}</p>
+            </div>
           </div>
+          <section className="space-y-3">
+            <h2 className="flex items-center gap-2 text-base font-bold"><ListVideo className="h-5 w-5" /> Related videos</h2>
+            <div className="space-y-3">
+              {recommendations.map((item) => <VideoRecommendation key={item.id} item={item} onOpen={() => void openVideo(item.id)} profile={creatorProfiles[item.user_id ?? ""]} />)}
+              {!recommendations.length && <p className="text-sm text-muted-foreground">More videos will appear here as creators upload them.</p>}
+            </div>
+          </section>
         </section>
-        <aside className="space-y-3 rounded-2xl border p-3">
-          <h2 className="font-semibold">Video library</h2>
-          {items.map((item) => (
-            <button key={item.id} type="button" onClick={() => setActiveId(item.id)} aria-pressed={active?.id === item.id} className={`flex w-full gap-3 rounded-lg p-2 text-left ${active?.id === item.id ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-muted"}`}>
-              <span className="grid h-12 w-20 shrink-0 place-items-center overflow-hidden rounded bg-black">{item.thumbnailSrc ? <img src={item.thumbnailSrc} alt="" className="h-full w-full object-cover" /> : <Play className="h-5 w-5 text-white" />}</span>
-              <span className="line-clamp-2 text-xs font-medium">{item.caption || "Untitled Video"}</span>
-            </button>
-          ))}
+        <aside className="hidden space-y-3 xl:block">
+          <h2 className="text-sm font-bold">Up next</h2>
+          {recommendations.slice(0, 5).map((item) => <VideoRecommendation key={item.id} item={item} onOpen={() => void openVideo(item.id)} compact profile={creatorProfiles[item.user_id ?? ""]} />)}
         </aside>
       </div>
     </main>
   );
+
+  return (
+    <main className="mx-auto max-w-7xl space-y-5">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><Play className="h-5 w-5 fill-current" /></span><div><h1 className="text-xl font-black tracking-tight">NEXORA Videos</h1><p className="text-xs text-muted-foreground">Watch what moves you</p></div></div>
+        <form className="flex w-full max-w-xl items-center gap-2" onSubmit={(event) => { event.preventDefault(); setSubmittedSearch(searchText); }}>
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full border bg-muted/40 px-4 py-2.5"><Search className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="sr-only">Search videos</span><input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search videos" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
+          <button type="submit" aria-label="Search videos" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted hover:bg-muted/80"><Search className="h-4 w-4" /></button>
+        </form>
+      </header>
+      <nav aria-label="Video categories" className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+        {categories.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => setCategory(label)} aria-pressed={category === label} className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${category === label ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80"}`}><Icon className="h-4 w-4" />{label}</button>)}
+        <Link to="/live" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-muted px-4 py-2.5 text-sm font-semibold hover:bg-muted/80"><Radio className="h-4 w-4 text-red-500" /> Live</Link>
+      </nav>
+      <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{submittedSearch ? `Search results for “${submittedSearch}”` : category === "Home" ? "Recommended videos" : category}</h2><span className="text-xs text-muted-foreground">{filteredItems.length} videos</span></div>
+      {filteredItems.length ? <div className="grid gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredItems.map((item) => <button key={item.id} type="button" onClick={() => void openVideo(item.id)} className="group min-w-0 text-left">
+          <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
+            {item.thumbnailSrc ? <img src={item.thumbnailSrc} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.03]" /> : item.mediaSrc ? <video src={item.mediaSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><Play className="h-8 w-8 text-white" /></div>}
+            <span className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">{item.duration_seconds ? `${Math.floor(item.duration_seconds / 60)}:${String(item.duration_seconds % 60).padStart(2, "0")}` : "VIDEO"}</span>
+            <span className="absolute inset-0 grid place-items-center bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100"><Play className="h-12 w-12 fill-white text-white drop-shadow" /></span>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <CreatorAvatar profile={creatorProfiles[item.user_id ?? ""]} />
+            <div className="min-w-0 flex-1"><h3 className="line-clamp-2 text-sm font-semibold leading-5">{item.caption || "NEXORA Video"}</h3><p className="mt-1 truncate text-xs text-muted-foreground">{creatorProfiles[item.user_id ?? ""]?.display_name || creatorProfiles[item.user_id ?? ""]?.handle || "NEXORA Creator"}</p><p className="mt-1 text-xs text-muted-foreground">{Number(item.view_count ?? 0).toLocaleString()} views · {new Date(item.created_at).toLocaleDateString()}</p></div>
+          </div>
+        </button>)}
+      </div> : <div className="rounded-2xl border py-16 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><h3 className="font-semibold">No videos found</h3><p className="mt-1 text-sm text-muted-foreground">Try another search or choose Home to browse all videos.</p><button onClick={() => { setSearchText(""); setSubmittedSearch(""); setCategory("Home"); }} className="mt-4 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Show all videos</button></div>}
+    </main>
+  );
+}
+
+function CreatorAvatar({ profile }: { profile?: { display_name: string | null; handle: string; avatar_url: string | null } }) {
+  const label = profile?.display_name || profile?.handle || "NEXORA Creator";
+  return profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" /> : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-sm font-bold">{label.slice(0, 1).toUpperCase()}</span>;
+}
+
+function VideoRecommendation({ item, onOpen, profile, compact = false }: { item: { id: string; caption: string | null; thumbnailSrc?: string; mediaSrc?: string; duration_seconds: number | null; view_count: number | null; created_at: string }; onOpen: () => void; profile?: { display_name: string | null; handle: string; avatar_url: string | null }; compact?: boolean }) {
+  return <button type="button" onClick={onOpen} className={`flex w-full min-w-0 gap-3 rounded-xl text-left transition hover:bg-muted/50 ${compact ? "p-1" : "p-2"}`}>
+    <div className={`relative shrink-0 overflow-hidden rounded-lg bg-black ${compact ? "w-40" : "w-[42%] max-w-64"} aspect-video`}>{item.thumbnailSrc ? <img src={item.thumbnailSrc} alt="" className="h-full w-full object-cover" /> : item.mediaSrc ? <video src={item.mediaSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : null}<span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-[10px] text-white">{item.duration_seconds ? `${Math.floor(item.duration_seconds / 60)}:${String(item.duration_seconds % 60).padStart(2, "0")}` : "VIDEO"}</span></div>
+    <span className="min-w-0 flex-1"><span className="line-clamp-2 block text-sm font-semibold">{item.caption || "NEXORA Video"}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{profile?.display_name || profile?.handle || "NEXORA Creator"}</span><span className="mt-1 block text-xs text-muted-foreground">{Number(item.view_count ?? 0).toLocaleString()} views · {new Date(item.created_at).toLocaleDateString()}</span></span>
+  </button>;
 }
 
 function VideoCreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | null; profile?: { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }; isSelf: boolean }) {
@@ -162,6 +257,6 @@ function VideoCreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | nu
       {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-muted font-semibold">{label.slice(0,1).toUpperCase()}</span>}
       <span className="min-w-0"><span className="block truncate text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">@{profile?.handle || "creator"}</span></span>
     </Link>
-    {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Follow"}</button>}
+    {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Subscribe"}</button>}
   </div>;
 }
