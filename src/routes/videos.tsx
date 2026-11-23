@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { MediaComments } from "@/components/nexora/MediaComments";
+import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
 
 const categories = [
   { label: "Home", icon: House, terms: [] as string[] },
