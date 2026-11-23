@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
+import { MediaComments } from "@/components/nexora/MediaComments";
 
 export const Route = createFileRoute("/reels")({
   head: () => ({ meta: [{ title: "Reels — NEXORA" }, { name: "description", content: "Vertical short-form videos on NEXORA." }] }),
@@ -23,6 +24,8 @@ function Reels() {
   const [reposted, setReposted] = useState<string[]>([]);
   const [creatorProfiles, setCreatorProfiles] = useState<Record<string, { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }>>({});
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
   const itemIdsKey = items.map((item) => item.id).join("|");
@@ -192,10 +195,11 @@ function Reels() {
             </div>
             <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5">
               <button type="button" onClick={() => void toggleLike(item.id)} aria-label={liked.includes(item.id) ? "Unlike Reel" : "Like Reel"} className="flex flex-col items-center gap-1"><Heart className={`h-7 w-7 ${liked.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} /><span className="text-[11px]">{Number(likeCounts[item.id] ?? item.like_count ?? 0)}</span></button>
-              <div className="flex flex-col items-center gap-1" aria-label="Comments"><MessageCircle className="h-7 w-7" /><span className="text-[11px]">{Number(item.comment_count ?? 0)}</span></div>
+              <button type="button" onClick={() => setCommentsReelId(item.id)} aria-label="Open comments" aria-haspopup="dialog" className="flex flex-col items-center gap-1"><MessageCircle className="h-7 w-7" /><span className="text-[11px]">{Number(commentCounts[item.id] ?? item.comment_count ?? 0)}</span></button>
               <button type="button" onClick={() => void shareReel(item.id, item.caption)} aria-label="Share Reel" className="flex flex-col items-center gap-1"><Share2 className="h-7 w-7" /><span className="text-[11px]">{Number(shareCounts[item.id] ?? item.share_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleRepost(item.id)} aria-label="Repost Reel" className={`flex flex-col items-center gap-1 ${reposted.includes(item.id) ? "text-emerald-400" : ""}`}><Repeat2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.repost_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleSave(item.id)} aria-label={saved.includes(item.id) ? "Unsave Reel" : "Save Reel"} className={`flex flex-col items-center gap-1 ${saved.includes(item.id) ? "text-amber-300" : ""}`}><Bookmark className={`h-7 w-7 ${saved.includes(item.id) ? "fill-current" : ""}`} /><span className="text-[11px]">{saved.includes(item.id) ? "Saved" : "Save"}</span></button>
+              <MediaComments postId={item.id} open={commentsReelId === item.id} variant="sheet" onClose={() => setCommentsReelId(null)} onCountChange={(count) => setCommentCounts((current) => ({ ...current, [item.id]: count }))} />
             </div>
           </article>
         ))}
