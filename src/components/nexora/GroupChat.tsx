@@ -315,7 +315,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
   useEffect(() => {
     if (chatLock.status !== "unlocked") return;
     const channel = supabase
-      .channel(`group-chat-${groupId}-${userId}`)
+      .channel(`group-chat-${groupId}-${userId}`, { config: { private: true } })
       .on(
         "postgres_changes",
         {
@@ -425,7 +425,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
 
   useEffect(() => {
     if (!groupId || messages.length === 0) return;
-    const channel = supabase.channel(`group-reactions-${groupId}`)
+    const channel = supabase.channel(`group-reactions-${groupId}`, { config: { private: true } })
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_group_message_reactions" }, async () => {
         const ids = messages.map((message) => message.id);
         const { data } = await (supabase as any).from("chat_group_message_reactions")
