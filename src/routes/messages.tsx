@@ -945,7 +945,7 @@ if (group) {
     <GroupChat
       groupId={group}
       userId={user.id}
-      onBack={() => { window.location.href = "/messages"; }}
+      onBack={() => { void navigate({ to: "/messages", search: { recipient: "", group: "", prompt: "", returnTo: "/profile" } }); }}
     />
   );
 }
@@ -983,7 +983,7 @@ if (!recipient && !group) {
         <CreateGroupDialog
           userId={user.id}
           onCreated={(groupId) => {
-            window.location.href = `/messages?group=${encodeURIComponent(groupId)}`;
+            void navigate({ to: "/messages", search: { recipient: "", group: groupId, prompt: "", returnTo: "/profile" } });
           }}
         />
       </div>
@@ -1022,13 +1022,14 @@ if (!recipient && !group) {
           ) : visibleInbox.map((conversation) => {
             const isGroup = conversation.kind === "group";
             const title = isGroup ? conversation.name : conversation.displayName;
-            const href = isGroup
-              ? `/messages?group=${encodeURIComponent(conversation.groupId)}`
-              : `/messages?recipient=${encodeURIComponent(conversation.userId)}`;
+            const search = isGroup
+              ? { recipient: "", group: conversation.groupId, prompt: "", returnTo: "/profile" }
+              : { recipient: conversation.userId, group: "", prompt: "", returnTo: "/profile" };
             return (
-              <a
-                key={isGroup ? `group-${conversation.groupId}` : `direct-${conversation.userId}`}
-                href={href}
+              <Link
+                key={isGroup ? "group-" + conversation.groupId : "direct-" + conversation.userId}
+                to="/messages"
+                search={search}
                 className="flex items-center gap-3 py-4 hover:bg-muted/50"
               >
                 {conversation.avatarUrl ? (
@@ -1054,7 +1055,7 @@ if (!recipient && !group) {
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground" aria-label={`${conversation.unreadCount} unread messages`}>{conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}</span>
                   )}
                 </div>
-              </a>
+              </Link>
             );
           })}
         </div>
