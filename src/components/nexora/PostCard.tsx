@@ -201,20 +201,36 @@ export function PostCard({ post }: { post: Post }) {
     toast.success("We'll show you less content like this.");
   };
 
+  const creatorProfileLink = c.handle.trim()
+    ? `/profile/${encodeURIComponent(c.handle.replace(/^@+/, ""))}`
+    : null;
   const header = (
     <div className="flex min-w-0 items-center gap-3">
-      <Link to="/profile/$handle" params={{ handle: c.handle }} className="shrink-0" aria-label="Open creator profile">
-        <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
-      </Link>
-      <Link to="/profile/$handle" params={{ handle: c.handle }} className="min-w-0 flex-1">
-        <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
-          aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
-          <span className="truncate">{c.name}</span>
-          {c.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-accent" aria-label="Verified" />}
-          <span aria-hidden="true" className="text-muted-foreground">·</span>
-          <span className="truncate text-xs font-normal text-muted-foreground">@{c.handle}</span>
-        </p>
-      </Link>
+      {creatorProfileLink ? (
+        <Link to="/profile/$handle" params={{ handle: c.handle.replace(/^@+/, "") }} className="shrink-0" aria-label="Open creator profile">
+          <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
+        </Link>
+      ) : (
+        <span className="shrink-0" aria-label="Creator profile unavailable">
+          <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
+        </span>
+      )}
+      {creatorProfileLink ? (
+        <Link to="/profile/$handle" params={{ handle: c.handle.replace(/^@+/, "") }} className="min-w-0 flex-1">
+          <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
+            aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
+            <span className="truncate">{c.name}</span>
+            {c.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-accent" aria-label="Verified" />}
+            <span aria-hidden="true" className="text-muted-foreground">·</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">@{c.handle}</span>
+          </p>
+        </Link>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{c.name}</p>
+          <p className="text-xs text-muted-foreground">Profile details unavailable</p>
+        </div>
+      )}
       <span className="shrink-0 text-xs text-muted-foreground" title={formatExactDateTime(post.createdAt)}>{formatRelativeTime(post.createdAt)}</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
