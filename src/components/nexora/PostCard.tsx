@@ -14,6 +14,7 @@ import {
   VolumeX,
   Maximize2,
   BarChart3,
+  Eye,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -221,6 +222,7 @@ export function PostCard({ post }: { post: Post }) {
       <Action label="Share" onClick={() => setShareOpen(true)} count={post.shares + shareBump}>
         <Share2 className="h-5 w-5" />
       </Action>
+      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground" aria-label={`${compact(post.views ?? 0)} views`}><Eye className="h-5 w-5" /><span className="tabular-nums">{compact(post.views ?? 0)}</span></span>
       <Action label={reposted.has(post.id) ? "Already reposted" : "Repost"} onClick={() => repost(post.id)} count={post.reposts ?? 0} active={reposted.has(post.id)} disabled={reposted.has(post.id)}>
         <Repeat2 className="h-5 w-5" />
       </Action>
