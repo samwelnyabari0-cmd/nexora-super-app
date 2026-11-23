@@ -211,7 +211,7 @@ function ProfileSettings() {
         <div className="grid gap-2 sm:grid-cols-3">
           {([{value:"personal",label:"Personal",desc:"Social and discovery features."},{value:"creator",label:"Creator",desc:"Creator Studio and monetization."},{value:"business",label:"Business",desc:"Business tools and storefront."}] as const).map(t=><button key={t.value} type="button" onClick={()=>setAccountType(t.value)} className={`rounded-xl border p-3 text-left ${accountType===t.value?"border-primary bg-primary/10":"hover:bg-muted"}`}><p className="font-semibold">{t.label}</p><p className="mt-1 text-xs text-muted-foreground">{t.desc}</p></button>)}
         </div>
-        {(accountType==="creator" || accountType==="business") && <div className="space-y-2"><p className="text-sm font-medium">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{categories.map(([value,label])=><button key={value} type="button" onClick={()=>setCategory(value)} className={`rounded-lg border p-2 text-xs ${category===value?"border-primary bg-primary/10":"hover:bg-muted"}`}>{label}</button>)}</div></div>}
+        {(accountType==="creator" || accountType==="business") && <div className="space-y-2"><p className="text-sm font-medium">Profile category</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{categories.map(([value,label])=><button key={value} type="button" onClick={()=>{setCategory(value);if(value==="education"&&!privateProfile)setDiscoverable(true);}} className={`rounded-lg border p-2 text-xs ${category===value?"border-primary bg-primary/10":"hover:bg-muted"}`}>{label}</button>)}</div></div>}
         <ProfileBadges accountType={accountType} industryTag={categories.find(([v])=>v===category)?.[1] ?? "Tech & Gaming"} isVerified />
       </Panel>
 
