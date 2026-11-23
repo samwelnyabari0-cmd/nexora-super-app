@@ -26,7 +26,7 @@ export const Route = createFileRoute("/learn")({
 });
 
 type Track = "all" | "creator" | "tech" | "business";
-type Course = { id: string; title: string; description: string; instructorId: string; category: Exclude<Track, "all">; level: string; lessons: number; durationSeconds: number; priceUsd: number; priceKes: number; currency: string; thumbnailUrl: string | null; instructorName: string; instructorAvatar: string | null; progress: number; accent: string; icon: typeof Video };
+type Course = { id: string; title: string; description: string; instructorId: string; category: Exclude<Track, "all">; level: string; lessons: number; durationSeconds: number; thumbnailUrl: string | null; instructorName: string; instructorAvatar: string | null; progress: number; accent: string; icon: typeof Video };
 type Resource = { id: string; courseId: string; name: string; type: string; size: number; accessTier: string };
 type Lesson = { id: string; title: string; lessonOrder: number; videoPath: string; durationSeconds: number; isPreview: boolean };
 type LessonProgress = { completed: boolean; lastPositionSeconds: number };
@@ -163,7 +163,7 @@ function Learn() {
       setError(null);
       const { data: rows, error: courseError } = await (supabase as any)
         .from("edu_courses")
-        .select("id,title,description,category,level,price_usd,price_kes,currency,thumbnail_url,instructor_id")
+        .select("id,title,description,category,level,thumbnail_url,instructor_id")
         .eq("is_published", true)
         .order("created_at", { ascending: false });
       if (courseError) {
@@ -201,8 +201,7 @@ function Learn() {
           return {
             id: row.id, title: row.title, description: row.description ?? "", instructorId: row.instructor_id,
             category, level: row.level ?? "All levels", lessons: counts[row.id]?.count ?? 0, durationSeconds: counts[row.id]?.seconds ?? 0,
-            priceUsd: Number(row.price_usd ?? 0), priceKes: Number(row.price_kes ?? 0),
-            currency: row.currency ?? "KES", thumbnailUrl: row.thumbnail_url ?? null,
+            thumbnailUrl: row.thumbnail_url ?? null,
             instructorName: instructors[row.instructor_id]?.display_name || instructors[row.instructor_id]?.handle || "Nexora Instructor",
             instructorAvatar: instructors[row.instructor_id]?.avatar_url ?? null,
             progress: 0, accent: accents[index % accents.length], icon: icons[index % icons.length],
@@ -444,12 +443,6 @@ function Learn() {
     return hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
   }
 
-  function priceLabel(course: Course) {
-    if (course.priceUsd === 0 && course.priceKes === 0) return "Free";
-    const kes = course.priceKes > 0 ? `KSh ${course.priceKes.toLocaleString()}` : "";
-    const usd = course.priceUsd > 0 ? `$${course.priceUsd.toLocaleString()}` : "";
-    return [kes, usd].filter(Boolean).join(" · ");
-  }
 
   function resourceCanDownload(resource: Resource) {
     const course = courses.find((item) => item.id === resource.courseId);
