@@ -814,7 +814,7 @@ function PublicProfile() {
                   className="rounded-2xl border border-slate-800 bg-slate-900 p-3"
                 >
                   <p className="mb-2 text-[10px] text-slate-400">
-                    @{profile.handle} · {new Date(post.created_at).toLocaleDateString()}
+                    @{profile.handle} · <time dateTime={post.created_at} title={formatExactDateTime(post.created_at)}>{formatRelativeTime(post.created_at)}</time>
                   </p>
                   {post.caption && (
                     <p className="mb-3 whitespace-pre-wrap text-sm">{post.caption}</p>
