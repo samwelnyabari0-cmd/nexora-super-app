@@ -99,40 +99,42 @@ export function OfflinePackManager() {
   }
 
   return (
-    <section className="mb-8">
+    <section className="mb-8 w-full min-w-0 max-w-full">
       <h2 className="mb-1 text-lg font-semibold">Offline storage</h2>
-      <p className="mb-2 text-sm text-muted-foreground">
-        Manage your saved Reels and Videos here. Downloads stay on this device and use up to 150 MB of storage.
+      <p className="mb-3 max-w-full text-sm leading-relaxed text-muted-foreground">
+        Save Reels and Videos for offline viewing. Downloads stay on this device.
       </p>
       <Button
         type="button"
-        variant="ghost"
-        className="h-auto w-full justify-between rounded-none border-b px-0 py-4"
+        variant="outline"
+        className="h-auto w-full min-w-0 max-w-full justify-between gap-3 overflow-hidden rounded-2xl px-3 py-3 text-left"
         onClick={() => setOpen(true)}
         aria-label={"Open offline pack, " + items.length + " saved items"}
       >
-        <span className="flex items-center gap-3 text-sm">
-          <Download className="h-4 w-4" />
-          Daily Commute Pack
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Download className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold">Daily Commute Pack</span>
+            <span className="block text-xs text-muted-foreground">{items.length} saved · 150 MB limit</span>
+          </span>
         </span>
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          {items.length} saved
-          <ChevronRight className="h-4 w-4" />
-        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="offline-pack-title" className="max-h-[88svh] w-full max-w-2xl overflow-hidden rounded-t-2xl border bg-background shadow-2xl sm:rounded-2xl">
-            <header className="flex items-center gap-3 border-b p-4">
-              <div className="min-w-0 flex-1">
-                <h2 id="offline-pack-title" className="font-display text-lg font-bold">Daily Commute Pack</h2>
-                <p className="text-xs text-muted-foreground">{items.length} of 15 items · {formatOfflineBytes(totalBytes)} of 150 MB used</p>
+        <div className="fixed inset-0 z-[90] flex items-end justify-center overflow-x-hidden bg-black/70 p-2 sm:items-center sm:p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="offline-pack-title" className="max-h-[88svh] w-full min-w-0 max-w-2xl overflow-hidden rounded-2xl border bg-background shadow-2xl">
+            <header className="flex min-w-0 flex-wrap items-center gap-2 border-b p-3 sm:gap-3 sm:p-4">
+              <div className="min-w-0 flex-1 basis-36">
+                <h2 id="offline-pack-title" className="truncate font-display text-base font-bold sm:text-lg">Daily Commute Pack</h2>
+                <p className="text-xs leading-relaxed text-muted-foreground">{items.length} of 15 items · {formatOfflineBytes(totalBytes)} of 150 MB used</p>
               </div>
-              {items.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => void clearAll()} disabled={busyId !== ""}><Trash2 className="mr-1 h-4 w-4" /> Clear all</Button>}
-              <Button type="button" variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Close offline pack"><X /></Button>
+              {items.length > 0 && <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={() => void clearAll()} disabled={busyId !== ""}><Trash2 className="mr-1 h-4 w-4" /> Clear all</Button>}
+              <Button type="button" variant="ghost" size="icon" className="ml-auto shrink-0" onClick={() => setOpen(false)} aria-label="Close offline pack"><X /></Button>
             </header>
-            <div className="max-h-[calc(88svh-76px)] space-y-3 overflow-y-auto p-4">
+            <div className="max-h-[calc(88svh-76px)] min-w-0 space-y-3 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
               <div className="flex items-start gap-2 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
                 <WifiOff className="mt-0.5 h-4 w-4 shrink-0" />
                 Saved media stays on this device. Download over Wi-Fi when possible; your pack is capped at 150 MB.
@@ -141,8 +143,8 @@ export function OfflinePackManager() {
               {loading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading your offline items…</p> :
                 items.length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">Nothing saved yet. Open a Reel or Video and choose Save offline.</p> :
                   items.map((item) => (
-                    <article key={item.id} className="flex gap-3 rounded-xl border p-3">
-                      <div className="h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-black">
+                    <article key={item.id} className="flex min-w-0 flex-col gap-3 rounded-xl border p-3 sm:flex-row">
+                      <div className="h-32 w-full shrink-0 overflow-hidden rounded-lg bg-black sm:h-24 sm:w-32">
                         {item.mediaType === "video" && item.previewUrl
                           ? <video src={item.previewUrl} poster={item.thumbnailPreviewUrl} controls playsInline preload="metadata" className="h-full w-full object-contain" />
                           : item.previewUrl
