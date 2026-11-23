@@ -107,9 +107,9 @@ function MessagesErrorComponent({ reset }: ErrorComponentProps) {
         Your messages are safe. Try loading the conversation again or return to your inbox.
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        <Button type="button" onClick={reset}>Try again</Button>
+        <Button type="button" onClick={() => window.location.reload()}>Try again</Button>
         <Button asChild type="button" variant="outline">
-          <Link to="/messages">Back to messages</Link>
+          <Link to="/messages" search={{ recipient: "", group: "", prompt: "", returnTo: "/profile" }}>Back to messages</Link>
         </Button>
       </div>
     </main>
@@ -590,6 +590,48 @@ if (recipient === user.id) {
   }, [user?.id, recipient, chatLock.status]);
 
   useEffect(() => {
+    if (!user?.id || !recipient || group || chatLock.status !== "unlocked") return;
+
+    const channel = supabase
+      .channel(`direct-message-sync-${[user.id, recipient].sort().join(":")}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const message = payload.new as DirectMessage;
+          if (message.sender_id === recipient && message.recipient_id === user.id) {
+            setRefresh((value) => value + 1);
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `sender_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const message = payload.new as DirectMessage;
+          if (message.sender_id === user.id && message.recipient_id === recipient) {
+            setRefresh((value) => value + 1);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, recipient, group, chatLock.status]);
+
+  useEffect(() => {
     if (!user?.id || !recipient || chatLock.status !== "unlocked") return;
 
     const channel = supabase
@@ -628,13 +670,33 @@ if (recipient === user.id) {
     if (!user?.id || recipient || group) return;
 
     const channel = supabase
-      .channel(`group-inbox-${user.id}`)
+      .channel(`messages-inbox-${user.id}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "chat_group_messages",
+        },
+        () => setRefresh((value) => value + 1),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        () => setRefresh((value) => value + 1),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `sender_id=eq.${user.id}`,
         },
         () => setRefresh((value) => value + 1),
       )
