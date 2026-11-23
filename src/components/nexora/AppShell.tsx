@@ -25,6 +25,7 @@ import {
   Server,
   Phone,
   Trophy,
+  Gamepad2,
   GraduationCap,
   ShieldCheck,
   Clapperboard,
@@ -44,6 +45,7 @@ import { getQueuedMessages } from "@/lib/offline-storage";
 const nav = [
   { to: "/", label: "Home", icon: Home },
   { to: "/explore", label: "Explore", icon: Compass },
+  { to: "/match-center", label: "Arena", icon: Gamepad2 },
   { to: "/reels", label: "Reels", icon: Clapperboard },
   { to: "/create", label: "Create", icon: PlusSquare },
   { to: "/videos", label: "Videos", icon: Video },
@@ -65,7 +67,7 @@ const nav = [
   { to: "/help", label: "Help", icon: HelpCircle },
 ] as const;
 
-const mobileNav = ["/", "/explore", "/reels", "/create", "/videos", "/messages", "/profile"];
+const mobileNav = ["/", "/match-center", "/create", "/clubs", "/profile"];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -377,6 +379,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <Sparkles className="h-5 w-5" />
           </Link>
+          <Button asChild variant="ghost" size="icon" className="relative rounded-full">
+            <Link to="/messages" aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}>
+              <MessageCircle className="h-5 w-5" />
+              {unread > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground">{unread > 9 ? "9+" : unread}</span>}
+            </Link>
+          </Button>
           <Button asChild variant="ghost" size="icon" className="relative rounded-full">
             <Link to="/notifications" aria-label={noticeCount > 0 ? `Notifications, ${noticeCount} unread` : "Notifications"}>
               <Bell className="h-5 w-5" />
