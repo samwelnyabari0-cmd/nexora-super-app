@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, type FormEvent } from "react";
-import { Clock3, ExternalLink, Heart, RefreshCw, Share2, ShieldCheck, WifiOff } from "lucide-react";
+import { Clock3, ExternalLink, Gamepad2, Heart, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel } from "@/components/nexora/ui";
@@ -17,7 +17,7 @@ import type { FootballMatch } from "@/features/football/types";
 export const Route = createFileRoute("/match-center")({
   head: () => ({
     meta: [
-      { title: "Football Match Center — NEXORA" },
+      { title: "Nexora Arena — NEXORA" },
       {
         name: "description",
         content: "Low-data live football scores, news and highlights on Nexora.",
@@ -48,6 +48,9 @@ function MatchCenterPage() {
   const [syncClubId, setSyncClubId] = useState("");
   const [busyMatchId, setBusyMatchId] = useState<string | null>(null);
   const [savingTeam, setSavingTeam] = useState(false);
+  const [activeMode, setActiveMode] = useState<"football" | "gaming" | "cups">("football");
+  const [fanPick, setFanPick] = useState("");
+  const [fanPickSaved, setFanPickSaved] = useState(false);
 
   const matches = useMemo(
     () => filterMatchesByCompetition(data.matches, filter),
@@ -85,15 +88,29 @@ function MatchCenterPage() {
     const result = await data.shareMatchToClub(match, shareClubId);
     setBusyMatchId(null);
     if (result.error) toast.error(result.error);
-    else toast.success("Match card shared in your club channel.");
+    else toast.success("Match card shared in your squad channel.");
   };
 
   return (
     <main className="mx-auto max-w-5xl space-y-4 pb-10">
       <PageHeader
-        title="Football Match Center"
-        subtitle="Live scores, football updates and highlights — built for quick, low-data browsing."
+        title="Nexora Arena"
+        subtitle="Football, gaming and fan competition — one fast, low-data space."
       />
+      <div className="grid grid-cols-3 gap-2 rounded-2xl border bg-card p-1.5">
+        {([
+          { id: "football", label: "Football", icon: Trophy },
+          { id: "gaming", label: "Instant play", icon: Gamepad2 },
+          { id: "cups", label: "Cups", icon: Swords },
+        ] as const).map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" onClick={() => setActiveMode(id)} aria-pressed={activeMode === id}
+            className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-3 text-xs font-semibold transition-colors motion-reduce:transition-none sm:gap-2 sm:text-sm ${activeMode === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}>
+            <Icon className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span>
+          </button>
+        ))}
+      </div>
+      {activeMode === "football" ? (
+        <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock3 className="h-4 w-4" />
@@ -111,6 +128,20 @@ function MatchCenterPage() {
           </Button>
         </div>
       </div>
+
+      <Panel>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div><h2 className="flex items-center gap-2 font-semibold"><Radio className="h-4 w-4 text-red-500" /> Matchday pulse</h2><p className="text-xs text-muted-foreground">Swipe through live and upcoming fixtures</p></div>
+          <span className="shrink-0 rounded-full border px-2 py-1 text-[10px] text-muted-foreground">{data.matches.filter((match) => match.status === "LIVE").length} live</span>
+        </div>
+        {data.matches.length ? <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-2">
+          {data.matches.slice(0, 8).map((match) => <article key={match.id} className="w-[min(78vw,250px)] shrink-0 snap-start rounded-xl border bg-muted/30 p-3">
+            <p className="mb-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground"><span className="truncate">{match.competitionName}</span><span className={match.status === "LIVE" ? "shrink-0 font-bold text-red-500" : "shrink-0"}>{formatMatchStatus(match)}</span></p>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm font-semibold"><span className="truncate">{match.homeTeam}</span><span className="tabular-nums">{match.homeScore ?? "–"} : {match.awayScore ?? "–"}</span><span className="truncate text-right">{match.awayTeam}</span></div>
+            <p className="mt-2 text-[10px] text-muted-foreground">{isMatchStale(match) ? "Score update may be delayed" : "Cached match update"}</p>
+          </article>)}
+        </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No verified fixtures are available yet. Match cards appear when the football data cache is populated.</p>}
+      </Panel>
 
       <Panel>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -160,20 +191,20 @@ function MatchCenterPage() {
 
       <Panel>
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="font-semibold">Discuss in Club</h2>
+          <h2 className="font-semibold">Squad discussion</h2>
           <Link to="/clubs" className="text-xs text-primary underline">
-            Manage clubs
+            Manage squads
           </Link>
         </div>
         <p className="mb-2 text-xs text-muted-foreground">
-          Choose a club where you are an active member, then share a match card into its channel.
+          Choose a squad you belong to and share a match card in its discussion channel.
         </p>
         <select
           className={input}
           value={shareClubId}
           onChange={(event) => setShareClubId(event.target.value)}
         >
-          <option value="">Choose your club</option>
+          <option value="">Choose a squad</option>
           {eligibleClubs.map((club) => (
             <option key={club.id} value={club.id}>
               {club.name}
@@ -182,7 +213,7 @@ function MatchCenterPage() {
         </select>
         {!eligibleClubs.length && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Join a club first to discuss match updates.
+            Join a squad first to discuss match updates.
           </p>
         )}
       </Panel>
@@ -244,7 +275,7 @@ function MatchCenterPage() {
               value={syncClubId}
               onChange={(event) => setSyncClubId(event.target.value)}
             >
-              <option value="">Club to receive updates</option>
+              <option value="">Squad to receive updates</option>
               {managedClubs.map((club) => (
                 <option key={club.id} value={club.id}>
                   {club.name}
@@ -267,7 +298,7 @@ function MatchCenterPage() {
                 >
                   <span className="min-w-0 truncate">
                     {sync.team_name} →{" "}
-                    {clubs.directory.find((club) => club.id === sync.club_id)?.name ?? "Club"}
+                    {clubs.directory.find((club) => club.id === sync.club_id)?.name ?? "Squad"}
                   </span>
                   <button
                     type="button"
@@ -284,10 +315,29 @@ function MatchCenterPage() {
         )}
         {data.favorites.length > 0 && !managedClubs.length && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Only a club Creator or Admin can enable automatic team updates for that club.
+            Only a squad Creator or Admin can enable automatic team updates.
           </p>
         )}
       </Panel>
+
+      <section className="grid gap-3 md:grid-cols-2">
+        <Panel>
+          <div className="mb-2 flex items-center gap-2"><Target className="h-4 w-4 text-primary" /><h2 className="font-semibold">Fan prediction</h2></div>
+          {data.matches.length ? <>
+            <p className="text-xs text-muted-foreground">Who gets the next goal in {data.matches.find((match) => match.status === "LIVE")?.homeTeam ?? data.matches[0].homeTeam} vs {data.matches.find((match) => match.status === "LIVE")?.awayTeam ?? data.matches[0].awayTeam}?</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">{["Home", "Away", "No more goals"].map((choice) => <button key={choice} type="button" onClick={() => { setFanPick(choice); setFanPickSaved(false); }} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-medium ${fanPick === choice ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{choice}</button>)}</div>
+            <Button className="mt-3 w-full" size="sm" disabled={!fanPick} onClick={() => setFanPickSaved(true)}>Save my pick</Button>
+            {fanPickSaved && <p className="mt-2 text-xs text-emerald-600">Your pick is selected for this session. No money or payment is involved.</p>}
+          </> : <p className="text-sm text-muted-foreground">Fan polls open when verified fixtures are available.</p>}
+          <p className="mt-2 text-[10px] text-muted-foreground">Just for fun — no betting, stakes or wallet payments.</p>
+        </Panel>
+        <Panel>
+          <div className="mb-2 flex items-center gap-2"><Volume2 className="h-4 w-4 text-primary" /><h2 className="font-semibold">Audio watch-along</h2></div>
+          <p className="text-sm text-muted-foreground">Bring your squad together for commentary and match reactions. Use the existing group room and keep your camera off if you only want audio.</p>
+          <Link to="/calls" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Radio className="h-4 w-4" /> Open group room</Link>
+          <p className="mt-2 text-[10px] text-muted-foreground">Group rooms are hosted through Jitsi Meet.</p>
+        </Panel>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2">
         <Panel>
@@ -371,13 +421,25 @@ function MatchCenterPage() {
       </div>
       <div className="flex flex-wrap gap-2">
         <Link to="/clubs" className="text-xs text-primary underline">
-          Clubs & Guilds
+          Squads & Communities
         </Link>
         <span className="text-xs text-muted-foreground">·</span>
         <Link to="/live" className="text-xs text-primary underline">
           Nexora LIVE streaming
         </Link>
       </div>
+        </>
+      ) : activeMode === "gaming" ? (
+        <section className="space-y-4">
+          <div className="rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
+            <div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Zap className="h-5 w-5" /></div><div className="min-w-0"><h2 className="font-display text-lg font-bold">Play instantly</h2><p className="mt-1 text-sm text-muted-foreground">Lightweight games run right here — no app-store download or heavy 3D assets.</p></div></div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2"><Panel><PenaltyShootout /></Panel><Panel><ArenaTrivia /></Panel></div>
+          <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h2 className="font-semibold">Challenge your squad</h2></div><p className="mt-2 text-sm text-muted-foreground">Finish a run, share your score link in a Nexora conversation, and invite friends to beat it.</p><Link to="/messages" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-muted"><Swords className="h-4 w-4" /> Open messages</Link></Panel>
+        </section>
+      ) : (
+        <ArenaBracketDraft />
+      )}
     </main>
   );
 }
@@ -417,8 +479,8 @@ function MatchRow({
       <Button
         size="icon"
         variant="ghost"
-        title="Discuss in Club"
-        aria-label={`Discuss ${match.homeTeam} versus ${match.awayTeam} in Club`}
+        title="Discuss in Squad"
+        aria-label={`Discuss ${match.homeTeam} versus ${match.awayTeam} in Squad`}
         disabled={shareDisabled}
         onClick={onShare}
       >
@@ -426,4 +488,65 @@ function MatchRow({
       </Button>
     </div>
   );
+}
+
+
+function PenaltyShootout() {
+  const [attempts, setAttempts] = useState(0);
+  const [goals, setGoals] = useState(0);
+  const [saves, setSaves] = useState(0);
+  const [message, setMessage] = useState("Pick a corner and take your first shot.");
+  const [finished, setFinished] = useState(false);
+  const challengeTarget = typeof window === "undefined" ? null : Number(new URLSearchParams(window.location.search).get("beat"));
+  const validTarget = challengeTarget !== null && Number.isFinite(challengeTarget) && challengeTarget >= 0 ? challengeTarget : null;
+  const shoot = (direction: string) => {
+    if (finished) return;
+    const keeper = ["Left", "Center", "Right"][Math.floor(Math.random() * 3)];
+    const scored = keeper !== direction;
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
+    if (scored) setGoals((value) => value + 1); else setSaves((value) => value + 1);
+    setMessage(scored ? "GOAL! You beat the keeper." : "Saved! The keeper read your shot.");
+    if (nextAttempts >= 5) setFinished(true);
+  };
+  const challenge = async () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("beat", String(goals));
+    const shareText = "Can you beat my Nexora Arena penalty score of " + goals + "/5? " + url.toString();
+    if (navigator.share) await navigator.share({ title: "Beat my Arena score", text: shareText, url: url.toString() });
+    else { await navigator.clipboard.writeText(shareText); setMessage("Challenge link copied. Share it with your squad!"); }
+  };
+  return <div className="space-y-3">
+    <div className="flex items-center justify-between gap-2"><h2 className="flex items-center gap-2 font-semibold"><Gamepad2 className="h-4 w-4 text-primary" /> Penalty shootout</h2><span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">5 shots</span></div>
+    <div className="rounded-xl border bg-muted/40 p-3 text-center"><div className="mx-auto mb-2 grid h-20 max-w-52 grid-cols-3 items-end gap-1 rounded-t-[3rem] border-2 border-b-0 border-foreground/30 px-2 pt-4">{["Left","Center","Right"].map((side) => <div key={side} className="grid h-12 place-items-center rounded-t-lg bg-emerald-500/20 text-[10px] font-bold text-emerald-700">{side === "Center" ? "🥅" : "⚽"}</div>)}</div><p className="text-sm font-semibold">{message}</p><p className="mt-1 text-xs tabular-nums text-muted-foreground">Goals {goals} · Saves {saves} · Shots {attempts}/5</p>{validTarget !== null && <p className="mt-1 text-xs font-semibold text-primary">Challenge: beat {validTarget}/5</p>}</div>
+    <div className="grid grid-cols-3 gap-2">{["Left","Center","Right"].map((side) => <Button key={side} variant="outline" size="sm" disabled={finished} onClick={() => shoot(side)}>{side}</Button>)}</div>
+    {finished ? <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void challenge()}>Challenge squad</Button><Button size="sm" variant="outline" onClick={() => { setAttempts(0); setGoals(0); setSaves(0); setFinished(false); setMessage("New round. Pick a corner."); }}>Play again</Button></div> : <p className="text-[10px] text-muted-foreground">No downloads. Simple graphics and motion keep the game lightweight.</p>}
+  </div>;
+}
+
+function ArenaTrivia() {
+  const questions = [
+    { q: "How many players start on the pitch for one football team?", a: ["9", "10", "11"], correct: "11" },
+    { q: "What is the duration of a standard half in senior football?", a: ["35 minutes", "45 minutes", "50 minutes"], correct: "45 minutes" },
+    { q: "Which card means a player is sent off?", a: ["Yellow", "Red", "Blue"], correct: "Red" },
+  ];
+  const [index, setIndex] = useState(0); const [points, setPoints] = useState(0); const [picked, setPicked] = useState(""); const [done, setDone] = useState(false);
+  const current = questions[index];
+  const answer = (value: string) => { if (picked || done) return; setPicked(value); if (value === current.correct) setPoints((score) => score + 1); };
+  const next = () => { if (index === questions.length - 1) setDone(true); else { setIndex((value) => value + 1); setPicked(""); } };
+  return <div className="space-y-3">
+    <div className="flex items-center justify-between gap-2"><h2 className="flex items-center gap-2 font-semibold"><Zap className="h-4 w-4 text-amber-500" /> 60-second trivia</h2><span className="text-[10px] text-muted-foreground">{Math.min(index + 1, questions.length)}/{questions.length}</span></div>
+    {done ? <div className="rounded-xl bg-muted/40 p-4 text-center"><p className="text-2xl font-bold tabular-nums">{points}/{questions.length}</p><p className="text-sm text-muted-foreground">Correct answers</p><Button size="sm" className="mt-3" onClick={() => { setIndex(0); setPoints(0); setPicked(""); setDone(false); }}>Play again</Button></div> : <><p className="text-sm font-medium">{current.q}</p><div className="grid gap-2">{current.a.map((option) => <button key={option} type="button" disabled={!!picked} onClick={() => answer(option)} className={`rounded-xl border px-3 py-2 text-left text-sm ${picked === option ? option === current.correct ? "border-emerald-500 bg-emerald-500/10" : "border-destructive bg-destructive/10" : "hover:bg-muted"}`}>{option}</button>)}</div>{picked && <Button size="sm" className="w-full" onClick={next}>{index === questions.length - 1 ? "Finish quiz" : "Next question"}</Button>}</>}
+  </div>;
+}
+
+function ArenaBracketDraft() {
+  const [size, setSize] = useState("8"); const [entrants, setEntrants] = useState(""); const [pairings, setPairings] = useState<string[]>([]);
+  const generate = () => { const names = entrants.split(/[\n,]+/).map((name) => name.trim()).filter(Boolean).slice(0, Number(size)); const slots = Array.from({ length: Number(size) }, (_, i) => names[i] || "Open slot " + (i + 1)); setPairings(Array.from({ length: Number(size) / 2 }, (_, i) => slots[i * 2] + " vs " + slots[i * 2 + 1])); };
+  return <section className="space-y-4">
+    <div className="rounded-2xl border bg-gradient-to-br from-amber-500/10 via-card to-card p-4"><div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /><h2 className="font-display text-lg font-bold">Arena Cups & brackets</h2></div><p className="mt-1 text-sm text-muted-foreground">Prepare free community tournaments for eFootball, EA FC Mobile, PUBG Mobile and Nexora mini-games.</p></div>
+    <Panel><h3 className="font-semibold">Bracket builder</h3><p className="mt-1 text-xs text-muted-foreground">Create a local bracket preview for 8, 16 or 32 players. No entry fees or payments.</p><label className="mt-3 block text-xs font-medium" htmlFor="arena-bracket-size">Bracket size</label><select id="arena-bracket-size" className={input + " mt-1"} value={size} onChange={(event) => setSize(event.target.value)}><option value="8">8 players</option><option value="16">16 players</option><option value="32">32 players</option></select><label className="mt-3 block text-xs font-medium" htmlFor="arena-entrants">Player names (one per line or comma-separated)</label><textarea id="arena-entrants" className={input + " mt-1 min-h-28"} value={entrants} onChange={(event) => setEntrants(event.target.value)} placeholder={"Player 1\nPlayer 2\nPlayer 3"} /><Button className="mt-3 w-full" onClick={generate} disabled={!entrants.trim()}>Generate bracket preview</Button>{pairings.length > 0 && <div className="mt-4 space-y-2"><h4 className="text-sm font-semibold">Round 1</h4>{pairings.map((pairing, index) => <div key={index} className="flex items-center gap-2 rounded-lg border p-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs">{index + 1}</span><span className="min-w-0 break-words">{pairing}</span></div>)}</div>}</Panel>
+    <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h3 className="font-semibold">Create a tournament with your squad</h3></div><p className="mt-2 text-sm text-muted-foreground">Use the existing squad events, member approvals and discussion channels to organise your first free competition.</p><Link to="/clubs" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Trophy className="h-4 w-4" /> Open squads</Link><p className="mt-2 text-[10px] text-muted-foreground">This is a draft bracket only. Online registration, screenshot verification, disputes and automatic bracket advancement still need their shared tournament data workflow.</p></Panel>
+    <Panel><div className="flex items-center gap-2"><Radio className="h-4 w-4" /><h3 className="font-semibold">Community watch-along</h3></div><p className="mt-2 text-sm text-muted-foreground">Host a matchday room, discuss tactics and invite players to your next cup.</p><Link to="/calls" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Volume2 className="h-4 w-4" /> Open audio / group room</Link></Panel>
+  </section>;
 }
