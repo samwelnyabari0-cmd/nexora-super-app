@@ -322,7 +322,6 @@ function MatchCenterPage() {
 
       <section className="grid gap-3 md:grid-cols-2">
         <Panel><ArenaFanPoll match={liveMatch} /></Panel>
-        </Panel>
         <Panel>
           <div className="mb-2 flex items-center gap-2"><Volume2 className="h-4 w-4 text-primary" /><h2 className="font-semibold">Audio watch-along</h2></div>
           <p className="text-sm text-muted-foreground">Bring your squad together for commentary and match reactions. Use the existing group room and keep your camera off if you only want audio.</p>
