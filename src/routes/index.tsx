@@ -99,14 +99,14 @@ function Home() {
 
   const shown = useMemo(() => {
     const f = filter.toLowerCase();
-    if (f === "for you") return [...posts].sort((a, b) =>
-      Number(b.tags.some((tag) => passport.interests.includes(tag))) -
-      Number(a.tags.some((tag) => passport.interests.includes(tag))));
+    // The database RPC already returns a pillar-balanced, affinity-weighted order.
+    // Preserve that order here; client-side sorting would undo the interleaving.
+    if (f === "for you") return posts;
     if (f === "following") return posts.filter((post) =>
       followingIds.includes(post.creatorId) || post.creatorId === "me");
     if (f === "nearby") return posts.filter((post) => post.place);
     return posts.filter((post) => post.tags.includes(f));
-  }, [posts, filter, passport.interests, followingIds]);
+  }, [posts, filter, followingIds]);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
