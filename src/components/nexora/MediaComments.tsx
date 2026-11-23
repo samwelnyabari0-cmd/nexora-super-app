@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
@@ -32,6 +33,8 @@ export function MediaComments({
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const onCountChangeRef = useRef(onCountChange);
+  onCountChangeRef.current = onCountChange;
 
   const loadComments = useCallback(async () => {
     setLoading(true);
@@ -61,15 +64,15 @@ export function MediaComments({
       avatar_url: profileById[comment.user_id]?.avatar_url ?? null,
     }));
     setComments(hydrated);
-    onCountChange?.(hydrated.length);
+    onCountChangeRef.current?.(hydrated.length);
     setLoading(false);
-  }, [postId, onCountChange]);
+  }, [postId]);
 
   useEffect(() => {
     if (open) void loadComments();
   }, [open, loadComments]);
 
-  async function submitComment(event: React.FormEvent<HTMLFormElement>) {
+  async function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
     if (!content || sending) return;
