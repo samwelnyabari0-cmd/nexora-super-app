@@ -8,6 +8,7 @@ import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { MediaComments } from "@/components/nexora/MediaComments";
+import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
 
 export const Route = createFileRoute("/reels")({
   head: () => ({ meta: [{ title: "Reels — NEXORA" }, { name: "description", content: "Vertical short-form videos on NEXORA." }] }),
