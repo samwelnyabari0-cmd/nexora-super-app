@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { OfflinePackManager } from "./OfflinePackManager";
+import { flushOfflineMessages } from "@/lib/offline-messages";
+import { getQueuedMessages } from "@/lib/offline-storage";
 
 const nav = [
   { to: "/", label: "Home", icon: Home },
@@ -93,6 +95,55 @@ export function AppShell({ children }: { children: ReactNode }) {
       window.removeEventListener("online", onOnline);
     };
   }, []);
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    let syncing = false;
+
+    const syncAllQueuedMessages = async () => {
+      if (!active || syncing || !navigator.onLine) return;
+      syncing = true;
+      try {
+        const queued = await getQueuedMessages(user.id);
+        const visited = new Set<string>();
+        let sentCount = 0;
+
+        for (const item of queued) {
+          const key = item.kind + ":" + item.conversationId;
+          if (visited.has(key)) continue;
+          visited.add(key);
+          const result = await flushOfflineMessages(
+            supabase as any,
+            user.id,
+            item.kind,
+            item.conversationId,
+          );
+          sentCount += result.sent;
+          if (result.error) {
+            console.warn("NEXORA could not sync a queued message yet:", result.error);
+          }
+        }
+
+        if (active && sentCount > 0) {
+          window.dispatchEvent(new Event("nexora:outbox-updated"));
+        }
+      } catch (error) {
+        console.warn("NEXORA offline message sync will retry:", error);
+      } finally {
+        syncing = false;
+      }
+    };
+
+    void syncAllQueuedMessages();
+    window.addEventListener("online", syncAllQueuedMessages);
+    window.addEventListener("nexora:outbox-sync", syncAllQueuedMessages);
+    return () => {
+      active = false;
+      window.removeEventListener("online", syncAllQueuedMessages);
+      window.removeEventListener("nexora:outbox-sync", syncAllQueuedMessages);
+    };
+  }, [user?.id]);
+
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
