@@ -49,17 +49,12 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/assets/") || url.pathname === "/manifest.webmanifest" || url.pathname.endsWith(".svg")) {
     event.respondWith((async () => {
       const cache = await caches.open(SHELL_CACHE);
-      const cached = await cache.match(request);
-      if (cached) {
-        event.waitUntil(fetch(request).then((response) => response.ok ? cache.put(request, response.clone()) : undefined).catch(() => undefined));
-        return cached;
-      }
       try {
         const response = await fetch(request);
         if (response.ok) await cache.put(request, response.clone());
         return response;
       } catch {
-        return new Response("", { status: 504 });
+        return (await cache.match(request)) || new Response("", { status: 504 });
       }
     })());
   }
