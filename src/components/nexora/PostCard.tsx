@@ -102,7 +102,11 @@ export function PostCard({ post }: { post: Post }) {
 
   useEffect(() => {
     const card = cardRef.current;
-    if (!card || !user?.id || !isDbPost || typeof IntersectionObserver === "undefined") return;
+    // PostCard can be backed by the canonical user_media_posts row even when
+    // its presentation-level post id differs from the media row id.
+    const trackedPostId = post.mediaPostId || post.id;
+    const isTrackableId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trackedPostId);
+    if (!card || !user?.id || !isTrackableId || typeof IntersectionObserver === "undefined") return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let recorded = false;
     const observer = new IntersectionObserver((entries) => {
@@ -111,7 +115,8 @@ export function PostCard({ post }: { post: Post }) {
       if (entry.isIntersecting && entry.intersectionRatio >= 0.55 && !recorded && !timer) {
         timer = setTimeout(() => {
           recorded = true;
-          void recordUserMediaPostView(post.id);
+          timer = undefined;
+          void recordUserMediaPostView(trackedPostId);
         }, 1200);
       } else if ((!entry.isIntersecting || entry.intersectionRatio < 0.55) && timer) {
         clearTimeout(timer);
@@ -123,7 +128,7 @@ export function PostCard({ post }: { post: Post }) {
       observer.disconnect();
       if (timer) clearTimeout(timer);
     };
-  }, [post.id, user?.id, isDbPost]);
+  }, [post.id, post.mediaPostId, user?.id]);
 
   const isLiked = liked.has(post.id);
   const isSaved = saved.has(post.id);
