@@ -88,3 +88,8 @@ drop policy if exists "Requesters can cancel their requests" on public.follow_re
 create policy "Requesters can cancel their requests" on public.follow_requests
 for delete to authenticated using (requester_id = (select auth.uid()));
 grant delete on public.follow_requests to authenticated;
+
+
+alter table public.notifications drop constraint if exists notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check
+check (kind = any (array['follow','follow_request','like','save','comment','share','mention','message','system']::text[]));
