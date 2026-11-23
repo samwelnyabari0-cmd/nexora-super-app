@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, BookOpen, Bookmark, Eye, Heart, Play, Repeat2, Share2, Video } from "lucide-react";
+import { Activity, BookOpen, Bookmark, Eye, Heart, Play, Repeat2, Share2, Video, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { recordUserMediaPostView } from "@/lib/post-views";
@@ -53,9 +54,16 @@ export function AcademyCommunityFeed() {
   const [items, setItems] = useState<AcademyCommunityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     let active = true;
+    if (!user?.id) {
+      setItems([]);
+      setLoading(false);
+      setError("");
+      return () => { active = false; };
+    }
     setLoading(true);
     setError("");
     void (async () => {
@@ -73,6 +81,25 @@ export function AcademyCommunityFeed() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
+  }, [user?.id, refreshTick]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const refresh = () => setRefreshTick((value) => value + 1);
+    const channel = supabase
+      .channel(`academy-community-feed-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_media_posts" }, refresh)
+      .subscribe();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      void supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -116,8 +143,10 @@ export function AcademyCommunityFeed() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-400">From Nexora educators</p><h2 className="text-xl font-bold">Community learning</h2></div>
-        <span className="text-xs text-muted-foreground">{items.length} posts</span>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-400">From Nexora educators</p><h2 className="text-xl font-bold">Community learning</h2><span className="text-xs text-muted-foreground">{items.length} posts</span></div>
+        <Button type="button" size="sm" variant="outline" onClick={() => setRefreshTick((value) => value + 1)} disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {items.map((item) => {
