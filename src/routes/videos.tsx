@@ -240,7 +240,7 @@ function Videos() {
           </div>
           <div className="mt-3 flex gap-3">
             <CreatorAvatar profile={creatorProfiles[item.user_id ?? ""]} />
-            <div className="min-w-0 flex-1"><h3 className="line-clamp-2 text-sm font-semibold leading-5">{item.caption || "NEXORA Video"}</h3><p className="mt-1 truncate text-xs text-muted-foreground">{creatorProfiles[item.user_id ?? ""]?.display_name || creatorProfiles[item.user_id ?? ""]?.handle || "NEXORA Creator"}</p><p className="mt-1 text-xs text-muted-foreground">{Number(item.view_count ?? 0).toLocaleString()} views · {new Date(item.created_at).toLocaleDateString()}</p></div>
+            <div className="min-w-0 flex-1"><h3 className="line-clamp-2 text-sm font-semibold leading-5">{item.caption || "NEXORA Video"}</h3><p className="mt-1 truncate text-xs text-muted-foreground">{creatorProfiles[item.user_id ?? ""]?.display_name || creatorProfiles[item.user_id ?? ""]?.handle || "NEXORA Creator"}</p><p className="mt-1 text-xs text-muted-foreground">{Number(item.view_count ?? 0).toLocaleString()} views · {formatRelativeTime(item.created_at)}</p></div>
           </div>
         </button>)}
       </div> : <div className="rounded-2xl border py-16 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><h3 className="font-semibold">No videos found</h3><p className="mt-1 text-sm text-muted-foreground">Try another search or choose Home to browse all videos.</p><button onClick={() => { setSearchText(""); setSubmittedSearch(""); setCategory("Home"); }} className="mt-4 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Show all videos</button></div>}
