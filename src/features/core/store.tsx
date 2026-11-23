@@ -284,7 +284,7 @@ if (bookmarkError) {
                   shares: Number(row.share_count ?? 0),
               reposts: Number(row.repost_count ?? 0),
               views: Number(row.view_count ?? 0),
-              createdAt: new Date(row.created_at).toLocaleDateString(),
+              createdAt: row.created_at,
             } as unknown as Post;
           }),
         );
