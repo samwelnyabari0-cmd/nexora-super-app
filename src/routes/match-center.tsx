@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Clock3, ExternalLink, Gamepad2, Heart, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel } from "@/components/nexora/ui";
 import { useClubData } from "@/features/clubs/useClubData";
@@ -49,8 +50,6 @@ function MatchCenterPage() {
   const [busyMatchId, setBusyMatchId] = useState<string | null>(null);
   const [savingTeam, setSavingTeam] = useState(false);
   const [activeMode, setActiveMode] = useState<"football" | "gaming" | "cups">("football");
-  const [fanPick, setFanPick] = useState("");
-  const [fanPickSaved, setFanPickSaved] = useState(false);
 
   const matches = useMemo(
     () => filterMatchesByCompetition(data.matches, filter),
@@ -322,15 +321,7 @@ function MatchCenterPage() {
       </Panel>
 
       <section className="grid gap-3 md:grid-cols-2">
-        <Panel>
-          <div className="mb-2 flex items-center gap-2"><Target className="h-4 w-4 text-primary" /><h2 className="font-semibold">Fan prediction</h2></div>
-          {liveMatch ? <>
-            <p className="text-xs text-muted-foreground">Who gets the next goal in {liveMatch.homeTeam} vs {liveMatch.awayTeam}?</p>
-            <div className="mt-3 grid grid-cols-3 gap-2">{["Home", "Away", "No more goals"].map((choice) => <button key={choice} type="button" onClick={() => { setFanPick(choice); setFanPickSaved(false); }} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-medium ${fanPick === choice ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{choice}</button>)}</div>
-            <Button className="mt-3 w-full" size="sm" disabled={!fanPick} onClick={() => setFanPickSaved(true)}>Save my pick</Button>
-            {fanPickSaved && <p className="mt-2 text-xs text-emerald-600">Your pick is selected for this session. No money or payment is involved.</p>}
-          </> : <p className="text-sm text-muted-foreground">Fan polls open when verified fixtures are available.</p>}
-          <p className="mt-2 text-[10px] text-muted-foreground">Just for fun — no betting, stakes or wallet payments.</p>
+        <Panel><ArenaFanPoll match={liveMatch} /></Panel>
         </Panel>
         <Panel>
           <div className="mb-2 flex items-center gap-2"><Volume2 className="h-4 w-4 text-primary" /><h2 className="font-semibold">Audio watch-along</h2></div>
@@ -551,4 +542,62 @@ function ArenaBracketDraft() {
     <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h3 className="font-semibold">Create a tournament with your squad</h3></div><p className="mt-2 text-sm text-muted-foreground">Use the existing squad events, member approvals and discussion channels to organise your first free competition.</p><Link to="/clubs" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Trophy className="h-4 w-4" /> Open squads</Link><p className="mt-2 text-[10px] text-muted-foreground">This is a draft bracket only. Online registration, screenshot verification, disputes and automatic bracket advancement still need their shared tournament data workflow.</p></Panel>
     <Panel><div className="flex items-center gap-2"><Radio className="h-4 w-4" /><h3 className="font-semibold">Community watch-along</h3></div><p className="mt-2 text-sm text-muted-foreground">Host a matchday room, discuss tactics and invite players to your next cup.</p><Link to="/calls" search={{ arenaAudio: true }} className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Volume2 className="h-4 w-4" /> Open audio / group room</Link></Panel>
   </section>;
+}
+
+
+function ArenaFanPoll({ match }: { match?: FootballMatch }) {
+  const [choice, setChoice] = useState("");
+  const [voted, setVoted] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number>>({ Home: 0, Away: 0, "No more goals": 0 });
+  const channelRef = useRef<any>(null);
+  const choices = ["Home", "Away", "No more goals"];
+
+  useEffect(() => {
+    if (!match) return;
+    setChoice("");
+    setVoted(false);
+    setCounts({ Home: 0, Away: 0, "No more goals": 0 });
+    const channel = supabase.channel("arena-fan-poll-" + match.id);
+    channel
+      .on("broadcast", { event: "vote" }, ({ payload }) => {
+        const incoming = payload?.choice;
+        if (choices.includes(incoming)) {
+          setCounts((current) => ({ ...current, [incoming]: current[incoming] + 1 }));
+        }
+      })
+      .subscribe((status) => setConnected(status === "SUBSCRIBED"));
+    channelRef.current = channel;
+    return () => {
+      channelRef.current = null;
+      setConnected(false);
+      void supabase.removeChannel(channel);
+    };
+  }, [match?.id]);
+
+  const castVote = async () => {
+    if (!match || !choice || voted || !connected || !channelRef.current) return;
+    const result = await channelRef.current.send({ type: "broadcast", event: "vote", payload: { choice } });
+    if (result !== "ok") {
+      toast.error("Your vote could not be sent. Try again.");
+      return;
+    }
+    setCounts((current) => ({ ...current, [choice]: current[choice] + 1 }));
+    setVoted(true);
+  };
+
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  return <div className="space-y-3">
+    <div className="flex items-center gap-2"><Target className="h-4 w-4 text-primary" /><h2 className="font-semibold">Live fan prediction</h2></div>
+    {match ? <>
+      <p className="text-xs text-muted-foreground">Who gets the next goal in {match.homeTeam} vs {match.awayTeam}?</p>
+      <div className="grid grid-cols-3 gap-2">{choices.map((item) => <button key={item} type="button" disabled={voted} onClick={() => setChoice(item)} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-medium ${choice === item ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{item}</button>)}</div>
+      <Button className="w-full" size="sm" disabled={!choice || voted || !connected} onClick={() => void castVote()}>{voted ? "Vote sent" : connected ? "Vote live" : "Connecting poll…"}</Button>
+      <div className="space-y-2" aria-live="polite">
+        {choices.map((item) => <div key={item}><div className="mb-1 flex justify-between text-[10px] text-muted-foreground"><span>{item}</span><span className="tabular-nums">{counts[item]} · {total ? Math.round((counts[item] / total) * 100) : 0}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none" style={{ width: total ? (counts[item] / total) * 100 + "%" : "0%" }} /></div></div>)}
+      </div>
+      <p className="text-[10px] text-muted-foreground">{total} live session votes · tally resets when the room closes.</p>
+    </> : <p className="text-sm text-muted-foreground">Fan polls open when a verified match is live.</p>}
+    <p className="text-[10px] text-muted-foreground">For fun only — no betting, stakes, wallet or payments.</p>
+  </div>;
 }
