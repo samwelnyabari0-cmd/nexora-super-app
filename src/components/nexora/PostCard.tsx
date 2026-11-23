@@ -68,6 +68,7 @@ export function PostCard({ post }: { post: Post }) {
   const [refreshedMediaUrl, setRefreshedMediaUrl] = useState<string | undefined>();
   const attemptedRefresh = useRef(new Set<string>());
   const videoRef = useRef<HTMLVideoElement>(null);
+  const completionRecorded = useRef(false);
   const cardRef = useRef<HTMLElement>(null);
   const isDbPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id);
   const [videoMuted, setVideoMuted] = useState(true);
@@ -249,6 +250,13 @@ export function PostCard({ post }: { post: Post }) {
           maxHeight: "78svh",
         }}>
           <video ref={videoRef} src={displayedMediaSource} poster={post.thumbnailUrl} onPlay={() => { if (user?.id) void recordUserMediaPostView(post.mediaPostId || post.id); }}
+            onTimeUpdate={(event) => {
+              const video = event.currentTarget;
+              if (!completionRecorded.current && user?.id && isDbPost && video.duration > 0 && video.currentTime >= video.duration * 0.9) {
+                completionRecorded.current = true;
+                void (supabase as any).rpc("record_nexora_post_completion", { p_post_id: post.id });
+              }
+            }}
             onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
             playsInline loop muted={videoMuted} preload="metadata"
             onClick={(event) => {
