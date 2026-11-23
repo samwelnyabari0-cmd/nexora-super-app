@@ -198,7 +198,7 @@ function Videos() {
             <div className="rounded-xl bg-muted/60 p-3 text-sm">
               <p className="font-semibold">{Number(active.view_count ?? 0).toLocaleString()} views</p>
               <p className="mt-1 whitespace-pre-wrap">{active.caption || "No description added."}</p>
-              <p className="mt-2 text-xs text-muted-foreground">Posted {formatRelativeTime(active.created_at)}</p>
+              <p className="mt-2 text-xs text-muted-foreground" title={formatExactDateTime(active.created_at)}>Posted {formatRelativeTime(active.created_at)}</p>
             </div>
           </div>
           <section className="space-y-3">
