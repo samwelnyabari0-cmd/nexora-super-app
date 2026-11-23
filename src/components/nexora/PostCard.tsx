@@ -75,9 +75,6 @@ export function PostCard({ post }: { post: Post }) {
   const mediaFrameRatio = post.frameRatio && post.frameRatio !== "original"
     ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
     : getMediaAspectRatioValue(post.aspectRatio);
-  const mediaFrameWidth = mediaFrameRatio
-    ? `min(100%, calc(78svh * ${mediaFrameRatio}))`
-    : "100%";
   const refreshMediaUrl = async (failedUrl: string) => {
     if (post.mediaStorageProvider !== "r2" || !post.mediaPostId || !failedUrl) return;
     if (attemptedRefresh.current.has(failedUrl)) return;
@@ -214,7 +211,7 @@ export function PostCard({ post }: { post: Post }) {
   );
 
   const actions = (
-    <div className="flex items-center gap-1">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-0.5 gap-y-1">
       <Action label={isLiked ? "Unlike" : "Like"} onClick={() => toggleLike(post.id)} active={isLiked} count={post.likes}>
         <Heart className={cn("h-5 w-5", isLiked && "animate-pop fill-destructive text-destructive")} />
       </Action>
@@ -224,7 +221,7 @@ export function PostCard({ post }: { post: Post }) {
       <Action label="Share" onClick={() => setShareOpen(true)} count={post.shares + shareBump}>
         <Share2 className="h-5 w-5" />
       </Action>
-      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground" aria-label={`${compact(post.views ?? 0)} views`}><Eye className="h-5 w-5" /><span className="tabular-nums">{compact(post.views ?? 0)}</span></span>
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-1.5 text-xs text-muted-foreground" aria-label={`${compact(post.views ?? 0)} views`}><Eye className="h-4 w-4" /><span className="tabular-nums">{compact(post.views ?? 0)}</span></span>
       <Action label={reposted.has(post.id) ? "Already reposted" : "Repost"} onClick={() => repost(post.id)} count={post.reposts ?? 0} active={reposted.has(post.id)} disabled={reposted.has(post.id)}>
         <Repeat2 className="h-5 w-5" />
       </Action>
@@ -232,7 +229,7 @@ export function PostCard({ post }: { post: Post }) {
         onClick={() => toggleSave(post.id)}
         aria-pressed={isSaved}
         aria-label={isSaved ? "Unsave" : "Save"}
-        className="ml-auto grid h-9 w-9 place-items-center rounded-full hover:bg-muted"
+        className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-muted"
       >
         <Bookmark className={cn("h-5 w-5", isSaved && "fill-accent text-accent")} />
       </button>
@@ -240,13 +237,14 @@ export function PostCard({ post }: { post: Post }) {
   );
 
   return (
-    <article ref={cardRef} className="overflow-hidden rounded-3xl border bg-card">
+    <article ref={cardRef} className="w-full min-w-0 max-w-full overflow-hidden rounded-3xl border bg-card">
       <div className="p-4 pb-3">{header}</div>
       {mediaSource && post.mediaType?.startsWith("video/") ? (
         <div className="relative w-full overflow-hidden bg-muted" style={{
           backgroundColor: post.dominantColor || "#171717",
           aspectRatio: mediaFrameRatio ?? undefined,
-          width: mediaFrameWidth,
+          width: "100%",
+          maxWidth: "100%",
           marginInline: "auto",
           maxHeight: "78svh",
         }}>
@@ -457,7 +455,7 @@ function Action({
       disabled={disabled}
       aria-label={label}
       aria-pressed={active}
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground sm:gap-1.5 sm:px-2.5 sm:text-sm"
     >
       {children}
       <span className="tabular-nums">{compact(count)}</span>
