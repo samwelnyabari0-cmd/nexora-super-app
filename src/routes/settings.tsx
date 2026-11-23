@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useWorkspace, type Preferences } from "@/features/core/workspace";
 import { Avatar, PageHeader } from "@/components/nexora/ui";
+import { OfflinePackManager } from "@/components/nexora/OfflinePackManager";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/settings")({
@@ -189,6 +190,7 @@ function Settings() {
           </Link>
         ))}
       </section>
+      <OfflinePackManager />
       {user && (
         <section className="mb-8">
           <h2 className="mb-1 text-lg font-semibold">Online status</h2>
