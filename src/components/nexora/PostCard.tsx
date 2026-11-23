@@ -385,7 +385,7 @@ export function PostCard({ post }: { post: Post }) {
         <DialogContent>
           <DialogTitle>{c.name}</DialogTitle>
           <Button variant="outline" disabled={!user || socialGraph.loading} onClick={() => { void socialGraph.toggleFollow(); setSafety(false); }}>
-            {!user ? "Sign in to follow" : socialGraph.isFollowing ? "Unfollow" : "Follow"}
+            {!user ? "Sign in to follow" : socialGraph.isFollowing ? "Unfollow" : socialGraph.isPending ? "Requested · Cancel request" : "Follow"}
           </Button>
           <Button variant="outline" onClick={() => { toggleMute(post.creatorId); setSafety(false); }}>
             {muted.includes(post.creatorId) ? "Unmute" : "Mute creator"}
