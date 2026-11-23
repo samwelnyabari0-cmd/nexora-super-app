@@ -130,13 +130,25 @@ export function AcademyCommunityFeed() {
   }, [items, user?.id]);
 
   if (loading) return <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">Loading education content…</div>;
-  if (error) return <div className="rounded-2xl border border-destructive/40 bg-card p-6 text-sm text-destructive">{error}</div>;
+  if (error) return (
+    <div className="rounded-2xl border border-destructive/40 bg-card p-6 text-center">
+      <p className="text-sm text-destructive">{error}</p>
+      <Button type="button" variant="outline" className="mt-3" onClick={() => setRefreshTick((value) => value + 1)}>
+        <RefreshCw className="mr-2 h-4 w-4" /> Try again
+      </Button>
+    </div>
+  );
   if (!items.length) return (
     <div className="rounded-2xl border border-dashed bg-card p-8 text-center">
       <BookOpen className="mx-auto h-8 w-8 text-primary" />
       <p className="mt-3 font-semibold">Education content will appear here</p>
       <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">When an educator sets their main profile category to Education, makes it discoverable, and publishes public posts, Reels or videos, they appear here automatically.</p>
-      <Link to="/profile-settings" className="mt-4 inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted">Set up an Education profile</Link>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Link to="/profile-settings" className="inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted">Set up an Education profile</Link>
+        <Button type="button" variant="outline" onClick={() => setRefreshTick((value) => value + 1)}>
+          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+        </Button>
+      </div>
     </div>
   );
 
