@@ -82,3 +82,9 @@ grant execute on function public.request_or_follow_profile(uuid) to authenticate
 grant execute on function public.get_my_follow_requests() to authenticated;
 grant execute on function public.approve_follow_request(uuid) to authenticated;
 grant execute on function public.decline_follow_request(uuid) to authenticated;
+
+
+drop policy if exists "Requesters can cancel their requests" on public.follow_requests;
+create policy "Requesters can cancel their requests" on public.follow_requests
+for delete to authenticated using (requester_id = (select auth.uid()));
+grant delete on public.follow_requests to authenticated;
