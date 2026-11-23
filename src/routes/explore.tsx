@@ -82,7 +82,7 @@ function Explore() {
   return (
     <div>
       <PageHeader title="Explore" />
-      <div className="mb-4 rounded-xl border bg-card p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span><strong>Football Match Center</strong><span className="ml-2 text-xs text-muted-foreground">Live scores, news and highlights</span></span><Link to="/match-center" className="text-xs font-semibold text-primary underline">Open Match Center</Link></div></div>
+      <div className="mb-4 rounded-xl border bg-card p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span><strong>Nexora Arena</strong><span className="ml-2 text-xs text-muted-foreground">Football, gaming, live scores and highlights</span></span><Link to="/match-center" className="text-xs font-semibold text-primary underline">Open Arena</Link></div></div>
       <label className="mb-4 flex items-center gap-2 rounded-full border bg-card px-4 py-3">
         <Search className="h-4 w-4 text-muted-foreground" />
         <span className="sr-only">Universal search</span>
