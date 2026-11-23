@@ -1,5 +1,5 @@
 
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, type ErrorComponentProps } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, X, Mic, Square, Search, Radio, Phone, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -93,8 +93,26 @@ export const Route = createFileRoute("/messages")({
   head: () => ({
     meta: [{ title: "Messages — NEXORA" }],
   }),
+  errorComponent: MessagesErrorComponent,
   component: Messages,
 });
+
+function MessagesErrorComponent({ reset }: ErrorComponentProps) {
+  return (
+    <main className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
+      <h1 className="text-xl font-semibold">We couldn't open this conversation</h1>
+      <p className="text-sm text-muted-foreground">
+        Your messages are safe. Try loading the conversation again or return to your inbox.
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button type="button" onClick={reset}>Try again</Button>
+        <Button asChild type="button" variant="outline">
+          <Link to="/messages">Back to messages</Link>
+        </Button>
+      </div>
+    </main>
+  );
+}
 
 function Messages() {
   const navigate = useNavigate();
