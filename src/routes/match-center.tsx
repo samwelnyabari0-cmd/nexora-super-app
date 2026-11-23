@@ -81,7 +81,7 @@ function MatchCenterPage() {
     if (!selectedSyncTeam) return;
     const result = await data.connectTeamToClub(selectedSyncTeam, syncClubId);
     if (result.error) toast.error(result.error);
-    else toast.success("Team updates connected to the club.");
+    else toast.success("Team updates connected to the squad.");
   };
 
   const shareMatch = async (match: FootballMatch) => {
