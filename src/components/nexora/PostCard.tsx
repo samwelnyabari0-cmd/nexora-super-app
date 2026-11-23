@@ -10,6 +10,7 @@ import {
   Trash2,
   Flag,
   MoreHorizontal,
+  EyeOff,
   Volume2,
   VolumeX,
   Maximize2,
@@ -139,6 +140,7 @@ export function PostCard({ post }: { post: Post }) {
   const [editedCaption, setEditedCaption] = useState(post.caption);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareBump, setShareBump] = useState(0);
+  const [notInterested, setNotInterested] = useState(false);
   const contentType = typeFromTags(post.tags ?? []);
   const typeLabel =
     contentType === "ad"
@@ -177,6 +179,28 @@ export function PostCard({ post }: { post: Post }) {
     }
   };
 
+  const markNotInterested = async () => {
+    if (!user?.id) {
+      toast.error("Sign in to personalise your feed.");
+      return;
+    }
+    const targetPostId = post.mediaPostId || post.id;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetPostId)) {
+      toast.error("This post cannot be used to personalise your feed yet.");
+      return;
+    }
+    const { error } = await (supabase as any).rpc("mark_nexora_not_interested", {
+      p_post_id: targetPostId,
+    });
+    if (error) {
+      console.error("Not interested feedback failed:", error);
+      toast.error("Could not update your feed preferences.");
+      return;
+    }
+    setNotInterested(true);
+    toast.success("We'll show you less content like this.");
+  };
+
   const header = (
     <div className="flex min-w-0 items-center gap-3">
       <Link to="/profile/$handle" params={{ handle: c.handle }} className="shrink-0" aria-label="Open creator profile">
@@ -203,7 +227,12 @@ export function PostCard({ post }: { post: Post }) {
             <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => {
               if (window.confirm("Delete this post? This cannot be undone.")) void deletePost(post.id);
             }}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-          </> : <DropdownMenuItem onSelect={() => setSafety(true)}>Follow, mute or report</DropdownMenuItem>}
+          </> : <>
+            <DropdownMenuItem onSelect={() => void markNotInterested()}>
+              <EyeOff className="mr-2 h-4 w-4" />Not interested
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSafety(true)}>Follow, mute or report</DropdownMenuItem>
+          </>}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setScene(true)}><Zap className="mr-2 h-4 w-4" />Act on this post</DropdownMenuItem>
         </DropdownMenuContent>
@@ -236,6 +265,8 @@ export function PostCard({ post }: { post: Post }) {
       </button>
     </div>
   );
+
+  if (notInterested) return null;
 
   return (
     <article ref={cardRef} className="w-full min-w-0 max-w-full overflow-hidden rounded-3xl border bg-card">
