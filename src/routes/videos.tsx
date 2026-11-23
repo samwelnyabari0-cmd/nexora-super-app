@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Play, Video, ArrowLeft, BarChart3, Heart, Share2, Repeat2, Bookmark,
   Download, Eye, Search, House, Music2, Trophy, Clapperboard, Tv, Radio,
-  ListVideo,
+  ListVideo, Gamepad2, GraduationCap, Newspaper, Cpu, Laugh,
 } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { useSession } from "@/lib/session";
@@ -15,9 +15,14 @@ import { useSocialGraph } from "@/features/social/useSocialGraph";
 const categories = [
   { label: "Home", icon: House, terms: [] as string[] },
   { label: "Music", icon: Music2, terms: ["music", "song", "audio", "concert", "beat", "dj", "afrobeats", "gospel", "hip hop", "rap"] },
+  { label: "Gaming", icon: Gamepad2, terms: ["game", "gaming", "gamer", "gameplay", "playstation", "xbox", "nintendo", "esports", "minecraft", "fortnite", "pubg", "free fire"] },
   { label: "Sports", icon: Trophy, terms: ["sport", "football", "soccer", "basketball", "rugby", "tennis", "match", "goal", "fitness"] },
   { label: "Movies", icon: Clapperboard, terms: ["movie", "film", "cinema", "trailer", "short film"] },
   { label: "Series & Shows", icon: Tv, terms: ["series", "episode", "show", "season", "drama", "comedy", "documentary"] },
+  { label: "Education", icon: GraduationCap, terms: ["learn", "lesson", "tutorial", "education", "course", "study", "how to", "explained", "school"] },
+  { label: "News", icon: Newspaper, terms: ["news", "breaking", "politics", "update", "report", "headline", "current affairs"] },
+  { label: "Technology", icon: Cpu, terms: ["tech", "technology", "ai", "artificial intelligence", "software", "gadget", "phone", "review", "coding"] },
+  { label: "Comedy", icon: Laugh, terms: ["comedy", "funny", "humor", "prank", "skit", "joke", "memes"] },
 ] as const;
 
 export const Route = createFileRoute("/videos")({
