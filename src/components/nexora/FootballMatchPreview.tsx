@@ -69,12 +69,12 @@ export function FootballMatchPreview() {
   return (
     <section
       className="mb-5 rounded-2xl border bg-card p-3"
-      aria-label="Football match center preview"
+      aria-label="Nexora Arena preview"
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <Trophy className="h-4 w-4 text-primary" />
-          Football Match Center
+          Nexora Arena
         </h2>
         <Link
           to="/match-center"
