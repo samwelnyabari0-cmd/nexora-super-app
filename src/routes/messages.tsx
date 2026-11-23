@@ -531,7 +531,14 @@ if (recipient === user.id) {
       setLoading(false);
     }
 
-    void loadChat();
+    void loadChat().catch((reason: unknown) => {
+      if (cancelled) return;
+      console.error("Conversation loading failed:", reason);
+      setError(reason instanceof Error ? reason.message : "This conversation could not be loaded. Please try again.");
+      setMessages([]);
+      setLoading(false);
+      setInboxLoading(false);
+    });
 
     return () => {
       cancelled = true;
