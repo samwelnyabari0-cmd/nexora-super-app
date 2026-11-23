@@ -38,6 +38,7 @@ export type Post = {
 }[];
   shares: number;
   reposts?: number;
+  views?: number;
   duration?: string;
   place?: string;
   createdAt: string;
