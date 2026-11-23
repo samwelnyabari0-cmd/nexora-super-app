@@ -205,7 +205,7 @@ export function EducatorShowcase({
             {!isOwner && (
               <Button type="button" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading}
                 onClick={() => void graph.toggleFollow()}>
-                {graph.loading ? "Loading…" : graph.isFollowing ? "Following" : "Follow"}
+                {graph.loading ? "Loading…" : graph.isFollowing ? "Following" : graph.isPending ? "Requested" : "Follow"}
               </Button>
             )}
             <SaveLearningButton itemType="educator" itemId={educator.id} />
