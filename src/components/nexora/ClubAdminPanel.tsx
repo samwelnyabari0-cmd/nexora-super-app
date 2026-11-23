@@ -76,7 +76,7 @@ export function ClubAdminPanel({ clubId }: Props) {
       .order("created_at", { ascending: true });
 
     if (queryError) {
-      setError("Unable to load club memberships. Please refresh.");
+      setError("Unable to load squad memberships. Please refresh.");
       setMembers([]);
       setProfiles({});
       setActivities([]);
@@ -138,7 +138,7 @@ export function ClubAdminPanel({ clubId }: Props) {
     if (inviteError || !data) { toast.error(inviteError?.message ?? "Unable to create invite link."); return; }
     const link = `${window.location.origin}/clubs?invite=${data}`;
     setInviteLink(link);
-    try { await navigator.clipboard.writeText(link); toast.success("Private club invite link copied."); }
+    try { await navigator.clipboard.writeText(link); toast.success("Private squad invite link copied."); }
     catch { toast.success("Invite link created. Copy it below to share."); }
   };
 
@@ -231,7 +231,7 @@ export function ClubAdminPanel({ clubId }: Props) {
     }
     const candidate = members.find((member) => member.user_id === selectedAdminId);
     if (!candidate || candidate.role !== "member" || candidate.status !== "active") {
-      toast.error("Choose an active club member.");
+      toast.error("Choose an active squad member.");
       return;
     }
     if (candidate.user_id === user.id) {
@@ -267,7 +267,7 @@ export function ClubAdminPanel({ clubId }: Props) {
   if (!user) {
     return (
       <div className="rounded-xl border p-4 text-sm text-muted-foreground">
-        Sign in to access club administration.
+        Sign in to access squad administration.
       </div>
     );
   }
@@ -277,9 +277,9 @@ export function ClubAdminPanel({ clubId }: Props) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">Club administration</h2>
+          <h2 className="text-lg font-bold">Squad administration</h2>
           <p className="text-sm text-muted-foreground">
-            Membership, roles and club access
+            Membership, roles and squad access
           </p>
         </div>
 
@@ -302,9 +302,9 @@ export function ClubAdminPanel({ clubId }: Props) {
         <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
           <span className="text-lg">✦</span>
           <div>
-            <p className="text-sm font-semibold">Creator-managed club</p>
+            <p className="text-sm font-semibold">Creator-managed squad</p>
             <p className="text-xs text-muted-foreground">
-              The club has an active registered creator.
+              The squad has an active registered creator.
             </p>
           </div>
         </div>
@@ -319,10 +319,10 @@ export function ClubAdminPanel({ clubId }: Props) {
       <div className="space-y-2 rounded-xl border p-3">
         <h3 className="text-sm font-semibold">Role permissions</h3>
         <ul className="space-y-1.5 text-xs text-muted-foreground">
-          <li><strong className="text-foreground">Creator:</strong> full club control, appoint admins and moderators, manage roles and membership.</li>
+          <li><strong className="text-foreground">Creator:</strong> full squad control, appoint admins and moderators, manage roles and membership.</li>
           <li><strong className="text-foreground">Admin:</strong> approve, suspend or restore regular members; create fixtures and announcements.</li>
           <li><strong className="text-foreground">Moderator:</strong> create fixtures, events and announcements; cannot change member roles or ban members.</li>
-          <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to club events.</li>
+          <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to squad events.</li>
         </ul>
       </div>
 
@@ -346,7 +346,7 @@ export function ClubAdminPanel({ clubId }: Props) {
           <div>
             <h3 className="font-semibold">Make a member an admin</h3>
             <p className="text-xs text-muted-foreground">
-              Search active club members by name or @handle. Only the creator can appoint admins.
+              Search active squad members by name or @handle. Only the creator can appoint admins.
             </p>
           </div>
           <input
@@ -384,7 +384,7 @@ export function ClubAdminPanel({ clubId }: Props) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="font-semibold">Club members</h3>
+            <h3 className="font-semibold">Squad members</h3>
             <p className="text-xs text-muted-foreground">
               {members.length} membership records
             </p>
@@ -596,7 +596,7 @@ export function ClubAdminPanel({ clubId }: Props) {
                       {getMemberName(activity.actor_user_id)} ·{" "}
                       {activity.target_user_id
                         ? `Target: ${getMemberName(activity.target_user_id)}`
-                        : "Club activity"}
+                        : "Squad activity"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {formatDate(activity.created_at)}
