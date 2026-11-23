@@ -22,7 +22,9 @@ describe("App routing", () => {
   ])("registers navigation path %s", (href, expectedRouteId) => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
 
-    const matches = router.matchRoutes(href);
+    // matchRoutes accepts a pathname; TanStack parses query strings separately.
+    const pathname = href.split("?")[0];
+    const matches = router.matchRoutes(pathname);
 
     expect(matches.at(-1)?.routeId).toBe(expectedRouteId);
   });
