@@ -110,6 +110,8 @@ function Profile() {
     Array<{ id: string; display_name: string | null; handle: string | null; avatar_url: string | null }>
   >([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
+  const [connectionsError, setConnectionsError] = useState("");
+  const [connectionsReload, setConnectionsReload] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
@@ -124,6 +126,7 @@ function Profile() {
     let active = true;
     void (async () => {
       setConnectionsLoading(true);
+      setConnectionsError("");
       try {
         const column = socialTab === "followers" ? "follower_id" : "following_id";
         const relationColumn = socialTab === "followers" ? "following_id" : "follower_id";
@@ -144,13 +147,16 @@ function Profile() {
         if (active) setConnections(profiles ?? []);
       } catch (error) {
         console.error(`Could not load ${socialTab}:`, error);
-        if (active) setConnections([]);
+        if (active) {
+          setConnections([]);
+          setConnectionsError(error instanceof Error ? error.message : "Could not load accounts.");
+        }
       } finally {
         if (active) setConnectionsLoading(false);
       }
     })();
     return () => { active = false; };
-  }, [socialTab, userId]);
+  }, [socialTab, userId, connectionsReload]);
 
   useEffect(() => {
     if (ready) setPrivateProfile(Boolean(user?.user_metadata?.private_profile));
