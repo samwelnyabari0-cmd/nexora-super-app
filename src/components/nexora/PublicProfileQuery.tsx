@@ -577,7 +577,9 @@ function handleMediaTouchEnd(
                   ? "Please wait..."
                   : graph.isFollowing
                     ? "Following"
-                    : "Follow"}
+                    : graph.isPending
+                      ? "Requested · Cancel request"
+                      : "Follow"}
               </Button>
             ) : (
               <Button asChild>
