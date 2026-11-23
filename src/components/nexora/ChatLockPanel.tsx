@@ -80,6 +80,21 @@ export function ChatLockPanel({ lock }: ChatLockPanelProps) {
             <Unlock className="mr-2 h-4 w-4" /> {busy ? "Checking…" : "Unlock chat"}
           </Button>
         </form>
+        <div className="space-y-2">
+          {!confirmRemoveLock ? (
+            <Button type="button" variant="outline" className="w-full" onClick={() => setConfirmRemoveLock(true)}>
+              Remove lock setup
+            </Button>
+          ) : (
+            <div className="space-y-2 rounded-xl border p-3 text-sm">
+              <p>Remove this chat's lock setup from this device? Your messages will not be deleted.</p>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setConfirmRemoveLock(false)}>Keep lock</Button>
+                <Button type="button" variant="destructive" onClick={() => { lock.reset(); setConfirmRemoveLock(false); }}>Remove lock setup</Button>
+              </div>
+            </div>
+          )}
+        </div>
         {(formError || lock.error) && <p role="alert" className="text-sm text-destructive">{formError || lock.error}</p>}
         {!confirmReset ? (
           <Button type="button" variant="ghost" onClick={() => setConfirmReset(true)}>
