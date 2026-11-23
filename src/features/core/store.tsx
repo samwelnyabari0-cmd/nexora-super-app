@@ -54,6 +54,7 @@ export type RelayItem = {
 
 type State = {
   posts: Post[];
+  postsLoading: boolean;
   liked: Set<string>;
   saved: Set<string>;
   reposted: Set<string>;
@@ -99,6 +100,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { notify, preferences, removeDraft } = useWorkspace();
   const { user } = useSession();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [liked, setLiked] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [reposted, setReposted] = useState<Set<string>>(new Set());
@@ -120,8 +122,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setConversations([]);
-    if (!user) { setPosts([]); return; }
+    if (!user) { setPosts([]); setPostsLoading(false); return; }
+    setPostsLoading(true);
     void (async () => {
+      try {
             const { data: ownProfile, error: ownProfileError } = await (supabase as any)
   .from("profiles")
   .select("display_name, handle, bio, interests, settings, avatar_url")
@@ -154,26 +158,59 @@ if (ownProfile) {
     share: ownProfile.settings?.share ?? current.share,
   }));
 }
+      const { data: savedPosts, error: feedError } = await (supabase as any)
+        .rpc("get_balanced_nexora_feed", { p_limit: 500, p_offset: 0 });
+      if (feedError) throw feedError;
+
+      // Publish lightweight post cards as soon as the feed query returns.
+      // Profile, reaction and signed-media hydration must not make a real feed
+      // appear empty while secondary requests are still completing.
+      const basicPosts = (savedPosts ?? []).map((row: any) => ({
+        id: row.id,
+        mediaPostId: row.id,
+        mediaStorageProvider: row.media_storage_provider ?? "supabase",
+        creatorId: row.user_id === user.id ? "me" : (row.user_id ?? "me"),
+        creatorName: row.user_id === user.id ? (ownProfile?.display_name ?? passport.name) : "NEXORA member",
+        creatorHandle: row.user_id === user.id ? (ownProfile?.handle ?? passport.handle) : "",
+        creatorAvatarUrl: row.user_id === user.id ? (ownProfile?.avatar_url ?? null) : null,
+        caption: row.caption ?? "",
+        image: /^https?:\\/\\//i.test(row.media_url ?? "") ? row.media_url : undefined,
+        mediaType: row.media_type ?? undefined,
+        kind: row.content_type === "reel" ? "short" : row.content_type === "video" ? "video" : "post",
+        duration: row.duration_seconds == null ? undefined : `${Math.floor(row.duration_seconds / 60)}:${String(row.duration_seconds % 60).padStart(2, "0")}`,
+        audience: row.audience ?? "public",
+        tags: row.tags ?? [],
+        filter: "original",
+        format: "landscape",
+        aspectRatio: row.aspect_ratio ?? null,
+        frameRatio: row.framing_aspect_ratio ?? "original",
+        focalX: Number(row.focal_x ?? 50),
+        focalY: Number(row.focal_y ?? 50),
+        zoom: Number(row.zoom ?? 1),
+        dominantColor: row.dominant_color ?? null,
+        likes: Number(row.like_count ?? 0),
+        comments: [],
+        shares: Number(row.share_count ?? 0),
+        reposts: Number(row.repost_count ?? 0),
+        views: Number(row.view_count ?? 0),
+        createdAt: row.created_at,
+      } as unknown as Post));
+      setPosts(basicPosts);
+
       const [
-        { data: savedPosts },
         { data: savedMessages },
         { data: myLikedPostIds },
         myRepostedPostIds,
         { data: savedComments },
-        ] = await Promise.all([
-        (supabase as any)
-          .rpc("get_balanced_nexora_feed", {
-            p_limit: 500,
-            p_offset: 0,
-          }),
+      ] = await Promise.all([
         (supabase as any)
           .from("message_threads")
           .select("id, conversation_key, body, metadata, created_at")
           .eq("sender_id", user.id)
           .order("created_at", { ascending: true }),
-                supabase.rpc("get_my_liked_user_media_posts"),
-                getMyRepostedPostIds().catch(() => []),
-              (supabase as any)
+        supabase.rpc("get_my_liked_user_media_posts"),
+        getMyRepostedPostIds().catch(() => []),
+        (supabase as any)
           .from("user_media_post_comments")
           .select("id, post_id, user_id, text, created_at")
           .order("created_at", { ascending: true }),
@@ -312,6 +349,12 @@ if (bookmarkError) {
           })),
         })));
       }
+      } catch (error) {
+        console.error("NEXORA feed hydration failed:", error);
+        toast.error("Some feed data could not be loaded. Please refresh to retry.");
+      } finally {
+        setPostsLoading(false);
+      }
     })();
   }, [user]);
 
@@ -330,6 +373,7 @@ if (bookmarkError) {
   const value: Ctx = useMemo(
     () => ({
       posts,
+      postsLoading,
       liked,
       saved,
       reposted,
