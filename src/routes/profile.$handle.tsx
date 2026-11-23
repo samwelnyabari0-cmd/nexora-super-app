@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
+import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
 
 type ProfileRecord = {
   id: string;
