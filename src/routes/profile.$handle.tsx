@@ -164,9 +164,9 @@ function PublicProfile() {
                 normalize(candidate.handle) === normalize(normalizedHandle),
             ) ?? null
           : null;
-        if (!row) {
-          const rpcRow = (Array.isArray(profileRows) ? profileRows[0] : profileRows) ?? null;
-          if (rpcRow && normalize(rpcRow.handle) === normalize(normalizedHandle)) row = rpcRow;
+        const rpcRow = (Array.isArray(profileRows) ? profileRows[0] : profileRows) ?? null;
+        if (rpcRow && normalize(rpcRow.handle) === normalize(normalizedHandle)) {
+          row = row ? { ...row, ...rpcRow } : rpcRow;
         }
         if (discoveryError) {
           console.error("Could not resolve requested public profile from discovery:", discoveryError);
