@@ -841,7 +841,7 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                     </div>
 
                     <p className="text-[10px] text-slate-400">
-                      {post.createdAt}
+                      <time dateTime={post.createdAt} title={formatExactDateTime(post.createdAt)}>{formatRelativeTime(post.createdAt)}</time>
                     </p>
                   </div>
                 </article>
