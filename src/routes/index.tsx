@@ -195,7 +195,7 @@ function SuggestedAccount({ person }: { person: DirectoryPerson }) {
         <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
       </Link>
       <Button size="sm" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading || !user} onClick={() => void graph.toggleFollow()} className="rounded-full">
-        {graph.isFollowing ? "Following" : "Follow"}
+        {graph.isFollowing ? "Following" : graph.isPending ? "Requested" : "Follow"}
       </Button>
     </div>
   );
