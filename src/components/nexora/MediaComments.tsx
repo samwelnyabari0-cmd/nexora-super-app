@@ -40,16 +40,17 @@ export function MediaComments({
     setLoading(true);
     const { data, error } = await (supabase as any)
       .from("user_media_post_comments")
-      .select("id, user_id, content, created_at")
+      .select("id, user_id, text, created_at")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
     if (error) {
+      console.error("Could not load media comments:", error);
       toast.error("Could not load comments.");
       setLoading(false);
       return;
     }
 
-    const rows = (data ?? []) as MediaComment[];
+    const rows = (data ?? []).map((row: any) => ({ ...row, content: row.text })) as MediaComment[];
     const userIds = [...new Set(rows.map((comment) => comment.user_id).filter(Boolean))];
     let profileById: Record<string, { display_name: string | null; handle: string | null; avatar_url: string | null }> = {};
     if (userIds.length) {
@@ -83,8 +84,9 @@ export function MediaComments({
     setSending(true);
     const { error } = await (supabase as any)
       .from("user_media_post_comments")
-      .insert({ post_id: postId, user_id: user.id, content });
+      .insert({ post_id: postId, user_id: user.id, text: content });
     if (error) {
+      console.error("Could not add media comment:", error);
       toast.error("Could not add your comment.");
       setSending(false);
       return;
