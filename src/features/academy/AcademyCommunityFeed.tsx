@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, BookOpen, Play, Video } from "lucide-react";
+import { Activity, BookOpen, Bookmark, Eye, Heart, Play, Repeat2, Share2, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { recordUserMediaPostView } from "@/lib/post-views";
@@ -24,8 +24,9 @@ type AcademyCommunityItem = {
   created_at: string;
   view_count: number;
   like_count: number;
-  save_count: number;
   share_count: number;
+  save_count: number;
+  repost_count: number;
   total_engagement: number;
   mediaSrc?: string;
   thumbnailSrc?: string;
@@ -44,6 +45,8 @@ async function resolveAsset(
   const { data, error } = await supabase.storage.from("post-media").createSignedUrl(key || value, 900);
   return error ? undefined : data?.signedUrl ?? undefined;
 }
+
+const formatCount = (value: number) => Number(value ?? 0).toLocaleString();
 
 export function AcademyCommunityFeed() {
   const { user } = useSession();
@@ -127,6 +130,13 @@ export function AcademyCommunityFeed() {
               : item.creator_handle
                 ? `/profile/${encodeURIComponent(item.creator_handle.replace(/^@+/, ""))}`
                 : "#course-catalog";
+          const metrics = [
+            { label: "Views", value: item.view_count, Icon: Eye },
+            { label: "Likes", value: item.like_count, Icon: Heart },
+            { label: "Shares", value: item.share_count, Icon: Share2 },
+            { label: "Saves", value: item.save_count, Icon: Bookmark },
+            { label: "Reposts", value: item.repost_count, Icon: Repeat2 },
+          ];
           return (
             <article key={item.id} data-academy-post-id data-post-id={item.id} className="overflow-hidden rounded-2xl border bg-card">
               <div className="flex items-center gap-2 p-3">
@@ -140,9 +150,18 @@ export function AcademyCommunityFeed() {
               </Link>
               <div className="space-y-3 p-3">
                 {item.caption && <p className="line-clamp-3 whitespace-pre-wrap text-sm">{item.caption}</p>}
+                <div className="grid grid-cols-3 gap-x-2 gap-y-3 border-t pt-3 sm:grid-cols-5">
+                  {metrics.map(({ label, value, Icon }) => (
+                    <div key={label} className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{label}</span>
+                      <span className="ml-auto font-semibold tabular-nums text-foreground">{formatCount(value)}</span>
+                    </div>
+                  ))}
+                </div>
                 <div className="flex items-center justify-between border-t pt-3">
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400"><Activity className="h-4 w-4" /> Total engagement</span>
-                  <span className="text-sm font-bold tabular-nums">{Number(item.total_engagement ?? 0).toLocaleString()}</span>
+                  <span className="text-sm font-bold tabular-nums">{formatCount(item.total_engagement)}</span>
                 </div>
               </div>
             </article>
