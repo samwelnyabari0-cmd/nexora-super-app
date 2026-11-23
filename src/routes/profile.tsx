@@ -35,6 +35,7 @@ import { ProfileBadges } from "@/components/nexora/ProfileBadges";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
+import { MediaComments } from "@/components/nexora/MediaComments";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useStrictMediaItems, type StrictFeedType } from "@/components/nexora/StrictMediaFeed";
 import type { Post } from "@/features/core/data";
@@ -514,6 +515,8 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
   const { user } = useSession();
 
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const strictType: StrictFeedType = tab === "reels" ? "reel" : tab === "videos" ? "video" : tab === "collabs" ? "collab" : "post";
@@ -651,10 +654,19 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                         <Heart className="h-3 w-3" />
                         {post.likes}
                       </span>
-                      <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setViewerIndex(index);
+                          setCommentsOpen(true);
+                        }}
+                        aria-label="Open comments for this content"
+                        className="flex items-center gap-1 rounded px-1 hover:bg-white/20"
+                      >
                         <MessageCircle className="h-3 w-3" />
-                        {post.comments.length}
-                      </span>
+                        {commentCounts[post.id] ?? post.comments.length}
+                      </button>
                     </div>
                     <Link
                       to="/dashboard"
@@ -745,12 +757,18 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
                       <span className="text-xs">{post.likes}</span>
                     </button>
 
-                    <div className="flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCommentsOpen(true)}
+                      className="flex flex-col items-center gap-1"
+                      aria-label="Open comments"
+                      aria-haspopup="dialog"
+                    >
                       <span className="rounded-full bg-black/60 p-3">
                         <MessageCircle className="h-5 w-5" />
                       </span>
-                      <span className="text-xs">{post.comments.length}</span>
-                    </div>
+                      <span className="text-xs">{commentCounts[post.id] ?? post.comments.length}</span>
+                    </button>
 
                     <button
                       type="button"
@@ -830,6 +848,16 @@ function ProfileMediaExperience({ tab }: { tab: ProfileMediaTab }) {
             })}
           </div>
         </div>
+      )}
+
+      {selectedPost && (
+        <MediaComments
+          postId={selectedPost.id}
+          open={commentsOpen}
+          variant="sheet"
+          onClose={() => setCommentsOpen(false)}
+          onCountChange={(count) => setCommentCounts((current) => ({ ...current, [selectedPost.id]: count }))}
+        />
       )}
 
       {/* Delete / unsave confirmation */}
