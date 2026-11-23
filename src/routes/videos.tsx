@@ -181,12 +181,13 @@ function Videos() {
               </div>
               <p className="flex items-center gap-1 text-xs text-muted-foreground"><Eye className="h-3.5 w-3.5" /> {Number(active.view_count ?? 0).toLocaleString()} views · {Number(active.created_at ? Math.max(0, Math.floor((Date.now() - new Date(active.created_at).getTime()) / 86400000)) : 0).toLocaleString()} days ago</p>
             </div>
-            <div className="flex flex-wrap gap-2 border-y py-3">
-              <button type="button" onClick={() => void toggleLike(active.id)} className={`inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm ${liked.includes(active.id) ? "text-primary" : ""}`}><Heart className={`h-4 w-4 ${liked.includes(active.id) ? "fill-current" : ""}`} /> {Number(likeCounts[active.id] ?? active.like_count ?? 0).toLocaleString()} Like</button>
-              <button type="button" onClick={() => void shareVideo()} className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm"><Share2 className="h-4 w-4" /> Share</button>
-              <button type="button" onClick={() => void repostVideo(active.id)} className={`inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm ${reposted.includes(active.id) ? "text-emerald-600" : ""}`}><Repeat2 className="h-4 w-4" /> Repost</button>
-              <button type="button" onClick={() => void toggleSave(active.id)} className={`inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm ${saved.includes(active.id) ? "text-amber-600" : ""}`}><Bookmark className="h-4 w-4" /> {saved.includes(active.id) ? "Saved" : "Save"}</button>
-              <button type="button" onClick={downloadVideo} className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm"><Download className="h-4 w-4" /> Download</button>
+            <div aria-label="Video actions" className="no-scrollbar flex flex-nowrap items-center gap-2 overflow-x-auto border-y py-3">
+              <button type="button" onClick={() => void toggleLike(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${liked.includes(active.id) ? "text-primary" : ""}`}><Heart className={`h-4 w-4 ${liked.includes(active.id) ? "fill-current" : ""}`} /> {Number(likeCounts[active.id] ?? active.like_count ?? 0).toLocaleString()} Like</button>
+              <button type="button" onClick={() => void shareVideo()} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><Share2 className="h-4 w-4" /> Share</button>
+              <button type="button" onClick={downloadVideo} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><Download className="h-4 w-4" /> Download</button>
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"><Eye className="h-4 w-4" /> {Number(active.view_count ?? 0).toLocaleString()} views</span>
+              <button type="button" onClick={() => void repostVideo(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${reposted.includes(active.id) ? "text-emerald-600" : ""}`}><Repeat2 className="h-4 w-4" /> Repost</button>
+              <button type="button" onClick={() => void toggleSave(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${saved.includes(active.id) ? "text-amber-600" : ""}`}><Bookmark className="h-4 w-4" /> {saved.includes(active.id) ? "Saved" : "Save"}</button>
             </div>
             <div className="rounded-xl bg-muted/60 p-3 text-sm">
               <p className="font-semibold">{Number(active.view_count ?? 0).toLocaleString()} views</p>
