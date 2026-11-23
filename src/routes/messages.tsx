@@ -99,13 +99,19 @@ export const Route = createFileRoute("/messages")({
   component: Messages,
 });
 
-function MessagesErrorComponent() {
+function MessagesErrorComponent({ error }: ErrorComponentProps) {
+  console.error("NEXORA conversation route crashed:", error);
+  const detail = error instanceof Error ? error.message : String(error ?? "Unknown error");
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
       <h1 className="text-xl font-semibold">We couldn't open this conversation</h1>
       <p className="text-sm text-muted-foreground">
         Your messages are safe. Try loading the conversation again or return to your inbox.
       </p>
+      <details className="w-full rounded-lg border p-3 text-left text-xs">
+        <summary className="cursor-pointer font-medium">Technical error details</summary>
+        <pre className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">{detail}</pre>
+      </details>
       <div className="flex flex-wrap justify-center gap-2">
         <Button type="button" onClick={() => window.location.reload()}>Try again</Button>
         <Button asChild type="button" variant="outline">
@@ -593,7 +599,7 @@ if (recipient === user.id) {
     if (!user?.id || !recipient || group || chatLock.status !== "unlocked") return;
 
     const channel = supabase
-      .channel(`direct-message-sync-${[user.id, recipient].sort().join(":")}`)
+      .channel(`direct-message-sync-${[user.id, recipient].sort().join(":")}`, { config: { private: true } })
       .on(
         "postgres_changes",
         {
@@ -635,7 +641,7 @@ if (recipient === user.id) {
     if (!user?.id || !recipient || chatLock.status !== "unlocked") return;
 
     const channel = supabase
-      .channel(`message-receipts-${user.id}-${recipient}`)
+      .channel(`message-receipts-${user.id}-${recipient}`, { config: { private: true } })
       .on(
         "postgres_changes",
         {
@@ -670,7 +676,7 @@ if (recipient === user.id) {
     if (!user?.id || recipient || group) return;
 
     const channel = supabase
-      .channel(`messages-inbox-${user.id}`)
+      .channel(`messages-inbox-${user.id}`, { config: { private: true } })
       .on(
         "postgres_changes",
         {
@@ -735,7 +741,7 @@ if (recipient === user.id) {
 
   useEffect(() => {
     if (!recipient || !user?.id || chatLock.status !== "unlocked") return;
-    const channel = supabase.channel(`direct-reactions-${user.id}-${recipient}`)
+    const channel = supabase.channel(`direct-reactions-${user.id}-${recipient}`, { config: { private: true } })
       .on("postgres_changes", { event: "*", schema: "public", table: "direct_message_reactions" }, async () => {
         const ids = messages.map((message) => message.id);
         if (ids.length === 0) return;
