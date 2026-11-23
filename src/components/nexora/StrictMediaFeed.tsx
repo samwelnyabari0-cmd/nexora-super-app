@@ -23,6 +23,7 @@ export type StrictMediaItem = {
   like_count: number | null;
   comment_count: number | null;
   share_count: number | null;
+  repost_count: number | null;
   view_count: number | null;
   media_storage_provider?: "supabase" | "r2" | null;
   media_storage_key?: string | null;
@@ -82,7 +83,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     void (async () => {
       let query = (supabase as any)
         .from("user_media_posts")
-        .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, framing_aspect_ratio, focal_x, focal_y, zoom, dominant_color, duration_seconds, created_at, like_count, comment_count, share_count, view_count")
+        .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, framing_aspect_ratio, focal_x, focal_y, zoom, dominant_color, duration_seconds, created_at, like_count, comment_count, share_count, repost_count, view_count")
         .eq("content_type", contentType)
         .order("created_at", { ascending: false })
         .limit(80);
