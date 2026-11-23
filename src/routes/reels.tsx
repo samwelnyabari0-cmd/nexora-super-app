@@ -215,7 +215,7 @@ function CreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | null; p
         {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-9 w-9 rounded-full border-2 border-white object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-white/15 text-sm font-bold">{label.slice(0,1).toUpperCase()}</span>}
         <span className="min-w-0"><span className="block max-w-[145px] truncate text-xs font-bold">{label}</span><span className="block text-[10px] text-white/70">@{profile?.handle || "creator"}</span></span>
       </Link>
-      {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full border border-white/70 px-3 py-1 text-[11px] font-bold text-white">{social.isFollowing ? "Following" : "Follow"}</button>}
+      {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full border border-white/70 px-3 py-1 text-[11px] font-bold text-white">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Follow"}</button>}
     </div>
   );
 }
