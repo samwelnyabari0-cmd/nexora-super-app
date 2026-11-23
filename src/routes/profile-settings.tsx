@@ -215,11 +215,11 @@ function ProfileSettings() {
         <ProfileBadges accountType={accountType} industryTag={categories.find(([v])=>v===category)?.[1] ?? "Tech & Gaming"} isVerified />
       </Panel>
 
-      {(accountType === "creator" || accountType === "business") && category === "education" && (
+      {category === "education" && (
         <Panel className="space-y-3">
           <div>
             <h2 className="font-semibold">Education profile</h2>
-            <p className="text-xs text-muted-foreground">Add the subjects and skills you teach. These help learners find you in Academy.</p>
+            <p className="text-xs text-muted-foreground">Add the subjects and skills you teach. Your public posts, Reels and videos will appear automatically in Academy Hub when this profile is discoverable.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {suggestedEducationSkills.map(skill => (
@@ -273,7 +273,7 @@ function ProfileSettings() {
           <div className="flex items-center justify-between gap-3 border-t pt-3">
             <div>
               <p className="text-sm font-medium">Make my profile discoverable</p>
-              <p className="text-xs text-muted-foreground">This shared Nexora setting controls profile discovery, including Academy. Private profiles are never listed.</p>
+              <p className="text-xs text-muted-foreground">Turn this on to share your public education content in Academy Hub. Private profiles and non-public posts are never listed.</p>
             </div>
             <Switch checked={discoverable} onCheckedChange={setDiscoverable} />
           </div>
