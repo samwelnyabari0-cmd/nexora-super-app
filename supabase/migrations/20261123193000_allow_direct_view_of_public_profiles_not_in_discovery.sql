@@ -45,4 +45,4 @@ as $function$
 $function$;
 
 revoke all on function public.get_public_profile(text) from public, anon;
-grant execute on function public.get_public_profile(text) to authenticated;
+grant execute on function public.get_public_profile(text) to anon, authenticated;
