@@ -183,7 +183,7 @@ function Videos() {
                 <VideoCreatorFollow ownerId={active.user_id} profile={creatorProfiles[active.user_id ?? ""]} isSelf={user?.id === active.user_id} />
                 {user?.id && active.user_id === user.id && <Link to="/dashboard" search={{ postId: active.id }} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold text-primary"><BarChart3 className="h-3.5 w-3.5" /> Insights</Link>}
               </div>
-              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Eye className="h-3.5 w-3.5" /> {Number(active.view_count ?? 0).toLocaleString()} views · {Number(active.created_at ? Math.max(0, Math.floor((Date.now() - new Date(active.created_at).getTime()) / 86400000)) : 0).toLocaleString()} days ago</p>
+              <p className="flex items-center gap-1 text-xs text-muted-foreground"><Eye className="h-3.5 w-3.5" /> {Number(active.view_count ?? 0).toLocaleString()} views · {formatRelativeTime(active.created_at)}</p>
             </div>
             <div aria-label="Video actions" className="no-scrollbar flex flex-nowrap items-center gap-2 overflow-x-auto border-y py-3">
               <button type="button" onClick={() => void toggleLike(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${liked.includes(active.id) ? "text-primary" : ""}`}><Heart className={`h-4 w-4 ${liked.includes(active.id) ? "fill-current" : ""}`} /> {Number(likeCounts[active.id] ?? active.like_count ?? 0).toLocaleString()} Like</button>
