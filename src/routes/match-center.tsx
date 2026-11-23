@@ -545,13 +545,14 @@ function ArenaBracketDraft() {
 }
 
 
+const ARENA_POLL_CHOICES = ["Home", "Away", "No more goals"] as const;
+
 function ArenaFanPoll({ match }: { match?: FootballMatch }) {
   const [choice, setChoice] = useState("");
   const [voted, setVoted] = useState(false);
   const [connected, setConnected] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({ Home: 0, Away: 0, "No more goals": 0 });
-  const channelRef = useRef<any>(null);
-  const choices = ["Home", "Away", "No more goals"];
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (!match) return;
@@ -562,7 +563,7 @@ function ArenaFanPoll({ match }: { match?: FootballMatch }) {
     channel
       .on("broadcast", { event: "vote" }, ({ payload }) => {
         const incoming = payload?.choice;
-        if (choices.includes(incoming)) {
+        if (ARENA_POLL_CHOICES.includes(incoming)) {
           setCounts((current) => ({ ...current, [incoming]: current[incoming] + 1 }));
         }
       })
@@ -591,7 +592,7 @@ function ArenaFanPoll({ match }: { match?: FootballMatch }) {
     <div className="flex items-center gap-2"><Target className="h-4 w-4 text-primary" /><h2 className="font-semibold">Live fan prediction</h2></div>
     {match ? <>
       <p className="text-xs text-muted-foreground">Who gets the next goal in {match.homeTeam} vs {match.awayTeam}?</p>
-      <div className="grid grid-cols-3 gap-2">{choices.map((item) => <button key={item} type="button" disabled={voted} onClick={() => setChoice(item)} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-medium ${choice === item ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{item}</button>)}</div>
+      <div className="grid grid-cols-3 gap-2">{ARENA_POLL_CHOICES.map((item) => <button key={item} type="button" disabled={voted} onClick={() => setChoice(item)} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-medium ${choice === item ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{item}</button>)}</div>
       <Button className="w-full" size="sm" disabled={!choice || voted || !connected} onClick={() => void castVote()}>{voted ? "Vote sent" : connected ? "Vote live" : "Connecting poll…"}</Button>
       <div className="space-y-2" aria-live="polite">
         {choices.map((item) => <div key={item}><div className="mb-1 flex justify-between text-[10px] text-muted-foreground"><span>{item}</span><span className="tabular-nums">{counts[item]} · {total ? Math.round((counts[item] / total) * 100) : 0}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none" style={{ width: total ? (counts[item] / total) * 100 + "%" : "0%" }} /></div></div>)}
