@@ -193,6 +193,7 @@ export function PostCard({ post }: { post: Post }) {
           <span className="truncate text-xs font-normal text-muted-foreground">@{c.handle}</span>
         </p>
       </Link>
+      <span className="shrink-0 text-xs text-muted-foreground" title={formatExactDateTime(post.createdAt)}>{formatRelativeTime(post.createdAt)}</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="shrink-0" aria-label="Post actions"><MoreHorizontal className="h-5 w-5" /></Button>
