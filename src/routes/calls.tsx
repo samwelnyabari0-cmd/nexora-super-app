@@ -24,6 +24,7 @@ const peerConfig = {
 export const Route = createFileRoute("/calls")({
   validateSearch: (s: Record<string, unknown>) => ({
     invite: typeof s.invite === "string" ? s.invite.slice(0, 32) : undefined,
+    arenaAudio: s.arenaAudio === true || s.arenaAudio === "true",
   }),
   head: () => ({
     meta: [
@@ -68,7 +69,7 @@ function mediaFor(kind: "audio" | "video") {
 
 function CallsPage() {
   const { user, ready } = useSession();
-  const { invite } = Route.useSearch();
+  const { invite, arenaAudio } = Route.useSearch();
 
   const appMetadata = user?.app_metadata ?? {};
   const rawTier = appMetadata.subscription_tier ?? appMetadata.plan;
@@ -222,7 +223,7 @@ function CallsPage() {
       )}
 
       <CameraCheck />
-      <JitsiRoom />
+      <JitsiRoom audioOnly={arenaAudio} />
     </div>
   );
           }
@@ -857,12 +858,12 @@ function CameraCheck() {
 }
 
 
-function JitsiRoom() {
+function JitsiRoom({ audioOnly = false }: { audioOnly?: boolean }) {
   const [room, setRoom] = useState<string | null>(null);
   return (
     <Panel className="mt-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-display font-semibold">Group room (Jitsi Meet)</h2>
+        <h2 className="font-display font-semibold">{audioOnly ? "Audio watch-along (Jitsi Meet)" : "Group room (Jitsi Meet)"}</h2>
         {room ? (
           <Button variant="destructive" size="sm" onClick={() => setRoom(null)}>
             <PhoneOff className="h-4 w-4" /> Leave
@@ -877,8 +878,8 @@ function JitsiRoom() {
         <>
           <iframe
             title="Jitsi room"
-            src={`https://meet.jit.si/${room}`}
-            allow="camera; microphone; display-capture; fullscreen"
+            src={`https://meet.jit.si/${room}${audioOnly ? "#config.startWithVideoMuted=true&config.startAudioOnly=true&config.disableVideo=true" : ""}`}
+            allow={audioOnly ? "microphone; fullscreen" : "camera; microphone; display-capture; fullscreen"}
             className="mt-3 aspect-video w-full rounded-xl border"
           />
           <p className="mt-2 text-xs text-muted-foreground">
@@ -889,7 +890,7 @@ function JitsiRoom() {
         </>
       ) : (
         <p className="mt-1 text-sm text-muted-foreground">
-          Opens a private room with a random name on meet.jit.si.
+          {audioOnly ? "Opens an audio-first watch-along room with video disabled." : "Opens a group room with a random name on meet.jit.si."}
         </p>
       )}
     </Panel>
