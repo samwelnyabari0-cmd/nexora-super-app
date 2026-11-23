@@ -272,7 +272,14 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
       }
     }
 
-    void loadGroup();
+    void loadGroup().catch((reason: unknown) => {
+      if (cancelled) return;
+      console.error("Group conversation loading failed:", reason);
+      setGroup(null);
+      setMessages([]);
+      setError(reason instanceof Error ? reason.message : "This group could not be loaded. Please try again.");
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
