@@ -50,7 +50,6 @@ export function AcademyCommunityFeed() {
   const [items, setItems] = useState<AcademyCommunityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -71,7 +70,7 @@ export function AcademyCommunityFeed() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [refreshKey, user?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id || typeof IntersectionObserver === "undefined") return;
@@ -85,7 +84,7 @@ export function AcademyCommunityFeed() {
           timers.set(id, setTimeout(() => {
             recorded.add(id);
             timers.delete(id);
-            void recordUserMediaPostView(id).finally(() => setRefreshKey((value) => value + 1));
+            void recordUserMediaPostView(id);
           }, 1200));
         } else if ((!entry.isIntersecting || entry.intersectionRatio < 0.55) && timers.has(id)) {
           clearTimeout(timers.get(id));
