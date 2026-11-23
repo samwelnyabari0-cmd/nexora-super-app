@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
+  Link2,
   Heart,
   LockKeyhole,
   MessageCircle,
@@ -302,7 +303,8 @@ function PublicProfile() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!profile || !socialTab || !owner) {
+    const canViewConnections = owner || !privateProfile || graph.isFollowing;
+    if (!profile || !socialTab || !canViewConnections) {
       setConnections([]);
       setConnectionsError("");
       setConnectionsLoading(false);
@@ -349,7 +351,7 @@ function PublicProfile() {
     return () => {
       cancelled = true;
     };
-  }, [profile, socialTab, owner, connectionsReload]);
+  }, [profile, socialTab, owner, privateProfile, graph.isFollowing, connectionsReload]);
 
   const visiblePosts = useMemo(() => {
     switch (tab) {
@@ -662,7 +664,7 @@ function PublicProfile() {
               Close
             </button>
           </div>
-          {owner ? (
+          {user && (owner || !privateProfile || graph.isFollowing) ? (
             connectionsLoading ? (
               <p className="text-xs text-slate-400">Loading…</p>
             ) : connectionsError ? (
@@ -700,7 +702,11 @@ function PublicProfile() {
               <p className="text-xs text-slate-400">No {socialTab} accounts to show yet.</p>
             )
           ) : (
-            <p className="text-xs text-slate-400">Sign in to see your connections.</p>
+            <p className="text-xs text-slate-400">
+              {!user
+                ? "Sign in to view these connections."
+                : "Follow this private account to view its connections."}
+            </p>
           )}
         </section>
       )}
