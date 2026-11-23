@@ -44,6 +44,7 @@ function Home() {
   const posts = useMemo(() => app.posts.filter((post) => !muted.includes(post.creatorId)), [app.posts, muted]);
   const [filter, setFilter] = useState("For you");
   const [loading, setLoading] = useState(true);
+  const feedLoading = loading || app.postsLoading;
   const [people, setPeople] = useState<DirectoryPerson[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(true);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
@@ -140,8 +141,8 @@ function Home() {
           ))}
         </div>
 
-        <div className="space-y-6" aria-live="polite" aria-busy={loading}>
-          {loading ? (
+        <div className="space-y-6" aria-live="polite" aria-busy={feedLoading}>
+          {feedLoading ? (
             [0, 1].map((index) => (
               <div key={index} className="space-y-3 rounded-3xl border bg-card p-4">
                 <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-40" /></div>
