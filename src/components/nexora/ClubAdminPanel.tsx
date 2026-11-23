@@ -31,7 +31,7 @@ type Activity = {
 };
 
 type Props = {
-  squadId: string;
+  clubId: string;
 };
 
 const formatDate = (value: string) =>
@@ -40,7 +40,7 @@ const formatDate = (value: string) =>
     timeStyle: "short",
   });
 
-export function SquadAdminPanel({ squadId }: Props) {
+export function ClubAdminPanel({ clubId }: Props) {
   const { user, ready } = useSession();
 
   const [members, setMembers] = useState<Membership[]>([]);
@@ -69,14 +69,14 @@ export function SquadAdminPanel({ squadId }: Props) {
     setError(null);
 
     const { data, error: queryError } = await (
-      supabase.from("squad_memberships" as never) as any
+      supabase.from("club_memberships" as never) as any
     )
       .select("id,user_id,role,status,created_at,appointed_by")
-      .eq("squad_id", squadId)
+      .eq("club_id", clubId)
       .order("created_at", { ascending: true });
 
     if (queryError) {
-      setError("Unable to load squad memberships. Please refresh.");
+      setError("Unable to load club memberships. Please refresh.");
       setMembers([]);
       setProfiles({});
       setActivities([]);
@@ -108,12 +108,12 @@ export function SquadAdminPanel({ squadId }: Props) {
     }
 
     const { data: activityData, error: activityError } = await (
-      supabase.from("squad_membership_activity" as never) as any
+      supabase.from("club_membership_activity" as never) as any
     )
       .select(
         "id,actor_user_id,target_user_id,event_type,details,created_at"
       )
-      .eq("squad_id", squadId)
+      .eq("club_id", clubId)
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -124,7 +124,7 @@ export function SquadAdminPanel({ squadId }: Props) {
     }
 
     setLoading(false);
-  }, [squadId, user]);
+  }, [clubId, user]);
 
   useEffect(() => {
     if (ready) void loadMembers();
@@ -133,12 +133,12 @@ export function SquadAdminPanel({ squadId }: Props) {
   const createInviteLink = async () => {
     if (!isAdmin || !isActive) return;
     setCreatingInvite(true);
-    const { data, error: inviteError } = await (supabase.rpc("create_squad_invitation" as never, { p_squad_id: squadId } as never) as unknown as Promise<{ data: string | null; error: { message: string } | null }>);
+    const { data, error: inviteError } = await (supabase.rpc("create_club_invitation" as never, { p_club_id: clubId } as never) as unknown as Promise<{ data: string | null; error: { message: string } | null }>);
     setCreatingInvite(false);
     if (inviteError || !data) { toast.error(inviteError?.message ?? "Unable to create invite link."); return; }
-    const link = `${window.location.origin}/squads?invite=${data}`;
+    const link = `${window.location.origin}/clubs?invite=${data}`;
     setInviteLink(link);
-    try { await navigator.clipboard.writeText(link); toast.success("Private squad invite link copied."); }
+    try { await navigator.clipboard.writeText(link); toast.success("Private club invite link copied."); }
     catch { toast.success("Invite link created. Copy it below to share."); }
   };
 
@@ -207,11 +207,11 @@ export function SquadAdminPanel({ squadId }: Props) {
     setSaving(true);
 
     const { error: updateError } = await (
-      supabase.from("squad_memberships" as never) as any
+      supabase.from("club_memberships" as never) as any
     )
       .update(changes)
       .eq("id", member.id)
-      .eq("squad_id", squadId);
+      .eq("club_id", clubId);
 
     setSaving(false);
 
@@ -231,7 +231,7 @@ export function SquadAdminPanel({ squadId }: Props) {
     }
     const candidate = members.find((member) => member.user_id === selectedAdminId);
     if (!candidate || candidate.role !== "member" || candidate.status !== "active") {
-      toast.error("Choose an active squad member.");
+      toast.error("Choose an active club member.");
       return;
     }
     if (candidate.user_id === user.id) {
@@ -240,10 +240,10 @@ export function SquadAdminPanel({ squadId }: Props) {
     }
 
     setSaving(true);
-    const { error: actionError } = await (supabase.from("squad_memberships" as never) as any)
+    const { error: actionError } = await (supabase.from("club_memberships" as never) as any)
       .update({ role: "admin" })
       .eq("id", candidate.id)
-      .eq("squad_id", squadId);
+      .eq("club_id", clubId);
     setSaving(false);
 
     if (actionError) {
@@ -267,7 +267,7 @@ export function SquadAdminPanel({ squadId }: Props) {
   if (!user) {
     return (
       <div className="rounded-xl border p-4 text-sm text-muted-foreground">
-        Sign in to access squad administration.
+        Sign in to access club administration.
       </div>
     );
   }
@@ -277,9 +277,9 @@ export function SquadAdminPanel({ squadId }: Props) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">Squad administration</h2>
+          <h2 className="text-lg font-bold">Club administration</h2>
           <p className="text-sm text-muted-foreground">
-            Membership, roles and squad access
+            Membership, roles and club access
           </p>
         </div>
 
@@ -291,7 +291,7 @@ export function SquadAdminPanel({ squadId }: Props) {
       {isAdmin && isActive && (
         <div className="space-y-2 rounded-xl border p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div><p className="text-sm font-semibold">Invite members</p><p className="text-xs text-muted-foreground">Create a secure, seven-day invite link for this squad.</p></div>
+            <div><p className="text-sm font-semibold">Invite members</p><p className="text-xs text-muted-foreground">Create a secure, seven-day invite link for this club.</p></div>
             <Button type="button" size="sm" variant="outline" disabled={creatingInvite} onClick={() => void createInviteLink()}>{creatingInvite ? "Creating…" : "Create invite link"}</Button>
           </div>
           {inviteLink && <div className="flex gap-2"><input className="min-w-0 flex-1 rounded-lg border bg-background px-2 py-1.5 text-xs" readOnly value={inviteLink} onFocus={(event) => event.currentTarget.select()} /><Button type="button" size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy</Button></div>}
@@ -302,9 +302,9 @@ export function SquadAdminPanel({ squadId }: Props) {
         <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
           <span className="text-lg">✦</span>
           <div>
-            <p className="text-sm font-semibold">Creator-managed squad</p>
+            <p className="text-sm font-semibold">Creator-managed club</p>
             <p className="text-xs text-muted-foreground">
-              The squad has an active registered creator.
+              The club has an active registered creator.
             </p>
           </div>
         </div>
@@ -319,10 +319,10 @@ export function SquadAdminPanel({ squadId }: Props) {
       <div className="space-y-2 rounded-xl border p-3">
         <h3 className="text-sm font-semibold">Role permissions</h3>
         <ul className="space-y-1.5 text-xs text-muted-foreground">
-          <li><strong className="text-foreground">Creator:</strong> full squad control, appoint admins and moderators, manage roles and membership.</li>
+          <li><strong className="text-foreground">Creator:</strong> full club control, appoint admins and moderators, manage roles and membership.</li>
           <li><strong className="text-foreground">Admin:</strong> approve, suspend or restore regular members; create fixtures and announcements.</li>
           <li><strong className="text-foreground">Moderator:</strong> create fixtures, events and announcements; cannot change member roles or ban members.</li>
-          <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to squad events.</li>
+          <li><strong className="text-foreground">Member:</strong> participate in the channel and RSVP to club events.</li>
         </ul>
       </div>
 
@@ -346,7 +346,7 @@ export function SquadAdminPanel({ squadId }: Props) {
           <div>
             <h3 className="font-semibold">Make a member an admin</h3>
             <p className="text-xs text-muted-foreground">
-              Search active squad members by name or @handle. Only the creator can appoint admins.
+              Search active club members by name or @handle. Only the creator can appoint admins.
             </p>
           </div>
           <input
@@ -384,7 +384,7 @@ export function SquadAdminPanel({ squadId }: Props) {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="font-semibold">Squad members</h3>
+            <h3 className="font-semibold">Club members</h3>
             <p className="text-xs text-muted-foreground">
               {members.length} membership records
             </p>
@@ -596,7 +596,7 @@ export function SquadAdminPanel({ squadId }: Props) {
                       {getMemberName(activity.actor_user_id)} ·{" "}
                       {activity.target_user_id
                         ? `Target: ${getMemberName(activity.target_user_id)}`
-                        : "Squad activity"}
+                        : "Club activity"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {formatDate(activity.created_at)}
