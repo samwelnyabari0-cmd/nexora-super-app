@@ -174,7 +174,7 @@ if (ownProfile) {
         creatorHandle: row.user_id === user.id ? (ownProfile?.handle ?? passport.handle) : "",
         creatorAvatarUrl: row.user_id === user.id ? (ownProfile?.avatar_url ?? null) : null,
         caption: row.caption ?? "",
-        image: /^https?:\\/\\//i.test(row.media_url ?? "") ? row.media_url : undefined,
+        image: /^https?:\/\//i.test(row.media_url ?? "") ? row.media_url : undefined,
         mediaType: row.media_type ?? undefined,
         kind: row.content_type === "reel" ? "short" : row.content_type === "video" ? "video" : "post",
         duration: row.duration_seconds == null ? undefined : `${Math.floor(row.duration_seconds / 60)}:${String(row.duration_seconds % 60).padStart(2, "0")}`,
