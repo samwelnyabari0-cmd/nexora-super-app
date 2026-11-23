@@ -35,7 +35,7 @@ function InstructorAcademy() {
     setPublishing(true);
     try {
       const slug = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`;
-      const { data: course, error: courseError } = await (supabase as any).from("edu_courses").insert({ instructor_id: user.id, title: title.trim(), slug, description: description.trim(), category, price_usd: 0, price_kes: 0, is_published: false }).select("id").single();
+      const { data: course, error: courseError } = await (supabase as any).from("edu_courses").insert({ instructor_id: user.id, title: title.trim(), slug, description: description.trim(), category, is_published: false }).select("id").single();
       if (courseError) throw courseError;
       for (const [index, lesson] of lessons.entries()) {
         const path = `${user.id}/${course.id}/lessons/${crypto.randomUUID()}-${lesson.file.name}`;
