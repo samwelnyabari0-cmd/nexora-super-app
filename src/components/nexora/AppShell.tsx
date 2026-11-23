@@ -37,6 +37,7 @@ import { Avatar } from "./ui";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { OfflinePackManager } from "./OfflinePackManager";
 
 const nav = [
   { to: "/", label: "Home", icon: Home },
@@ -74,6 +75,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
   const { user } = useSession();
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "NEXORA_OUTBOX_SYNC") {
+        window.dispatchEvent(new Event("nexora:outbox-sync"));
+      }
+    };
+    const onOnline = () => window.dispatchEvent(new Event("nexora:outbox-sync"));
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    window.addEventListener("online", onOnline);
+    void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error) => {
+      console.warn("NEXORA offline support could not be registered:", error);
+    });
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", onMessage);
+      window.removeEventListener("online", onOnline);
+    };
+  }, []);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
@@ -363,6 +382,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
       </nav>}
+      <OfflinePackManager />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3, Bookmark, Repeat2, Eye, Volume2 } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3, Bookmark, Repeat2, Eye, Volume2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { recordUserMediaPostView } from "@/lib/post-views";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { MediaComments } from "@/components/nexora/MediaComments";
 import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
+import { saveCommuteMedia } from "@/lib/offline-storage";
 
 export const Route = createFileRoute("/reels")({
   head: () => ({ meta: [{ title: "Reels — NEXORA" }, { name: "description", content: "Vertical short-form videos on NEXORA." }] }),
@@ -27,6 +28,7 @@ function Reels() {
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [savingOfflineId, setSavingOfflineId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
   const itemIdsKey = items.map((item) => item.id).join("|");
@@ -152,6 +154,27 @@ function Reels() {
     setReposted((current) => [...current, postId]);
   }
 
+  async function saveReelOffline(item: (typeof items)[number]) {
+    if (!item.mediaSrc) return toast.error("This Reel has no downloadable media file.");
+    setSavingOfflineId(item.id);
+    try {
+      const result = await saveCommuteMedia({
+        id: item.id,
+        title: item.caption || "NEXORA Reel",
+        mediaUrl: item.mediaSrc,
+        thumbnailUrl: item.thumbnailSrc ?? null,
+        mediaType: "video",
+        contentType: "reel",
+      });
+      window.dispatchEvent(new Event("nexora:offline-pack-updated"));
+      toast.success("Reel saved to your Daily Commute Pack (" + (result.item.sizeBytes / 1048576).toFixed(1) + " MB).");
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Could not save this Reel offline.");
+    } finally {
+      setSavingOfflineId(null);
+    }
+  }
+
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
   if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
   if (!items.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos up to 90 seconds will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
@@ -201,6 +224,7 @@ function Reels() {
               <button type="button" onClick={() => void shareReel(item.id, item.caption)} aria-label="Share Reel" className="flex flex-col items-center gap-1"><Share2 className="h-7 w-7" /><span className="text-[11px]">{Number(shareCounts[item.id] ?? item.share_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleRepost(item.id)} aria-label="Repost Reel" className={`flex flex-col items-center gap-1 ${reposted.includes(item.id) ? "text-emerald-400" : ""}`}><Repeat2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.repost_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleSave(item.id)} aria-label={saved.includes(item.id) ? "Unsave Reel" : "Save Reel"} className={`flex flex-col items-center gap-1 ${saved.includes(item.id) ? "text-amber-300" : ""}`}><Bookmark className={`h-7 w-7 ${saved.includes(item.id) ? "fill-current" : ""}`} /><span className="text-[11px]">{saved.includes(item.id) ? "Saved" : "Save"}</span></button>
+              <button type="button" onClick={() => void saveReelOffline(item)} disabled={savingOfflineId === item.id} aria-label="Save Reel for offline use" className="flex flex-col items-center gap-1 disabled:opacity-50"><Download className="h-7 w-7" /><span className="text-[11px]">{savingOfflineId === item.id ? "Saving" : "Offline"}</span></button>
               <MediaComments postId={item.id} open={commentsReelId === item.id} variant="sheet" onClose={() => setCommentsReelId(null)} onCountChange={(count) => setCommentCounts((current) => ({ ...current, [item.id]: count }))} />
             </div>
           </article>

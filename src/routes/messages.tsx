@@ -28,6 +28,8 @@ import { aiChat } from "@/lib/ai.functions";
 import { ChatLockPanel } from "@/components/nexora/ChatLockPanel";
 import { hasStoredChatLock } from "@/components/nexora/chat-lock";
 import { useChatLock } from "@/hooks/useChatLock";
+import { flushOfflineMessages, isLikelyNetworkFailure, queueTextMessage } from "@/lib/offline-messages";
+import { toast } from "sonner";
 
 type DirectMessage = {
   id: string;
@@ -565,6 +567,30 @@ if (recipient === user.id) {
 
   useEffect(() => {
     if (!user?.id || !recipient || chatLock.status !== "unlocked") return;
+    let active = true;
+    const syncQueuedMessages = async () => {
+      try {
+        const result = await flushOfflineMessages(supabase as any, user.id, "direct", recipient);
+        if (active && result.sent > 0) {
+          setRefresh((value) => value + 1);
+          window.dispatchEvent(new Event("nexora:outbox-updated"));
+        }
+      } catch (reason) {
+        if (active) console.warn("Could not sync queued direct messages:", reason);
+      }
+    };
+    void syncQueuedMessages();
+    window.addEventListener("online", syncQueuedMessages);
+    window.addEventListener("nexora:outbox-sync", syncQueuedMessages);
+    return () => {
+      active = false;
+      window.removeEventListener("online", syncQueuedMessages);
+      window.removeEventListener("nexora:outbox-sync", syncQueuedMessages);
+    };
+  }, [user?.id, recipient, chatLock.status]);
+
+  useEffect(() => {
+    if (!user?.id || !recipient || chatLock.status !== "unlocked") return;
 
     const channel = supabase
       .channel(`message-receipts-${user.id}-${recipient}`)
@@ -872,6 +898,26 @@ if (recipient === user.id) {
 
     setSending(true);
     setError("");
+    const clientRequestId = attachment ? null : crypto.randomUUID();
+
+    if (!attachment && !navigator.onLine) {
+      if (replyTarget) {
+        setError("Reconnect to send a reply. Your reply remains in the composer.");
+        setSending(false);
+        return;
+      }
+      try {
+        await queueTextMessage({ id: clientRequestId!, ownerId: user.id, kind: "direct", conversationId: recipient, body });
+        setDraft("");
+        toast.info("Message saved on this device. It will send when you reconnect.");
+        window.dispatchEvent(new Event("nexora:outbox-updated"));
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "Could not save this message offline.");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
 
     let mediaPath: string | null = null;
     let mediaType: "image" | "video" | "audio" | "document" | null = null;
@@ -911,6 +957,7 @@ if (recipient === user.id) {
           attachment_mime_type: attachmentMimeType,
           attachment_size_bytes: attachmentSizeBytes,
           reply_to_message_id: replyTarget?.id ?? null,
+          ...(clientRequestId ? { client_request_id: clientRequestId } : {}),
         });
       return { error: sendError };
     };
@@ -928,6 +975,20 @@ if (recipient === user.id) {
           async () => { await supabase.storage.from("chat-media").remove([mediaPath!]); },
         )
       : await insertMessage();
+
+    if (result.error && !mediaPath && clientRequestId && !replyTarget && isLikelyNetworkFailure(result.error)) {
+      try {
+        await queueTextMessage({ id: clientRequestId, ownerId: user.id, kind: "direct", conversationId: recipient, body });
+        setDraft("");
+        toast.info("Connection dropped. Your message is saved and will send when you reconnect.");
+        window.dispatchEvent(new Event("nexora:outbox-updated"));
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "The connection dropped and this message could not be saved.");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
 
     if (result.error) {
       const detail = result.error && typeof result.error === "object" && "message" in result.error

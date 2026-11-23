@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { MediaComments } from "@/components/nexora/MediaComments";
 import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
+import { saveCommuteMedia } from "@/lib/offline-storage";
 
 const categories = [
   { label: "Home", icon: House, terms: [] as string[] },
@@ -51,6 +52,7 @@ function Videos() {
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [savingOffline, setSavingOffline] = useState(false);
 
   useEffect(() => {
     setActiveId(requestedPostId ?? null);
@@ -157,6 +159,27 @@ function Videos() {
     anchor.remove();
   }
 
+  async function saveActiveOffline() {
+    if (!active?.mediaSrc) return toast.error("Video file is unavailable.");
+    setSavingOffline(true);
+    try {
+      const result = await saveCommuteMedia({
+        id: active.id,
+        title: active.caption || "NEXORA Video",
+        mediaUrl: active.mediaSrc,
+        thumbnailUrl: active.thumbnailSrc ?? null,
+        mediaType: "video",
+        contentType: "video",
+      });
+      window.dispatchEvent(new Event("nexora:offline-pack-updated"));
+      toast.success("Saved to your Daily Commute Pack (" + (result.item.sizeBytes / 1048576).toFixed(1) + " MB).");
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Could not save this video offline.");
+    } finally {
+      setSavingOffline(false);
+    }
+  }
+
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
   if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
   if (!items.length) return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
@@ -190,6 +213,7 @@ function Videos() {
               <button type="button" onClick={() => setCommentsOpen((open) => !open)} aria-label="Open comments" aria-expanded={commentsOpen} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><MessageCircle className="h-4 w-4" /> {Number(commentCounts[active.id] ?? active.comment_count ?? 0).toLocaleString()} Comments</button>
               <button type="button" onClick={() => void shareVideo()} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><Share2 className="h-4 w-4" /> Share</button>
               <button type="button" onClick={downloadVideo} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><Download className="h-4 w-4" /> Download</button>
+              <button type="button" onClick={() => void saveActiveOffline()} disabled={savingOffline} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary disabled:opacity-60"><Download className="h-4 w-4" /> {savingOffline ? "Saving…" : "Save offline"}</button>
               <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"><Eye className="h-4 w-4" /> {Number(active.view_count ?? 0).toLocaleString()} views</span>
               <button type="button" onClick={() => void repostVideo(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${reposted.includes(active.id) ? "text-emerald-600" : ""}`}><Repeat2 className="h-4 w-4" /> Repost</button>
               <button type="button" onClick={() => void toggleSave(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${saved.includes(active.id) ? "text-amber-600" : ""}`}><Bookmark className="h-4 w-4" /> {saved.includes(active.id) ? "Saved" : "Save"}</button>

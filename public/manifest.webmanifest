@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "NEXORA Super-App",
+  "short_name": "NEXORA",
+  "description": "Video, social, messaging and learning in one ecosystem.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101018",
+  "theme_color": "#101018",
+  "icons": [
+    {
+      "src": "/nexora-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
