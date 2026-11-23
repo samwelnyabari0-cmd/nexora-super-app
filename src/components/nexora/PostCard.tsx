@@ -106,7 +106,7 @@ export function PostCard({ post }: { post: Post }) {
     // its presentation-level post id differs from the media row id.
     const trackedPostId = post.mediaPostId || post.id;
     const isTrackableId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trackedPostId);
-    if (!card || !user?.id || !isTrackableId || typeof IntersectionObserver === "undefined") return;
+    if (!card || !user?.id || !isTrackableId || post.mediaType?.startsWith("video/") || typeof IntersectionObserver === "undefined") return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let recorded = false;
     const observer = new IntersectionObserver((entries) => {
@@ -128,7 +128,7 @@ export function PostCard({ post }: { post: Post }) {
       observer.disconnect();
       if (timer) clearTimeout(timer);
     };
-  }, [post.id, post.mediaPostId, user?.id]);
+  }, [post.id, post.mediaPostId, post.mediaType, user?.id]);
 
   const isLiked = liked.has(post.id);
   const isSaved = saved.has(post.id);
@@ -246,7 +246,7 @@ export function PostCard({ post }: { post: Post }) {
           marginInline: "auto",
           maxHeight: "78svh",
         }}>
-          <video ref={videoRef} src={displayedMediaSource} poster={post.thumbnailUrl}
+          <video ref={videoRef} src={displayedMediaSource} poster={post.thumbnailUrl} onPlay={() => { if (user?.id) void recordUserMediaPostView(post.mediaPostId || post.id); }}
             onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
             playsInline loop muted={videoMuted} preload="metadata"
             onClick={(event) => {
