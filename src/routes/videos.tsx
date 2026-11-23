@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Play, Video, ArrowLeft, BarChart3, Heart, Share2, Repeat2, Bookmark,
   Download, Eye, Search, House, Music2, Trophy, Clapperboard, Tv, Radio,
-  ListVideo, Gamepad2, GraduationCap, Newspaper, Cpu, Laugh,
+  ListVideo, Gamepad2, GraduationCap, Newspaper, Cpu, Laugh, MessageCircle,
 } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { useSession } from "@/lib/session";
@@ -11,6 +11,7 @@ import { recordUserMediaPostView } from "@/lib/post-views";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
+import { MediaComments } from "@/components/nexora/MediaComments";
 
 const categories = [
   { label: "Home", icon: House, terms: [] as string[] },
@@ -47,6 +48,8 @@ function Videos() {
   const [reposted, setReposted] = useState<string[]>([]);
   const [creatorProfiles, setCreatorProfiles] = useState<Record<string, { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setActiveId(requestedPostId ?? null);
@@ -183,12 +186,14 @@ function Videos() {
             </div>
             <div aria-label="Video actions" className="no-scrollbar flex flex-nowrap items-center gap-2 overflow-x-auto border-y py-3">
               <button type="button" onClick={() => void toggleLike(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${liked.includes(active.id) ? "text-primary" : ""}`}><Heart className={`h-4 w-4 ${liked.includes(active.id) ? "fill-current" : ""}`} /> {Number(likeCounts[active.id] ?? active.like_count ?? 0).toLocaleString()} Like</button>
+              <button type="button" onClick={() => setCommentsOpen((open) => !open)} aria-label="Open comments" aria-expanded={commentsOpen} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><MessageCircle className="h-4 w-4" /> {Number(commentCounts[active.id] ?? active.comment_count ?? 0).toLocaleString()} Comments</button>
               <button type="button" onClick={() => void shareVideo()} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><Share2 className="h-4 w-4" /> Share</button>
               <button type="button" onClick={downloadVideo} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium"><Download className="h-4 w-4" /> Download</button>
               <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"><Eye className="h-4 w-4" /> {Number(active.view_count ?? 0).toLocaleString()} views</span>
               <button type="button" onClick={() => void repostVideo(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${reposted.includes(active.id) ? "text-emerald-600" : ""}`}><Repeat2 className="h-4 w-4" /> Repost</button>
               <button type="button" onClick={() => void toggleSave(active.id)} className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 py-2 text-xs font-medium ${saved.includes(active.id) ? "text-amber-600" : ""}`}><Bookmark className="h-4 w-4" /> {saved.includes(active.id) ? "Saved" : "Save"}</button>
             </div>
+            <MediaComments postId={active.id} open={commentsOpen} onClose={() => setCommentsOpen(false)} onCountChange={(count) => setCommentCounts((current) => ({ ...current, [active.id]: count }))} />
             <div className="rounded-xl bg-muted/60 p-3 text-sm">
               <p className="font-semibold">{Number(active.view_count ?? 0).toLocaleString()} views</p>
               <p className="mt-1 whitespace-pre-wrap">{active.caption || "No description added."}</p>
