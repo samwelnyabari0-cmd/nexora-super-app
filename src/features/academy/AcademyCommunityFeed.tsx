@@ -40,7 +40,7 @@ async function resolveAsset(
   const key = asset === "media" ? item.media_storage_key : item.thumbnail_storage_key;
   if (provider === "r2") return getFreshR2MediaPlaybackUrl(item.id, asset);
   if (!value) return undefined;
-  if (/^https?:\\/\\//i.test(value)) return value;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
   const { data, error } = await supabase.storage.from("post-media").createSignedUrl(key || value, 900);
   return error ? undefined : data?.signedUrl ?? undefined;
 }
