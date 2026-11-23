@@ -192,6 +192,7 @@ function Reels() {
               <CreatorFollow ownerId={item.user_id} profile={creatorProfiles[item.user_id ?? ""]} isSelf={user?.id === item.user_id} />
               {user?.id && item.user_id === user.id && <Link to="/dashboard" search={{ postId: item.id }} className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-[11px] font-semibold"><BarChart3 className="h-3.5 w-3.5" /> Insights</Link>}
               <p className="whitespace-pre-wrap text-sm">{item.caption}</p>
+              <p className="text-[11px] text-white/70" title={formatExactDateTime(item.created_at)}>{formatRelativeTime(item.created_at)}</p>
               <p className="flex items-center gap-1 text-[11px] text-white/80"><Eye className="h-3.5 w-3.5" /> {Number(item.view_count ?? 0).toLocaleString()} views · {item.duration_seconds ?? "—"} sec</p>
             </div>
             <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5">
