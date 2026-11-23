@@ -62,6 +62,7 @@ function MatchCenterPage() {
   );
   const managedClubIds = new Set(managedClubs.map((club) => club.id));
   const selectedSyncTeam = data.favorites.find((team) => team.id === syncTeamId);
+  const liveMatch = data.matches.find((match) => match.status === "LIVE");
 
   const addTeam = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -323,8 +324,8 @@ function MatchCenterPage() {
       <section className="grid gap-3 md:grid-cols-2">
         <Panel>
           <div className="mb-2 flex items-center gap-2"><Target className="h-4 w-4 text-primary" /><h2 className="font-semibold">Fan prediction</h2></div>
-          {data.matches.length ? <>
-            <p className="text-xs text-muted-foreground">Who gets the next goal in {data.matches.find((match) => match.status === "LIVE")?.homeTeam ?? data.matches[0].homeTeam} vs {data.matches.find((match) => match.status === "LIVE")?.awayTeam ?? data.matches[0].awayTeam}?</p>
+          {liveMatch ? <>
+            <p className="text-xs text-muted-foreground">Who gets the next goal in {liveMatch.homeTeam} vs {liveMatch.awayTeam}?</p>
             <div className="mt-3 grid grid-cols-3 gap-2">{["Home", "Away", "No more goals"].map((choice) => <button key={choice} type="button" onClick={() => { setFanPick(choice); setFanPickSaved(false); }} className={`min-w-0 rounded-xl border px-2 py-2.5 text-xs font-medium ${fanPick === choice ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}>{choice}</button>)}</div>
             <Button className="mt-3 w-full" size="sm" disabled={!fanPick} onClick={() => setFanPickSaved(true)}>Save my pick</Button>
             {fanPickSaved && <p className="mt-2 text-xs text-emerald-600">Your pick is selected for this session. No money or payment is involved.</p>}
@@ -497,7 +498,8 @@ function PenaltyShootout() {
   const [saves, setSaves] = useState(0);
   const [message, setMessage] = useState("Pick a corner and take your first shot.");
   const [finished, setFinished] = useState(false);
-  const challengeTarget = typeof window === "undefined" ? null : Number(new URLSearchParams(window.location.search).get("beat"));
+  const challengeValue = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("beat");
+  const challengeTarget = challengeValue === null ? null : Number(challengeValue);
   const validTarget = challengeTarget !== null && Number.isFinite(challengeTarget) && challengeTarget >= 0 ? challengeTarget : null;
   const shoot = (direction: string) => {
     if (finished) return;
