@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3 } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3, Bookmark, Repeat2, Eye, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { recordUserMediaPostView } from "@/lib/post-views";
+import { useSocialGraph } from "@/features/social/useSocialGraph";
 
 export const Route = createFileRoute("/reels")({
   head: () => ({ meta: [{ title: "Reels — NEXORA" }, { name: "description", content: "Vertical short-form videos on NEXORA." }] }),
@@ -18,6 +19,9 @@ function Reels() {
   const [liked, setLiked] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
+  const [saved, setSaved] = useState<string[]>([]);
+  const [reposted, setReposted] = useState<string[]>([]);
+  const [creatorProfiles, setCreatorProfiles] = useState<Record<string, { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }>>({});
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
@@ -26,9 +30,29 @@ function Reels() {
   useEffect(() => {
     let active = true;
     if (!user) { setLiked([]); return; }
-    void supabase.rpc("get_my_liked_user_media_posts").then(({ data, error: rpcError }) => {
-      if (active && !rpcError) setLiked((data ?? []) as string[]);
+    void Promise.all([
+      supabase.rpc("get_my_liked_user_media_posts"),
+      (supabase as any).from("user_media_post_saves").select("post_id").eq("user_id", user.id),
+      supabase.rpc("get_my_reposted_user_media_posts"),
+    ]).then(([likes, saves, reposts]) => {
+      if (!active) return;
+      if (!likes.error) setLiked((likes.data ?? []) as string[]);
+      if (!saves.error) setSaved((saves.data ?? []).map((row: { post_id: string }) => row.post_id));
+      if (!reposts.error) setReposted((reposts.data ?? []) as string[]);
     });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) { setCreatorProfiles({}); return; }
+    void (supabase as any).rpc("get_discoverable_profiles", { p_query: null, p_limit: 60 })
+      .then(({ data, error: profileError }: { data: any[] | null; error: any }) => {
+        if (!active || profileError) return;
+        const next: typeof creatorProfiles = {};
+        for (const profile of data ?? []) next[profile.id] = profile;
+        setCreatorProfiles(next);
+      });
     return () => { active = false; };
   }, [user?.id]);
 
@@ -58,10 +82,6 @@ function Reels() {
       videoRefs.current.forEach((video) => video.pause());
     };
   }, [itemIdsKey]);
-
-  useEffect(() => {
-    if (activeReelId && user?.id) void recordUserMediaPostView(activeReelId);
-  }, [activeReelId, user?.id]);
 
   useEffect(() => {
     if (!activeReelId) return;
@@ -110,6 +130,24 @@ function Reels() {
     }
   }
 
+  async function toggleSave(postId: string) {
+    if (!user) return toast.error("Sign in to save Reels.");
+    const wasSaved = saved.includes(postId);
+    const result = wasSaved
+      ? await (supabase as any).from("user_media_post_saves").delete().eq("post_id", postId).eq("user_id", user.id)
+      : await (supabase as any).from("user_media_post_saves").insert({ post_id: postId, user_id: user.id });
+    if (result.error) return toast.error("Could not update saved Reels.");
+    setSaved((current) => wasSaved ? current.filter((id) => id !== postId) : [...current, postId]);
+  }
+
+  async function toggleRepost(postId: string) {
+    if (!user) return toast.error("Sign in to repost.");
+    if (reposted.includes(postId)) return toast.error("You have already reposted this Reel.");
+    const { data, error: repostError } = await (supabase as any).rpc("repost_user_media_post", { target_post_id: postId });
+    if (repostError) return toast.error("Could not repost this Reel.");
+    setReposted((current) => [...current, postId]);
+  }
+
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
   if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
   if (!items.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos up to 90 seconds will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
@@ -141,20 +179,23 @@ function Reels() {
                 preload="metadata"
                 onPlay={(event) => {
                   if (activeReelId && activeReelId !== item.id) event.currentTarget.pause();
+                  if (user?.id) void recordUserMediaPostView(item.id);
                 }}
                 className="h-full w-full object-contain"
               />
             ) : <p className="p-8 text-center">{item.caption}</p>}
             <div className="absolute bottom-8 left-4 right-20 z-20 space-y-2 bg-gradient-to-t from-black/70 to-transparent pb-3 pt-10">
-              <p className="text-xs font-semibold">NEXORA Creator</p>
+              <CreatorFollow ownerId={item.user_id} profile={creatorProfiles[item.user_id ?? ""]} isSelf={user?.id === item.user_id} />
               {user?.id && item.user_id === user.id && <Link to="/dashboard" search={{ postId: item.id }} className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-[11px] font-semibold"><BarChart3 className="h-3.5 w-3.5" /> Insights</Link>}
               <p className="whitespace-pre-wrap text-sm">{item.caption}</p>
-              <p className="text-[11px] text-white/70">{item.duration_seconds ?? "—"} sec · {Number(item.view_count ?? 0).toLocaleString()} views</p>
+              <p className="flex items-center gap-1 text-[11px] text-white/80"><Eye className="h-3.5 w-3.5" /> {Number(item.view_count ?? 0).toLocaleString()} views · {item.duration_seconds ?? "—"} sec</p>
             </div>
             <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5">
               <button type="button" onClick={() => void toggleLike(item.id)} aria-label={liked.includes(item.id) ? "Unlike Reel" : "Like Reel"} className="flex flex-col items-center gap-1"><Heart className={`h-7 w-7 ${liked.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} /><span className="text-[11px]">{Number(likeCounts[item.id] ?? item.like_count ?? 0)}</span></button>
               <div className="flex flex-col items-center gap-1" aria-label="Comments"><MessageCircle className="h-7 w-7" /><span className="text-[11px]">{Number(item.comment_count ?? 0)}</span></div>
               <button type="button" onClick={() => void shareReel(item.id, item.caption)} aria-label="Share Reel" className="flex flex-col items-center gap-1"><Share2 className="h-7 w-7" /><span className="text-[11px]">{Number(shareCounts[item.id] ?? item.share_count ?? 0)}</span></button>
+              <button type="button" onClick={() => void toggleRepost(item.id)} aria-label="Repost Reel" className={`flex flex-col items-center gap-1 ${reposted.includes(item.id) ? "text-emerald-400" : ""}`}><Repeat2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.repost_count ?? 0)}</span></button>
+              <button type="button" onClick={() => void toggleSave(item.id)} aria-label={saved.includes(item.id) ? "Unsave Reel" : "Save Reel"} className={`flex flex-col items-center gap-1 ${saved.includes(item.id) ? "text-amber-300" : ""}`}><Bookmark className={`h-7 w-7 ${saved.includes(item.id) ? "fill-current" : ""}`} /><span className="text-[11px]">{saved.includes(item.id) ? "Saved" : "Save"}</span></button>
             </div>
           </article>
         ))}
@@ -163,3 +204,18 @@ function Reels() {
   );
 }
 
+
+function CreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | null; profile?: { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }; isSelf: boolean }) {
+  const social = useSocialGraph(ownerId ?? undefined);
+  if (!ownerId) return <p className="text-xs font-semibold">NEXORA Creator</p>;
+  const label = profile?.display_name || profile?.handle || "NEXORA Creator";
+  return (
+    <div className="flex items-center gap-2">
+      <Link to={profile?.handle ? "/profile/$handle" : "/explore"} params={profile?.handle ? { handle: profile.handle } : undefined} className="flex min-w-0 items-center gap-2">
+        {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-9 w-9 rounded-full border-2 border-white object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-white/15 text-sm font-bold">{label.slice(0,1).toUpperCase()}</span>}
+        <span className="min-w-0"><span className="block max-w-[145px] truncate text-xs font-bold">{label}</span><span className="block text-[10px] text-white/70">@{profile?.handle || "creator"}</span></span>
+      </Link>
+      {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full border border-white/70 px-3 py-1 text-[11px] font-bold text-white">{social.isFollowing ? "Following" : "Follow"}</button>}
+    </div>
+  );
+}
