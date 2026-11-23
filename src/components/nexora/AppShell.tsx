@@ -238,7 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
     void refreshUnread();
     const channel = supabase
-      .channel(`notification-badge:${user.id}`)
+      .channel(`notification-badge:${user.id}`, { config: { private: true } })
       .on("postgres_changes", {
         event: "*",
         schema: "public",
