@@ -18,7 +18,7 @@ import { SharedContentCard } from "@/components/nexora/SharedContentCard";
 import { sharedContentLabel, type SharedContentReference } from "@/components/nexora/shared-content";
 import { ConversationDetailsSheet } from "@/components/nexora/ConversationDetailsSheet";
 import { ChatAttachmentTray } from "@/components/nexora/ChatAttachmentTray";
-import { ChatComposer } from "@/components/nexora/NexoraChatComposer";
+import { NexoraChatComposer } from "@/components/nexora/NexoraChatComposer";
 import { isMessageExpired, messageExpiryDelay } from "@/components/nexora/message-expiry";
 import { buildSmartReplyPrompt, parseSmartReplySuggestions } from "@/components/nexora/smart-replies";
 import { aiChat } from "@/lib/ai.functions";
