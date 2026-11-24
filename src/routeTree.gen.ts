@@ -236,6 +236,7 @@ export interface FileRoutesByTo {
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
   '/profile/id/$userId': typeof ProfileIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/profile-settings': typeof ProfileSettingsRoute
   '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
@@ -267,6 +268,7 @@ export interface FileRoutesById {
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
   '/profile/id/$userId': typeof ProfileIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/profile-settings': typeof ProfileSettingsRoute
   '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
@@ -330,6 +332,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/profile'
     | '/profile/id/$userId'
+    | '/u/$userId'
     | '/profile-settings'
     | '/profile/$handle'
     | '/saved'
@@ -360,6 +363,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/profile'
     | '/profile/id/$userId'
+    | '/u/$userId'
     | '/profile-settings'
     | '/profile/$handle'
     | '/saved'
