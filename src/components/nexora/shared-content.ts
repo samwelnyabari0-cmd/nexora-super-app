@@ -18,17 +18,19 @@ export function isValidSharedContentReference(value: unknown): value is SharedCo
   return ref.source !== "posts" || ref.contentType === "post";
 }
 
+import { profilePathForUser } from "@/lib/profile-navigation";
+
 export function canonicalSharedContentPath(
   reference: SharedContentReference,
-  creatorHandle?: string | null,
+  creatorId?: string | null,
 ): string | null {
   if (!isValidSharedContentReference(reference)) return null;
   const id = encodeURIComponent(reference.contentId);
   if (reference.source === "posts") return `/explore?post=${id}`;
   if (reference.contentType === "reel") return `/reels?post=${id}`;
   if (reference.contentType === "video") return `/videos?post=${id}`;
-  if (!creatorHandle || !/^[a-zA-Z0-9._-]{1,40}$/.test(creatorHandle)) return null;
-  return `/profile/${encodeURIComponent(creatorHandle)}?post=${id}`;
+  const profilePath = profilePathForUser(creatorId);
+  return profilePath ? `${profilePath}?post=${id}` : null;
 }
 
 export function sharedContentLabel(contentType: SharedContentType): string {
