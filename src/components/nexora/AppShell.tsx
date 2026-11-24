@@ -328,6 +328,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <Link
           to="/explore"
+          search={{ post: "" }}
           className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex"
           aria-label="Universal search"
         >
