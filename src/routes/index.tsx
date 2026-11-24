@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
+import { profilePathForUser } from "@/lib/profile-navigation";
 
 type DirectoryPerson = {
   id: string;
@@ -120,13 +121,24 @@ function Home() {
               </span>
               Find people
             </Link>
-            {people.slice(0, 12).map((person) => (
-              <Link key={person.id} to="/profile/$handle" params={{ handle: person.handle }}
-                className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
-                <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={60} />
-                <span className="w-full truncate text-center text-muted-foreground">{person.handle}</span>
-              </Link>
-            ))}
+            {people.slice(0, 12).map((person) => {
+              const profilePath = profilePathForUser(person.id);
+              const content = (
+                <>
+                  <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={60} />
+                  <span className="w-full truncate text-center text-muted-foreground">{person.handle}</span>
+                </>
+              );
+              return profilePath ? (
+                <Link key={person.id} to={profilePath as any} className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
+                  {content}
+                </Link>
+              ) : (
+                <div key={person.id} className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs" aria-label="Profile unavailable">
+                  {content}
+                </div>
+              );
+            })}
             {!peopleLoading && people.length === 0 && (
               <p className="self-center text-xs text-muted-foreground">No discoverable accounts yet.</p>
             )}
@@ -186,15 +198,29 @@ function Home() {
 function SuggestedAccount({ person }: { person: DirectoryPerson }) {
   const graph = useSocialGraph(person.id);
   const { user } = useSession();
+  const profilePath = profilePathForUser(person.id);
   return (
     <div className="flex items-center gap-3 py-2">
-      <Link to="/profile/$handle" params={{ handle: person.handle }}>
-        <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={38} />
-      </Link>
-      <Link to="/profile/$handle" params={{ handle: person.handle }} className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{person.display_name ?? person.handle}</p>
-        <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
-      </Link>
+      {profilePath ? (
+        <Link to={profilePath as any} aria-label={`Open ${person.display_name ?? person.handle}'s profile`}>
+          <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={38} />
+        </Link>
+      ) : (
+        <span aria-label="Profile unavailable">
+          <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={38} />
+        </span>
+      )}
+      {profilePath ? (
+        <Link to={profilePath as any} className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{person.display_name ?? person.handle}</p>
+          <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
+        </Link>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{person.display_name ?? person.handle}</p>
+          <p className="truncate text-xs text-muted-foreground">@{person.handle}</p>
+        </div>
+      )}
       <Button size="sm" variant={graph.isFollowing ? "outline" : "default"} disabled={graph.loading || !user} onClick={() => void graph.toggleFollow()} className="rounded-full">
         {graph.isFollowing ? "Following" : graph.isPending ? "Requested" : "Follow"}
       </Button>
