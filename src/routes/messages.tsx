@@ -1030,6 +1030,30 @@ if (recipient === user.id) {
       return { error: sendError };
     };
 
+    const optimisticId = `optimistic-${crypto.randomUUID()}`;
+    const optimisticCreatedAt = new Date().toISOString();
+    const optimisticMessage: DirectMessage = {
+      id: optimisticId,
+      sender_id: user.id,
+      recipient_id: recipient,
+      body,
+      media_path: mediaPath,
+      media_type: mediaType,
+      attachment_name: attachmentName,
+      attachment_mime_type: attachmentMimeType,
+      attachment_size_bytes: attachmentSizeBytes,
+      reply_to_message_id: replyTarget?.id ?? null,
+      created_at: optimisticCreatedAt,
+      delivered_at: null,
+      seen_at: null,
+    };
+    let localPreviewUrl: string | null = null;
+    if (attachment) {
+      localPreviewUrl = URL.createObjectURL(attachment);
+      setMediaUrls((current) => ({ ...current, [optimisticId]: localPreviewUrl! }));
+    }
+    setMessages((current) => [...current, optimisticMessage]);
+
     const result = mediaPath
       ? await uploadThenInsertAttachment(
           async () => {
@@ -1059,6 +1083,13 @@ if (recipient === user.id) {
     }
 
     if (result.error) {
+      setMessages((current) => current.filter((message) => message.id !== optimisticId));
+      setMediaUrls((current) => {
+        const next = { ...current };
+        delete next[optimisticId];
+        return next;
+      });
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
       const detail = result.error && typeof result.error === "object" && "message" in result.error
         ? String((result.error as { message?: unknown }).message ?? "")
         : "";
@@ -1074,6 +1105,15 @@ if (recipient === user.id) {
     setReplyTarget(null);
     if (fileInput.current) fileInput.current.value = "";
     setSending(false);
+    if (mediaPath) {
+      void supabase.storage.from("chat-media").createSignedUrl(mediaPath, 3600).then(({ data }) => {
+        if (data?.signedUrl) {
+          setMediaUrls((current) => ({ ...current, [optimisticId]: data.signedUrl }));
+          if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+        }
+      });
+    }
+    // Reconcile the optimistic bubble with the canonical database row in the background.
     setRefresh((value) => value + 1);
   }
 
