@@ -4,6 +4,7 @@ import { Bell, CheckCheck, ChevronRight, FileText, Heart, MessageCircle, Package
 import { useWorkspace } from "@/features/core/workspace";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { profilePathForUser } from "@/lib/profile-navigation";
 import { enablePushNotifications } from "@/lib/push";
 import { toast } from "sonner";
 import { PageHeader, DemoBadge } from "@/components/nexora/ui";
@@ -148,7 +149,7 @@ function Notifications() {
         actorProfile: item.actor_id ? actorProfiles[item.actor_id] : undefined,
         time: new Date(item.created_at).toLocaleString(),
         read: Boolean(item.read_at),
-        href: isAnnouncement ? "/notifications" : isMessage && item.actor_id ? `/messages?recipient=${encodeURIComponent(item.actor_id)}` : isMessage ? "/messages" : item.post_id && item.actor_id && actorProfiles[item.actor_id]?.handle ? `/profile/${encodeURIComponent(String(actorProfiles[item.actor_id]?.handle))}?post=${encodeURIComponent(item.post_id)}` : "/profile",
+        href: isAnnouncement ? "/notifications" : isMessage && item.actor_id ? `/messages?recipient=${encodeURIComponent(item.actor_id)}` : isMessage ? "/messages" : item.post_id && item.actor_id && profilePathForUser(item.actor_id) ? `${profilePathForUser(item.actor_id)}?post=${encodeURIComponent(item.post_id)}` : "/notifications",
         icon: isMessage ? MessageCircle : isComment ? MessageCircle : isLike ? Heart : isFollow ? Bell : Bell,
       };
     });
