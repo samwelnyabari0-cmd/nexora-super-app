@@ -81,55 +81,56 @@ export function normalizeSportScoreMatches(
   updatedAt = new Date().toISOString(),
 ): FootballMatch[] {
   const matches = matchesFromPayload(payload);
-  const normalized = matches.flatMap((value): FootballMatch[] => {
-    const match = asRecord(value);
-    const home = asRecord(first(match.home, match.home_team, match.homeTeam));
-    const away = asRecord(first(match.away, match.away_team, match.awayTeam));
-    const homeTeam = textValue(first(home.name, home.title, match.home, match.home_team, match.homeTeam));
-    const awayTeam = textValue(first(away.name, away.title, match.away, match.away_team, match.awayTeam));
-    const providerId = textValue(first(match.slug, match.id, match.match_id, match.fixture_id, match.event_id));
-    const kickoffAt = timestampValue(first(
-      match.time, match.kickoff_at, match.kickoff, match.date, match.start_time, match.startTime,
-    ));
-    if (!providerId || !homeTeam || !awayTeam || !kickoffAt) return [];
+  const normalized = matches
+    .map((value): FootballMatch | null => {
+      const match = asRecord(value);
+      const home = asRecord(first(match.home, match.home_team, match.homeTeam));
+      const away = asRecord(first(match.away, match.away_team, match.awayTeam));
+      const homeTeam = textValue(first(home.name, home.title, match.home, match.home_team, match.homeTeam));
+      const awayTeam = textValue(first(away.name, away.title, match.away, match.away_team, match.awayTeam));
+      const providerId = textValue(first(match.slug, match.id, match.match_id, match.fixture_id, match.event_id));
+      const kickoffAt = timestampValue(first(
+        match.time, match.kickoff_at, match.kickoff, match.date, match.start_time, match.startTime,
+      ));
+      if (!providerId || !homeTeam || !awayTeam || !kickoffAt) return null;
 
-    const competition = asRecord(first(match.competition, match.league, match.tournament));
-    const competitionName = textValue(first(
-      match.competition_name, match.league_name, competition.name, competition.title,
-      match.competition, match.league,
-    )) ?? "Football";
-    const score = asRecord(match.score);
-    const goals = asRecord(match.goals);
-    const status = asRecord(match.status);
-    const statusText = textValue(first(
-      match.status_text, match.statusText, status.description, status.detail,
-      match.elapsed, match.minute,
-    )) ?? "";
-    const statusValue = textValue(first(
-      status.short, status.code, status.name, match.status_code, match.state, match.status,
-    )) ?? "";
+      const competition = asRecord(first(match.competition, match.league, match.tournament));
+      const competitionName = textValue(first(
+        match.competition_name, match.league_name, competition.name, competition.title,
+        match.competition, match.league,
+      )) ?? "Football";
+      const score = asRecord(match.score);
+      const goals = asRecord(match.goals);
+      const status = asRecord(match.status);
+      const statusText = textValue(first(
+        match.status_text, match.statusText, status.description, status.detail,
+        match.elapsed, match.minute,
+      )) ?? "";
+      const statusValue = textValue(first(
+        status.short, status.code, status.name, match.status_code, match.state, match.status,
+      )) ?? "";
 
-    normalized.push({
-      id: "sportscore:" + providerId,
-      provider: "sportscore",
-      providerId,
-      competitionCode: competitionCode(competitionName),
-      competitionName,
-      homeTeam,
-      awayTeam,
-      homeScore: numberValue(first(match.home_score, match.homeScore, score.home, goals.home)),
-      awayScore: numberValue(first(match.away_score, match.awayScore, score.away, goals.away)),
-      status: statusFromProvider(statusValue, statusText),
-      elapsedMinute: elapsedMinute(
-        statusText,
-        first(match.elapsed_minute, match.elapsedMinute, match.minute),
-      ),
-      kickoffAt,
-      updatedAt: textValue(match.updated_at) ?? updatedAt,
-      sourceUrl: null,
-    });
-    return [];
-  });
+      return {
+        id: "sportscore:" + providerId,
+        provider: "sportscore",
+        providerId,
+        competitionCode: competitionCode(competitionName),
+        competitionName,
+        homeTeam,
+        awayTeam,
+        homeScore: numberValue(first(match.home_score, match.homeScore, score.home, goals.home)),
+        awayScore: numberValue(first(match.away_score, match.awayScore, score.away, goals.away)),
+        status: statusFromProvider(statusValue, statusText),
+        elapsedMinute: elapsedMinute(
+          statusText,
+          first(match.elapsed_minute, match.elapsedMinute, match.minute),
+        ),
+        kickoffAt,
+        updatedAt: textValue(match.updated_at) ?? updatedAt,
+        sourceUrl: null,
+      };
+    })
+    .filter((match): match is FootballMatch => match !== null);
 
   const unique = new Map<string, FootballMatch>();
   for (const match of normalized) unique.set(match.providerId, match);
