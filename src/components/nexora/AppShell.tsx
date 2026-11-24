@@ -89,16 +89,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     const onOnline = () => window.dispatchEvent(new Event("nexora:outbox-sync"));
     navigator.serviceWorker.addEventListener("message", onMessage);
     window.addEventListener("online", onOnline);
-    let reloadingForUpdate = false;
-    const onControllerChange = () => {
-      // An installed app can remain open on an older JavaScript bundle after a
-      // deployment. Reload once when the updated worker takes control so every
-      // route (including creator-profile navigation) runs the same current build.
-      if (reloadingForUpdate) return;
-      reloadingForUpdate = true;
-      window.location.reload();
-    };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     void navigator.serviceWorker.register("/sw.js", { scope: "/" })
       .then((registration) => registration.update())
       .catch((error) => {
@@ -106,7 +96,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       });
     return () => {
       navigator.serviceWorker.removeEventListener("message", onMessage);
-      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       window.removeEventListener("online", onOnline);
     };
   }, []);

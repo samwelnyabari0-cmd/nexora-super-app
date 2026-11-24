@@ -37,8 +37,13 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       } catch {
-        const shell = await caches.match(APP_ROOT, { cacheName: SHELL_CACHE });
-        if (shell) return shell;
+        // Never answer a failed deep-link navigation with the cached home
+        // document: doing so can render the signed-in user's profile at a
+        // different account's URL. Only the actual home route may use APP_ROOT.
+        if (url.pathname === APP_ROOT) {
+          const shell = await caches.match(APP_ROOT, { cacheName: SHELL_CACHE });
+          if (shell) return shell;
+        }
         return (await caches.match(OFFLINE_PAGE, { cacheName: SHELL_CACHE })) ||
           new Response("You are offline. Reconnect to load NEXORA.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
       }
