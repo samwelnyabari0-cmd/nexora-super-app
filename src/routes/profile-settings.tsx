@@ -50,6 +50,37 @@ function ProfileSettings() {
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [bioLinksOpen, setBioLinksOpen] = useState(false);
   const [share, setShare] = useState<typeof passport.share>(passport.share);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  async function deleteAccount() {
+    if (deleteConfirmation !== "DELETE MY ACCOUNT") {
+      toast.error("Type DELETE MY ACCOUNT exactly to confirm.");
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", {
+        body: { confirmation: deleteConfirmation },
+      });
+      if (error) {
+        let message = error.message || "Could not delete this account.";
+        try {
+          const detail = await (error as any).context?.json?.();
+          if (typeof detail?.error === "string") message = detail.error;
+        } catch {
+          // Keep the function's standard error message if no response body is available.
+        }
+        throw new Error(message);
+      }
+      await supabase.auth.signOut({ scope: "local" });
+      window.location.assign("/auth");
+    } catch (error) {
+      console.error("Permanent account deletion failed:", error);
+      toast.error(error instanceof Error ? error.message : "Could not delete this account.");
+      setDeletingAccount(false);
+    }
+  }
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -343,6 +374,38 @@ function ProfileSettings() {
 
       {accountType==="creator" && <Panel className="space-y-3"><h2 className="font-semibold">Creator Studio</h2><CreatorStudio /></Panel>}
       {accountType==="business" && <Panel className="space-y-3"><h2 className="font-semibold">Business Suite</h2><BusinessSuite /></Panel>}
+
+      <Panel className="space-y-3 border border-destructive/40">
+        <div>
+          <h2 className="flex items-center gap-2 font-semibold text-destructive"><Trash2 className="h-5 w-5" /> Delete account permanently</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            This permanently deletes your NEXORA sign-in and profile, your posts and account-owned uploads. You will be signed out on your devices. You can register a new account later, but deleted data cannot be restored.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            If you own a Squad, ownership will be transferred to an active member. Squads without another active member will be removed with their content.
+          </p>
+        </div>
+        <label className="block space-y-1 text-sm font-medium">
+          Type DELETE MY ACCOUNT to continue
+          <input
+            value={deleteConfirmation}
+            onChange={(event) => setDeleteConfirmation(event.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="DELETE MY ACCOUNT"
+            className="w-full rounded-xl border border-destructive/40 bg-background px-3 py-2"
+          />
+        </label>
+        <Button
+          type="button"
+          variant="destructive"
+          className="w-full"
+          disabled={saving || uploading || deletingAccount || deleteConfirmation !== "DELETE MY ACCOUNT"}
+          onClick={() => void deleteAccount()}
+        >
+          {deletingAccount ? "Deleting account…" : "Permanently delete my account"}
+        </Button>
+      </Panel>
 
       <Button className="w-full" disabled={saving || uploading} onClick={()=>void save()}>{saving?"Saving…":"Save profile settings"}</Button>
     </div>

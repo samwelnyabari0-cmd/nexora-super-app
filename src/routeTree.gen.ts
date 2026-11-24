@@ -196,15 +196,11 @@ export interface FileRoutesByFullPath {
   '/match-center': typeof MatchCenterRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
- '/platform': typeof PlatformRoute
+  '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
   '/profile/id/$userId': typeof ProfileIdRoute
-  '/profile/id/$userId': typeof ProfileIdRoute
-  '/profile/id/$userId': typeof ProfileIdRoute
   '/profile-settings': typeof ProfileSettingsRoute
-  '/profile-settings': typeof ProfileSettingsRoute
-  '/profile-settings': typeof ProfileSettingsRoute
-'/profile/$handle': typeof PublicProfileRoute
+  '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
@@ -230,9 +226,11 @@ export interface FileRoutesByTo {
   '/match-center': typeof MatchCenterRoute
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
-  '/platform': typeof PlatformRoute  
+  '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
-'/profile/$handle': typeof PublicProfileRoute
+  '/profile/id/$userId': typeof ProfileIdRoute
+  '/profile-settings': typeof ProfileSettingsRoute
+  '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
@@ -261,7 +259,9 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
-'/profile/$handle': typeof PublicProfileRoute
+  '/profile/id/$userId': typeof ProfileIdRoute
+  '/profile-settings': typeof ProfileSettingsRoute
+  '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
@@ -273,7 +273,6 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/profile/$handle'
     | '/'
     | '/ai'
     | '/auth'
@@ -291,11 +290,10 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/platform'
-    | '/profile/id/$userId'
     | '/profile'
+    | '/profile/id/$userId'
     | '/profile-settings'
-    | '/profile-settings'
-    | '/profile-settings'
+    | '/profile/$handle'
     | '/saved'
     | '/settings'
     | '/subscriptions'
@@ -305,7 +303,6 @@ export interface FileRouteTypes {
     | '/creator/academy'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/profile/$handle'
     | '/'
     | '/ai'
     | '/auth'
@@ -323,8 +320,10 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/platform'
-    | '/profile/id/$userId'
     | '/profile'
+    | '/profile/id/$userId'
+    | '/profile-settings'
+    | '/profile/$handle'
     | '/saved'
     | '/settings'
     | '/subscriptions'
@@ -333,7 +332,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/creator/academy'
   id:
-    | '/profile/$handle'
     | '__root__'
     | '/'
     | '/ai'
@@ -352,8 +350,10 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/platform'
-    | '/profile/id/$userId'
     | '/profile'
+    | '/profile/id/$userId'
+    | '/profile-settings'
+    | '/profile/$handle'
     | '/saved'
     | '/settings'
     | '/subscriptions'
@@ -382,8 +382,8 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   PlatformRoute: typeof PlatformRoute
   ProfileIdRoute: typeof ProfileIdRoute
-  ProfileRoute: ProfileRoute,
-  ProfileSettingsRoute: ProfileSettingsRoute,
+  ProfileRoute: typeof ProfileRoute,
+  ProfileSettingsRoute: typeof ProfileSettingsRoute,
   PublicProfileRoute: typeof PublicProfileRoute
   SavedRoute: typeof SavedRoute
   SettingsRoute: typeof SettingsRoute
