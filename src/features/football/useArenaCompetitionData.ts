@@ -42,6 +42,19 @@ type MatchRow = {
   updated_at: string;
   source_url: string | null;
 };
+type QueryResult<T> = { data: T[] | null; error: { message: string } | null };
+type QueryBuilder<T> = PromiseLike<QueryResult<T>> & {
+  select: (columns: string) => QueryBuilder<T>;
+  eq: (column: string, value: unknown) => QueryBuilder<T>;
+  gte: (column: string, value: unknown) => QueryBuilder<T>;
+  lte: (column: string, value: unknown) => QueryBuilder<T>;
+  order: (column: string, options?: { ascending?: boolean }) => QueryBuilder<T>;
+  limit: (count: number) => QueryBuilder<T>;
+};
+
+function table<T>(name: string): QueryBuilder<T> {
+  return supabase.from(name as never) as unknown as QueryBuilder<T>;
+}
 
 function toMatch(row: MatchRow): FootballMatch {
   return {
@@ -74,8 +87,7 @@ export function useArenaCompetitionData() {
     const from = new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString();
     const to = new Date(now + 45 * 24 * 60 * 60 * 1000).toISOString();
     const [matchResult, standingsResult] = await Promise.all([
-      supabase
-        .from("football_matches")
+      table<MatchRow>("football_matches")
         .select("id,provider,provider_id,competition_code,competition_name,home_team,away_team,home_score,away_score,status,elapsed_minute,kickoff_at,updated_at,source_url")
         .eq("provider", "football-data")
         .eq("is_published", true)
@@ -83,8 +95,7 @@ export function useArenaCompetitionData() {
         .lte("kickoff_at", to)
         .order("kickoff_at", { ascending: true })
         .limit(250),
-      supabase
-        .from("football_standings")
+      table<FootballStanding>("football_standings")
         .select("*")
         .eq("provider", "football-data")
         .order("position", { ascending: true })
@@ -97,8 +108,8 @@ export function useArenaCompetitionData() {
       return;
     }
 
-    const nextMatches = ((matchResult.data ?? []) as MatchRow[]).map(toMatch);
-    const nextStandings = (standingsResult.data ?? []) as FootballStanding[];
+    const nextMatches = (matchResult.data ?? []).map(toMatch);
+    const nextStandings = standingsResult.data ?? [];
     setMatches(nextMatches);
     setStandings(nextStandings);
     const timestamps = [
