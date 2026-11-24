@@ -589,7 +589,7 @@ function PublicProfile({
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/${profile.handle || handle}`,
+                  returnTo: `/profile/id/${profile.id}`,
                   prompt,
                 }}
                 className="rounded-full border border-slate-700 px-3 py-1.5 text-[10px] text-slate-300 hover:border-indigo-500"
