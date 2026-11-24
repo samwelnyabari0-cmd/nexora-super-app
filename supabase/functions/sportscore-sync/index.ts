@@ -98,7 +98,7 @@ function statusFromProvider(status: string, statusText: string): ProviderStatus 
 function elapsedMinute(statusText: string, value: unknown): number | null {
   const direct = numberValue(value);
   if (direct !== null) return direct;
-  const match = statusText.match(/(\d{1,3})\s*(?:\\+\s*\d+)?\s*(?:['′m]|min)/i);
+  const match = statusText.match(/(\d{1,3})\s*(?:\+\s*\d+)?\s*(?:['′m]|min)/i);
   return match ? Number(match[1]) : null;
 }
 
