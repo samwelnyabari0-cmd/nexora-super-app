@@ -36,3 +36,18 @@ The original `football-sync` function and `API_FOOTBALL_KEY` setup are unchanged
 - [SportScore developer portal](https://sportscore.com/developers/) — free tier, endpoints, attribution and published request guidance.
 - [SportScore API reference](https://sportscore.com/developers/api/) — widget endpoint response schema and parameters.
 - [SportScore terms](https://sportscore.com/developers/terms/) — caching, attribution, commercial use and limitations.
+
+
+## Free automatic goal alerts
+
+The first free implementation adds optional, in-app goal alerts in Nexora Arena:
+
+- Alerts are off by default and can be switched on/off from the Arena toolbar. The preference is stored on the current browser/device.
+- While Match Center is open, the existing 60-second SportScore browser refresh compares the latest live scores with the prior observed score.
+- The first observed score for a fixture is only a baseline. Later score increases generate goal toasts; minute/status-only updates and score decreases do not.
+- Repeated observations of the same score level are deduplicated for the current open session. A score correction followed by restoration of a previously observed score is not announced again.
+- Alerts include the scoring team, resulting score, competition and minute only when the feed supplies a minute. Scorer identity is not inferred.
+- This is best-effort coverage limited to fixtures SportScore returns. It is not a complete worldwide feed, and the browser stops checking when the page is closed or suspended.
+- Android push notifications while Nexora is closed are not enabled by this implementation. The existing push subscription flow is not yet safe for goal-alert fan-out; it must first be made user-owned and server-authorized, and a server-reachable free provider must be proven.
+
+This deliberately avoids creating per-user server polling or activating a paid provider. Do not describe this foreground-only feature as background monitoring or guaranteed worldwide coverage.
