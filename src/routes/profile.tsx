@@ -120,7 +120,7 @@ function Profile() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("explore") === "1") setExploreOpen(true);
+    if (params.get("explore") === "1" || params.get("explore") === "true") setExploreOpen(true);
   }, []);
 
   useEffect(() => {
