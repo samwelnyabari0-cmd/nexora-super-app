@@ -474,7 +474,7 @@ useEffect(() => {
                 )}
                 <div className="min-w-0 flex-1">
                   {connection.handle ? (
-                    <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
+                    <Link to="/profile/id/$userId" params={{ userId: connection.id }} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
                   ) : (
                     <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
                   )}
@@ -482,7 +482,7 @@ useEffect(() => {
                 </div>
                 {connection.handle && (
                   <Button asChild className="shrink-0" variant="outline" size="sm">
-                    <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }}>View</Link>
+                    <Link to="/profile/id/$userId" params={{ userId: connection.id }}>View</Link>
                   </Button>
                 )}
               </div>
