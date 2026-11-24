@@ -237,7 +237,7 @@ export function AcademyCommunityFeed() {
             {items.map((item, index) => {
               const isVideo = item.media_type?.startsWith("video/") || item.content_type === "video" || item.content_type === "reel";
               return (
-                <section key={item.id} className="flex min-h-full snap-start flex-col justify-center gap-3 pb-3">
+                <section key={item.id} className="flex h-full min-h-full snap-start flex-col justify-center gap-3 overflow-hidden pb-3">
                   <div className="flex shrink-0 items-center gap-3">
                     {item.creator_avatar_url ? <img src={item.creator_avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary">{item.creator_name.slice(0, 1).toUpperCase()}</div>}
                     <div className="min-w-0 flex-1">
