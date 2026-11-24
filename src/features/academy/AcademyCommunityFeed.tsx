@@ -181,7 +181,7 @@ export function AcademyCommunityFeed() {
                 {item.creator_id && <Link to="/u/$userId" params={{ userId: item.creator_id }} aria-label={`View ${item.creator_name} profile`} title="View creator profile" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border hover:bg-muted"><UserRound className="h-4 w-4" /></Link>}
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold capitalize text-primary">{item.content_type}</span>
               </div>
-              <button type="button" onClick={() => { setSelectedItem(item); void recordUserMediaPostView(item.id); }} aria-label={`Open ${item.content_type} by ${item.creator_name}`} className="relative block w-full aspect-video overflow-hidden bg-muted text-left">
+              <button type="button" onClick={() => setSelectedItem(item)} aria-label={`Open ${item.content_type} by ${item.creator_name}`} className="relative block w-full aspect-video overflow-hidden bg-muted text-left">
                 {preview ? isVideo ? <video src={item.mediaSrc} poster={item.thumbnailSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : <img src={preview} alt={item.caption || "Education content"} loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-muted-foreground">{item.content_type === "video" || item.content_type === "reel" ? <Play className="h-10 w-10" /> : <BookOpen className="h-10 w-10" />}</div>}
                 {item.content_type === "video" && <span className="absolute right-3 top-3 rounded-lg bg-black/65 p-2 text-white"><Video className="h-4 w-4" /></span>}
               </button>
