@@ -462,7 +462,7 @@ useEffect(() => {
             ) : connections.map((connection) => (
               <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
                 {connection.id ? (
-                  <Link to="/profile/id/$userId" params={{ userId: connection.id }} aria-label={`Open @${connection.handle}'s profile`} className="shrink-0">
+                  <Link to="/profile/id/$userId" reloadDocument params={{ userId: connection.id }} aria-label={`Open @${connection.handle}'s profile`} className="shrink-0">
                     {connection.avatar_url ? (
                       <img src={connection.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover" />
                     ) : (
@@ -476,7 +476,7 @@ useEffect(() => {
                 )}
                 <div className="min-w-0 flex-1">
                   {connection.id ? (
-                    <Link to="/profile/id/$userId" params={{ userId: connection.id }} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
+                    <Link to="/profile/id/$userId" reloadDocument params={{ userId: connection.id }} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
                   ) : (
                     <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
                   )}
@@ -484,7 +484,7 @@ useEffect(() => {
                 </div>
                 {connection.id && (
                   <Button asChild className="shrink-0" variant="outline" size="sm">
-                    <Link to="/profile/id/$userId" params={{ userId: connection.id }}>View</Link>
+                    <Link to="/profile/id/$userId" reloadDocument params={{ userId: connection.id }}>View</Link>
                   </Button>
                 )}
               </div>
