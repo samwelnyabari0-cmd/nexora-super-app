@@ -8,6 +8,7 @@ import {
   verifyCreatorMonetizationPayment,
 } from "@/lib/paystack.functions";
 import { useSession } from "@/lib/session";
+import { paymentReturnCleanupPath } from "@/lib/payment-return-url";
 
 export function CreatorPaymentActions({ creatorId, showActions = true }: { creatorId: string; showActions?: boolean }) {
   const { user, ready } = useSession();
@@ -33,7 +34,7 @@ export function CreatorPaymentActions({ creatorId, showActions = true }: { creat
       .catch(() => toast.error("Could not verify the payment."))
       .finally(() => {
         setBusy(false);
-        window.history.replaceState({}, "", "/profile");
+        window.history.replaceState(window.history.state, "", paymentReturnCleanupPath(window.location.href));
       });
   }, [verify]);
 
