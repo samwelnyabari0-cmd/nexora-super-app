@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Search, SearchX } from "lucide-react";
 import { useApp } from "@/features/core/store";
 import { useWorkspace } from "@/features/core/workspace";
+import { profilePathForUser } from "@/lib/profile-navigation";
 import { places, catalog } from "@/features/core/data";
 import { matchesPost, canDiscover } from "@/features/core/tools";
 import { PostCard } from "@/components/nexora/PostCard";
@@ -114,20 +115,31 @@ function Explore() {
             <h2 className="mb-3 text-lg font-semibold">People</h2>
             {peopleLoading ? <p className="text-sm text-muted-foreground">Finding NEXORA accounts…</p> : people.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                {people.map((person) => (
-                  <Link
-  key={person.id}
-  to="/profile/$handle"
-  params={{ handle: person.handle! }}
-  className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
->
-                    <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} src={person.avatar_url} size={44} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{person.display_name ?? "NEXORA User"}</p>
-                      <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
+                {people.map((person) => {
+                  const profilePath = profilePathForUser(person.id);
+                  const card = (
+                    <>
+                      <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} src={person.avatar_url} size={44} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold">{person.display_name ?? "NEXORA User"}</p>
+                        <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
+                      </div>
+                    </>
+                  );
+                  return profilePath ? (
+                    <Link
+                      key={person.id}
+                      to={profilePath as any}
+                      className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
+                    >
+                      {card}
+                    </Link>
+                  ) : (
+                    <div key={person.id} className="flex items-center gap-3 rounded-lg border bg-card p-3" aria-label="Profile unavailable">
+                      {card}
                     </div>
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No people found.</p>
