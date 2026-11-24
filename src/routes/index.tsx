@@ -121,7 +121,7 @@ function Home() {
               Find people
             </Link>
             {people.slice(0, 12).map((person) => (
-              <Link key={person.id} to="/profile/$handle" params={{ handle: person.handle }}
+              <Link key={person.id} to="/profile/id/$userId" params={{ userId: person.id }}
                 className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-xs">
                 <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={60} />
                 <span className="w-full truncate text-center text-muted-foreground">{person.handle}</span>
