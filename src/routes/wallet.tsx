@@ -216,7 +216,7 @@ function WalletPage() {
               </div>
               <p
                 className={
-                  t.kind === "in" ? "text-sm font-semibold text-success" : "text-sm font-semibold"
+                  t.kind === "in" ? "max-w-[42%] break-words text-right text-xs font-semibold text-success sm:text-sm" : "max-w-[42%] break-words text-right text-xs font-semibold sm:text-sm"
                 }
               >
                 {t.kind === "in" ? "+" : "−"}
