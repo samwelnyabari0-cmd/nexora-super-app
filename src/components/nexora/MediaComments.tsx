@@ -82,9 +82,10 @@ export function MediaComments({
       return;
     }
     setSending(true);
-    const { error } = await (supabase as any)
-      .from("user_media_post_comments")
-      .insert({ post_id: postId, user_id: user.id, text: content });
+    const { error } = await (supabase as any).rpc("add_user_media_post_comment", {
+      target_post_id: postId,
+      comment_text: content,
+    });
     if (error) {
       console.error("Could not add media comment:", error);
       toast.error("Could not add your comment.");

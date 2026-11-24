@@ -242,1474 +242,113 @@ export type Database = {
           },
         ]
       }
-      type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
-export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
-  public: {
-    Tables: {
-      account_strikes: {
-        Row: {
-          created_at: string | null
-          id: string
-          post_id: string | null
-          reason: string
-          strike_level: number | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          post_id?: string | null
-          reason: string
-          strike_level?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          post_id?: string | null
-          reason?: string
-          strike_level?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "account_strikes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ai_studio_history: {
+      chat_group_message_reactions: {
         Row: {
           created_at: string
+          emoji: string
           id: string
-          mode: string
-          prompt: string
-          result_preview: string | null
+          message_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          emoji: string
           id?: string
-          mode?: string
-          prompt: string
-          result_preview?: string | null
+          message_id: string
           user_id: string
         }
         Update: {
           created_at?: string
+          emoji?: string
           id?: string
-          mode?: string
-          prompt?: string
-          result_preview?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      brand_campaigns: {
-        Row: {
-          budget_per_creator: number
-          business_id: string | null
-          campaign_title: string
-          created_at: string | null
-          description: string
-          id: string
-          status: string | null
-          total_slots: number
-        }
-        Insert: {
-          budget_per_creator: number
-          business_id?: string | null
-          campaign_title: string
-          created_at?: string | null
-          description: string
-          id?: string
-          status?: string | null
-          total_slots: number
-        }
-        Update: {
-          budget_per_creator?: number
-          business_id?: string | null
-          campaign_title?: string
-          created_at?: string | null
-          description?: string
-          id?: string
-          status?: string | null
-          total_slots?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "brand_campaigns_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      campaign_deliverables: {
-        Row: {
-          agreed_amount: number
-          campaign_id: string | null
-          created_at: string | null
-          creator_id: string | null
-          creator_payout: number
-          id: string
-          nexora_escrow_fee: number
-          post_id: string | null
-          submission_status: string | null
-        }
-        Insert: {
-          agreed_amount: number
-          campaign_id?: string | null
-          created_at?: string | null
-          creator_id?: string | null
-          creator_payout: number
-          id?: string
-          nexora_escrow_fee: number
-          post_id?: string | null
-          submission_status?: string | null
-        }
-        Update: {
-          agreed_amount?: number
-          campaign_id?: string | null
-          created_at?: string | null
-          creator_id?: string | null
-          creator_payout?: number
-          id?: string
-          nexora_escrow_fee?: number
-          post_id?: string | null
-          submission_status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_deliverables_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "brand_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_deliverables_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_conversations: {
-        Row: {
-          business_id: string
-          buyer_id: string
-          customer_tag: string
-          id: string
-          last_message: string | null
-          last_message_at: string
-        }
-        Insert: {
-          business_id: string
-          buyer_id: string
-          customer_tag?: string
-          id?: string
-          last_message?: string | null
-          last_message_at?: string
-        }
-        Update: {
-          business_id?: string
-          buyer_id?: string
-          customer_tag?: string
-          id?: string
-          last_message?: string | null
-          last_message_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_conversations_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_conversations_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_group_members: {
-        Row: {
-          group_id: string
-          id: string
-          joined_at: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          group_id: string
-          id?: string
-          joined_at?: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          group_id?: string
-          id?: string
-          joined_at?: string
-          role?: string
+          message_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "chat_group_members_group_id_fkey"
-            columns: ["group_id"]
+            foreignKeyName: "chat_group_message_reactions_message_id_fkey"
+            columns: ["message_id"]
             isOneToOne: false
-            referencedRelation: "chat_groups"
+            referencedRelation: "chat_group_messages"
             referencedColumns: ["id"]
           },
         ]
       }
       chat_group_messages: {
         Row: {
+          attachment_mime_type: string | null
+          attachment_name: string | null
+          attachment_size_bytes: number | null
           body: string
+          client_request_id: string | null
           created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          expires_at: string | null
           group_id: string
           id: string
-          media_path: string | null
-          attachment_name: string | null
-          attachment_mime_type: string | null
-          attachment_size_bytes: number | null
-          reply_to_message_id: string | null
-          location_latitude: number | null
-          location_longitude: number | null
           location_accuracy_m: number | null
           location_captured_at: string | null
+          location_latitude: number | null
+          location_longitude: number | null
           location_session_id: string | null
-          shared_content_source: string | null
-          shared_content_id: string | null
-          shared_content_type: string | null
-          expires_at: string | null
-          media_type: string | null
-          sender_id: string
-        }
-        Insert: {
-          body?: string
-          created_at?: string
-          group_id: string
-          id?: string
-          media_path?: string | null
-          attachment_name?: string | null
-          attachment_mime_type?: string | null
-          attachment_size_bytes?: number | null
-          reply_to_message_id?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
-          location_accuracy_m?: number | null
-          location_captured_at?: string | null
-          location_session_id?: string | null
-          shared_content_source?: string | null
-          shared_content_id?: string | null
-          shared_content_type?: string | null
-          expires_at?: string | null
-          media_type?: string | null
-          sender_id: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          group_id?: string
-          id?: string
-          media_path?: string | null
-          attachment_name?: string | null
-          attachment_mime_type?: string | null
-          attachment_size_bytes?: number | null
-          reply_to_message_id?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
-          location_accuracy_m?: number | null
-          location_captured_at?: string | null
-          location_session_id?: string | null
-          shared_content_source?: string | null
-          shared_content_id?: string | null
-          shared_content_type?: string | null
-          expires_at?: string | null
-          media_type?: string | null
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_group_messages_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "chat_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_groups: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          created_by: string
-          description: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          created_by: string
-          description?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          created_by?: string
-          description?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      chat_messages: {
-        Row: {
-          conversation_id: string
-          created_at: string
-          id: string
-          is_read: boolean
-          media_url: string | null
-          message_text: string | null
-          order_id: string | null
-          payment_request_amount: number | null
-          payment_request_currency: string
-          sender_id: string
-        }
-        Insert: {
-          conversation_id: string
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          media_url?: string | null
-          message_text?: string | null
-          order_id?: string | null
-          payment_request_amount?: number | null
-          payment_request_currency?: string
-          sender_id: string
-        }
-        Update: {
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          media_url?: string | null
-          message_text?: string | null
-          order_id?: string | null
-          payment_request_amount?: number | null
-          payment_request_currency?: string
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "chat_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_messages_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "store_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      club_dues: {
-        Row: {
-          amount_kes: number
-          club_id: string
-          created_at: string
-          id: string
-          payer_id: string
-          paystack_reference: string
-          status: string
-        }
-        Insert: {
-          amount_kes: number
-          club_id: string
-          created_at?: string
-          id?: string
-          payer_id: string
-          paystack_reference: string
-          status?: string
-        }
-        Update: {
-          amount_kes?: number
-          club_id?: string
-          created_at?: string
-          id?: string
-          payer_id?: string
-          paystack_reference?: string
-          status?: string
-        }
-        Relationships: []
-      }
-      club_events: {
-        Row: {
-          club_id: string
-          created_at: string
-          created_by: string
-          event_date: string
-          event_time: string
-          id: string
-          kind: string
-          title: string
-          venue: string
-        }
-        Insert: {
-          club_id: string
-          created_at?: string
-          created_by: string
-          event_date: string
-          event_time: string
-          id?: string
-          kind: string
-          title: string
-          venue: string
-        }
-        Update: {
-          club_id?: string
-          created_at?: string
-          created_by?: string
-          event_date?: string
-          event_time?: string
-          id?: string
-          kind?: string
-          title?: string
-          venue?: string
-        }
-        Relationships: []
-      }
-      club_membership_activity: {
-        Row: {
-          actor_user_id: string | null
-          club_id: string
-          created_at: string
-          details: Json
-          event_type: string
-          id: string
-          target_user_id: string | null
-        }
-        Insert: {
-          actor_user_id?: string | null
-          club_id: string
-          created_at?: string
-          details?: Json
-          event_type: string
-          id?: string
-          target_user_id?: string | null
-        }
-        Update: {
-          actor_user_id?: string | null
-          club_id?: string
-          created_at?: string
-          details?: Json
-          event_type?: string
-          id?: string
-          target_user_id?: string | null
-        }
-        Relationships: []
-      }
-      club_memberships: {
-        Row: {
-          appointed_by: string | null
-          club_id: string
-          created_at: string
-          id: string
-          role: string
-          status: string
-          user_id: string
-        }
-        Insert: {
-          appointed_by?: string | null
-          club_id: string
-          created_at?: string
-          id?: string
-          role?: string
-          status?: string
-          user_id: string
-        }
-        Update: {
-          appointed_by?: string | null
-          club_id?: string
-          created_at?: string
-          id?: string
-          role?: string
-          status?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      club_messages: {
-        Row: {
-          body: string
-          club_id: string
-          created_at: string
-          id: string
-          sender_id: string
-          sender_name: string
-        }
-        Insert: {
-          body: string
-          club_id: string
-          created_at?: string
-          id?: string
-          sender_id: string
-          sender_name: string
-        }
-        Update: {
-          body?: string
-          club_id?: string
-          created_at?: string
-          id?: string
-          sender_id?: string
-          sender_name?: string
-        }
-        Relationships: []
-      }
-      creator_earnings_ledger: {
-        Row: {
-          created_at: string
-          creator_amount_kes: number
-          creator_id: string
-          gross_amount_kes: number
-          id: string
-          payment_id: string
-          platform_fee_kes: number
-        }
-        Insert: {
-          created_at?: string
-          creator_amount_kes: number
-          creator_id: string
-          gross_amount_kes: number
-          id?: string
-          payment_id: string
-          platform_fee_kes?: number
-        }
-        Update: {
-          created_at?: string
-          creator_amount_kes?: number
-          creator_id?: string
-          gross_amount_kes?: number
-          id?: string
-          payment_id?: string
-          platform_fee_kes?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_earnings_ledger_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_earnings_ledger_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: true
-            referencedRelation: "creator_monetization_payments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_monetization_applications: {
-        Row: {
-          age_confirmed_18_plus: boolean
-          age_confirmed_at: string | null
-          age_confirmed_by: string | null
-          created_at: string
-          creator_id: string
-          id: string
-          review_note: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          submitted_at: string
-          updated_at: string
-        }
-        Insert: {
-          age_confirmed_18_plus?: boolean
-          age_confirmed_at?: string | null
-          age_confirmed_by?: string | null
-          created_at?: string
-          creator_id: string
-          id?: string
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          submitted_at?: string
-          updated_at?: string
-        }
-        Update: {
-          age_confirmed_18_plus?: boolean
-          age_confirmed_at?: string | null
-          age_confirmed_by?: string | null
-          created_at?: string
-          creator_id?: string
-          id?: string
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          submitted_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_monetization_applications_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_monetization_payments: {
-        Row: {
-          amount_kes: number
-          amount_usd: number | null
-          completed_at: string | null
-          created_at: string
-          creator_id: string
-          exchange_rate: number | null
-          fx_source: string | null
-          fx_timestamp: string | null
-          gateway_reference: string | null
-          id: string
-          payment_type: string
-          status: string
-          subscriber_id: string
-          tier_name: string | null
-          transaction_reference: string
-        }
-        Insert: {
-          amount_kes: number
-          amount_usd?: number | null
-          completed_at?: string | null
-          created_at?: string
-          creator_id: string
-          exchange_rate?: number | null
-          fx_source?: string | null
-          fx_timestamp?: string | null
-          gateway_reference?: string | null
-          id?: string
-          payment_type: string
-          status?: string
-          subscriber_id: string
-          tier_name?: string | null
-          transaction_reference: string
-        }
-        Update: {
-          amount_kes?: number
-          amount_usd?: number | null
-          completed_at?: string | null
-          created_at?: string
-          creator_id?: string
-          exchange_rate?: number | null
-          fx_source?: string | null
-          fx_timestamp?: string | null
-          gateway_reference?: string | null
-          id?: string
-          payment_type?: string
-          status?: string
-          subscriber_id?: string
-          tier_name?: string | null
-          transaction_reference?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_monetization_payments_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_monetization_payments_subscriber_id_fkey"
-            columns: ["subscriber_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_monetization_platform_config: {
-        Row: {
-          id: boolean
-          platform_fee_percent: number
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          id?: boolean
-          platform_fee_percent?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          id?: boolean
-          platform_fee_percent?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
-      creator_monetization_settings: {
-        Row: {
-          created_at: string
-          creator_id: string
-          id: string
-          is_enabled: boolean
-          monthly_price_usd: number
-          tier_name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          creator_id: string
-          id?: string
-          is_enabled?: boolean
-          monthly_price_usd: number
-          tier_name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          creator_id?: string
-          id?: string
-          is_enabled?: boolean
-          monthly_price_usd?: number
-          tier_name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_monetization_settings_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_payout_destination_reviews: {
-        Row: {
-          created_at: string
-          creator_id: string
-          decision: string
-          destination_id: string
-          id: string
-          ownership_confirmed: boolean
-          review_note: string
-          reviewer_id: string
-        }
-        Insert: {
-          created_at?: string
-          creator_id: string
-          decision: string
-          destination_id: string
-          id?: string
-          ownership_confirmed?: boolean
-          review_note: string
-          reviewer_id: string
-        }
-        Update: {
-          created_at?: string
-          creator_id?: string
-          decision?: string
-          destination_id?: string
-          id?: string
-          ownership_confirmed?: boolean
-          review_note?: string
-          reviewer_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_payout_destination_reviews_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_payout_destination_reviews_destination_id_fkey"
-            columns: ["destination_id"]
-            isOneToOne: false
-            referencedRelation: "creator_payout_destinations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_payout_destinations: {
-        Row: {
-          created_at: string
-          creator_id: string
-          destination_last4: string
-          encrypted_account: string
-          encryption_key_version: string
-          id: string
-          is_default: boolean
-          is_verified: boolean
-          number_confirmed_at: string | null
-          provider: string
-          provider_validation_checked_at: string | null
-          provider_validation_error_code: string | null
-          provider_validation_status: string
-          updated_at: string
-          verified_at: string | null
-        }
-        Insert: {
-          created_at?: string
-          creator_id: string
-          destination_last4: string
-          encrypted_account: string
-          encryption_key_version: string
-          id?: string
-          is_default?: boolean
-          is_verified?: boolean
-          number_confirmed_at?: string | null
-          provider: string
-          provider_validation_checked_at?: string | null
-          provider_validation_error_code?: string | null
-          provider_validation_status?: string
-          updated_at?: string
-          verified_at?: string | null
-        }
-        Update: {
-          created_at?: string
-          creator_id?: string
-          destination_last4?: string
-          encrypted_account?: string
-          encryption_key_version?: string
-          id?: string
-          is_default?: boolean
-          is_verified?: boolean
-          number_confirmed_at?: string | null
-          provider?: string
-          provider_validation_checked_at?: string | null
-          provider_validation_error_code?: string | null
-          provider_validation_status?: string
-          updated_at?: string
-          verified_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_payout_destinations_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_payout_jobs: {
-        Row: {
-          attempts: number
-          available_at: string
-          completed_at: string | null
-          created_at: string
-          id: string
-          idempotency_key: string
-          last_error_code: string | null
-          last_error_message: string | null
-          locked_at: string | null
-          locked_by: string | null
-          payout_id: string
-          provider_conversation_id: string | null
-          provider_originator_conversation_id: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          attempts?: number
-          available_at?: string
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          idempotency_key?: string
-          last_error_code?: string | null
-          last_error_message?: string | null
-          locked_at?: string | null
-          locked_by?: string | null
-          payout_id: string
-          provider_conversation_id?: string | null
-          provider_originator_conversation_id?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          attempts?: number
-          available_at?: string
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          idempotency_key?: string
-          last_error_code?: string | null
-          last_error_message?: string | null
-          locked_at?: string | null
-          locked_by?: string | null
-          payout_id?: string
-          provider_conversation_id?: string | null
-          provider_originator_conversation_id?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_payout_jobs_payout_id_fkey"
-            columns: ["payout_id"]
-            isOneToOne: true
-            referencedRelation: "creator_payouts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_payout_provider_events: {
-        Row: {
-          event_type: string
-          id: string
-          payload: Json
-          payout_id: string | null
-          processed_at: string | null
-          processing_error: string | null
-          provider: string
-          provider_event_id: string
-          received_at: string
-          result_code: string | null
-          result_description: string | null
-        }
-        Insert: {
-          event_type: string
-          id?: string
-          payload?: Json
-          payout_id?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          provider: string
-          provider_event_id: string
-          received_at?: string
-          result_code?: string | null
-          result_description?: string | null
-        }
-        Update: {
-          event_type?: string
-          id?: string
-          payload?: Json
-          payout_id?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          provider?: string
-          provider_event_id?: string
-          received_at?: string
-          result_code?: string | null
-          result_description?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_payout_provider_events_payout_id_fkey"
-            columns: ["payout_id"]
-            isOneToOne: false
-            referencedRelation: "creator_payouts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_payouts: {
-        Row: {
-          amount: number
-          completed_at: string | null
-          created_at: string
-          creator_id: string
-          currency: string
-          destination_last4: string | null
-          fee: number
-          id: string
-          payout_channel: string
-          provider_reference: string | null
-          status: string
-        }
-        Insert: {
-          amount: number
-          completed_at?: string | null
-          created_at?: string
-          creator_id: string
-          currency?: string
-          destination_last4?: string | null
-          fee?: number
-          id?: string
-          payout_channel: string
-          provider_reference?: string | null
-          status?: string
-        }
-        Update: {
-          amount?: number
-          completed_at?: string | null
-          created_at?: string
-          creator_id?: string
-          currency?: string
-          destination_last4?: string | null
-          fee?: number
-          id?: string
-          payout_channel?: string
-          provider_reference?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_payouts_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_subscriptions: {
-        Row: {
-          created_at: string
-          creator_id: string
-          currency: string
-          current_period_end: string | null
-          gateway_subscription_id: string | null
-          id: string
-          last_payment_id: string | null
-          monthly_amount: number
-          status: string
-          subscriber_id: string
-          tier_name: string
-        }
-        Insert: {
-          created_at?: string
-          creator_id: string
-          currency?: string
-          current_period_end?: string | null
-          gateway_subscription_id?: string | null
-          id?: string
-          last_payment_id?: string | null
-          monthly_amount: number
-          status?: string
-          subscriber_id: string
-          tier_name: string
-        }
-        Update: {
-          created_at?: string
-          creator_id?: string
-          currency?: string
-          current_period_end?: string | null
-          gateway_subscription_id?: string | null
-          id?: string
-          last_payment_id?: string | null
-          monthly_amount?: number
-          status?: string
-          subscriber_id?: string
-          tier_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_subscriptions_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_subscriptions_last_payment_id_fkey"
-            columns: ["last_payment_id"]
-            isOneToOne: false
-            referencedRelation: "creator_monetization_payments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_subscriptions_subscriber_id_fkey"
-            columns: ["subscriber_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_verifications: {
-        Row: {
-          id: string
-          id_number: string
-          id_type: string
-          reviewed_at: string | null
-          submitted_at: string | null
-          user_id: string | null
-          verification_status: string | null
-        }
-        Insert: {
-          id?: string
-          id_number: string
-          id_type: string
-          reviewed_at?: string | null
-          submitted_at?: string | null
-          user_id?: string | null
-          verification_status?: string | null
-        }
-        Update: {
-          id?: string
-          id_number?: string
-          id_type?: string
-          reviewed_at?: string | null
-          submitted_at?: string | null
-          user_id?: string | null
-          verification_status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_verifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      creator_wallets: {
-        Row: {
-          available_balance: number
-          creator_id: string
-          currency: string
-          id: string
-          pending_balance: number
-          updated_at: string
-        }
-        Insert: {
-          available_balance?: number
-          creator_id: string
-          currency?: string
-          id?: string
-          pending_balance?: number
-          updated_at?: string
-        }
-        Update: {
-          available_balance?: number
-          creator_id?: string
-          currency?: string
-          id?: string
-          pending_balance?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creator_wallets_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
-export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
-  public: {
-    Tables: {
-      account_strikes: {
-        Row: {
-          created_at: string | null
-          id: string
-          post_id: string | null
-          reason: string
-          strike_level: number | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          post_id?: string | null
-          reason: string
-          strike_level?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          post_id?: string | null
-          reason?: string
-          strike_level?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "account_strikes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ai_studio_history: {
-        Row: {
-          created_at: string
-          id: string
-          mode: string
-          prompt: string
-          result_preview: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          mode?: string
-          prompt: string
-          result_preview?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          mode?: string
-          prompt?: string
-          result_preview?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      brand_campaigns: {
-        Row: {
-          budget_per_creator: number
-          business_id: string | null
-          campaign_title: string
-          created_at: string | null
-          description: string
-          id: string
-          status: string | null
-          total_slots: number
-        }
-        Insert: {
-          budget_per_creator: number
-          business_id?: string | null
-          campaign_title: string
-          created_at?: string | null
-          description: string
-          id?: string
-          status?: string | null
-          total_slots: number
-        }
-        Update: {
-          budget_per_creator?: number
-          business_id?: string | null
-          campaign_title?: string
-          created_at?: string | null
-          description?: string
-          id?: string
-          status?: string | null
-          total_slots?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "brand_campaigns_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      campaign_deliverables: {
-        Row: {
-          agreed_amount: number
-          campaign_id: string | null
-          created_at: string | null
-          creator_id: string | null
-          creator_payout: number
-          id: string
-          nexora_escrow_fee: number
-          post_id: string | null
-          submission_status: string | null
-        }
-        Insert: {
-          agreed_amount: number
-          campaign_id?: string | null
-          created_at?: string | null
-          creator_id?: string | null
-          creator_payout: number
-          id?: string
-          nexora_escrow_fee: number
-          post_id?: string | null
-          submission_status?: string | null
-        }
-        Update: {
-          agreed_amount?: number
-          campaign_id?: string | null
-          created_at?: string | null
-          creator_id?: string | null
-          creator_payout?: number
-          id?: string
-          nexora_escrow_fee?: number
-          post_id?: string | null
-          submission_status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_deliverables_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "brand_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_deliverables_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_conversations: {
-        Row: {
-          business_id: string
-          buyer_id: string
-          customer_tag: string
-          id: string
-          last_message: string | null
-          last_message_at: string
-        }
-        Insert: {
-          business_id: string
-          buyer_id: string
-          customer_tag?: string
-          id?: string
-          last_message?: string | null
-          last_message_at?: string
-        }
-        Update: {
-          business_id?: string
-          buyer_id?: string
-          customer_tag?: string
-          id?: string
-          last_message?: string | null
-          last_message_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_conversations_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_conversations_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_group_members: {
-        Row: {
-          group_id: string
-          id: string
-          joined_at: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          group_id: string
-          id?: string
-          joined_at?: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          group_id?: string
-          id?: string
-          joined_at?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_group_members_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "chat_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_group_messages: {
-        Row: {
-          body: string
-          created_at: string
-          group_id: string
-          id: string
           media_path: string | null
           media_type: string | null
+          reply_to_message_id: string | null
           sender_id: string
+          shared_content_id: string | null
+          shared_content_source: string | null
+          shared_content_type: string | null
         }
         Insert: {
+          attachment_mime_type?: string | null
+          attachment_name?: string | null
+          attachment_size_bytes?: number | null
           body?: string
+          client_request_id?: string | null
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          expires_at?: string | null
           group_id: string
           id?: string
+          location_accuracy_m?: number | null
+          location_captured_at?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_session_id?: string | null
           media_path?: string | null
           media_type?: string | null
+          reply_to_message_id?: string | null
           sender_id: string
+          shared_content_id?: string | null
+          shared_content_source?: string | null
+          shared_content_type?: string | null
         }
         Update: {
+          attachment_mime_type?: string | null
+          attachment_name?: string | null
+          attachment_size_bytes?: number | null
           body?: string
+          client_request_id?: string | null
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          expires_at?: string | null
           group_id?: string
           id?: string
+          location_accuracy_m?: number | null
+          location_captured_at?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          location_session_id?: string | null
           media_path?: string | null
           media_type?: string | null
+          reply_to_message_id?: string | null
           sender_id?: string
+          shared_content_id?: string | null
+          shared_content_source?: string | null
+          shared_content_type?: string | null
         }
         Relationships: [
           {
@@ -1717,6 +356,20 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_group_messages_location_session_id_fkey"
+            columns: ["location_session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_location_shares"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_group_messages_reply_to_message_id_fkey"
+            columns: ["reply_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_group_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -1747,6 +400,106 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      chat_location_shares: {
+        Row: {
+          accuracy_m: number | null
+          chat_kind: string
+          expires_at: string
+          group_id: string | null
+          id: string
+          last_updated_at: string
+          latitude: number
+          longitude: number
+          recipient_id: string | null
+          sender_id: string
+          started_at: string
+          stopped_at: string | null
+        }
+        Insert: {
+          accuracy_m?: number | null
+          chat_kind: string
+          expires_at: string
+          group_id?: string | null
+          id?: string
+          last_updated_at?: string
+          latitude: number
+          longitude: number
+          recipient_id?: string | null
+          sender_id: string
+          started_at?: string
+          stopped_at?: string | null
+        }
+        Update: {
+          accuracy_m?: number | null
+          chat_kind?: string
+          expires_at?: string
+          group_id?: string | null
+          id?: string
+          last_updated_at?: string
+          latitude?: number
+          longitude?: number
+          recipient_id?: string | null
+          sender_id?: string
+          started_at?: string
+          stopped_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_location_shares_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_settings: {
+        Row: {
+          chat_key: string | null
+          chat_kind: string
+          created_at: string
+          group_id: string | null
+          id: string
+          retention_seconds: number
+          updated_at: string
+          updated_by: string
+          user_a_id: string | null
+          user_b_id: string | null
+        }
+        Insert: {
+          chat_key?: string | null
+          chat_kind: string
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          retention_seconds?: number
+          updated_at?: string
+          updated_by: string
+          user_a_id?: string | null
+          user_b_id?: string | null
+        }
+        Update: {
+          chat_key?: string | null
+          chat_kind?: string
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          retention_seconds?: number
+          updated_at?: string
+          updated_by?: string
+          user_a_id?: string | null
+          user_b_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_settings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_messages: {
         Row: {
@@ -1809,6 +562,32 @@ export type Database = {
           },
         ]
       }
+      club_channel_reads: {
+        Row: {
+          club_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          club_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          club_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_channel_reads_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_dues: {
         Row: {
           amount_kes: number
@@ -1848,6 +627,7 @@ export type Database = {
           event_time: string
           id: string
           kind: string
+          notes: string
           title: string
           venue: string
         }
@@ -1859,6 +639,7 @@ export type Database = {
           event_time: string
           id?: string
           kind: string
+          notes?: string
           title: string
           venue: string
         }
@@ -1870,10 +651,63 @@ export type Database = {
           event_time?: string
           id?: string
           kind?: string
+          notes?: string
           title?: string
           venue?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "club_events_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          club_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          invited_by: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          club_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          club_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_invitations_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       club_membership_activity: {
         Row: {
@@ -1903,7 +737,15 @@ export type Database = {
           id?: string
           target_user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "club_membership_activity_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       club_memberships: {
         Row: {
@@ -1933,7 +775,15 @@ export type Database = {
           status?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "club_memberships_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       club_messages: {
         Row: {
@@ -1941,6 +791,8 @@ export type Database = {
           club_id: string
           created_at: string
           id: string
+          is_announcement: boolean
+          pinned_at: string | null
           sender_id: string
           sender_name: string
         }
@@ -1949,6 +801,8 @@ export type Database = {
           club_id: string
           created_at?: string
           id?: string
+          is_announcement?: boolean
+          pinned_at?: string | null
           sender_id: string
           sender_name: string
         }
@@ -1957,8 +811,108 @@ export type Database = {
           club_id?: string
           created_at?: string
           id?: string
+          is_announcement?: boolean
+          pinned_at?: string | null
           sender_id?: string
           sender_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_messages_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clubs: {
+        Row: {
+          blurb: string
+          city: string
+          created_at: string
+          id: string
+          kind: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          owner_user_id: string
+          updated_at: string
+          venue: string
+          visibility: string
+        }
+        Insert: {
+          blurb?: string
+          city: string
+          created_at?: string
+          id: string
+          kind: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          owner_user_id: string
+          updated_at?: string
+          venue: string
+          visibility?: string
+        }
+        Update: {
+          blurb?: string
+          city?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          owner_user_id?: string
+          updated_at?: string
+          venue?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
+      creator_drafts: {
+        Row: {
+          audience: string
+          caption: string
+          content_type: string
+          created_at: string
+          filter: string
+          format: string
+          id: string
+          media_paths: string[]
+          media_type: string | null
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audience?: string
+          caption?: string
+          content_type?: string
+          created_at?: string
+          filter?: string
+          format?: string
+          id?: string
+          media_paths?: string[]
+          media_type?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audience?: string
+          caption?: string
+          content_type?: string
+          created_at?: string
+          filter?: string
+          format?: string
+          id?: string
+          media_paths?: string[]
+          media_type?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2593,84 +1547,140 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
             referencedColumns: ["id"]
           },
         ]
       }
       direct_messages: {
         Row: {
-          body: string
-          created_at: string
-          delivered_at: string | null
-          id: string
-          media_path: string | null
-          attachment_name: string | null
           attachment_mime_type: string | null
+          attachment_name: string | null
           attachment_size_bytes: number | null
-          reply_to_message_id: string | null
-          location_latitude: number | null
-          location_longitude: number | null
+          body: string
+          client_request_id: string | null
+          created_at: string
+          deleted_at: string | null
+          delivered_at: string | null
+          edited_at: string | null
+          expires_at: string | null
+          id: string
           location_accuracy_m: number | null
           location_captured_at: string | null
+          location_latitude: number | null
+          location_longitude: number | null
           location_session_id: string | null
-          shared_content_source: string | null
-          shared_content_id: string | null
-          shared_content_type: string | null
-          expires_at: string | null
+          media_path: string | null
           media_type: string | null
           recipient_id: string
+          reply_to_message_id: string | null
           seen_at: string | null
           sender_id: string
+          shared_content_id: string | null
+          shared_content_source: string | null
+          shared_content_type: string | null
         }
         Insert: {
-          body: string
-          created_at?: string
-          delivered_at?: string | null
-          id?: string
-          media_path?: string | null
-          attachment_name?: string | null
           attachment_mime_type?: string | null
+          attachment_name?: string | null
           attachment_size_bytes?: number | null
-          reply_to_message_id?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
+          body: string
+          client_request_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          delivered_at?: string | null
+          edited_at?: string | null
+          expires_at?: string | null
+          id?: string
           location_accuracy_m?: number | null
           location_captured_at?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
           location_session_id?: string | null
-          shared_content_source?: string | null
-          shared_content_id?: string | null
-          shared_content_type?: string | null
-          expires_at?: string | null
+          media_path?: string | null
           media_type?: string | null
           recipient_id: string
+          reply_to_message_id?: string | null
           seen_at?: string | null
           sender_id: string
+          shared_content_id?: string | null
+          shared_content_source?: string | null
+          shared_content_type?: string | null
         }
         Update: {
-          body?: string
-          created_at?: string
-          delivered_at?: string | null
-          id?: string
-          media_path?: string | null
-          attachment_name?: string | null
           attachment_mime_type?: string | null
+          attachment_name?: string | null
           attachment_size_bytes?: number | null
-          reply_to_message_id?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
+          body?: string
+          client_request_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          delivered_at?: string | null
+          edited_at?: string | null
+          expires_at?: string | null
+          id?: string
           location_accuracy_m?: number | null
           location_captured_at?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
           location_session_id?: string | null
-          shared_content_source?: string | null
-          shared_content_id?: string | null
-          shared_content_type?: string | null
-          expires_at?: string | null
+          media_path?: string | null
           media_type?: string | null
           recipient_id?: string
+          reply_to_message_id?: string | null
           seen_at?: string | null
           sender_id?: string
+          shared_content_id?: string | null
+          shared_content_source?: string | null
+          shared_content_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_location_session_id_fkey"
+            columns: ["location_session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_location_shares"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_reply_to_message_id_fkey"
+            columns: ["reply_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       edu_completion_history: {
         Row: {
@@ -2716,6 +1726,50 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "edu_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      edu_course_certificates: {
+        Row: {
+          course_id: string
+          course_title: string
+          created_at: string
+          id: string
+          instructor_name: string
+          issued_at: string
+          learner_name: string
+          student_id: string
+          verification_code: string
+        }
+        Insert: {
+          course_id: string
+          course_title: string
+          created_at?: string
+          id?: string
+          instructor_name: string
+          issued_at?: string
+          learner_name: string
+          student_id: string
+          verification_code: string
+        }
+        Update: {
+          course_id?: string
+          course_title?: string
+          created_at?: string
+          id?: string
+          instructor_name?: string
+          issued_at?: string
+          learner_name?: string
+          student_id?: string
+          verification_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edu_course_certificates_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "edu_courses"
             referencedColumns: ["id"]
           },
         ]
@@ -3229,6 +2283,38 @@ export type Database = {
           },
         ]
       }
+      event_rsvps: {
+        Row: {
+          event_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "club_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_ledger: {
         Row: {
           created_at: string
@@ -3295,6 +2381,27 @@ export type Database = {
           },
         ]
       }
+      follow_requests: {
+        Row: {
+          created_at: string
+          id: string
+          requester_id: string
+          target_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          requester_id: string
+          target_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          requester_id?: string
+          target_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
@@ -3310,6 +2417,274 @@ export type Database = {
           created_at?: string
           follower_id?: string
           following_id?: string
+        }
+        Relationships: []
+      }
+      football_announcements: {
+        Row: {
+          created_at: string
+          headline: string
+          id: string
+          is_published: boolean
+          provider: string
+          provider_id: string
+          published_at: string
+          source_name: string
+          source_url: string
+          summary: string
+        }
+        Insert: {
+          created_at?: string
+          headline: string
+          id?: string
+          is_published?: boolean
+          provider: string
+          provider_id: string
+          published_at: string
+          source_name: string
+          source_url: string
+          summary?: string
+        }
+        Update: {
+          created_at?: string
+          headline?: string
+          id?: string
+          is_published?: boolean
+          provider?: string
+          provider_id?: string
+          published_at?: string
+          source_name?: string
+          source_url?: string
+          summary?: string
+        }
+        Relationships: []
+      }
+      football_club_match_posts: {
+        Row: {
+          club_id: string
+          id: string
+          posted_at: string
+          provider: string
+          provider_id: string
+          score_signature: string
+        }
+        Insert: {
+          club_id: string
+          id?: string
+          posted_at?: string
+          provider: string
+          provider_id: string
+          score_signature: string
+        }
+        Update: {
+          club_id?: string
+          id?: string
+          posted_at?: string
+          provider?: string
+          provider_id?: string
+          score_signature?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "football_club_match_posts_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      football_club_team_sync: {
+        Row: {
+          club_id: string
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          provider: string
+          team_name: string
+          team_provider_id: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          provider: string
+          team_name: string
+          team_provider_id: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          provider?: string
+          team_name?: string
+          team_provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "football_club_team_sync_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      football_favorite_teams: {
+        Row: {
+          created_at: string
+          id: string
+          provider: string
+          team_name: string
+          team_provider_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          provider: string
+          team_name: string
+          team_provider_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          provider?: string
+          team_name?: string
+          team_provider_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      football_highlights: {
+        Row: {
+          competition_code: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          is_published: boolean
+          match_label: string
+          provider: string
+          provider_id: string
+          published_at: string
+          score_label: string | null
+          source_name: string
+          thumbnail_url: string | null
+          video_url: string
+        }
+        Insert: {
+          competition_code?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_published?: boolean
+          match_label: string
+          provider: string
+          provider_id: string
+          published_at: string
+          score_label?: string | null
+          source_name: string
+          thumbnail_url?: string | null
+          video_url: string
+        }
+        Update: {
+          competition_code?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_published?: boolean
+          match_label?: string
+          provider?: string
+          provider_id?: string
+          published_at?: string
+          score_label?: string | null
+          source_name?: string
+          thumbnail_url?: string | null
+          video_url?: string
+        }
+        Relationships: []
+      }
+      football_matches: {
+        Row: {
+          away_score: number | null
+          away_team: string
+          away_team_provider_id: string | null
+          competition_code: string
+          competition_name: string
+          created_at: string
+          elapsed_minute: number | null
+          home_score: number | null
+          home_team: string
+          home_team_provider_id: string | null
+          id: string
+          is_published: boolean
+          kickoff_at: string
+          provider: string
+          provider_id: string
+          source_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          away_score?: number | null
+          away_team: string
+          away_team_provider_id?: string | null
+          competition_code: string
+          competition_name: string
+          created_at?: string
+          elapsed_minute?: number | null
+          home_score?: number | null
+          home_team: string
+          home_team_provider_id?: string | null
+          id?: string
+          is_published?: boolean
+          kickoff_at: string
+          provider: string
+          provider_id: string
+          source_url?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          away_score?: number | null
+          away_team?: string
+          away_team_provider_id?: string | null
+          competition_code?: string
+          competition_name?: string
+          created_at?: string
+          elapsed_minute?: number | null
+          home_score?: number | null
+          home_team?: string
+          home_team_provider_id?: string | null
+          id?: string
+          is_published?: boolean
+          kickoff_at?: string
+          provider?: string
+          provider_id?: string
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      football_sync_state: {
+        Row: {
+          key: string
+          last_synced_at: string
+        }
+        Insert: {
+          key: string
+          last_synced_at: string
+        }
+        Update: {
+          key?: string
+          last_synced_at?: string
         }
         Relationships: []
       }
@@ -3416,6 +2791,79 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_location_access: {
+        Row: {
+          decided_at: string | null
+          host_user_id: string
+          id: string
+          requested_at: string
+          session_id: string
+          status: string
+          viewer_user_id: string
+        }
+        Insert: {
+          decided_at?: string | null
+          host_user_id: string
+          id?: string
+          requested_at?: string
+          session_id: string
+          status?: string
+          viewer_user_id: string
+        }
+        Update: {
+          decided_at?: string | null
+          host_user_id?: string
+          id?: string
+          requested_at?: string
+          session_id?: string
+          status?: string
+          viewer_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_location_access_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_session_locations: {
+        Row: {
+          accuracy: number | null
+          host_user_id: string
+          latitude: number
+          longitude: number
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          host_user_id: string
+          latitude: number
+          longitude: number
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          host_user_id?: string
+          latitude?: number
+          longitude?: number
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_session_locations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "live_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -4552,6 +4000,32 @@ export type Database = {
           },
         ]
       }
+      user_media_post_completions: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_media_post_completions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "user_media_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_media_post_likes: {
         Row: {
           created_at: string
@@ -4571,6 +4045,32 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_media_post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "user_media_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_media_post_not_interested: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_media_post_not_interested_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "user_media_posts"
@@ -4604,60 +4104,166 @@ export type Database = {
           },
         ]
       }
+      user_media_post_saves: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_media_post_saves_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "user_media_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_media_post_views: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          playback_id: string
+          post_id: string
+          viewed_on: string
+          viewer_id: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          playback_id?: string
+          post_id: string
+          viewed_on?: string
+          viewer_id: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          playback_id?: string
+          post_id?: string
+          viewed_on?: string
+          viewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_media_post_views_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "user_media_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_media_posts: {
         Row: {
+          aspect_ratio: string | null
           audience: string
           caption: string | null
           collab_partner_id: string | null
           comment_count: number | null
+          completion_count: number
+          content_type: string
           created_at: string | null
+          dominant_color: string | null
+          duration_seconds: number | null
+          focal_x: number
+          focal_y: number
+          framing_aspect_ratio: string
           id: string
           like_count: number | null
+          media_storage_key: string | null
+          media_storage_provider: string
           media_type: string | null
           media_url: string | null
           original_author_id: string | null
+          pillar: Database["public"]["Enums"]["content_pillar"]
           repost_count: number
           share_count: number | null
           tags: string[]
+          thumbnail_storage_key: string | null
+          thumbnail_storage_provider: string
           thumbnail_url: string | null
           user_id: string | null
           view_count: number | null
+          zoom: number
         }
         Insert: {
+          aspect_ratio?: string | null
           audience?: string
           caption?: string | null
           collab_partner_id?: string | null
           comment_count?: number | null
+          completion_count?: number
+          content_type?: string
           created_at?: string | null
+          dominant_color?: string | null
+          duration_seconds?: number | null
+          focal_x?: number
+          focal_y?: number
+          framing_aspect_ratio?: string
           id?: string
           like_count?: number | null
+          media_storage_key?: string | null
+          media_storage_provider?: string
           media_type?: string | null
           media_url?: string | null
           original_author_id?: string | null
+          pillar: Database["public"]["Enums"]["content_pillar"]
           repost_count?: number
           share_count?: number | null
           tags?: string[]
+          thumbnail_storage_key?: string | null
+          thumbnail_storage_provider?: string
           thumbnail_url?: string | null
           user_id?: string | null
           view_count?: number | null
+          zoom?: number
         }
         Update: {
+          aspect_ratio?: string | null
           audience?: string
           caption?: string | null
           collab_partner_id?: string | null
           comment_count?: number | null
+          completion_count?: number
+          content_type?: string
           created_at?: string | null
+          dominant_color?: string | null
+          duration_seconds?: number | null
+          focal_x?: number
+          focal_y?: number
+          framing_aspect_ratio?: string
           id?: string
           like_count?: number | null
+          media_storage_key?: string | null
+          media_storage_provider?: string
           media_type?: string | null
           media_url?: string | null
           original_author_id?: string | null
+          pillar?: Database["public"]["Enums"]["content_pillar"]
           repost_count?: number
           share_count?: number | null
           tags?: string[]
+          thumbnail_storage_key?: string | null
+          thumbnail_storage_provider?: string
           thumbnail_url?: string | null
           user_id?: string | null
           view_count?: number | null
+          zoom?: number
         }
         Relationships: [
           {
@@ -4682,6 +4288,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_pillar_affinity: {
+        Row: {
+          pillar: Database["public"]["Enums"]["content_pillar"]
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          pillar: Database["public"]["Enums"]["content_pillar"]
+          updated_at?: string
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          pillar?: Database["public"]["Enums"]["content_pillar"]
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
       }
       user_presence: {
         Row: {
@@ -4860,6 +4487,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_club_invitation: { Args: { p_token: string }; Returns: string }
       add_user_media_post_comment: {
         Args: { comment_text: string; target_post_id: string }
         Returns: string
@@ -4978,17 +4606,77 @@ export type Database = {
         Args: { p_priority: string; p_status: string; p_ticket_id: string }
         Returns: boolean
       }
+      approve_follow_request: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
+      bump_nexora_pillar_affinity: {
+        Args: { p_delta: number; p_post_id: string }
+        Returns: undefined
+      }
       cancel_creator_payout_request: {
         Args: { p_payout_id: string }
         Returns: Json
+      }
+      create_club: {
+        Args: {
+          p_blurb: string
+          p_city: string
+          p_kind: string
+          p_name: string
+          p_venue: string
+          p_visibility: string
+        }
+        Returns: string
+      }
+      create_club_invitation: { Args: { p_club_id: string }; Returns: string }
+      decline_follow_request: {
+        Args: { p_request_id: string }
+        Returns: boolean
       }
       delete_academy_course: {
         Args: { p_confirmation_title: string; p_course_id: string }
         Returns: number
       }
+      delete_direct_message: { Args: { p_message_id: string }; Returns: string }
+      delete_group_message: { Args: { p_message_id: string }; Returns: string }
+      edit_direct_message: {
+        Args: { p_body: string; p_message_id: string }
+        Returns: string
+      }
+      edit_group_message: {
+        Args: { p_body: string; p_message_id: string }
+        Returns: string
+      }
       enroll_in_free_edu_course: {
         Args: { p_course_id: string }
         Returns: string
+      }
+      get_academy_community_feed: {
+        Args: { p_limit?: number }
+        Returns: {
+          caption: string
+          content_type: string
+          created_at: string
+          creator_avatar_url: string
+          creator_handle: string
+          creator_id: string
+          creator_name: string
+          id: string
+          like_count: number
+          media_storage_key: string
+          media_storage_provider: string
+          media_type: string
+          media_url: string
+          repost_count: number
+          save_count: number
+          share_count: number
+          thumbnail_storage_key: string
+          thumbnail_storage_provider: string
+          thumbnail_url: string
+          total_engagement: number
+          view_count: number
+        }[]
       }
       get_academy_educator: {
         Args: { p_educator_id: string }
@@ -5021,6 +4709,61 @@ export type Database = {
           resource_name: string
         }[]
       }
+      get_balanced_nexora_feed: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          aspect_ratio: string
+          audience: string
+          caption: string
+          comment_count: number
+          content_type: string
+          created_at: string
+          dominant_color: string
+          duration_seconds: number
+          feed_score: number
+          focal_x: number
+          focal_y: number
+          framing_aspect_ratio: string
+          id: string
+          like_count: number
+          media_storage_key: string
+          media_storage_provider: string
+          media_type: string
+          media_url: string
+          pillar: Database["public"]["Enums"]["content_pillar"]
+          repost_count: number
+          share_count: number
+          tags: string[]
+          thumbnail_storage_key: string
+          thumbnail_storage_provider: string
+          thumbnail_url: string
+          user_id: string
+          view_count: number
+          zoom: number
+        }[]
+      }
+      get_chat_disappearing_setting: {
+        Args: { p_chat_id: string; p_chat_kind: string }
+        Returns: {
+          retention_seconds: number
+          updated_at: string
+        }[]
+      }
+      get_chat_location_share: {
+        Args: { p_session_id: string }
+        Returns: {
+          accuracy_m: number
+          expires_at: string
+          id: string
+          last_updated_at: string
+          latitude: number
+          longitude: number
+          sender_id: string
+          started_at: string
+          status: string
+          stopped_at: string
+        }[]
+      }
       get_chat_presence_status: {
         Args: { p_user_id: string }
         Returns: {
@@ -5037,6 +4780,41 @@ export type Database = {
           handle: string
         }[]
       }
+      get_club_directory: {
+        Args: never
+        Returns: {
+          active_member_count: number
+          blurb: string
+          city: string
+          id: string
+          kind: string
+          latitude: number
+          longitude: number
+          my_role: string
+          my_status: string
+          name: string
+          venue: string
+          visibility: string
+        }[]
+      }
+      get_club_unread_counts: {
+        Args: never
+        Returns: {
+          club_id: string
+          unread_count: number
+        }[]
+      }
+      get_discoverable_profiles: {
+        Args: { p_limit?: number; p_query?: string }
+        Returns: {
+          account_type: string
+          avatar_url: string
+          display_name: string
+          handle: string
+          id: string
+          private_profile: boolean
+        }[]
+      }
       get_group_message_sender_profile: {
         Args: { p_group_id: string; p_user_id: string }
         Returns: {
@@ -5045,8 +4823,28 @@ export type Database = {
           handle: string
         }[]
       }
+      get_my_follow_requests: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          display_name: string
+          handle: string
+          id: string
+          requester_id: string
+        }[]
+      }
       get_my_liked_user_media_posts: { Args: never; Returns: string[] }
       get_my_reposted_user_media_posts: { Args: never; Returns: string[] }
+      get_post_author_profiles: {
+        Args: { target_user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          handle: string
+          id: string
+        }[]
+      }
       get_public_comment_profiles: {
         Args: { target_user_ids: string[] }
         Returns: {
@@ -5103,6 +4901,10 @@ export type Database = {
         Args: { target_post_id: string }
         Returns: number
       }
+      infer_nexora_content_pillar: {
+        Args: { p_caption: string; p_content_type: string; p_tags: string[] }
+        Returns: Database["public"]["Enums"]["content_pillar"]
+      }
       is_active_creator_subscriber: {
         Args: { p_creator_id: string }
         Returns: boolean
@@ -5110,9 +4912,37 @@ export type Database = {
       is_my_account_suspended: { Args: never; Returns: boolean }
       is_platform_admin: { Args: { p_user_id: string }; Returns: boolean }
       is_platform_super_admin: { Args: { p_user_id: string }; Returns: boolean }
+      issue_edu_course_certificate: {
+        Args: { p_course_id: string }
+        Returns: {
+          course_id: string
+          course_title: string
+          created_at: string
+          id: string
+          instructor_name: string
+          issued_at: string
+          learner_name: string
+          student_id: string
+          verification_code: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "edu_course_certificates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       like_user_media_post: {
         Args: { target_post_id: string }
         Returns: number
+      }
+      mark_club_channel_read: {
+        Args: { p_club_id: string }
+        Returns: undefined
+      }
+      mark_nexora_not_interested: {
+        Args: { p_post_id: string }
+        Returns: boolean
       }
       my_is_platform_admin: { Args: never; Returns: boolean }
       process_creator_monetization_payment: {
@@ -5139,6 +4969,10 @@ export type Database = {
           score: number
         }[]
       }
+      record_nexora_post_completion: {
+        Args: { p_post_id: string }
+        Returns: boolean
+      }
       repost_user_media_post: {
         Args: { target_post_id: string }
         Returns: number
@@ -5150,6 +4984,10 @@ export type Database = {
           p_request_key: string
         }
         Returns: Json
+      }
+      request_or_follow_profile: {
+        Args: { p_target_id: string }
+        Returns: string
       }
       search_academy_educators: {
         Args: {
@@ -5178,13 +5016,77 @@ export type Database = {
           id: string
         }[]
       }
+      set_chat_disappearing_setting: {
+        Args: {
+          p_chat_id: string
+          p_chat_kind: string
+          p_retention_seconds: number
+        }
+        Returns: number
+      }
+      set_club_message_pin: {
+        Args: { p_message_id: string; p_pinned: boolean }
+        Returns: undefined
+      }
+      share_football_match_update: {
+        Args: {
+          p_club_id: string
+          p_message: string
+          p_provider: string
+          p_provider_id: string
+          p_score_signature: string
+          p_sender_id: string
+          p_team_provider_id: string
+        }
+        Returns: boolean
+      }
+      start_chat_location_share: {
+        Args: {
+          p_accuracy_m?: number
+          p_chat_kind: string
+          p_duration_minutes: number
+          p_group_id: string
+          p_latitude: number
+          p_longitude: number
+          p_recipient_id: string
+        }
+        Returns: string
+      }
+      stop_chat_location_share: {
+        Args: { p_session_id: string }
+        Returns: boolean
+      }
       unlike_user_media_post: {
         Args: { target_post_id: string }
         Returns: number
       }
+      unrepost_user_media_post: {
+        Args: { target_post_id: string }
+        Returns: number
+      }
+      update_chat_location_share: {
+        Args: {
+          p_accuracy_m?: number
+          p_latitude: number
+          p_longitude: number
+          p_session_id: string
+        }
+        Returns: string
+      }
+      verify_edu_course_certificate: {
+        Args: { p_verification_code: string }
+        Returns: {
+          course_title: string
+          instructor_name: string
+          is_valid: boolean
+          issued_at: string
+          learner_name: string
+          verification_code: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      content_pillar: "comedy" | "education" | "football" | "gaming" | "hustle"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5311,6 +5213,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      content_pillar: ["comedy", "education", "football", "gaming", "hustle"],
+    },
   },
 } as const

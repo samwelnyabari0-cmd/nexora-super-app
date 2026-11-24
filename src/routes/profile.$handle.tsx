@@ -14,6 +14,8 @@ import {
 import { toast } from "sonner";
 import { Avatar } from "@/components/nexora/ui";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
+import { MediaComments } from "@/components/nexora/MediaComments";
+import { ProfilePostEngagement } from "@/components/nexora/ProfilePostEngagement";
 import { PublicProfileTabs } from "@/components/nexora/PublicProfileTabs";
 import { ProfileIdentityHeader } from "@/components/nexora/ProfileIdentityHeader";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,7 @@ type ProfilePost = {
   likes: number;
   comments: number | null;
   shares: number;
+  reposts: number;
   views: number | null;
 };
 type Tab = "posts" | "reels" | "videos" | "collabs" | "reposts";
@@ -128,6 +131,11 @@ function PublicProfile({
   const [presentation, setPresentation] = useState<Presentation>("media");
   const [socialTab, setSocialTab] = useState<SocialTab | null>(null);
   const [selectedPost, setSelectedPost] = useState<ProfilePost | null>(null);
+  const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
+  const [savedPostIds, setSavedPostIds] = useState<string[]>([]);
+  const [repostedPostIds, setRepostedPostIds] = useState<string[]>([]);
+  const [commentsPostId, setCommentsPostId] = useState<string | null>(null);
+  const [engagementBusyIds, setEngagementBusyIds] = useState<string[]>([]);
   const [zoomedPostId, setZoomedPostId] = useState<string | null>(null);
   const postViewerRef = useRef<HTMLDivElement | null>(null);
   const postViewerItemRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -149,6 +157,33 @@ function PublicProfile({
   );
   const graph = useSocialGraph(profile?.id);
   const attemptedMediaRefresh = useRef(new Set<string>());
+  const postIdsKey = posts.map((post) => post.id).join("|");
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id || !postIdsKey) {
+      setLikedPostIds([]);
+      setSavedPostIds([]);
+      setRepostedPostIds([]);
+      return;
+    }
+
+    const postIds = postIdsKey.split("|");
+    void Promise.all([
+      supabase.rpc("get_my_liked_user_media_posts"),
+      (supabase as any).from("user_media_post_saves").select("post_id").eq("user_id", user.id),
+      supabase.rpc("get_my_reposted_user_media_posts"),
+    ]).then(([likes, saves, reposts]) => {
+      if (!active) return;
+      if (!likes.error) setLikedPostIds(((likes.data ?? []) as string[]).filter((id) => postIds.includes(id)));
+      if (!saves.error) setSavedPostIds((saves.data ?? []).map((row: { post_id: string }) => row.post_id).filter((id: string) => postIds.includes(id)));
+      if (!reposts.error) setRepostedPostIds(((reposts.data ?? []) as string[]).filter((id) => postIds.includes(id)));
+    }).catch(() => {
+      if (active) toast.error("Could not load your post engagement.");
+    });
+
+    return () => { active = false; };
+  }, [postIdsKey, user?.id]);
 
   const refreshProfileMedia = async (post: ProfilePost, failedUrl: string) => {
     const asset = post.mediaAsset;
@@ -263,7 +298,7 @@ function PublicProfile({
         const { data: rows, error: postsError } = await (supabase as any)
           .from("user_media_posts")
           .select(
-            "id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, duration_seconds, audience, tags, created_at, like_count, comment_count, share_count, view_count",
+            "id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, duration_seconds, audience, tags, created_at, like_count, comment_count, share_count, repost_count, view_count",
           )
           .eq("user_id", found.id)
           .in(
@@ -328,6 +363,7 @@ function PublicProfile({
               likes: Number((post as any).like_count ?? 0),
               comments: Number((post as any).comment_count ?? 0),
               shares: Number((post as any).share_count ?? 0),
+              reposts: Number((post as any).repost_count ?? 0),
               views: Number((post as any).view_count ?? 0),
             };
           }),
@@ -465,6 +501,104 @@ if (loading) {
         toast.error("Unable to share this profile.");
     }
   }
+
+  async function togglePostLike(post: ProfilePost) {
+    if (!user) return toast.error("Sign in to like posts.");
+    if (engagementBusyIds.includes(post.id)) return;
+    setEngagementBusyIds((current) => [...current, post.id]);
+    const wasLiked = likedPostIds.includes(post.id);
+    try {
+      const { data, error: actionError } = await (supabase as any).rpc(
+        wasLiked ? "unlike_user_media_post" : "like_user_media_post",
+        { target_post_id: post.id },
+      );
+      if (actionError) throw actionError;
+      setLikedPostIds((current) => wasLiked ? current.filter((id) => id !== post.id) : [...current, post.id]);
+      if (typeof data === "number") {
+        setPosts((current) => current.map((item) => item.id === post.id ? { ...item, likes: data } : item));
+        setSelectedPost((current) => current?.id === post.id ? { ...current, likes: data } : current);
+      }
+    } catch {
+      toast.error("Could not update your like.");
+    } finally {
+      setEngagementBusyIds((current) => current.filter((id) => id !== post.id));
+    }
+  }
+
+  async function togglePostSave(post: ProfilePost) {
+    if (!user) return toast.error("Sign in to save posts.");
+    if (engagementBusyIds.includes(post.id)) return;
+    setEngagementBusyIds((current) => [...current, post.id]);
+    const wasSaved = savedPostIds.includes(post.id);
+    try {
+      const result = wasSaved
+        ? await (supabase as any).from("user_media_post_saves").delete().eq("post_id", post.id).eq("user_id", user.id)
+        : await (supabase as any).from("user_media_post_saves").insert({ post_id: post.id, user_id: user.id });
+      if (result.error) throw result.error;
+      setSavedPostIds((current) => wasSaved ? current.filter((id) => id !== post.id) : [...current, post.id]);
+      toast.success(wasSaved ? "Removed from saved posts." : "Saved to your collection.");
+    } catch {
+      toast.error("Could not update your saved posts.");
+    } finally {
+      setEngagementBusyIds((current) => current.filter((id) => id !== post.id));
+    }
+  }
+
+  async function togglePostRepost(post: ProfilePost) {
+    if (!user) return toast.error("Sign in to repost.");
+    if (engagementBusyIds.includes(post.id)) return;
+    setEngagementBusyIds((current) => [...current, post.id]);
+    const wasReposted = repostedPostIds.includes(post.id);
+    try {
+      const { data, error: actionError } = await (supabase as any).rpc(
+        wasReposted ? "unrepost_user_media_post" : "repost_user_media_post",
+        { target_post_id: post.id },
+      );
+      if (actionError) throw actionError;
+      setRepostedPostIds((current) => wasReposted ? current.filter((id) => id !== post.id) : [...current, post.id]);
+      if (typeof data === "number") {
+        setPosts((current) => current.map((item) => item.id === post.id ? { ...item, reposts: data } : item));
+        setSelectedPost((current) => current?.id === post.id ? { ...current, reposts: data } : current);
+      }
+      toast.success(wasReposted ? "Repost removed." : "Reposted to your profile.");
+    } catch {
+      toast.error("Could not update your repost.");
+    } finally {
+      setEngagementBusyIds((current) => current.filter((id) => id !== post.id));
+    }
+  }
+
+  async function shareProfilePost(post: ProfilePost) {
+    const url = `${window.location.origin}/u/${profile.id}?post=${encodeURIComponent(post.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Post by @${profile.handle}`, text: post.caption || "View this post on NEXORA", url });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Post link copied.");
+      } else {
+        toast.error("Sharing is not available on this device.");
+        return;
+      }
+      if (user) {
+        const { data, error: shareError } = await (supabase as any).rpc(
+          "increment_user_media_post_shares",
+          { target_post_id: post.id },
+        );
+        if (!shareError && typeof data === "number") {
+          setPosts((current) => current.map((item) => item.id === post.id ? { ...item, shares: data } : item));
+          setSelectedPost((current) => current?.id === post.id ? { ...current, shares: data } : current);
+        }
+      }
+    } catch (reason) {
+      if ((reason as DOMException).name !== "AbortError") toast.error("Could not share this post.");
+    }
+  }
+
+  const handleCommentCountChange = (postId: string, count: number) => {
+    setPosts((current) => current.map((item) => item.id === postId ? { ...item, comments: count } : item));
+    setSelectedPost((current) => current?.id === postId ? { ...current, comments: count } : current);
+  };
 
   return (
     <main
@@ -1019,12 +1153,29 @@ if (loading) {
                     {post.tags.map((tag) => "#" + tag).join(" ")}
                   </p>
                 )}
-                <div className="flex flex-wrap items-center gap-5 border-t border-white/15 pt-3 text-xs text-white/70">
-                  <span><Heart className="mr-1 inline h-4 w-4 text-pink-400" />{compactCount(post.likes)} likes</span>
-                  <span><MessageCircle className="mr-1 inline h-4 w-4 text-emerald-400" />{post.comments === null ? "—" : compactCount(post.comments)} comments</span>
-                  <span><Share2 className="mr-1 inline h-4 w-4 text-amber-300" />{compactCount(post.shares)} shares</span>
-                  {post.duration_seconds ? <span>{Math.round(post.duration_seconds)} sec</span> : null}
-                </div>
+                <ProfilePostEngagement
+                  liked={likedPostIds.includes(post.id)}
+                  saved={savedPostIds.includes(post.id)}
+                  reposted={repostedPostIds.includes(post.id)}
+                  likes={post.likes}
+                  comments={post.comments ?? 0}
+                  shares={post.shares}
+                  reposts={post.reposts}
+                  busy={engagementBusyIds.includes(post.id)}
+                  onLike={() => void togglePostLike(post)}
+                  onComment={() => setCommentsPostId(post.id)}
+                  onShare={() => void shareProfilePost(post)}
+                  onSave={() => void togglePostSave(post)}
+                  onRepost={() => void togglePostRepost(post)}
+                />
+                {post.duration_seconds ? <p className="text-right text-[11px] text-white/45">{Math.round(post.duration_seconds)} sec</p> : null}
+                <MediaComments
+                  postId={post.id}
+                  open={commentsPostId === post.id}
+                  variant="sheet"
+                  onClose={() => setCommentsPostId(null)}
+                  onCountChange={(count) => handleCommentCountChange(post.id, count)}
+                />
                 {zoomedPostId === post.id && (
                   <p className="text-center text-[11px] text-white/50">Tap the photo again to return to fit view.</p>
                 )}
