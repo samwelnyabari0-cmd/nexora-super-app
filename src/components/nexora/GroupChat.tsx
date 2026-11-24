@@ -726,6 +726,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
           </p>
         ) : visibleMessages.map((message, index) => {
           const mine = message.sender_id === userId;
+          const senderProfilePath = mine ? "/profile" : profilePathForUser(message.sender_id);
           const showDateDivider = shouldShowDateDivider(message.created_at, visibleMessages[index - 1]?.created_at);
           const sender = profiles[message.sender_id];
           return (
@@ -738,13 +739,13 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`mx-3 flex max-w-[82%] min-w-0 gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
-                  sender?.handle ? (
-                    <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} aria-label={`Open @${sender.handle}'s profile`} className="mt-5 shrink-0">
-                      {sender.avatar_url ? (
+                  senderProfilePath ? (
+                    <Link to={senderProfilePath as any} aria-label={`Open ${sender?.display_name || sender?.handle || "member"}'s profile`} className="mt-5 shrink-0">
+                      {sender?.avatar_url ? (
                         <img src={sender.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                          {(sender.display_name || sender.handle || "N").charAt(0).toUpperCase()}
+                          {(sender?.display_name || sender?.handle || "N").charAt(0).toUpperCase()}
                         </span>
                       )}
                     </Link>
@@ -763,10 +764,10 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     <>
                   {!mine && (
                     <p className="mb-1 text-xs font-semibold">
-                      {sender?.handle ? (
-                        <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} className="hover:underline">
+                      {senderProfilePath ? (
+                        <Link to={senderProfilePath as any} className="hover:underline">
                           {sender?.display_name || "NEXORA User"}
-                          <span className="ml-1 font-normal opacity-70">@{sender.handle}</span>
+                          {sender?.handle && <span className="ml-1 font-normal opacity-70">@{sender.handle}</span>}
                         </Link>
                       ) : (sender?.display_name || "NEXORA User")}
                     </p>
