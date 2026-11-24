@@ -26,6 +26,7 @@ import { ChatLockPanel } from "@/components/nexora/ChatLockPanel";
 import { useChatLock } from "@/hooks/useChatLock";
 import { flushOfflineMessages, isLikelyNetworkFailure, queueTextMessage } from "@/lib/offline-messages";
 import { toast } from "sonner";
+import { profilePathForUser } from "@/lib/profile-navigation";
 
 type GroupMessage = {
   id: string;
@@ -738,8 +739,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`mx-3 flex max-w-[82%] min-w-0 gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                 {!mine && (
-                  sender?.handle ? (
-                    <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} aria-label={`Open @${sender.handle}'s profile`} className="mt-5 shrink-0">
+                  profilePathForUser(message.sender_id) ? (
+                    <Link to="/profile/id/$userId" params={{ userId: message.sender_id }} aria-label={`Open ${sender?.display_name || "member"}'s profile`} className="mt-5 shrink-0">
                       {sender.avatar_url ? (
                         <img src={sender.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
@@ -763,8 +764,8 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                     <>
                   {!mine && (
                     <p className="mb-1 text-xs font-semibold">
-                      {sender?.handle ? (
-                        <Link to="/profile/$handle" params={{ handle: sender.handle.replace(/^@+/, "") }} className="hover:underline">
+                      {profilePathForUser(message.sender_id) ? (
+                        <Link to="/profile/id/$userId" params={{ userId: message.sender_id }} className="hover:underline">
                           {sender?.display_name || "NEXORA User"}
                           <span className="ml-1 font-normal opacity-70">@{sender.handle}</span>
                         </Link>
