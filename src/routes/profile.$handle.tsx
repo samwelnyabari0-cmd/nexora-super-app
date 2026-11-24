@@ -525,7 +525,6 @@ function PublicProfile({
                 </span>
               </a>
             )}
-        </div>
         {!owner && (
           <div className="grid grid-cols-[1fr_1fr_40px] gap-2">
             <Button
