@@ -21,6 +21,7 @@ import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { useSession } from "@/lib/session";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
+import { profilePathForUser } from "@/lib/profile-navigation";
 
 type ProfileRecord = {
   id: string;
@@ -740,25 +741,31 @@ export function PublicProfileByIdentity({
               </div>
             ) : connections.length ? (
               <ul className="max-h-60 space-y-2 overflow-y-auto">
-                {connections.map((person) => (
-                  <li key={person.id} className="flex items-center gap-2">
-                    {person.handle ? (
-                      <Link
-                        to="/profile/$handle"
-                        params={{ handle: person.handle.replace(/^@+/, "") }}
-                        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800"
-                      >
-                        <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={36} />
-                        <span className="min-w-0">
-                          <span className="block truncate font-semibold text-slate-100">{person.display_name ?? person.handle}</span>
-                          <span className="block truncate text-slate-500">@{person.handle}</span>
+                {connections.map((person) => {
+                  const profilePath = profilePathForUser(person.id);
+                  const identity = (
+                    <>
+                      <Avatar name={person.display_name ?? person.handle ?? "NEXORA member"} src={person.avatar_url} size={36} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-slate-100">{person.display_name ?? person.handle ?? "NEXORA member"}</span>
+                        <span className="block truncate text-slate-500">@{person.handle ?? person.id.slice(0, 8)}</span>
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={person.id} className="flex items-center gap-2">
+                      {profilePath ? (
+                        <Link to={profilePath as any} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800">
+                          {identity}
+                        </Link>
+                      ) : (
+                        <span className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2 text-xs" aria-label="Profile unavailable">
+                          {identity}
                         </span>
-                      </Link>
-                    ) : (
-                      <span className="text-xs">{person.display_name ?? "NEXORA member"}</span>
-                    )}
-                  </li>
-                ))}
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-xs text-slate-400">No {socialTab} accounts to show yet.</p>
