@@ -146,6 +146,11 @@ function Messages() {
   const [startingCall, setStartingCall] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [smartRepliesLoading, setSmartRepliesLoading] = useState(false);
+  const [forwardingMessage, setForwardingMessage] = useState<DirectMessage | null>(null);
+  const [forwardContacts, setForwardContacts] = useState<Array<{ userId: string; displayName: string; handle: string }>>([]);
+  const [forwardRecipient, setForwardRecipient] = useState("");
+  const [forwarding, setForwarding] = useState(false);
+  const loadedConversationRef = useRef("");
 
   useEffect(() => {
     if (prompt) setDraft(prompt);
@@ -178,6 +183,7 @@ function Messages() {
   const visibleMessages = messages.filter((message) => !isMessageExpired(message.expires_at));
   useEffect(() => {
     if (chatLock.status === "unlocked") return;
+    loadedConversationRef.current = "";
     setMessages([]);
     setReactions([]);
     setReplyTarget(null);
@@ -469,7 +475,10 @@ if (recipient === user.id) {
   return;
 }
 
-      setLoading(true);
+      if (loadedConversationRef.current !== recipient) {
+        setLoading(true);
+        loadedConversationRef.current = recipient;
+      }
       setError("");
 
       const [sentResult, receivedResult, profileResult] =
@@ -612,7 +621,12 @@ if (recipient === user.id) {
         (payload) => {
           const message = payload.new as DirectMessage;
           if (message.sender_id === recipient && message.recipient_id === user.id) {
-            setRefresh((value) => value + 1);
+            setMessages((current) => {
+              if (current.some((item) => item.id === message.id)) return current;
+              return [...current, message].sort((a, b) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
+            });
           }
         },
       )
@@ -627,7 +641,12 @@ if (recipient === user.id) {
         (payload) => {
           const message = payload.new as DirectMessage;
           if (message.sender_id === user.id && message.recipient_id === recipient) {
-            setRefresh((value) => value + 1);
+            setMessages((current) => {
+              if (current.some((item) => item.id === message.id)) return current;
+              return [...current, message].sort((a, b) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
+            });
           }
         },
       )
@@ -900,6 +919,106 @@ if (recipient === user.id) {
     }
   }
 
+
+  useEffect(() => {
+    if (!user?.id || !recipient || chatLock.status !== "unlocked") {
+      setForwardContacts([]);
+      return;
+    }
+    let cancelled = false;
+    const loadForwardContacts = async () => {
+      const { data, error: contactError } = await (supabase as any)
+        .from("direct_messages")
+        .select("sender_id, recipient_id")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (cancelled || contactError) return;
+      const ids = new Set<string>();
+      for (const row of data ?? []) {
+        const otherId = row.sender_id === user.id ? row.recipient_id : row.sender_id;
+        if (otherId && otherId !== user.id && otherId !== recipient) ids.add(otherId);
+      }
+      const contacts = await Promise.all([...ids].map(async (userId) => {
+        const { data: profileData } = await (supabase as any).rpc("get_chat_recipient_profile", { p_user_id: userId });
+        const profile = Array.isArray(profileData) ? profileData[0] : profileData;
+        return {
+          userId,
+          displayName: profile?.display_name || "NEXORA User",
+          handle: profile?.handle || "",
+        };
+      }));
+      if (!cancelled) setForwardContacts(contacts.sort((a, b) => a.displayName.localeCompare(b.displayName)));
+    };
+    void loadForwardContacts();
+    return () => { cancelled = true; };
+  }, [user?.id, recipient, chatLock.status]);
+
+  async function forwardMessage() {
+    const message = forwardingMessage;
+    if (!message || !user?.id || !forwardRecipient || forwarding) return;
+    if (message.deleted_at || isMessageExpired(message.expires_at)) {
+      setError("This message can no longer be forwarded.");
+      setForwardingMessage(null);
+      return;
+    }
+    setForwarding(true);
+    setError("");
+    let copiedMediaPath: string | null = null;
+    try {
+      if (message.media_path) {
+        const { data: file, error: downloadError } = await supabase.storage
+          .from("chat-media")
+          .download(message.media_path);
+        if (downloadError || !file) throw new Error("The attachment could not be copied for forwarding.");
+        const extension = message.media_path.split(".").pop()?.toLowerCase() || "bin";
+        copiedMediaPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("chat-media")
+          .upload(copiedMediaPath, file, {
+            contentType: message.attachment_mime_type || file.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (uploadError) throw new Error("The attachment could not be copied for forwarding.");
+      }
+      const payload = {
+        sender_id: user.id,
+        recipient_id: forwardRecipient,
+        body: message.body ? `↪ Forwarded\n${message.body}` : "↪ Forwarded attachment",
+        media_path: copiedMediaPath,
+        media_type: message.media_type ?? null,
+        attachment_name: message.attachment_name ?? null,
+        attachment_mime_type: message.attachment_mime_type ?? null,
+        attachment_size_bytes: message.attachment_size_bytes ?? null,
+        location_latitude: message.location_latitude ?? null,
+        location_longitude: message.location_longitude ?? null,
+        location_accuracy_m: message.location_accuracy_m ?? null,
+        location_captured_at: message.location_captured_at ?? null,
+        shared_content_source: message.shared_content_source ?? null,
+        shared_content_id: message.shared_content_id ?? null,
+        shared_content_type: message.shared_content_type ?? null,
+      };
+      const { data, error: insertError } = await (supabase as any)
+        .from("direct_messages")
+        .insert(payload)
+        .select("*")
+        .single();
+      if (insertError) throw insertError;
+      if (forwardRecipient === recipient && data) {
+        setMessages((current) => [...current.filter((item) => item.id !== data.id), data as DirectMessage]
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+      }
+      toast.success("Message forwarded.");
+      setForwardingMessage(null);
+    } catch (reason) {
+      if (copiedMediaPath) {
+        await supabase.storage.from("chat-media").remove([copiedMediaPath]);
+      }
+      setError(reason instanceof Error ? reason.message : "Message could not be forwarded.");
+    } finally {
+      setForwarding(false);
+    }
+  }
+
   async function startDirectCall(kind: "audio" | "video") {
     if (!user?.id || !recipient || group || startingCall) return;
     setStartingCall(true);
@@ -1019,8 +1138,9 @@ if (recipient === user.id) {
       }
     }
 
+    let insertedMessage: DirectMessage | null = null;
     const insertMessage = async () => {
-      const { error: sendError } = await (supabase as any)
+      const { data, error: sendError } = await (supabase as any)
         .from("direct_messages")
         .insert({
           sender_id: user.id,
@@ -1033,7 +1153,10 @@ if (recipient === user.id) {
           attachment_size_bytes: attachmentSizeBytes,
           reply_to_message_id: replyTarget?.id ?? null,
           ...(clientRequestId ? { client_request_id: clientRequestId } : {}),
-        });
+        })
+        .select("*")
+        .single();
+      if (!sendError && data) insertedMessage = data as DirectMessage;
       return { error: sendError };
     };
 
@@ -1115,13 +1238,24 @@ if (recipient === user.id) {
     if (mediaPath) {
       void supabase.storage.from("chat-media").createSignedUrl(mediaPath, 3600).then(({ data }) => {
         if (data?.signedUrl) {
-          setMediaUrls((current) => ({ ...current, [optimisticId]: data.signedUrl }));
+          const finalMessageId = insertedMessage?.id ?? optimisticId;
+          setMediaUrls((current) => {
+            const next = { ...current };
+            delete next[optimisticId];
+            next[finalMessageId] = data.signedUrl;
+            return next;
+          });
           if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
         }
       });
     }
-    // Reconcile the optimistic bubble with the canonical database row in the background.
-    setRefresh((value) => value + 1);
+    // Replace the optimistic bubble locally; do not refetch or remount the conversation.
+    if (insertedMessage) {
+      setMessages((current) => [
+        ...current.filter((message) => message.id !== optimisticId && message.id !== insertedMessage!.id),
+        insertedMessage!,
+      ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+    }
   }
 
   if (!ready) {
@@ -1408,6 +1542,9 @@ if (recipient === user.id) {
                   )}
                   <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-80">
                     <button type="button" onClick={() => setReplyTarget(message)} className="underline-offset-2 hover:underline">Reply</button>
+                    {!message.deleted_at && (
+                      <button type="button" onClick={() => { setForwardingMessage(message); setForwardRecipient(""); }} className="underline-offset-2 hover:underline" aria-label="Forward message">Forward</button>
+                    )}
                     {mine && message.body && !message.media_path && message.location_latitude == null && !message.location_session_id && !message.shared_content_id && (
                       <button type="button" onClick={() => void editMessage(message)} className="underline-offset-2 hover:underline" aria-label="Edit message">Edit</button>
                     )}
@@ -1531,6 +1668,29 @@ if (recipient === user.id) {
           }
         />
       </form>
+      {forwardingMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !forwarding) setForwardingMessage(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="forward-message-title" className="w-full max-w-sm space-y-4 rounded-2xl border bg-background p-4 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="forward-message-title" className="font-semibold">Forward message</h2>
+              <Button type="button" variant="ghost" size="icon" aria-label="Close forward dialog" disabled={forwarding} onClick={() => setForwardingMessage(null)}><X className="h-4 w-4" /></Button>
+            </div>
+            <p className="line-clamp-3 rounded-lg bg-muted p-3 text-sm">{forwardingMessage.body || (forwardingMessage.media_type === "audio" ? "Voice message" : forwardingMessage.media_type === "image" ? "Photo" : forwardingMessage.media_type === "video" ? "Video" : forwardingMessage.media_type === "document" ? "Document" : "Shared content")}</p>
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium">Send to</span>
+              <select value={forwardRecipient} onChange={(event) => setForwardRecipient(event.target.value)} className="w-full rounded-lg border bg-background px-3 py-2.5" disabled={forwarding}>
+                <option value="">Choose a conversation</option>
+                {forwardContacts.map((contact) => <option key={contact.userId} value={contact.userId}>{contact.displayName}{contact.handle ? ` (@${contact.handle})` : ""}</option>)}
+              </select>
+            </label>
+            {forwardContacts.length === 0 && <p className="text-xs text-muted-foreground">No other conversations are available to forward to yet.</p>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={forwarding} onClick={() => setForwardingMessage(null)}>Cancel</Button>
+              <Button type="button" disabled={!forwardRecipient || forwarding} onClick={() => void forwardMessage()}>{forwarding ? "Forwarding…" : "Forward"}</Button>
+            </div>
+          </section>
+        </div>
+      )}
       <ShareContentDialog
         open={shareContentOpen}
         onOpenChange={setShareContentOpen}
