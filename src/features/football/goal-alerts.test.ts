@@ -53,10 +53,10 @@ describe("automatic goal alert detection", () => {
   });
 
   it("does not announce a score that returns after a correction", () => {
-    const baseline = new Map([["sportscore:arsenal-chelsea", { homeScore: 1, awayScore: 0 }]]);
-    const seen = new Set(["sportscore:arsenal-chelsea:home:2"]);
-    const result = detectGoalAlerts(baseline, [match({ homeScore: 0, awayScore: 0 })], seen);
-    const restored = detectGoalAlerts(result.snapshots, [match({ homeScore: 2, awayScore: 0 })], result.seen);
+    const baseline = detectGoalAlerts(new Map(), [match({ homeScore: 1, awayScore: 0 })]);
+    const goal = detectGoalAlerts(baseline.snapshots, [match({ homeScore: 2, awayScore: 0 })], baseline.seen);
+    const correction = detectGoalAlerts(goal.snapshots, [match({ homeScore: 0, awayScore: 0 })], goal.seen);
+    const restored = detectGoalAlerts(correction.snapshots, [match({ homeScore: 2, awayScore: 0 })], correction.seen);
     expect(restored.alerts).toEqual([]);
   });
 
