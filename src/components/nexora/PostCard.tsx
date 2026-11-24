@@ -334,7 +334,8 @@ export function PostCard({ post }: { post: Post }) {
         <div className="w-full overflow-hidden bg-muted" style={{
           backgroundColor: post.dominantColor || "#171717",
           aspectRatio: mediaFrameRatio ?? undefined,
-          width: mediaFrameWidth,
+          width: "100%",
+          maxWidth: "100%",
           marginInline: "auto",
           maxHeight: "78svh",
         }}>
