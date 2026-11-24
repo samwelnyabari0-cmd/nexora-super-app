@@ -308,7 +308,7 @@ Deno.serve(async (request: Request) => {
             ? "LIVE " + match.elapsed_minute + "′"
             : match.status;
           const message = "⚽ " + match.competition_name + "\n" + match.home_team + " " + score +
-            " " + match.away_team + "\n" + status + "\\nAutomatic update from Nexora Arena · SportScore";
+            " " + match.away_team + "\n" + status + "\nAutomatic update from Nexora Arena · SportScore";
           const result = await restRequest("rpc/share_football_match_update", serviceKey, {
             method: "POST",
             body: JSON.stringify({
