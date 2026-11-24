@@ -976,12 +976,9 @@ if (loading) {
               <div className="flex max-h-[78dvh] min-h-[35dvh] w-full max-w-4xl items-center justify-center overflow-auto rounded-xl">
                 {post.mediaSrc ? (
                   post.media_type?.startsWith("video/") ? (
-                    <video
+                    <ProfileAutoplayVideo
                       src={post.mediaSrc}
-                      onError={(event) => void refreshProfileMedia(post, event.currentTarget.currentSrc)}
-                      controls
-                      playsInline
-                      autoPlay={post.id === selectedPost.id}
+                      onPlaybackError={(failedUrl) => void refreshProfileMedia(post, failedUrl)}
                       className="max-h-[78dvh] w-full bg-black object-contain"
                     />
                   ) : (
@@ -992,7 +989,7 @@ if (loading) {
                       onClick={() => setZoomedPostId((current) => current === post.id ? null : post.id)}
                       loading="lazy"
                       className={zoomedPostId === post.id
-                        ? "max-h-none max-w-none scale-150 cursor-zoom-out object-contain transition-transform"
+                        ? "max-h-none w-[150%] max-w-none cursor-zoom-out object-contain transition-transform"
                         : "max-h-[78dvh] max-w-full cursor-zoom-in object-contain transition-transform"}
                     />
                   )
@@ -1041,6 +1038,58 @@ if (loading) {
         ☁️ Offline Relay: Queue empty
       </footer>
     </main>
+  );
+}
+
+function ProfileAutoplayVideo({
+  src,
+  className,
+  onPlaybackError,
+}: {
+  src: string;
+  className?: string;
+  onPlaybackError: (failedUrl: string) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.target !== video) continue;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+            video.muted = true;
+            void video.play().catch(() => {
+              // Playback can require a tap on browsers with stricter media policies.
+            });
+          } else {
+            video.pause();
+          }
+        }
+      },
+      { threshold: [0, 0.6, 1] },
+    );
+
+    observer.observe(video);
+    return () => {
+      observer.disconnect();
+      video.pause();
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      controls
+      playsInline
+      preload="none"
+      onError={(event) => onPlaybackError(event.currentTarget.currentSrc)}
+      className={className}
+    />
   );
 }
 
