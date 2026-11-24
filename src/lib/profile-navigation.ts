@@ -9,5 +9,5 @@ export function isValidProfileUserId(userId: string | null | undefined): boolean
 export function profilePathForUser(userId: string | null | undefined): string | null {
   const id = userId?.trim();
   if (!isValidProfileUserId(id)) return null;
-  return `/profile/id/${id}`;
+  return `/u/${id}`;
 }
