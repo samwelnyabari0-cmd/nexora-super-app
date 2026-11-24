@@ -81,7 +81,12 @@ export const Route = createFileRoute("/profile/$handle")({
 // Force a clean component lifecycle whenever navigation changes the requested account.
 function PublicProfileRouteComponent() {
   const { handle } = Route.useParams();
-  return <PublicProfile key={handle.toLowerCase()} />;
+  const { post } = Route.useSearch();
+  return <PublicProfile key={handle.toLowerCase()} handle={handle} requestedPostId={post} />;
+}
+
+export function PublicProfileById({ userId }: { userId: string }) {
+  return <PublicProfile key={userId} profileId={userId} handle="" requestedPostId="" />;
 }
 
 function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
@@ -101,9 +106,15 @@ function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
   );
 }
 
-function PublicProfile() {
-  const { handle } = Route.useParams();
-  const { post: requestedPostId } = Route.useSearch();
+function PublicProfile({
+  handle,
+  profileId,
+  requestedPostId,
+}: {
+  handle: string;
+  profileId?: string;
+  requestedPostId: string;
+}) {
   const { user } = useSession();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -167,15 +178,14 @@ function PublicProfile() {
     void (async () => {
       try {
         const normalizedHandle = handle.trim().replace(/^@+/, "");
-        const { data: profileRows, error: profileError } = await (supabase as any).rpc(
-          "get_public_profile",
-          { p_handle: normalizedHandle },
-        );
+        const { data: profileRows, error: profileError } = profileId
+          ? await (supabase as any).rpc("get_public_profile_by_id", { p_user_id: profileId })
+          : await (supabase as any).rpc("get_public_profile", { p_handle: normalizedHandle });
 
         if (cancelled) return;
 
-        // The exact-handle RPC is authoritative. Do not substitute a directory/search
-        // result or the signed-in user's profile when resolving another account.
+        // Resolve by the exact UUID on canonical routes and by exact handle only for
+        // legacy links. Never substitute the current user's profile on lookup failure.
         const normalize = (value: unknown) =>
           String(value ?? "").trim().replace(/^@+/, "").toLowerCase();
         if (profileError) throw profileError;
@@ -184,13 +194,12 @@ function PublicProfile() {
           : profileRows
             ? [profileRows]
             : [];
-        const row = rpcRows.find(
-          (candidate: Record<string, unknown>) =>
-            normalize(candidate.handle) === normalize(normalizedHandle) &&
-            typeof candidate.id === "string" && candidate.id.length > 0,
-        ) ?? null;
+        const row = rpcRows.find((candidate: Record<string, unknown>) => {
+          if (typeof candidate.id !== "string" || candidate.id.length === 0) return false;
+          return profileId ? candidate.id === profileId : normalize(candidate.handle) === normalize(normalizedHandle);
+        }) ?? null;
 
-        if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
+        if (!row || (profileId ? row.id !== profileId : normalize(row.handle) !== normalize(normalizedHandle))) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
@@ -315,7 +324,7 @@ function PublicProfile() {
     return () => {
       cancelled = true;
     };
-  }, [handle, user?.id, tab]);
+  }, [handle, profileId, user?.id, tab]);
 
   useEffect(() => {
     let cancelled = false;
