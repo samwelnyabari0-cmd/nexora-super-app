@@ -49,6 +49,8 @@ type Props = {
   onTagsChange: (value: string) => void;
   audience: "public" | "private";
   onAudienceChange: (value: "public" | "private") => void;
+  shareToAcademicHub: boolean;
+  onShareToAcademicHubChange: (value: boolean) => void;
   uploadLimits: string;
   error: string;
   note: string;
@@ -322,6 +324,19 @@ export default function CreatorStudioMobileFlow(props: Props) {
                   />
                 </label>
               </div>
+
+              <label className="flex items-start gap-3 rounded-xl border bg-card p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={props.shareToAcademicHub}
+                  onChange={(event) => props.onShareToAcademicHubChange(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                />
+                <span className="space-y-1">
+                  <span className="block font-semibold">Share to Academic Hub</span>
+                  <span className="block text-xs text-muted-foreground">Also show this public post in Academic Hub. Views and engagement stay on the same post.</span>
+                </span>
+              </label>
 
               <button type="button" onClick={() => setLimitsOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border bg-card px-3 py-3 text-left">
                 <span className="flex items-center gap-2 text-sm font-medium"><Clapperboard className="h-4 w-4" /> Plan limits</span>
