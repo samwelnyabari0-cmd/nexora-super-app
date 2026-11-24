@@ -1,3 +1,5 @@
+project_id = "pmtoinszybenhdbggctk"
+
 [functions.football-sync]
 verify_jwt = false
 
