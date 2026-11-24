@@ -405,10 +405,22 @@ function MatchCenterPage() {
           )}
         </Panel>
       </section>
-      <div className="flex items-start gap-2 rounded-xl border p-3 text-xs text-muted-foreground">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-        Scores and news are read from Nexora’s server cache. The upstream API key is never sent to
-        the browser. No paid data provider is activated until approved.
+      <div className="flex flex-col gap-2 rounded-xl border p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-2">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Scores and news are read from Nexora’s server cache. Provider requests run server-side; your device reads the cached match data.</span>
+        </div>
+        {data.matches.some((match) => match.provider === "sportscore") && (
+          <a
+            href="https://sportscore.com/"
+            target="_blank"
+            rel="dofollow"
+            title="Sports data by SportScore"
+            className="shrink-0 font-semibold text-primary underline underline-offset-2"
+          >
+            Powered by SportScore
+          </a>
+        )}
       </div>
       <div className="flex flex-wrap gap-2">
         <Link to="/clubs" className="text-xs text-primary underline">
