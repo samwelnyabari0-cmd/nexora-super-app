@@ -4,7 +4,7 @@ import { isValidProfileUserId, profilePathForUser } from "@/lib/profile-navigati
 describe("profilePathForUser", () => {
   it("uses the exact account UUID in the canonical profile route", () => {
     const id = "00000000-0000-0000-0000-000000000001";
-    expect(profilePathForUser(id)).toBe(`/profile/id/${id}`);
+    expect(profilePathForUser(id)).toBe(`/u/${id}`);
   });
 
   it.each([null, undefined, "", "   ", "someone", "not-a-uuid"])(
