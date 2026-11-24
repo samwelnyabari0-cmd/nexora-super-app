@@ -46,7 +46,7 @@ export function PostCard({ post }: { post: Post }) {
   const fallbackCreator = creatorById(post.creatorId);
   const c = {
     name: post.creatorId === "me" ? passport.name : post.creatorName ?? fallbackCreator.name,
-    handle: post.creatorId === "me" ? passport.handle : post.creatorHandle ?? fallbackCreator.handle,
+    handle: post.creatorId === "me" ? passport.handle : post.creatorHandle ?? "",
     avatarUrl: post.creatorAvatarUrl ?? (post.creatorId === "me" ? passport.avatarUrl ?? null : null),
     hue: fallbackCreator.hue,
     verified: post.creatorId === "me" ? false : fallbackCreator.verified,
