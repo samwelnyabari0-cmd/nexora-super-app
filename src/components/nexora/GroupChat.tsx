@@ -26,6 +26,7 @@ import { ChatLockPanel } from "@/components/nexora/ChatLockPanel";
 import { useChatLock } from "@/hooks/useChatLock";
 import { flushOfflineMessages, isLikelyNetworkFailure, queueTextMessage } from "@/lib/offline-messages";
 import { toast } from "sonner";
+import { profilePathForUser } from "@/lib/profile-navigation";
 
 type GroupMessage = {
   id: string;
