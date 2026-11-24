@@ -709,8 +709,8 @@ function PublicProfile({
                   <li key={person.id} className="flex items-center gap-2">
                     {person.handle ? (
                       <Link
-                        to="/profile/$handle"
-                        params={{ handle: person.handle.replace(/^@+/, "") }}
+                        to="/profile/id/$userId"
+                        params={{ userId: person.id }}
                         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800"
                       >
                         <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={36} />
