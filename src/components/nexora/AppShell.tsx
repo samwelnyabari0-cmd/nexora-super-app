@@ -311,13 +311,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="glass sticky top-0 z-30 flex h-14 items-center gap-3 border-b px-4 md:px-6">
         {isFeaturePage && (
           <Link
-            to="/explore"
-            search={{ post: "" }}
+            to="/profile"
+            search={{ handle: "", explore: true }}
             className="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition hover:bg-muted"
-            aria-label="Back to Explore Nexora"
+            aria-label="Back to Tools & Services"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            <span>Explore</span>
+            <span>Tools &amp; Services</span>
           </Link>
         )}
         <Link to="/" className="flex items-center gap-2 md:hidden" aria-label="NEXORA home">

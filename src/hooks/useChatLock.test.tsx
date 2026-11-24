@@ -48,6 +48,7 @@ describe("useChatLock", () => {
 
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     act(() => document.dispatchEvent(new Event("visibilitychange")));
+    act(() => result.current.endAttachmentPicker());
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     act(() => document.dispatchEvent(new Event("visibilitychange")));
     expect(result.current.status).toBe("locked");
