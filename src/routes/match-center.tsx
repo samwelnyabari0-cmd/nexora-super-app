@@ -494,7 +494,7 @@ function MatchRow({
         >
           {formatMatchStatus(match)}
         </span>
-        {isMatchStale(match) && <p className="text-[9px] text-amber-600">Delayed</p>}
+
       </div>
       <Button
         size="icon"
