@@ -23,5 +23,15 @@ function PublicProfileIdRoute() {
       </main>
     );
   }
-  return <PublicProfileById userId={userId} requestedPostId={post} />;
+  return (
+    <div className="space-y-2">
+      <aside className="mx-3 mt-2 rounded-md border border-sky-500/40 bg-sky-950/40 p-2 font-mono text-[10px] leading-4 text-sky-100" aria-label="Temporary profile route diagnostic">
+        <div className="font-bold tracking-wide">TEMP DEBUG — ROUTE</div>
+        <div>Matched route: /profile/id/$userId</div>
+        <div>Route userId: {userId}</div>
+        <div>Post query: {post || "none"}</div>
+      </aside>
+      <PublicProfileById userId={userId} requestedPostId={post} />
+    </div>
+  );
 }
