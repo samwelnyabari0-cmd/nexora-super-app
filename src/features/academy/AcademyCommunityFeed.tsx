@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useSession } from "@/lib/session";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 type AcademyCommunityItem = {
   id: string;
@@ -63,7 +63,7 @@ export function AcademyCommunityFeed() {
   useEffect(() => {
     if (!selectedItem || !viewerRef.current) return;
     const viewer = viewerRef.current;
-    viewer.scrollTo({ top: selectedIndex * viewer.clientHeight, behavior: "instant" });
+    viewer.scrollTo({ top: selectedIndex * viewer.clientHeight, behavior: "auto" });
   }, [selectedItem, selectedIndex]);
 
   useEffect(() => {
