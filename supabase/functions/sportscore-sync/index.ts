@@ -22,8 +22,6 @@ type SportScoreMatchRow = {
 
 const PROVIDER = "sportscore";
 const BASE_URL = "https://sportscore.com";
-const DISCOVERY_DAYS = 7;
-const DISCOVERY_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const WINDOW_BEFORE_MS = 3 * 60 * 60 * 1000;
 const WINDOW_AFTER_MS = 2 * 60 * 60 * 1000;
 
@@ -174,20 +172,27 @@ async function restRequest(path: string, serviceKey: string, init: RequestInit =
   return response;
 }
 
-async function fetchFixtures(date: string): Promise<unknown[]> {
-  const url = new URL("/api/v1/fixtures/", BASE_URL);
+async function fetchFixtures(): Promise<unknown[]> {
+  const url = new URL("/api/widget/matches/", BASE_URL);
   url.searchParams.set("sport", "football");
-  url.searchParams.set("date", date);
-  url.searchParams.set("limit", "200");
+  url.searchParams.set("limit", "50");
   url.searchParams.set("src", "nexora");
   const response = await fetch(url, {
-    headers: { accept: "application/json" },
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; NexoraArena/1.0; +https://samwelnyabari0-cmd-nexora-super-app.vercel.app)",
+      referer: "https://sportscore.com/developers/",
+      origin: "https://samwelnyabari0-cmd-nexora-super-app.vercel.app",
+    },
     signal: AbortSignal.timeout(12_000),
   });
-  if (!response.ok) throw new Error("SportScore returned HTTP " + response.status);
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 300);
+    console.error("SportScore request rejected", response.status, detail);
+    throw new Error("SportScore returned HTTP " + response.status);
+  }
   return fixtureList(await response.json());
 }
-
 async function upsertMatches(matches: unknown[], serviceKey: string, updatedAt: string) {
   const rows = matches
     .map((match) => normalizeMatch(match, updatedAt))
@@ -204,11 +209,6 @@ async function upsertMatches(matches: unknown[], serviceKey: string, updatedAt: 
 
 function utcDate(date: Date): string {
   return date.toISOString().slice(0, 10);
-}
-
-function addDays(date: string, days: number): string {
-  const parts = date.split("-").map(Number);
-  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days)).toISOString().slice(0, 10);
 }
 
 function normalizeTeamKey(name: string): string {
@@ -231,65 +231,12 @@ Deno.serve(async (request: Request) => {
     });
     if ((await authResponse.json()) !== true) return json({ error: "Unauthorized" }, 401);
 
-    const now = new Date();
-    const updatedAt = now.toISOString();
-    const today = utcDate(now);
-    let dailyFixturesUpdated = 0;
-    let discoveryRequests = 0;
-
-    for (let offset = 0; offset <= DISCOVERY_DAYS; offset += 1) {
-      const date = addDays(today, offset);
-      const stateKey = "sportscore_fixtures_" + date;
-      const stateResponse = await restRequest(
-        "football_sync_state?key=eq." + encodeURIComponent(stateKey) + "&select=last_synced_at",
-        serviceKey,
-      );
-      const stateRows = await stateResponse.json();
-      const lastSyncedAt = stateRows?.[0]?.last_synced_at
-        ? new Date(stateRows[0].last_synced_at).getTime()
-        : 0;
-      if (lastSyncedAt && now.getTime() - lastSyncedAt < DISCOVERY_INTERVAL_MS) continue;
-
-      const fixtures = await fetchFixtures(date);
-      const rows = await upsertMatches(fixtures, serviceKey, updatedAt);
-      dailyFixturesUpdated += rows.length;
-      discoveryRequests += 1;
-      await restRequest("football_sync_state?on_conflict=key", serviceKey, {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify({ key: stateKey, last_synced_at: updatedAt }),
-      });
-    }
-
-    const windowStart = new Date(now.getTime() - WINDOW_BEFORE_MS).toISOString();
-    const windowEnd = new Date(now.getTime() + WINDOW_AFTER_MS).toISOString();
-    const windowQuery = new URLSearchParams({
-      provider: "eq.sportscore",
-      status: "in.(SCHEDULED,LIVE,HT)",
-      and: "(kickoff_at.gte." + windowStart + ",kickoff_at.lte." + windowEnd + ")",
-      select: "provider_id,kickoff_at",
-      limit: "100",
-    });
-    const windowResponse = await restRequest("football_matches?" + windowQuery.toString(), serviceKey);
-    const windowMatches = await windowResponse.json();
-    if (!windowMatches?.length) {
-      return json({
-        ok: true, provider: PROVIDER, updated: 0, dailyFixturesUpdated,
-        discoveryRequests, autoPosts: 0, skipped: "outside_match_window", updatedAt,
-      });
-    }
-
-    const matchDates = [...new Set(windowMatches.map((match: { kickoff_at: string }) =>
-      utcDate(new Date(match.kickoff_at))
-    ))];
-    const liveRows: SportScoreMatchRow[] = [];
-    for (const date of matchDates) {
-      const fixtures = await fetchFixtures(date);
-      liveRows.push(...await upsertMatches(fixtures, serviceKey, updatedAt));
-    }
-
+    const updatedAt = new Date().toISOString();
+    const fixtures = await fetchFixtures();
+    const liveRows = await upsertMatches(fixtures, serviceKey, updatedAt);
     const activeRows = liveRows.filter((match) => ["LIVE", "HT", "FT"].includes(match.status));
     let autoPosts = 0;
+
     if (activeRows.length) {
       const syncResponse = await restRequest(
         "football_club_team_sync?enabled=eq.true&select=club_id,created_by,team_name,team_provider_id",
@@ -327,8 +274,12 @@ Deno.serve(async (request: Request) => {
     }
 
     return json({
-      ok: true, provider: PROVIDER, updated: liveRows.length, dailyFixturesUpdated,
-      discoveryRequests, autoPosts, updatedAt,
+      ok: true,
+      provider: PROVIDER,
+      fetched: fixtures.length,
+      updated: liveRows.length,
+      autoPosts,
+      updatedAt,
     });
   } catch (error) {
     console.error("SportScore football sync failed", error);
