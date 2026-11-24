@@ -66,7 +66,7 @@ function ProfileSettings() {
       if (error) {
         let message = error.message || "Could not delete this account.";
         try {
-          const detail = await error.context?.json();
+          const detail = await (error as any).context?.json?.();
           if (typeof detail?.error === "string") message = detail.error;
         } catch {
           // Keep the function's standard error message if no response body is available.
