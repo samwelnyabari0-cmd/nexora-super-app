@@ -39,6 +39,7 @@ import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { getFrameAspectRatio, getMediaAspectRatioValue, normalizeMediaFraming } from "@/lib/media-framing";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
+import { profilePathForUser } from "@/lib/profile-navigation";
 
 export function PostCard({ post }: { post: Post }) {
   const { liked, saved, reposted, toggleLike, toggleSave, repost, deletePost, addComment, passport } =
@@ -201,13 +202,12 @@ export function PostCard({ post }: { post: Post }) {
     toast.success("We'll show you less content like this.");
   };
 
-  const creatorProfileLink = c.handle.trim()
-    ? `/profile/${encodeURIComponent(c.handle.replace(/^@+/, ""))}`
-    : null;
+  const creatorProfileLink =
+    post.creatorId === "me" ? "/profile" : profilePathForUser(post.creatorId);
   const header = (
     <div className="flex min-w-0 items-center gap-3">
       {creatorProfileLink ? (
-        <Link to="/profile/$handle" params={{ handle: c.handle.replace(/^@+/, "") }} className="shrink-0" aria-label="Open creator profile">
+        <Link to={creatorProfileLink as any} className="shrink-0" aria-label="Open creator profile">
           <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
         </Link>
       ) : (
@@ -216,7 +216,7 @@ export function PostCard({ post }: { post: Post }) {
         </span>
       )}
       {creatorProfileLink ? (
-        <Link to="/profile/$handle" params={{ handle: c.handle.replace(/^@+/, "") }} className="min-w-0 flex-1">
+        <Link to={creatorProfileLink as any} className="min-w-0 flex-1">
           <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
             aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
             <span className="truncate">{c.name}</span>
