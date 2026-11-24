@@ -289,7 +289,7 @@ function VideoCreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | nu
   if (!ownerId) return null;
   const label = profile?.display_name || profile?.handle || "NEXORA Creator";
   return <div className="flex items-center gap-3">
-    <Link to={profile?.handle ? "/profile/$handle" : "/explore"} params={profile?.handle ? { handle: profile.handle } : undefined} className="flex min-w-0 items-center gap-2">
+    <Link to="/profile/id/$userId" params={{ userId: ownerId }} className="flex min-w-0 items-center gap-2">
       {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-muted font-semibold">{label.slice(0,1).toUpperCase()}</span>}
       <span className="min-w-0"><span className="block truncate text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">@{profile?.handle || "creator"}</span></span>
     </Link>
