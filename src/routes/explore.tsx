@@ -117,7 +117,7 @@ function Explore() {
                 {people.map((person) => (
                   <Link
   key={person.id}
-  to="/profile/id/$userId" reloadDocument
+  to="/u/$userId" reloadDocument
   params={{ userId: person.id }}
   className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
 >

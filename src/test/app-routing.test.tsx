@@ -19,6 +19,8 @@ describe("App routing", () => {
     ["/messages?recipient=00000000-0000-0000-0000-000000000001", "/messages"],
     ["/profile/someone", "/profile/$handle"],
     ["/profile/id/00000000-0000-0000-0000-000000000001", "/profile/id/$userId"],
+    ["/u/00000000-0000-0000-0000-000000000001", "/u/$userId"],
+    ["/u/5e072a58-2a91-497f-9fec-31c1a0df1780?post=post-1", "/u/$userId"],
     ["/profile/id/829cf6ba-6877-41fa-9d7d-303fb437986a?handle=&post=post-1", "/profile/id/$userId"],
     ["/profile?handle=someone", "/profile"],
   ])("registers navigation path %s", (href, expectedRouteId) => {

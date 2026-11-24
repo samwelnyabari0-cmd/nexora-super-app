@@ -241,7 +241,7 @@ function CreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | null; p
   const label = profile?.display_name || profile?.handle || "NEXORA Creator";
   return (
     <div className="flex items-center gap-2">
-      <Link to="/profile/id/$userId" reloadDocument params={{ userId: ownerId }} className="flex min-w-0 items-center gap-2">
+      <Link to="/u/$userId" reloadDocument params={{ userId: ownerId }} className="flex min-w-0 items-center gap-2">
         {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-9 w-9 rounded-full border-2 border-white object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-white/15 text-sm font-bold">{label.slice(0,1).toUpperCase()}</span>}
         <span className="min-w-0"><span className="block max-w-[145px] truncate text-xs font-bold">{label}</span><span className="block text-[10px] text-white/70">@{profile?.handle || "creator"}</span></span>
       </Link>

@@ -406,22 +406,11 @@ function PublicProfile({
 
   const totalLikes = posts.reduce((total, post) => total + post.likes, 0);
   const totalShares = posts.reduce((total, post) => total + post.shares, 0);
-  const totalCollabs = posts.filter((post) => post.content_type === "collab").length;
-  const identityDiagnostic = (
-    <aside className="mx-3 rounded-md border border-amber-500/40 bg-amber-950/40 p-2 font-mono text-[10px] leading-4 text-amber-100" aria-label="Temporary profile identity diagnostic">
-      <div className="font-bold tracking-wide">TEMP DEBUG — PROFILE IDENTITY</div>
-      <div>Requested UUID: {profileId || "none (handle route)"}</div>
-      <div>Requested handle: {handle || "none (UUID route)"}</div>
-      <div>Loaded UUID: {profile?.id || "NOT LOADED"}</div>
-      <div>Loaded handle: {profile?.handle || "NOT LOADED"}</div>
-      <div>Signed-in UUID: {user?.id || "SIGNED OUT"}</div>
-    </aside>
-  );
-
-  if (loading) {
+  const totalCollabs = posts.filter((post) => post.content_type === "collab").length; 
+if (loading) {
     return (
       <div className="mx-auto max-w-3xl space-y-2 p-4 text-sm text-muted-foreground" role="status">
-        {identityDiagnostic}
+        
         <div>Loading Pulse Passport…</div>
       </div>
     );
@@ -429,7 +418,7 @@ function PublicProfile({
   if (error || !profile) {
     return (
       <div className="mx-auto max-w-3xl space-y-3 p-4">
-        {identityDiagnostic}
+        
         <Button asChild variant="ghost">
           <Link to="/profile">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to profile
@@ -463,7 +452,7 @@ function PublicProfile({
       className="mx-auto min-h-screen max-w-3xl space-y-3 bg-slate-950 pb-20 text-slate-100"
       aria-label={`${displayName}'s profile`}
     >
-      {identityDiagnostic}
+      
       <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 backdrop-blur">
         <Link
           to="/"
@@ -562,7 +551,7 @@ function PublicProfile({
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/id/${profile.id}`,
+                  returnTo: `/u/${profile.id}`,
                   prompt: "Ask about rates",
                 }}
               >
@@ -605,7 +594,7 @@ function PublicProfile({
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/id/${profile.id}`,
+                  returnTo: `/u/${profile.id}`,
                   prompt,
                 }}
                 className="rounded-full border border-slate-700 px-3 py-1.5 text-[10px] text-slate-300 hover:border-indigo-500"
@@ -676,7 +665,7 @@ function PublicProfile({
                   <li key={person.id} className="flex items-center gap-2">
                     {person.id ? (
                       <Link
-                        to="/profile/id/$userId" reloadDocument
+                        to="/u/$userId" reloadDocument
                         params={{ userId: person.id }}
                         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800"
                       >

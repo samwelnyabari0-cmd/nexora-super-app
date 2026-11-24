@@ -28,7 +28,7 @@ export function canonicalSharedContentPath(
   if (reference.contentType === "reel") return `/reels?post=${id}`;
   if (reference.contentType === "video") return `/videos?post=${id}`;
   if (!creatorId || !UUID_PATTERN.test(creatorId)) return null;
-  return `/profile/id/${encodeURIComponent(creatorId)}?post=${id}`;
+  return `/u/${encodeURIComponent(creatorId)}?post=${id}`;
 }
 
 export function sharedContentLabel(contentType: SharedContentType): string {
