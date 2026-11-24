@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Clock3, ExternalLink, Gamepad2, Heart, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
+import { Bell, BellOff, Clock3, ExternalLink, Gamepad2, Heart, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,15 @@ function MatchCenterPage() {
             : "Waiting for first football sync"}
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => data.setGoalAlertsEnabled(!data.goalAlertsEnabled)}
+            aria-pressed={data.goalAlertsEnabled}
+          >
+            {data.goalAlertsEnabled ? <Bell className="mr-1 h-3.5 w-3.5" /> : <BellOff className="mr-1 h-3.5 w-3.5" />}
+            {data.goalAlertsEnabled ? "Goal alerts on" : "Goal alerts off"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setLiteMode((value) => !value)}>
             {liteMode ? "Lite mode on" : "Turn on Lite mode"}
           </Button>
@@ -128,6 +137,11 @@ function MatchCenterPage() {
           </Button>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground">
+        {data.goalAlertsEnabled
+          ? "Goal alerts are enabled on this device while Nexora Arena is open. Alerts use the available live-score feed and may be delayed or unavailable for some competitions."
+          : "Turn on goal alerts to see a notification when a live match score increases. This free version only checks while Nexora Arena is open."}
+      </p>
 
       <Panel>
         <div className="mb-3 flex items-center justify-between gap-2">

@@ -1,0 +1,56 @@
+name: Arena goal alerts checks
+
+on:
+  push:
+    branches:
+      - feat/arena-automatic-goal-alerts
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/features/football/goal-alerts.ts"
+      - "src/features/football/goal-alerts.test.ts"
+      - "src/features/football/useMatchCenter.ts"
+      - "src/routes/match-center.tsx"
+      - ".github/workflows/arena-goal-alerts-checks.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arena-goal-alerts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Arena goal alerts tests, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Lint Arena goal alert files
+        run: >-
+          npx eslint
+          src/features/football/goal-alerts.ts
+          src/features/football/goal-alerts.test.ts
+          src/features/football/useMatchCenter.ts
+          src/routes/match-center.tsx
+          --rule "prettier/prettier: off"
+          --rule "@typescript-eslint/no-explicit-any: off"
+
+      - name: Build production bundle
+        run: npm run build
