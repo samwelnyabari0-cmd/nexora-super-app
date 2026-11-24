@@ -1,6 +1,9 @@
 name: Arena goal alerts checks
 
 on:
+  push:
+    branches:
+      - feat/arena-automatic-goal-alerts
   pull_request:
     branches:
       - main
