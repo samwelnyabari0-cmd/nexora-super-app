@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useSession } from "@/lib/session";
+import { profilePathForUser } from "@/lib/profile-navigation";
 
 type AcademyCommunityItem = {
   id: string;
@@ -168,9 +169,7 @@ export function AcademyCommunityFeed() {
             ? `/reels?post=${encodeURIComponent(item.id)}`
             : item.content_type === "video"
               ? `/videos?post=${encodeURIComponent(item.id)}`
-              : item.creator_handle
-                ? `/profile/${encodeURIComponent(item.creator_handle.replace(/^@+/, ""))}`
-                : "#course-catalog";
+              : profilePathForUser(item.creator_id) ?? "#course-catalog";
           const metrics = [
             { label: "Views", value: item.view_count, Icon: Eye },
             { label: "Likes", value: item.like_count, Icon: Heart },
