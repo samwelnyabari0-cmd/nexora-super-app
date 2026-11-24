@@ -5071,6 +5071,21 @@ export type Database = {
           settings: Json
         }[]
       }
+      get_public_profile_by_id: {
+        Args: { p_user_id: string }
+        Returns: {
+          account_type: string
+          avatar_url: string
+          bio: string
+          bio_links: Json
+          display_name: string
+          handle: string
+          id: string
+          private_profile: boolean
+          profile_category: string
+          settings: Json
+        }[]
+      }
       get_public_profiles: {
         Args: { profile_ids: string[] }
         Returns: {
