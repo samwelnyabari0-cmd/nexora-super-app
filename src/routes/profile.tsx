@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
 import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { ProfileBadges } from "@/components/nexora/ProfileBadges";
+import { ProfileIdentityHeader } from "@/components/nexora/ProfileIdentityHeader";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
@@ -90,7 +91,7 @@ function Profile() {
   return <OwnProfile />;
 } 
   function OwnProfile() {
-  const { passport, updatePassport } = useApp();
+  const { passport, updatePassport, posts } = useApp();
   const { user, ready } = useSession();
   const userId = user?.id;
   const { followers, following } = useSocialGraph();
@@ -328,26 +329,28 @@ useEffect(() => {
         }
       />
       <Panel className="space-y-4">
-        <div className="flex items-start gap-4">
-          <div className="group relative shrink-0">
-            {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
-            <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
-          </div>
-          <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
-            <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <button type="button" onClick={() => setSocialTab("followers")} className="rounded-sm text-left hover:text-foreground">
-                <strong className="text-foreground">{followers.toLocaleString()}</strong> Followers
-              </button>
-              <button type="button" onClick={() => setSocialTab("following")} className="rounded-sm text-left hover:text-foreground">
-                <strong className="text-foreground">{following.toLocaleString()}</strong> Following
-              </button>
-              <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span>
+        <ProfileIdentityHeader
+          profile={{ displayName: passport.name, handle: passport.handle, avatarUrl }}
+          counts={{ posts: posts.filter((post) => post.creatorId === "me").length, followers, following }}
+          isOwner
+          onFollowersClick={() => setSocialTab("followers")}
+          onFollowingClick={() => setSocialTab("following")}
+          avatarSlot={(
+            <div className="group relative shrink-0">
+              {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-20 w-20 rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={80} ring />}
+              <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+              <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
             </div>
-          </div>
-        </div>
+          )}
+          meta={(
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span>{profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</span>
+              <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span>
+              <CheckCircle2 className="h-4 w-4 text-accent" aria-label="Verified" />
+            </div>
+          )}
+          bio={passport.bio ? <p className="text-sm">{passport.bio}</p> : null}
+        />
         <ProfileBadges
           accountType={accountType}
           industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
@@ -366,7 +369,6 @@ useEffect(() => {
             )}
           </>
         )}
-        {passport.bio && <p className="text-sm">{passport.bio}</p>}
 
         {bioLinks.length > 0 && (
           <div className="relative">
