@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { normalizeTeamKey } from "./format";
 import { fetchSportScoreMatches } from "./sportscore";
+import { detectGoalAlerts, type GoalScoreSnapshot } from "./goal-alerts";
+import { toast } from "sonner";
 import { buildMatchShareMessage, hasActiveClubMembership } from "./club-sharing";
 import type { FootballAnnouncement, FootballHighlight, FootballMatch } from "./types";
 
@@ -138,6 +140,18 @@ export function useMatchCenter() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [goalAlertsEnabled, setGoalAlertsEnabledState] = useState(false);
+  const previousGoalScores = useRef<Map<string, GoalScoreSnapshot>>(new Map());
+  const seenGoalAlerts = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setGoalAlertsEnabledState(window.localStorage.getItem("nexora:arena-goal-alerts") === "true");
+  }, []);
+
+  const setGoalAlertsEnabled = useCallback((enabled: boolean) => {
+    window.localStorage.setItem("nexora:arena-goal-alerts", enabled ? "true" : "false");
+    setGoalAlertsEnabledState(enabled);
+  }, []);
 
   const refresh = useCallback(async () => {
     const favoriteQuery = user
@@ -201,6 +215,21 @@ export function useMatchCenter() {
     const visibleMatches = [...mergedMatches.values()].sort(
       (left, right) => left.kickoffAt.localeCompare(right.kickoffAt),
     );
+    const goalDetection = detectGoalAlerts(
+      previousGoalScores.current,
+      visibleMatches.filter((match) => match.provider === "sportscore"),
+      seenGoalAlerts.current,
+    );
+    previousGoalScores.current = goalDetection.snapshots;
+    seenGoalAlerts.current = goalDetection.seen;
+    if (goalAlertsEnabled) {
+      for (const alert of goalDetection.alerts) {
+        const minute = alert.minute === null ? "" : ` · ${alert.minute}'`;
+        toast.success(`GOAL! ${alert.scoringTeam}`, {
+          description: `${alert.homeTeam} ${alert.score} ${alert.awayTeam} · ${alert.competitionName}${minute}`,
+        });
+      }
+    }
     setMatches(visibleMatches);
     setAnnouncements((announcementResult.data ?? []).map(toAnnouncement));
     setHighlights((highlightResult.data ?? []).map(toHighlight));
@@ -218,7 +247,7 @@ export function useMatchCenter() {
     const timestamps = visibleMatches.map((match) => match.updatedAt).filter(Boolean);
     setLastUpdated(timestamps.sort().at(-1) ?? null);
     setLoading(false);
-  }, [user]);
+  }, [goalAlertsEnabled, user]);
 
   useEffect(() => {
     if (!ready) return;
@@ -353,6 +382,8 @@ export function useMatchCenter() {
     loading,
     error,
     lastUpdated,
+    goalAlertsEnabled,
+    setGoalAlertsEnabled,
     refresh,
     addFavorite,
     removeFavorite,
