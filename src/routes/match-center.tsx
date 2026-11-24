@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, Panel } from "@/components/nexora/ui";
 import { useClubData } from "@/features/clubs/useClubData";
 import { useMatchCenter } from "@/features/football/useMatchCenter";
+import { ArenaFixturesTables } from "@/features/football/ArenaFixturesTables";
 import {
   filterMatchesByCompetition,
   formatMatchStatus,
@@ -202,6 +203,8 @@ function MatchCenterPage() {
         )}
         {data.error && <p className="mt-3 text-xs text-muted-foreground">{data.error}</p>}
       </Panel>
+
+      <ArenaFixturesTables />
 
       <Panel>
         <div className="mb-3 flex items-center justify-between gap-2">

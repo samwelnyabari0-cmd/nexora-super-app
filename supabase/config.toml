@@ -6,5 +6,8 @@ verify_jwt = false
 [functions.sportscore-sync]
 verify_jwt = false
 
+[functions.football-data-sync]
+verify_jwt = false
+
 [functions.delete-account]
 verify_jwt = true
