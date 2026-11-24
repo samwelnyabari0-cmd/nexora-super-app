@@ -1,4 +1,4 @@
-import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, type ErrorComponentProps } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -116,6 +116,7 @@ function PublicProfile({
   profileId?: string;
   requestedPostId: string;
 }) {
+  const navigate = useNavigate();
   const { user } = useSession();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -127,6 +128,9 @@ function PublicProfile({
   const [presentation, setPresentation] = useState<Presentation>("media");
   const [socialTab, setSocialTab] = useState<SocialTab | null>(null);
   const [selectedPost, setSelectedPost] = useState<ProfilePost | null>(null);
+  const [zoomedPostId, setZoomedPostId] = useState<string | null>(null);
+  const postViewerRef = useRef<HTMLDivElement | null>(null);
+  const postViewerItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [connections, setConnections] = useState<
     Array<{
       id: string;
@@ -168,6 +172,21 @@ function PublicProfile({
     const match = posts.find((post) => post.id === requestedPostId);
     if (match) setSelectedPost(match);
   }, [loading, posts, requestedPostId]);
+
+  useEffect(() => {
+    if (!selectedPost) return;
+    setZoomedPostId(null);
+    postViewerItemRefs.current[selectedPost.id]?.scrollIntoView({ block: "start" });
+  }, [selectedPost?.id]);
+
+  useEffect(() => {
+    if (!selectedPost) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedPost(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedPost?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -454,13 +473,17 @@ if (loading) {
     >
       
       <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-3 backdrop-blur">
-        <Link
-          to="/"
-          aria-label="Back"
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.length > 1) window.history.back();
+            else void navigate({ to: "/explore" });
+          }}
+          aria-label="Back to previous page"
           className="grid h-9 w-9 place-items-center rounded-full hover:bg-slate-800"
         >
           <ArrowLeft className="h-5 w-5" />
-        </Link>
+        </button>
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="max-w-[min(65vw,18rem)] truncate text-sm font-semibold">
             @{profile.handle || handle}
@@ -854,13 +877,7 @@ if (loading) {
                 <button
                   key={post.id}
                   type="button"
-                  onClick={() =>
-                    post.content_type === "reel"
-                      ? (window.location.href = `/reels?post=${encodeURIComponent(post.id)}`)
-                      : post.content_type === "video"
-                        ? (window.location.href = `/videos?post=${encodeURIComponent(post.id)}`)
-                        : setSelectedPost(post)
-                  }
+                  onClick={() => setSelectedPost(post)}
                   aria-label={`Open ${post.caption || "profile media"}`}
                   className={`group relative overflow-hidden bg-slate-900 text-left ${presentation === "media" ? "aspect-[3/4]" : "aspect-[3/4]"}`}
                 >
@@ -924,76 +941,96 @@ if (loading) {
 
       {selectedPost && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4"
-          role="presentation"
-          onClick={() => setSelectedPost(null)}
+          ref={postViewerRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Viewing this creator's posts, reels and videos"
+          className="fixed inset-0 z-[100] h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain bg-black text-white"
         >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="post-viewer-title"
-            className="w-full max-w-sm space-y-4 rounded-t-2xl border border-slate-800 bg-slate-900 p-4 sm:rounded-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h2
-                id="post-viewer-title"
-                className="text-xs font-bold uppercase tracking-wider text-indigo-400"
-              >
-                {owner ? "Content Analytics & Insights" : "Post"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setSelectedPost(null)}
-                className="text-sm text-slate-400"
-                aria-label="Close viewer"
-              >
-                ✕
-              </button>
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-[110] flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent px-4 pb-8 pt-[calc(env(safe-area-inset-top)+12px)]">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">@{profile.handle}</p>
+              <p className="text-[11px] text-white/60">Scroll to watch more from this profile</p>
             </div>
-            {selectedPost.mediaSrc &&
-              (selectedPost.media_type?.startsWith("video/") ? (
-                <video
-                  src={selectedPost.mediaSrc}
-                  onError={(event) =>
-                    void refreshProfileMedia(selectedPost, event.currentTarget.currentSrc)
-                  }
-                  controls
-                  playsInline
-                  className="max-h-56 w-full rounded-xl bg-black object-contain"
-                />
-              ) : (
-                <img
-                  src={selectedPost.mediaSrc}
-                  alt="Post preview"
-                  onError={(event) =>
-                    void refreshProfileMedia(selectedPost, event.currentTarget.currentSrc)
-                  }
-                  className="max-h-56 w-full rounded-xl object-contain"
-                />
-              ))}
-            {selectedPost.caption && (
-              <p className="text-xs text-slate-300">{selectedPost.caption}</p>
-            )}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <Metric label="Total Views" value={selectedPost.views} />
-              <Metric label="Total Likes" value={selectedPost.likes} />
-              <Metric label="Comments" value={selectedPost.comments} />
-              <Metric label="Shares" value={selectedPost.shares} />
-            </div>
-            {(selectedPost.views === null || selectedPost.comments === null) && (
-              <p className="text-center text-[10px] text-slate-400">
-                Views and comments are not tracked in the current data source.
-              </p>
-            )}
-            <Button
+            <button
               type="button"
               onClick={() => setSelectedPost(null)}
-              className="w-full bg-indigo-600"
+              aria-label="Close profile media viewer"
+              className="pointer-events-auto rounded-full bg-white/15 px-4 py-2 text-sm font-semibold backdrop-blur"
             >
-              Close Insights
-            </Button>
-          </section>
+              Close ✕
+            </button>
+          </div>
+
+          {visiblePosts.map((post, index) => (
+            <article
+              key={post.id}
+              ref={(node) => { postViewerItemRefs.current[post.id] = node; }}
+              data-profile-post-id={post.id}
+              className="relative flex min-h-[100dvh] snap-start snap-always flex-col items-center justify-center gap-4 px-3 pb-8 pt-20"
+            >
+              <div className="absolute right-4 top-[calc(env(safe-area-inset-top)+16px)] z-10 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">
+                {index + 1} / {visiblePosts.length}
+              </div>
+
+              <div className="flex max-h-[78dvh] min-h-[35dvh] w-full max-w-4xl items-center justify-center overflow-auto rounded-xl">
+                {post.mediaSrc ? (
+                  post.media_type?.startsWith("video/") ? (
+                    <ProfileAutoplayVideo
+                      src={post.mediaSrc}
+                      onPlaybackError={(failedUrl) => void refreshProfileMedia(post, failedUrl)}
+                      className="max-h-[78dvh] w-full bg-black object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={post.mediaSrc}
+                      alt={post.caption || "Creator post"}
+                      onError={(event) => void refreshProfileMedia(post, event.currentTarget.currentSrc)}
+                      onClick={() => setZoomedPostId((current) => current === post.id ? null : post.id)}
+                      loading="lazy"
+                      className={zoomedPostId === post.id
+                        ? "max-h-none w-[150%] max-w-none cursor-zoom-out object-contain transition-transform"
+                        : "max-h-[78dvh] max-w-full cursor-zoom-in object-contain transition-transform"}
+                    />
+                  )
+                ) : (
+                  <div className="max-w-2xl rounded-xl border border-white/15 bg-white/5 p-8 text-center text-sm">
+                    {post.caption || "This post has no media attached."}
+                  </div>
+                )}
+              </div>
+
+              <div className="w-full max-w-3xl space-y-3 px-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-white/80">
+                    {post.content_type === "reel" ? "REEL" : post.content_type === "video" ? "VIDEO" : post.content_type === "collab" ? "COLLABORATION" : "POST"}
+                  </span>
+                  <time className="text-[11px] text-white/50" dateTime={post.created_at}>
+                    {formatRelativeTime(post.created_at)}
+                  </time>
+                </div>
+                {post.caption && (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-white">
+                    {post.caption}
+                  </p>
+                )}
+                {!!post.tags?.length && (
+                  <p className="text-xs text-sky-300">
+                    {post.tags.map((tag) => "#" + tag).join(" ")}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-5 border-t border-white/15 pt-3 text-xs text-white/70">
+                  <span><Heart className="mr-1 inline h-4 w-4 text-pink-400" />{compactCount(post.likes)} likes</span>
+                  <span><MessageCircle className="mr-1 inline h-4 w-4 text-emerald-400" />{post.comments === null ? "—" : compactCount(post.comments)} comments</span>
+                  <span><Share2 className="mr-1 inline h-4 w-4 text-amber-300" />{compactCount(post.shares)} shares</span>
+                  {post.duration_seconds ? <span>{Math.round(post.duration_seconds)} sec</span> : null}
+                </div>
+                {zoomedPostId === post.id && (
+                  <p className="text-center text-[11px] text-white/50">Tap the photo again to return to fit view.</p>
+                )}
+              </div>
+            </article>
+          ))}
         </div>
       )}
 
@@ -1001,6 +1038,58 @@ if (loading) {
         ☁️ Offline Relay: Queue empty
       </footer>
     </main>
+  );
+}
+
+function ProfileAutoplayVideo({
+  src,
+  className,
+  onPlaybackError,
+}: {
+  src: string;
+  className?: string;
+  onPlaybackError: (failedUrl: string) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.target !== video) continue;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+            video.muted = true;
+            void video.play().catch(() => {
+              // Playback can require a tap on browsers with stricter media policies.
+            });
+          } else {
+            video.pause();
+          }
+        }
+      },
+      { threshold: [0, 0.6, 1] },
+    );
+
+    observer.observe(video);
+    return () => {
+      observer.disconnect();
+      video.pause();
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      controls
+      playsInline
+      preload="none"
+      onError={(event) => onPlaybackError(event.currentTarget.currentSrc)}
+      className={className}
+    />
   );
 }
 

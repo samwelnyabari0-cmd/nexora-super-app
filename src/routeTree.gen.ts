@@ -29,6 +29,7 @@ import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProfileIdRouteImport } from './routes/profile.id.$userId'
+import { Route as UUserIdRouteImport } from './routes/u.$userId'
 import { Route as ProfileSettingsRouteImport } from './routes/profile-settings'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -133,6 +134,11 @@ const ProfileIdRoute = ProfileIdRouteImport.update({
   path: '/profile/id/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UUserIdRoute = UUserIdRouteImport.update({
+  id: '/u/$userId',
+  path: '/u/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileSettingsRoute = ProfileSettingsRouteImport.update({
   id: '/profile-settings',
   path: '/profile-settings',
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
   '/profile/id/$userId': typeof ProfileIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/profile-settings': typeof ProfileSettingsRoute
   '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
   '/profile/id/$userId': typeof ProfileIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/profile-settings': typeof ProfileSettingsRoute
   '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/platform': typeof PlatformRoute
   '/profile': typeof ProfileRoute
   '/profile/id/$userId': typeof ProfileIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/profile-settings': typeof ProfileSettingsRoute
   '/profile/$handle': typeof PublicProfileRoute
   '/saved': typeof SavedRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/profile'
     | '/profile/id/$userId'
+    | '/u/$userId'
     | '/profile-settings'
     | '/profile/$handle'
     | '/saved'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/profile'
     | '/profile/id/$userId'
+    | '/u/$userId'
     | '/profile-settings'
     | '/profile/$handle'
     | '/saved'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/profile'
     | '/profile/id/$userId'
+    | '/u/$userId'
     | '/profile-settings'
     | '/profile/$handle'
     | '/saved'
@@ -382,6 +394,7 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   PlatformRoute: typeof PlatformRoute
   ProfileIdRoute: typeof ProfileIdRoute
+  UUserIdRoute: typeof UUserIdRoute
   ProfileRoute: typeof ProfileRoute,
   ProfileSettingsRoute: typeof ProfileSettingsRoute,
   PublicProfileRoute: typeof PublicProfileRoute
@@ -535,6 +548,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$userId': {
+      id: '/u/$userId'
+      path: '/u/$userId'
+      fullPath: '/u/$userId'
+      preLoaderRoute: typeof UUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile/$handle': {
   id: '/profile/$handle'
   path: '/profile/$handle'
@@ -624,6 +644,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlatformRoute: PlatformRoute,
   ProfileRoute: ProfileRoute,
   ProfileIdRoute: ProfileIdRoute,
+  UUserIdRoute: UUserIdRoute,
   ProfileSettingsRoute: ProfileSettingsRoute,
 PublicProfileRoute: PublicProfileRoute,
   SavedRoute: SavedRoute,
