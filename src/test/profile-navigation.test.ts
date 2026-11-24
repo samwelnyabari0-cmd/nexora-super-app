@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidProfileUserId, profilePathForUser } from "@/lib/profile-navigation";
+import { isSafeProfileReturnPath, isValidProfileUserId, profilePathForUser } from "@/lib/profile-navigation";
 
 describe("profilePathForUser", () => {
   it("uses the exact account UUID in the canonical profile route", () => {
@@ -13,6 +13,19 @@ describe("profilePathForUser", () => {
   );
 });
 
+
+describe("isSafeProfileReturnPath", () => {
+  it("allows the exact public profile URL when returning from chat", () => {
+    expect(isSafeProfileReturnPath("/u/829cf6ba-6877-41fa-9d7d-303fb437986a")).toBe(true);
+    expect(isSafeProfileReturnPath("/u/829cf6ba-6877-41fa-9d7d-303fb437986a?post=post-1")).toBe(true);
+    expect(isSafeProfileReturnPath("/profile?handle=creator")).toBe(true);
+  });
+
+  it.each(["https://example.com", "//example.com", "/u/not-a-uuid", "/u/829cf6ba-6877-41fa-9d7d", "/explore", null, undefined])(
+    "rejects unsafe or unsupported return destinations: %s",
+    (path) => expect(isSafeProfileReturnPath(path)).toBe(false),
+  );
+});
 
 describe("isValidProfileUserId", () => {
   it("accepts canonical UUIDs without changing their supplied case", () => {
