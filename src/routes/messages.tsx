@@ -5,6 +5,7 @@ import { ArrowLeft, X, Mic, Square, Search, Radio, Phone, Video } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { profilePathForUser } from "@/lib/profile-navigation";
 import { CreateGroupDialog } from "@/components/nexora/CreateGroupDialog";
 import { GroupChat } from "@/components/nexora/GroupChat";
 import { formatMessageTime, getMessageDateLabel, shouldShowDateDivider } from "@/components/nexora/message-format";
@@ -59,6 +60,7 @@ type DirectMessage = {
 };
 
 type RecipientProfile = {
+  id: string;
   display_name: string | null;
   handle: string;
   avatar_url: string | null;
@@ -1289,7 +1291,7 @@ if (recipient === user.id) {
           chatKind="direct"
           chatId={recipient}
           lock={chatLock}
-          profileHref={profile?.handle ? `/profile/${profile.handle.replace(/^@+/, "")}` : undefined}
+          profileHref={profile?.id ? profilePathForUser(profile.id) ?? undefined : undefined}
           trailing={<Button type="button" variant="outline" size="sm" onClick={() => setShareContentOpen(true)}>Share Nexora content</Button>}
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">
