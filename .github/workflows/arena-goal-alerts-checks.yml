@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/arena-automatic-goal-alerts
+      - feat/arena-fixtures-tables
   pull_request:
     branches:
       - main
@@ -11,6 +12,13 @@ on:
       - "src/features/football/goal-alerts.ts"
       - "src/features/football/goal-alerts.test.ts"
       - "src/features/football/useMatchCenter.ts"
+      - "src/features/football/arena-fixtures.ts"
+      - "src/features/football/arena-fixtures.test.ts"
+      - "src/features/football/useArenaCompetitionData.ts"
+      - "src/features/football/ArenaFixturesTables.tsx"
+      - "supabase/functions/football-data-sync/index.ts"
+      - "supabase/migrations/20261124213542_arena_football_standings_cache.sql"
+      - "supabase/config.toml"
       - "src/routes/match-center.tsx"
       - ".github/workflows/arena-goal-alerts-checks.yml"
 
@@ -48,6 +56,10 @@ jobs:
           src/features/football/goal-alerts.ts
           src/features/football/goal-alerts.test.ts
           src/features/football/useMatchCenter.ts
+          src/features/football/arena-fixtures.ts
+          src/features/football/arena-fixtures.test.ts
+          src/features/football/useArenaCompetitionData.ts
+          src/features/football/ArenaFixturesTables.tsx
           src/routes/match-center.tsx
           --rule "prettier/prettier: off"
           --rule "@typescript-eslint/no-explicit-any: off"
