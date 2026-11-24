@@ -312,6 +312,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {isFeaturePage && (
           <Link
             to="/explore"
+            search={{ post: "" }}
             className="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition hover:bg-muted"
             aria-label="Back to Explore Nexora"
           >
