@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/nexora/ui";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { PublicProfileTabs } from "@/components/nexora/PublicProfileTabs";
+import { ProfileIdentityHeader } from "@/components/nexora/ProfileIdentityHeader";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
@@ -527,90 +528,91 @@ export function PublicProfileByIdentity({
       </header>
 
       <section className="space-y-3 border-b border-slate-800 px-4 pb-3 pt-4">
-        <div className="flex items-center gap-4">
-          <div className="relative shrink-0">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={`${displayName} avatar`}
-                className="h-20 w-20 rounded-full object-cover ring-2 ring-indigo-500/70 ring-offset-2 ring-offset-slate-950"
-              />
-            ) : (
-              <Avatar name={displayName} size={80} ring />
-            )}
-          </div>
-          <div className="grid min-w-0 flex-1 grid-cols-3 gap-3 text-center">
-            <div>
-              <b className="block text-lg font-bold tabular-nums">{compactCount(posts.length)}</b>
-              <span className="text-[11px] text-slate-400">Posts</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSocial("followers")}
-              aria-pressed={socialTab === "followers"}
-              className="min-w-0"
-            >
-              <b className="block text-lg font-bold tabular-nums">
-                {compactCount(graph.followers)}
-              </b>
-              <span className="text-[11px] text-slate-400">Followers</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSocial("following")}
-              aria-pressed={socialTab === "following"}
-              className="min-w-0"
-            >
-              <b className="block text-lg font-bold tabular-nums">
-                {compactCount(graph.following)}
-              </b>
-              <span className="text-[11px] text-slate-400">Following</span>
-            </button>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-sm font-bold">{displayName}</h1>
-            {profile.profile_category && (
-              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">
-                {profile.profile_category}
-              </span>
-            )}
-          </div>
-          {profile.bio && (
-            <div className="text-[13px] leading-[1.35] text-slate-300">
-              <p
-                className={bioExpanded ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}
-              >
-                {profile.bio}
-              </p>
-              {profile.bio.length > 120 && (
-                <button
-                  type="button"
-                  onClick={() => setBioExpanded((value) => !value)}
-                  className="mt-0.5 text-xs font-semibold text-slate-100"
-                >
-                  {bioExpanded ? "less" : "more"}
-                </button>
+        <ProfileIdentityHeader
+          className="space-y-3"
+          avatar={
+            <div className="relative shrink-0">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={`${displayName} avatar`}
+                  className="h-20 w-20 rounded-full object-cover ring-2 ring-indigo-500/70 ring-offset-2 ring-offset-slate-950"
+                />
+              ) : (
+                <Avatar name={displayName} size={80} ring />
               )}
             </div>
-          )}
-          {Array.isArray(profile.bio_links) &&
-            profile.bio_links[0]?.url &&
-            /^https?:\/\//i.test(profile.bio_links[0].url) && (
-              <a
-                href={profile.bio_links[0].url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex max-w-full items-center gap-1 rounded-full bg-slate-800 px-2.5 py-1 text-xs text-sky-300"
+          }
+          identity={
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-sm font-bold">{displayName}</h1>
+                {profile.profile_category && (
+                  <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">
+                    {profile.profile_category}
+                  </span>
+                )}
+              </div>
+              {profile.bio && (
+                <div className="text-[13px] leading-[1.35] text-slate-300">
+                  <p className={bioExpanded ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}>
+                    {profile.bio}
+                  </p>
+                  {profile.bio.length > 120 && (
+                    <button
+                      type="button"
+                      onClick={() => setBioExpanded((value) => !value)}
+                      className="mt-0.5 text-xs font-semibold text-slate-100"
+                    >
+                      {bioExpanded ? "less" : "more"}
+                    </button>
+                  )}
+                </div>
+              )}
+              {Array.isArray(profile.bio_links) &&
+                profile.bio_links[0]?.url &&
+                /^https?:\/\//i.test(profile.bio_links[0].url) && (
+                  <a
+                    href={profile.bio_links[0].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-slate-800 px-2.5 py-1 text-xs text-sky-300"
+                  >
+                    <Link2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {profile.bio_links[0].title || profile.bio_links[0].url}
+                    </span>
+                  </a>
+                )}
+            </div>
+          }
+          counts={
+            <div className="grid min-w-0 grid-cols-3 gap-2 text-center">
+              <div>
+                <b className="block text-lg font-bold tabular-nums">{compactCount(posts.length)}</b>
+                <span className="text-[11px] text-slate-400">Posts</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSocial("followers")}
+                aria-pressed={socialTab === "followers"}
+                className="min-w-0"
               >
-                <Link2 className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">
-                  {profile.bio_links[0].title || profile.bio_links[0].url}
-                </span>
-              </a>
-            )}
-        </div>
+                <b className="block text-lg font-bold tabular-nums">{compactCount(graph.followers)}</b>
+                <span className="text-[11px] text-slate-400">Followers</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSocial("following")}
+                aria-pressed={socialTab === "following"}
+                className="min-w-0"
+              >
+                <b className="block text-lg font-bold tabular-nums">{compactCount(graph.following)}</b>
+                <span className="text-[11px] text-slate-400">Following</span>
+              </button>
+            </div>
+          }
+        />
         {!owner && (
           <div className="grid grid-cols-[1fr_1fr_40px] gap-2">
             <Button
