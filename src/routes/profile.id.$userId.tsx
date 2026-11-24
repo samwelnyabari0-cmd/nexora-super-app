@@ -4,12 +4,16 @@ import { PublicProfileById } from "./profile.$handle";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const Route = createFileRoute("/profile/id/$userId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    post: typeof search.post === "string" ? search.post : "",
+  }),
   head: () => ({ meta: [{ title: "Profile & Pulse Passport — NEXORA" }] }),
   component: PublicProfileIdRoute,
 });
 
 function PublicProfileIdRoute() {
   const { userId } = Route.useParams();
+  const { post } = Route.useSearch();
   if (!UUID_PATTERN.test(userId)) {
     return (
       <main className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
@@ -19,5 +23,5 @@ function PublicProfileIdRoute() {
       </main>
     );
   }
-  return <PublicProfileById userId={userId} />;
+  return <PublicProfileById userId={userId} requestedPostId={post} />;
 }
