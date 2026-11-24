@@ -36,7 +36,7 @@ export function useChatLock(userId: string, chatKind: ChatLockKind, chatId: stri
     status: "checking",
   });
   const [error, setError] = useState("");
-  const skipNextVisibilityLock = useRef(false);
+  const skipVisibilityLockUntil = useRef(0);
 
   const current = snapshot.key === key && key
     ? snapshot
@@ -94,21 +94,22 @@ export function useChatLock(userId: string, chatKind: ChatLockKind, chatId: stri
   }, [key, record]);
 
   const beginAttachmentPicker = useCallback(() => {
-    skipNextVisibilityLock.current = true;
+    // Android may background the browser while the system picker is open.
+    // Keep the chat unlocked until the picker returns and the caller ends the
+    // selection flow; the timeout also recovers if the picker is cancelled.
+    skipVisibilityLockUntil.current = Date.now() + 90_000;
   }, []);
 
   const endAttachmentPicker = useCallback(() => {
-    skipNextVisibilityLock.current = false;
+    skipVisibilityLockUntil.current = 0;
   }, []);
 
   useEffect(() => {
     if (status !== "unlocked" || !record) return;
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        if (skipNextVisibilityLock.current) return;
+        if (Date.now() < skipVisibilityLockUntil.current) return;
         lockNow();
-      } else if (document.visibilityState === "visible") {
-        skipNextVisibilityLock.current = false;
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
