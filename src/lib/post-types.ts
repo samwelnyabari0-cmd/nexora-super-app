@@ -18,7 +18,7 @@ const TAG_PREFIX = "nx-type-";
 
 /** Hidden tags remain for backwards compatibility; content_type is now canonical in Supabase. */
 export const typeTag = (type: ContentType) => `${TAG_PREFIX}${type}`;
-export const visibleTags = (tags: string[]) => tags.filter((t) => !t.startsWith(TAG_PREFIX));
+export const visibleTags = (tags: string[]) => tags.filter((t) => !t.startsWith(TAG_PREFIX) && t !== "nx-education-content");
 export function typeFromTags(tags: string[]): ContentType | undefined {
   const found = tags.find((t) => t.startsWith(TAG_PREFIX))?.slice(TAG_PREFIX.length);
   return CONTENT_TYPES.some((c) => c.id === found) ? (found as ContentType) : undefined;
