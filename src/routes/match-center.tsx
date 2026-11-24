@@ -161,9 +161,6 @@ function MatchCenterPage() {
       <Panel>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Match ticker</h2>
-          {data.matches.some((match) => isMatchStale(match)) && (
-            <span className="text-xs text-amber-600">Some scores may be delayed</span>
-          )}
         </div>
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {filters.map((item) => (
