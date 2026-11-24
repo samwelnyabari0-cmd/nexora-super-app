@@ -18,6 +18,7 @@ describe("App routing", () => {
   it.each([
     ["/messages?recipient=00000000-0000-0000-0000-000000000001", "/messages"],
     ["/profile/someone", "/profile/$handle"],
+    ["/profile/id/00000000-0000-0000-0000-000000000001", "/profile/id/$userId"],
     ["/profile?handle=someone", "/profile"],
   ])("registers navigation path %s", (href, expectedRouteId) => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
