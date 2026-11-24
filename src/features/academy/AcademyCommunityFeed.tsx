@@ -142,9 +142,9 @@ export function AcademyCommunityFeed() {
     <div className="rounded-2xl border border-dashed bg-card p-8 text-center">
       <BookOpen className="mx-auto h-8 w-8 text-primary" />
       <p className="mt-3 font-semibold">Education content will appear here</p>
-      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">When an educator sets their main profile category to Education, makes it discoverable, and publishes public posts, Reels or videos, they appear here automatically.</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Public posts from discoverable Education profiles appear here automatically. Anyone can also share an individual public post here from the main upload screen by selecting “Share to Academic Hub”. No second profile or upload is needed.</p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <Link to="/profile-settings" className="inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted">Set up an Education profile</Link>
+        <Link to="/create" className="inline-flex rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted">Share educational content</Link>
         <Button type="button" variant="outline" onClick={() => setRefreshTick((value) => value + 1)}>
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
         </Button>
