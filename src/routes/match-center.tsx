@@ -181,8 +181,8 @@ function MatchCenterPage() {
             <WifiOff className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
             <p className="text-sm font-medium">No matches in this view yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Live scores will appear here when the server-side football provider is connected and
-              the cache has been populated.
+              Live scores appear here when SportScore publishes active matches. Saved match data
+              remains available if the live feed is temporarily unavailable.
             </p>
           </div>
         )}
@@ -408,7 +408,7 @@ function MatchCenterPage() {
       <div className="flex flex-col gap-2 rounded-xl border p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Scores and news are read from Nexora’s server cache. Provider requests run server-side; your device reads the cached match data.</span>
+          <span>Live scores load from SportScore’s public feed in your browser. Nexora’s saved match cache remains as a fallback when the provider is unavailable.</span>
         </div>
         {data.matches.some((match) => match.provider === "sportscore") && (
           <a
