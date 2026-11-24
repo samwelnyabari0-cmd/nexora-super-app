@@ -380,12 +380,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Sparkles className="h-5 w-5" />
           </Link>
           <Button asChild variant="ghost" size="icon" className="relative rounded-full">
-            <Link to="/messages" aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}>
-              <MessageCircle className="h-5 w-5" />
-              {unread > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground">{unread > 9 ? "9+" : unread}</span>}
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="icon" className="relative rounded-full">
             <Link to="/notifications" aria-label={noticeCount > 0 ? `Notifications, ${noticeCount} unread` : "Notifications"}>
               <Bell className="h-5 w-5" />
               {noticeCount > 0 && (
