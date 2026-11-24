@@ -217,16 +217,20 @@ function normalizeTeamKey(name: string): string {
 
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  const syncSecret = Deno.env.get("FOOTBALL_SYNC_SECRET");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!syncSecret || !serviceKey) {
-    return json({ error: "Football sync is not configured. Add server-side Supabase secrets first." }, 503);
+  const bearerToken = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (!serviceKey) {
+    return json({ error: "Football sync is not configured. Supabase service credentials are missing." }, 503);
   }
-  if (request.headers.get("authorization") !== "Bearer " + syncSecret) {
-    return json({ error: "Unauthorized" }, 401);
-  }
+  if (!bearerToken) return json({ error: "Unauthorized" }, 401);
 
   try {
+    const authResponse = await restRequest("rpc/verify_sportscore_sync_secret", serviceKey, {
+      method: "POST",
+      body: JSON.stringify({ p_token: bearerToken }),
+    });
+    if ((await authResponse.json()) !== true) return json({ error: "Unauthorized" }, 401);
+
     const now = new Date();
     const updatedAt = now.toISOString();
     const today = utcDate(now);
@@ -304,7 +308,7 @@ Deno.serve(async (request: Request) => {
             ? "LIVE " + match.elapsed_minute + "′"
             : match.status;
           const message = "⚽ " + match.competition_name + "\n" + match.home_team + " " + score +
-            " " + match.away_team + "\n" + status + "\\nAutomatic update from Nexora Arena · SportScore";
+            " " + match.away_team + "\n" + status + "\nAutomatic update from Nexora Arena · SportScore";
           const result = await restRequest("rpc/share_football_match_update", serviceKey, {
             method: "POST",
             body: JSON.stringify({
