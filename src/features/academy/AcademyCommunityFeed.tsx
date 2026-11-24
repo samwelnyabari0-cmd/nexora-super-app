@@ -169,7 +169,7 @@ export function AcademyCommunityFeed() {
             : item.content_type === "video"
               ? `/videos?post=${encodeURIComponent(item.id)}`
               : item.creator_id
-                ? `/profile/id/${encodeURIComponent(item.creator_id)}`
+                ? `/u/${encodeURIComponent(item.creator_id)}`
                 : "#course-catalog";
           const metrics = [
             { label: "Views", value: item.view_count, Icon: Eye },
