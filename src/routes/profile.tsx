@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useSocialGraph } from "@/features/social/useSocialGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { profilePathForUser } from "@/lib/profile-navigation";
 import { useApp } from "@/features/core/store";
 import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
@@ -457,36 +458,38 @@ useEffect(() => {
                 <p className="text-xs text-muted-foreground">{connectionsError}</p>
                 <Button type="button" size="sm" variant="outline" onClick={() => setConnectionsReload((value) => value + 1)}>Try again</Button>
               </div>
-            ) : connections.map((connection) => (
-              <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
-                {connection.handle ? (
-                  <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }} aria-label={`Open @${connection.handle}'s profile`} className="shrink-0">
-                    {connection.avatar_url ? (
-                      <img src={connection.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover" />
-                    ) : (
-                      <Avatar name={connection.display_name ?? connection.handle} size={44} />
-                    )}
-                  </Link>
-                ) : connection.avatar_url ? (
-                  <img src={connection.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <Avatar name={connection.display_name ?? "NEXORA user"} size={44} />
-                )}
-                <div className="min-w-0 flex-1">
-                  {connection.handle ? (
-                    <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
+            ) : connections.map((connection) => {
+              const profilePath = profilePathForUser(connection.id);
+              const avatar = connection.avatar_url ? (
+                <img src={connection.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover" />
+              ) : (
+                <Avatar name={connection.display_name ?? connection.handle ?? "NEXORA user"} size={44} />
+              );
+              return (
+                <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
+                  {profilePath ? (
+                    <Link to={profilePath as any} aria-label={`Open ${connection.display_name ?? connection.handle ?? "account"}'s profile`} className="shrink-0">
+                      {avatar}
+                    </Link>
                   ) : (
-                    <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                    <span className="shrink-0" aria-label="Profile unavailable">{avatar}</span>
                   )}
-                  <p className="truncate text-sm text-muted-foreground">@{connection.handle ?? connection.id.slice(0, 8)}</p>
+                  <div className="min-w-0 flex-1">
+                    {profilePath ? (
+                      <Link to={profilePath as any} className="block truncate font-semibold hover:text-primary">{connection.display_name ?? "NEXORA user"}</Link>
+                    ) : (
+                      <p className="truncate font-semibold">{connection.display_name ?? "NEXORA user"}</p>
+                    )}
+                    <p className="truncate text-sm text-muted-foreground">@{connection.handle ?? connection.id.slice(0, 8)}</p>
+                  </div>
+                  {profilePath && (
+                    <Button asChild className="shrink-0" variant="outline" size="sm">
+                      <Link to={profilePath as any}>View</Link>
+                    </Button>
+                  )}
                 </div>
-                {connection.handle && (
-                  <Button asChild className="shrink-0" variant="outline" size="sm">
-                    <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }}>View</Link>
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })
             {!connectionsLoading && !connections.length && <p className="py-8 text-center text-sm text-muted-foreground">No {socialTab} yet.</p>}
           </div>
         )}
