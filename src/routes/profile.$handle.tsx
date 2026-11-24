@@ -521,7 +521,7 @@ function PublicProfile() {
               <b className="block text-lg font-bold tabular-nums">
                 {compactCount(graph.following)}
               </b>
-              <span className="text-[11px] text-slate-400">"Following"</span>
+              <span className="text-[11px] text-slate-400">Following</span>
             </button>
           </div>
         </div>
@@ -704,11 +704,13 @@ function PublicProfile() {
                       <Link
                         to="/profile/$handle"
                         params={{ handle: person.handle.replace(/^@+/, "") }}
-                        className="flex items-center gap-2 text-xs"
+                        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800"
                       >
-                        <Avatar name={person.display_name ?? person.handle} size={30} />
-                        {person.display_name ?? person.handle}{" "}
-                        <span className="text-slate-500">@{person.handle}</span>
+                        <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={36} />
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-slate-100">{person.display_name ?? person.handle}</span>
+                          <span className="block truncate text-slate-500">@{person.handle}</span>
+                        </span>
                       </Link>
                     ) : (
                       <span className="text-xs">{person.display_name ?? "NEXORA member"}</span>
