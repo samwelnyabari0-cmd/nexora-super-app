@@ -37,6 +37,17 @@ export function detectGoalAlerts(
     const current = { homeScore: match.homeScore, awayScore: match.awayScore };
 
     // The first observation is a baseline, not a goal notification.
+    if (!before) {
+      // Mark every already-observed score level as seen so a later score correction
+      // and restoration cannot masquerade as a newly scored goal.
+      for (const side of ["home", "away"] as const) {
+        const baselineScore = side === "home" ? current.homeScore : current.awayScore;
+        for (let score = 1; score <= baselineScore; score += 1) {
+          seen.add([match.provider, match.providerId, side, score].join(":"));
+        }
+      }
+    }
+
     if (before) {
       const sides = [
         { side: "home" as const, team: match.homeTeam, oldScore: before.homeScore, newScore: current.homeScore },
