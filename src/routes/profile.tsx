@@ -44,6 +44,7 @@ import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-t
 export const Route = createFileRoute("/profile")({
   validateSearch: (search: Record<string, unknown>) => ({
     handle: typeof search.handle === "string" ? search.handle : "",
+    explore: search.explore === true || search.explore === "1",
   }),
   head: () => ({
     meta: [
