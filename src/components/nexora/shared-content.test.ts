@@ -25,7 +25,8 @@ describe("safe shared Nexora content references", () => {
     expect(canonicalSharedContentPath({ source: "posts", contentId: id, contentType: "post" })).toBe(`/explore?post=${id}`);
     expect(canonicalSharedContentPath({ source: "user_media_posts", contentId: id, contentType: "reel" })).toBe(`/reels?post=${id}`);
     expect(canonicalSharedContentPath({ source: "user_media_posts", contentId: id, contentType: "video" })).toBe(`/videos?post=${id}`);
-    expect(canonicalSharedContentPath({ source: "user_media_posts", contentId: id, contentType: "post" }, "creator_1")).toBe(`/profile/creator_1?post=${id}`);
+    expect(canonicalSharedContentPath({ source: "user_media_posts", contentId: id, contentType: "post" }, id)).toBe(`/profile/id/${id}?post=${id}`);
+    expect(canonicalSharedContentPath({ source: "user_media_posts", contentId: id, contentType: "post" }, "creator_1")).toBeNull();
     expect(canonicalSharedContentPath({ source: "user_media_posts", contentId: id, contentType: "post" })).toBeNull();
   });
 
