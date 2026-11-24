@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { useSession } from "@/lib/session";
+import { profilePathForUser } from "@/lib/profile-navigation";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -288,11 +289,21 @@ function VideoCreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | nu
   const social = useSocialGraph(ownerId ?? undefined);
   if (!ownerId) return null;
   const label = profile?.display_name || profile?.handle || "NEXORA Creator";
-  return <div className="flex items-center gap-3">
-    <Link to={profile?.handle ? "/profile/$handle" : "/explore"} params={profile?.handle ? { handle: profile.handle } : undefined} className="flex min-w-0 items-center gap-2">
+  const profilePath = isSelf ? "/profile" : profilePathForUser(ownerId);
+  const identity = (
+    <span className="flex min-w-0 items-center gap-2">
       {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-muted font-semibold">{label.slice(0,1).toUpperCase()}</span>}
       <span className="min-w-0"><span className="block truncate text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">@{profile?.handle || "creator"}</span></span>
-    </Link>
-    {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Subscribe"}</button>}
-  </div>;
+    </span>
+  );
+  return (
+    <div className="flex items-center gap-3">
+      {profilePath ? (
+        <Link to={profilePath as any} className="flex min-w-0 items-center gap-2">{identity}</Link>
+      ) : (
+        <div className="flex min-w-0 items-center gap-2" aria-label="Creator profile unavailable">{identity}</div>
+      )}
+      {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Subscribe"}</button>}
+    </div>
+  );
 }
