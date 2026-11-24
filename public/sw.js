@@ -1,4 +1,4 @@
-const SHELL_CACHE = "nexora-shell-v1";
+const SHELL_CACHE = "nexora-shell-v2";
 const MEDIA_CACHE = "nexora-commute-media-v1";
 const OFFLINE_PAGE = "/offline.html";
 const APP_ROOT = "/";
