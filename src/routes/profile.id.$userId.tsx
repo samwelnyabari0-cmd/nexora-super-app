@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PublicProfileById } from "./profile.$handle";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isValidProfileUserId } from "@/lib/profile-navigation";
 
 export const Route = createFileRoute("/profile/id/$userId")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -14,7 +13,7 @@ export const Route = createFileRoute("/profile/id/$userId")({
 function PublicProfileIdRoute() {
   const { userId } = Route.useParams();
   const { post } = Route.useSearch();
-  if (!UUID_PATTERN.test(userId)) {
+  if (!isValidProfileUserId(userId)) {
     return (
       <main className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-3 p-6 text-center">
         <h1 className="text-lg font-semibold">Profile unavailable</h1>
