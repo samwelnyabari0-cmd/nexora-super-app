@@ -741,11 +741,11 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                 {!mine && (
                   profilePathForUser(message.sender_id) ? (
                     <Link to="/profile/id/$userId" params={{ userId: message.sender_id }} aria-label={`Open ${sender?.display_name || "member"}'s profile`} className="mt-5 shrink-0">
-                      {sender.avatar_url ? (
-                        <img src={sender.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                      {sender?.avatar_url ? (
+                        <img src={sender?.avatar_url ?? ""} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                          {(sender.display_name || sender.handle || "N").charAt(0).toUpperCase()}
+                          {(sender?.display_name || sender?.handle || "N").charAt(0).toUpperCase()}
                         </span>
                       )}
                     </Link>
@@ -767,7 +767,7 @@ export function GroupChat({ groupId, userId, onBack }: GroupChatProps) {
                       {profilePathForUser(message.sender_id) ? (
                         <Link to="/profile/id/$userId" params={{ userId: message.sender_id }} className="hover:underline">
                           {sender?.display_name || "NEXORA User"}
-                          <span className="ml-1 font-normal opacity-70">@{sender.handle}</span>
+                          <span className="ml-1 font-normal opacity-70">@{sender?.handle}</span>
                         </Link>
                       ) : (sender?.display_name || "NEXORA User")}
                     </p>
