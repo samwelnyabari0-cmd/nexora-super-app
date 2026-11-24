@@ -207,7 +207,7 @@ export function PostCard({ post }: { post: Post }) {
   const header = (
     <div className="flex min-w-0 items-center gap-3">
       {creatorProfileLink ? (
-        <Link to="/profile/id/$userId" params={{ userId: creatorProfileUserId! }} className="shrink-0" aria-label="Open creator profile">
+        <Link to="/profile/id/$userId" reloadDocument params={{ userId: creatorProfileUserId! }} className="shrink-0" aria-label="Open creator profile">
           <Avatar name={c.name} hue={c.hue} src={c.avatarUrl} size={38} />
         </Link>
       ) : (
@@ -216,7 +216,7 @@ export function PostCard({ post }: { post: Post }) {
         </span>
       )}
       {creatorProfileLink ? (
-        <Link to="/profile/id/$userId" params={{ userId: creatorProfileUserId! }} className="min-w-0 flex-1">
+        <Link to="/profile/id/$userId" reloadDocument params={{ userId: creatorProfileUserId! }} className="min-w-0 flex-1">
           <p className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold"
             aria-label={typeLabel + " by " + c.name + " at " + post.createdAt}>
             <span className="truncate">{c.name}</span>
