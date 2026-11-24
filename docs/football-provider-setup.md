@@ -27,6 +27,30 @@ The `sportscore-sync` Edge Function and its Vault-backed authentication remain d
 
 The original `football-sync` function and `API_FOOTBALL_KEY` setup are unchanged. API-Football's free tier is limited to 100 requests/day, so it should not be scheduled every minute.
 
+## Fixtures, results and league tables with Football-Data.org
+
+The Arena Fixtures / Results / Tables panel reads normalized cache rows from `football_matches` and `football_standings`. It does not call the provider from a user's browser.
+
+- The server-side `football-data-sync` Edge Function fetches fixtures and results for six free-tier competitions: Premier League (`PL`), Champions League (`CL`), La Liga (`PD`), Bundesliga (`BL1`), Serie A (`SA`) and Ligue 1 (`FL1`).
+- It fetches the current total/home/away standings for each competition and writes normalized rows to `football_standings`.
+- Each sync uses one combined fixtures/results request plus six standings requests, staying below the provider's free-plan limit of 10 calls per minute when run once at a time.
+- The browser reads the cache only. It refreshes the local view every five minutes; that does not trigger provider requests.
+- Football-Data.org's free plan provides fixtures, schedules, league tables and delayed scores. It is not a real-time live-score source. Keep SportScore as the separate live ticker and goal-alert feed.
+- FKF Premier League is not included in this provider's free competition coverage. The existing FKF/API-Football path remains separate.
+- Nexora displays the required attribution: “Data provided by football-data.org”.
+
+### Required server-side setup
+
+Before deploying `football-data-sync`, configure these Edge Function secrets in the Supabase project:
+
+- `FOOTBALL_DATA_API_TOKEN` — create a free account at [football-data.org](https://www.football-data.org/client/register) and copy the API token from its account area.
+- `ARENA_FOOTBALL_SYNC_SECRET` — generate a long random secret used to authorize sync requests.
+- `SUPABASE_SERVICE_ROLE_KEY` — use the existing project service-role secret; never place it in browser code or commit it.
+
+Deploy the `football-data-sync` function after the secrets are present. Invoke it with a POST request and `Authorization: Bearer <ARENA_FOOTBALL_SYNC_SECRET>`. Configure a server-side schedule no more frequently than every six hours; keep the sync secret in Supabase Vault if the schedule is managed through `pg_cron`. Do not expose either provider token or sync secret to the client.
+
+The database cache table and client UI can exist before a provider token is configured; the panel will show an empty-state message until the first successful sync.
+
 ## News and highlights
 
 `football_announcements` and `football_highlights` remain source-attributed cache tables. Populate them only from feeds/links that permit redistribution or embedding; prefer official club/league/broadcaster destinations. Highlights open the external destination only when tapped. No third-party video is mirrored or autoplayed.
