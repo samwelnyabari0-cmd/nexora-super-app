@@ -31,6 +31,9 @@ describe("private document attachment rules", () => {
     expect(resolveChatAttachment({ type: "audio/mp4; codecs=mp4a.40.2", name: "voice-message.m4a", size: 2048 })).toMatchObject({
       ok: true, mediaType: "audio", contentType: "audio/mp4", extension: "m4a",
     });
+    expect(resolveChatAttachment({ type: "audio/ogg;codecs=opus", name: "voice-message.ogg", size: 2048 })).toMatchObject({
+      ok: true, mediaType: "audio", contentType: "audio/ogg", extension: "ogg",
+    });
   });
 
   it("rejects unsupported mobile media formats and files above the bucket limit", () => {
