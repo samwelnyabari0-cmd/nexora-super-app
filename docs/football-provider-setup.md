@@ -1,15 +1,15 @@
 # Nexora Football Provider Setup
 
-Nexora Arena reads football matches from the Supabase `football_matches` cache. Browser clients never call the sports provider directly. The free SportScore adapter is `supabase/functions/sportscore-sync/index.ts`; the existing API-Football adapter remains available as a fallback and is not required by SportScore.
+Nexora Arena reads football matches from the Supabase `football_matches` cache. Browser clients never call the sports provider directly. The free SportScore adapter is `supabase/functions/sportscore-sync/index.ts`; the existing API-Football adapter remains available as a fallback.
 
 ## Free live scores with SportScore
 
 - API base: `https://sportscore.com`
-- Fixture endpoint: `GET /api/v1/fixtures/?sport=football&date=YYYY-MM-DD&limit=200`
+- Live/recent endpoint: `GET /api/widget/matches/?sport=football&limit=50`
 - No API key is required for the SportScore free data tier.
-- The sync discovers fixtures for today and the next seven UTC dates, refreshing each date no more often than every six hours.
-- During a cached match window (three hours before through two hours after kickoff), the function refreshes the relevant calendar date once per scheduled invocation. The one-minute schedule therefore uses no live-score request when no cached match is in its match window.
-- SportScore documents approximately 10,000 requests per 24 hours per IP and 60-second edge caching. A busy day can use about 1,440 live refresh requests plus fixture discovery. Monitor actual quota and throttling; this is a best-effort free service with no SLA.
+- The scheduled server function polls the live/recent endpoint once per minute and writes normalized results to the existing `football_matches` cache.
+- SportScore documents approximately 10,000 requests per 24 hours per IP and 60-second edge caching. A one-minute poll uses at most about 1,440 requests/day, leaving headroom for occasional retries. Monitor actual quota and throttling; this is a best-effort free service with no SLA.
+- This widget endpoint is intended for live and recent matches; it does not provide a full seven-day upcoming-fixture calendar. The Match Center can still show any upcoming fixtures from another configured provider.
 - Cached rows use provider `sportscore`, so they coexist with existing `api-football` rows under the existing unique key `provider,provider_id`.
 - Existing club score auto-posting is preserved and deduplicated by score/status signature.
 
@@ -55,13 +55,14 @@ select cron.schedule(
         'apikey', (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key'),
         'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'sportscore_sync_secret')
       ),
-      body := '{}'::jsonb
+      body := '{}'::jsonb,
+      timeout_milliseconds := 30000
     ) as request_id;
   $$
 );
 ```
 
-The function checks the Supabase cache before making a live request. Outside the match window it skips the live upstream request. Monitor `cron.job_run_details` and `net._http_response` for scheduler/API errors.
+The function polls the provider once per minute, but only the server function makes upstream requests. Monitor `cron.job_run_details`, `net._http_response`, and Supabase Edge Function logs for errors.
 
 ## Existing API-Football fallback
 
@@ -74,6 +75,6 @@ The original `football-sync` function and `API_FOOTBALL_KEY` setup are unchanged
 ## Official references
 
 - [SportScore developer portal](https://sportscore.com/developers/) — free tier, endpoints, attribution and published request guidance.
-- [SportScore API reference](https://sportscore.com/developers/api/) — fixture response schema and endpoint parameters.
+- [SportScore API reference](https://sportscore.com/developers/api/) — live/recent match response schema and endpoint parameters.
 - [SportScore terms](https://sportscore.com/developers/terms/) — caching, attribution, commercial use and limitations.
 - [Supabase: Scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions) — `pg_cron`, `pg_net`, and Vault-backed secrets.
