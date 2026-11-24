@@ -8,6 +8,7 @@ export type ProfilePostEngagementProps = {
   comments: number;
   shares: number;
   reposts: number;
+  busy?: boolean;
   onLike: () => void;
   onComment: () => void;
   onShare: () => void;
@@ -27,6 +28,7 @@ export function ProfilePostEngagement({
   comments,
   shares,
   reposts,
+  busy = false,
   onLike,
   onComment,
   onShare,
@@ -89,6 +91,7 @@ export function ProfilePostEngagement({
           type="button"
           aria-label={label}
           aria-pressed={active}
+          disabled={busy}
           onClick={onClick}
           className={`inline-flex min-w-10 items-center gap-1.5 text-xs text-white/80 transition-colors hover:text-white ${active ? activeClass : ""}`}
         >
