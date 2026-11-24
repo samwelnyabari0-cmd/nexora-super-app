@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, BookOpen, Bookmark, Eye, Heart, Play, Repeat2, Share2, Video, RefreshCw } from "lucide-react";
+import { Activity, BookOpen, Bookmark, Eye, Heart, Play, Repeat2, Share2, Video, RefreshCw, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
 import { recordUserMediaPostView } from "@/lib/post-views";
 import { useSession } from "@/lib/session";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 type AcademyCommunityItem = {
   id: string;
@@ -55,6 +56,7 @@ export function AcademyCommunityFeed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
+  const [selectedItem, setSelectedItem] = useState<AcademyCommunityItem | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -164,13 +166,6 @@ export function AcademyCommunityFeed() {
         {items.map((item) => {
           const isVideo = item.media_type?.startsWith("video/");
           const preview = item.thumbnailSrc || item.mediaSrc;
-          const href = item.content_type === "reel"
-            ? `/reels?post=${encodeURIComponent(item.id)}`
-            : item.content_type === "video"
-              ? `/videos?post=${encodeURIComponent(item.id)}`
-              : item.creator_id
-                ? `/u/${encodeURIComponent(item.creator_id)}`
-                : "#course-catalog";
           const metrics = [
             { label: "Views", value: item.view_count, Icon: Eye },
             { label: "Likes", value: item.like_count, Icon: Heart },
@@ -183,12 +178,13 @@ export function AcademyCommunityFeed() {
               <div className="flex items-center gap-2 p-3">
                 {item.creator_avatar_url ? <img src={item.creator_avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" /> : <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{item.creator_name.slice(0, 1).toUpperCase()}</div>}
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{item.creator_name}</p><p className="text-[11px] text-muted-foreground">{item.creator_handle ? `@${item.creator_handle.replace(/^@+/, "")} · ` : ""}{new Date(item.created_at).toLocaleDateString()}</p></div>
+                {item.creator_id && <Link to="/u/$userId" params={{ userId: item.creator_id }} aria-label={`View ${item.creator_name} profile`} title="View creator profile" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border hover:bg-muted"><UserRound className="h-4 w-4" /></Link>}
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold capitalize text-primary">{item.content_type}</span>
               </div>
-              <Link to={href as any} className="relative block aspect-video overflow-hidden bg-muted">
+              <button type="button" onClick={() => setSelectedItem(item)} aria-label={`Open ${item.content_type} by ${item.creator_name}`} className="relative block w-full aspect-video overflow-hidden bg-muted text-left">
                 {preview ? isVideo ? <video src={item.mediaSrc} poster={item.thumbnailSrc} muted playsInline preload="metadata" className="h-full w-full object-cover" /> : <img src={preview} alt={item.caption || "Education content"} loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-muted-foreground">{item.content_type === "video" || item.content_type === "reel" ? <Play className="h-10 w-10" /> : <BookOpen className="h-10 w-10" />}</div>}
                 {item.content_type === "video" && <span className="absolute right-3 top-3 rounded-lg bg-black/65 p-2 text-white"><Video className="h-4 w-4" /></span>}
-              </Link>
+              </button>
               <div className="space-y-3 p-3">
                 {item.caption && <p className="line-clamp-3 whitespace-pre-wrap text-sm">{item.caption}</p>}
                 <div className="grid grid-cols-3 gap-x-2 gap-y-3 border-t pt-3 sm:grid-cols-5">
@@ -209,6 +205,31 @@ export function AcademyCommunityFeed() {
           );
         })}
       </div>
+      <Dialog open={Boolean(selectedItem)} onOpenChange={(open) => { if (!open) setSelectedItem(null); }}>
+        <DialogContent className="flex max-h-[92svh] w-[min(96vw,900px)] max-w-[900px] flex-col overflow-y-auto gap-3 p-3 sm:p-5">
+          {selectedItem && <>
+            <div className="flex items-center gap-3 pr-8">
+              {selectedItem.creator_avatar_url ? <img src={selectedItem.creator_avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 font-bold text-primary">{selectedItem.creator_name.slice(0, 1).toUpperCase()}</div>}
+              <div className="min-w-0 flex-1"><DialogTitle className="truncate text-sm">{selectedItem.creator_name}</DialogTitle><DialogDescription className="text-xs">{selectedItem.creator_handle ? `@${selectedItem.creator_handle.replace(/^@+/, "")} · ` : ""}{new Date(selectedItem.created_at).toLocaleDateString()}</DialogDescription></div>
+              {selectedItem.creator_id && <Link to="/u/$userId" params={{ userId: selectedItem.creator_id }} aria-label="Open creator's main profile" className="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold hover:bg-muted"><UserRound className="h-4 w-4" /> Profile</Link>}
+            </div>
+            <div className="flex max-h-[62svh] min-h-[180px] items-center justify-center overflow-hidden rounded-xl bg-black">
+              {selectedItem.mediaSrc ? (selectedItem.media_type?.startsWith("video/") || selectedItem.content_type === "video" || selectedItem.content_type === "reel"
+                ? <video key={selectedItem.id} src={selectedItem.mediaSrc} poster={selectedItem.thumbnailSrc} controls playsInline autoPlay className="max-h-[62svh] w-full object-contain" />
+                : <img src={selectedItem.mediaSrc} alt={selectedItem.caption || "Academic Hub content"} className="max-h-[62svh] w-full object-contain" />)
+                : <div className="p-8 text-center text-sm text-white/80">No media preview is available for this post.</div>}
+            </div>
+            {selectedItem.caption && <p className="whitespace-pre-wrap break-words text-sm">{selectedItem.caption}</p>}
+            <div className="grid grid-cols-3 gap-2 border-t pt-3 text-xs text-muted-foreground sm:grid-cols-5">
+              <span><Eye className="mr-1 inline h-3.5 w-3.5" />{formatCount(selectedItem.view_count)} views</span>
+              <span><Heart className="mr-1 inline h-3.5 w-3.5" />{formatCount(selectedItem.like_count)} likes</span>
+              <span><Share2 className="mr-1 inline h-3.5 w-3.5" />{formatCount(selectedItem.share_count)} shares</span>
+              <span><Bookmark className="mr-1 inline h-3.5 w-3.5" />{formatCount(selectedItem.save_count)} saves</span>
+              <span><Repeat2 className="mr-1 inline h-3.5 w-3.5" />{formatCount(selectedItem.repost_count)} reposts</span>
+            </div>
+          </>}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
