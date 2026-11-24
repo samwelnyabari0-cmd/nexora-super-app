@@ -562,7 +562,7 @@ function PublicProfile({
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/id/${profile.id}`,
+                  returnTo: `/u/${profile.id}`,
                   prompt: "Ask about rates",
                 }}
               >
@@ -605,7 +605,7 @@ function PublicProfile({
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/id/${profile.id}`,
+                  returnTo: `/u/${profile.id}`,
                   prompt,
                 }}
                 className="rounded-full border border-slate-700 px-3 py-1.5 text-[10px] text-slate-300 hover:border-indigo-500"
@@ -676,7 +676,7 @@ function PublicProfile({
                   <li key={person.id} className="flex items-center gap-2">
                     {person.id ? (
                       <Link
-                        to="/profile/id/$userId" reloadDocument
+                        to="/u/$userId" reloadDocument
                         params={{ userId: person.id }}
                         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800"
                       >
