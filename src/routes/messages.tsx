@@ -1289,7 +1289,7 @@ if (recipient === user.id) {
           chatKind="direct"
           chatId={recipient}
           lock={chatLock}
-          profileHref={profile?.handle ? `/profile/${profile.handle.replace(/^@+/, "")}` : undefined}
+          profileHref={recipient ? `/profile/id/${recipient}` : undefined}
           trailing={<Button type="button" variant="outline" size="sm" onClick={() => setShareContentOpen(true)}>Share Nexora content</Button>}
         />
         <div className="ml-auto flex shrink-0 items-center gap-1">

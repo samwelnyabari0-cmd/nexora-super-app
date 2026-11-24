@@ -134,7 +134,7 @@ export function SharedContentCard({ source, contentId, contentType }: SharedCont
           ? useThumbnail ? row.thumbnail_storage_key : row.media_storage_key
           : undefined,
       );
-      const path = canonicalSharedContentPath(reference, creatorHandle);
+      const path = canonicalSharedContentPath(reference, creatorId);
       if (!cancelled) {
         setContent({
           caption: row.caption ?? null,

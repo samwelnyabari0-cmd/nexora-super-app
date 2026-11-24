@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/nexora/ui";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { PublicProfileTabs } from "@/components/nexora/PublicProfileTabs";
+import { ProfileIdentityHeader } from "@/components/nexora/ProfileIdentityHeader";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
@@ -81,7 +82,12 @@ export const Route = createFileRoute("/profile/$handle")({
 // Force a clean component lifecycle whenever navigation changes the requested account.
 function PublicProfileRouteComponent() {
   const { handle } = Route.useParams();
-  return <PublicProfile key={handle.toLowerCase()} />;
+  const { post } = Route.useSearch();
+  return <PublicProfile key={handle.toLowerCase()} handle={handle} requestedPostId={post} />;
+}
+
+export function PublicProfileById({ userId, requestedPostId = "" }: { userId: string; requestedPostId?: string }) {
+  return <PublicProfile key={userId} profileId={userId} handle="" requestedPostId={requestedPostId} />;
 }
 
 function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
@@ -101,9 +107,15 @@ function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
   );
 }
 
-function PublicProfile() {
-  const { handle } = Route.useParams();
-  const { post: requestedPostId } = Route.useSearch();
+function PublicProfile({
+  handle,
+  profileId,
+  requestedPostId,
+}: {
+  handle: string;
+  profileId?: string;
+  requestedPostId: string;
+}) {
   const { user } = useSession();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -167,15 +179,14 @@ function PublicProfile() {
     void (async () => {
       try {
         const normalizedHandle = handle.trim().replace(/^@+/, "");
-        const { data: profileRows, error: profileError } = await (supabase as any).rpc(
-          "get_public_profile",
-          { p_handle: normalizedHandle },
-        );
+        const { data: profileRows, error: profileError } = profileId
+          ? await (supabase as any).rpc("get_public_profile_by_id", { p_user_id: profileId })
+          : await (supabase as any).rpc("get_public_profile", { p_handle: normalizedHandle });
 
         if (cancelled) return;
 
-        // The exact-handle RPC is authoritative. Do not substitute a directory/search
-        // result or the signed-in user's profile when resolving another account.
+        // Resolve by the exact UUID on canonical routes and by exact handle only for
+        // legacy links. Never substitute the current user's profile on lookup failure.
         const normalize = (value: unknown) =>
           String(value ?? "").trim().replace(/^@+/, "").toLowerCase();
         if (profileError) throw profileError;
@@ -184,13 +195,12 @@ function PublicProfile() {
           : profileRows
             ? [profileRows]
             : [];
-        const row = rpcRows.find(
-          (candidate: Record<string, unknown>) =>
-            normalize(candidate.handle) === normalize(normalizedHandle) &&
-            typeof candidate.id === "string" && candidate.id.length > 0,
-        ) ?? null;
+        const row = rpcRows.find((candidate: Record<string, unknown>) => {
+          if (typeof candidate.id !== "string" || candidate.id.length === 0) return false;
+          return profileId ? candidate.id === profileId : normalize(candidate.handle) === normalize(normalizedHandle);
+        }) ?? null;
 
-        if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
+        if (!row || (profileId ? row.id !== profileId : normalize(row.handle) !== normalize(normalizedHandle))) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
@@ -315,7 +325,7 @@ function PublicProfile() {
     return () => {
       cancelled = true;
     };
-  }, [handle, user?.id, tab]);
+  }, [handle, profileId, user?.id, tab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -482,74 +492,24 @@ function PublicProfile() {
       </header>
 
       <section className="space-y-3 border-b border-slate-800 px-4 pb-3 pt-4">
-        <div className="flex items-center gap-4">
-          <div className="relative shrink-0">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={`${displayName} avatar`}
-                className="h-20 w-20 rounded-full object-cover ring-2 ring-indigo-500/70 ring-offset-2 ring-offset-slate-950"
-              />
-            ) : (
-              <Avatar name={displayName} size={80} ring />
-            )}
-          </div>
-          <div className="grid min-w-0 flex-1 grid-cols-3 gap-3 text-center">
-            <div>
-              <b className="block text-lg font-bold tabular-nums">{compactCount(posts.length)}</b>
-              <span className="text-[11px] text-slate-400">Posts</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSocial("followers")}
-              aria-pressed={socialTab === "followers"}
-              className="min-w-0"
-            >
-              <b className="block text-lg font-bold tabular-nums">
-                {compactCount(graph.followers)}
-              </b>
-              <span className="text-[11px] text-slate-400">Followers</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSocial("following")}
-              aria-pressed={socialTab === "following"}
-              className="min-w-0"
-            >
-              <b className="block text-lg font-bold tabular-nums">
-                {compactCount(graph.following)}
-              </b>
-              <span className="text-[11px] text-slate-400">Following</span>
-            </button>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-sm font-bold">{displayName}</h1>
-            {profile.profile_category && (
-              <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">
-                {profile.profile_category}
-              </span>
-            )}
-          </div>
-          {profile.bio && (
+        <ProfileIdentityHeader
+          profile={{ displayName, handle: profile.handle, avatarUrl: profile.avatar_url }}
+          counts={{ posts: posts.length, followers: graph.followers, following: graph.following }}
+          isOwner={owner}
+          onFollowersClick={() => setSocial("followers")}
+          onFollowingClick={() => setSocial("following")}
+          meta={profile.profile_category ? <span className="inline-flex rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300">{profile.profile_category}</span> : null}
+          bio={profile.bio ? (
             <div className="text-[13px] leading-[1.35] text-slate-300">
-              <p
-                className={bioExpanded ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}
-              >
-                {profile.bio}
-              </p>
+              <p className={bioExpanded ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}>{profile.bio}</p>
               {profile.bio.length > 120 && (
-                <button
-                  type="button"
-                  onClick={() => setBioExpanded((value) => !value)}
-                  className="mt-0.5 text-xs font-semibold text-slate-100"
-                >
+                <button type="button" onClick={() => setBioExpanded((value) => !value)} className="mt-0.5 text-xs font-semibold text-slate-100">
                   {bioExpanded ? "less" : "more"}
                 </button>
               )}
             </div>
-          )}
+          ) : null}
+        />
           {Array.isArray(profile.bio_links) &&
             profile.bio_links[0]?.url &&
             /^https?:\/\//i.test(profile.bio_links[0].url) && (
@@ -565,7 +525,6 @@ function PublicProfile() {
                 </span>
               </a>
             )}
-        </div>
         {!owner && (
           <div className="grid grid-cols-[1fr_1fr_40px] gap-2">
             <Button
@@ -586,7 +545,7 @@ function PublicProfile() {
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/${profile.handle || handle}`,
+                  returnTo: `/profile/id/${profile.id}`,
                   prompt: "Ask about rates",
                 }}
               >
@@ -629,7 +588,7 @@ function PublicProfile() {
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/${profile.handle || handle}`,
+                  returnTo: `/profile/id/${profile.id}`,
                   prompt,
                 }}
                 className="rounded-full border border-slate-700 px-3 py-1.5 text-[10px] text-slate-300 hover:border-indigo-500"
@@ -698,10 +657,10 @@ function PublicProfile() {
               <ul className="max-h-60 space-y-2 overflow-y-auto">
                 {connections.map((person) => (
                   <li key={person.id} className="flex items-center gap-2">
-                    {person.handle ? (
+                    {person.id ? (
                       <Link
-                        to="/profile/$handle"
-                        params={{ handle: person.handle.replace(/^@+/, "") }}
+                        to="/profile/id/$userId"
+                        params={{ userId: person.id }}
                         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-xs hover:bg-slate-800"
                       >
                         <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={36} />

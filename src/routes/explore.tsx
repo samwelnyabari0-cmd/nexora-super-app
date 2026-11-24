@@ -117,8 +117,8 @@ function Explore() {
                 {people.map((person) => (
                   <Link
   key={person.id}
-  to="/profile/$handle"
-  params={{ handle: person.handle! }}
+  to="/profile/id/$userId"
+  params={{ userId: person.id }}
   className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent"
 >
                     <Avatar name={person.display_name ?? person.handle ?? "NEXORA User"} src={person.avatar_url} size={44} />
