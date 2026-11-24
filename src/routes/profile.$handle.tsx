@@ -75,8 +75,14 @@ export const Route = createFileRoute("/profile/$handle")({
     ],
   }),
   errorComponent: PublicProfileErrorComponent,
-  component: PublicProfile,
+  component: PublicProfileRouteComponent,
 });
+
+// Force a clean component lifecycle whenever navigation changes the requested account.
+function PublicProfileRouteComponent() {
+  const { handle } = Route.useParams();
+  return <PublicProfile key={handle.toLowerCase()} />;
+}
 
 function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
   return (
@@ -168,29 +174,21 @@ function PublicProfile() {
 
         if (cancelled) return;
 
-        // Resolve the exact requested handle from the account directory first.
-        // This prevents a stale profile RPC result from ever displaying the signed-in user's page.
+        // The exact-handle RPC is authoritative. Do not substitute a directory/search
+        // result or the signed-in user's profile when resolving another account.
         const normalize = (value: unknown) =>
           String(value ?? "").trim().replace(/^@+/, "").toLowerCase();
-        const { data: discoveredRows, error: discoveryError } = await (supabase as any).rpc(
-          "get_discoverable_profiles",
-          { p_query: normalizedHandle, p_limit: 60 },
-        );
-        if (cancelled) return;
-        let row = !discoveryError && Array.isArray(discoveredRows)
-          ? discoveredRows.find(
-              (candidate: Record<string, unknown>) =>
-                normalize(candidate.handle) === normalize(normalizedHandle),
-            ) ?? null
-          : null;
-        const rpcRow = (Array.isArray(profileRows) ? profileRows[0] : profileRows) ?? null;
-        if (rpcRow && normalize(rpcRow.handle) === normalize(normalizedHandle)) {
-          row = row ? { ...row, ...rpcRow } : rpcRow;
-        }
-        if (discoveryError) {
-          console.error("Could not resolve requested public profile from discovery:", discoveryError);
-          if (profileError) console.error("Public profile RPC also reported:", profileError);
-        }
+        if (profileError) throw profileError;
+        const rpcRows = Array.isArray(profileRows)
+          ? profileRows
+          : profileRows
+            ? [profileRows]
+            : [];
+        const row = rpcRows.find(
+          (candidate: Record<string, unknown>) =>
+            normalize(candidate.handle) === normalize(normalizedHandle) &&
+            typeof candidate.id === "string" && candidate.id.length > 0,
+        ) ?? null;
 
         if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
           setError("This profile could not be found or is not available.");
