@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { moreLinks } from "@/components/nexora/AppShell";
 import { Avatar, Chip, PageHeader, Panel } from "@/components/nexora/ui";
 import { ProfileBadges } from "@/components/nexora/ProfileBadges";
+import { ProfileIdentityHeader } from "@/components/nexora/ProfileIdentityHeader";
 import { CreatorPaymentActions } from "@/components/nexora/CreatorPaymentActions";
 import { Switch } from "@/components/ui/switch";
 import { PostCard } from "@/components/nexora/PostCard";
@@ -115,7 +116,31 @@ function Profile() {
   const [connectionsReload, setConnectionsReload] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [postCount, setPostCount] = useState(0);
   const avatarInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setPostCount(0);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const { count, error } = await (supabase as any)
+        .from("user_media_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if (!active) return;
+      if (error) {
+        console.error("Could not load profile post count:", error.message);
+        return;
+      }
+      setPostCount(count ?? 0);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -329,16 +354,26 @@ useEffect(() => {
         }
       />
       <Panel className="space-y-4">
-        <div className="flex items-start gap-4">
-          <div className="group relative shrink-0">
-            {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
-            <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
-          </div>
-          <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
-            <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
+        <ProfileIdentityHeader
+          className="space-y-2"
+          avatar={
+            <>
+              <div className="group relative shrink-0">
+                {avatarUrl ? <img src={avatarUrl} alt="Profile" className="h-[76px] w-[76px] rounded-full object-cover ring-2 ring-primary" /> : <Avatar name={passport.name} size={76} ring />}
+                <span className="absolute inset-x-0 bottom-0 rounded-b-full bg-background/80 py-1 text-center text-[10px] opacity-0 transition group-hover:opacity-100">{avatarUploading ? "Uploading" : "Change"}</span>
+              </div>
+              <input ref={avatarInput} type="file" accept="image/*" className="sr-only" aria-label="Profile picture" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAvatar(file); event.target.value = ""; }} />
+            </>
+          }
+          identity={
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 font-display text-xl font-bold">{passport.name}<CheckCircle2 className="h-5 w-5 shrink-0 text-accent" aria-label="Verified" /></p>
+              <p className="text-sm text-muted-foreground">@{passport.handle} · {profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Software Development"}</p>
+            </div>
+          }
+          counts={
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span><strong className="text-foreground">{postCount.toLocaleString()}</strong> Posts</span>
               <button type="button" onClick={() => setSocialTab("followers")} className="rounded-sm text-left hover:text-foreground">
                 <strong className="text-foreground">{followers.toLocaleString()}</strong> Followers
               </button>
@@ -347,8 +382,8 @@ useEffect(() => {
               </button>
               <span className="text-brand">{(passport.reputation * 100).toLocaleString()} Nex Points</span>
             </div>
-          </div>
-        </div>
+          }
+        />
         <ProfileBadges
           accountType={accountType}
           industryTag={profileCategories.find(([value]) => value === profileCategory)?.[1] ?? "Tech & Gaming"}
