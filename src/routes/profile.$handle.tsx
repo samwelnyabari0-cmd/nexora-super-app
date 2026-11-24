@@ -707,7 +707,7 @@ function PublicProfile({
               <ul className="max-h-60 space-y-2 overflow-y-auto">
                 {connections.map((person) => (
                   <li key={person.id} className="flex items-center gap-2">
-                    {person.handle ? (
+                    {person.id ? (
                       <Link
                         to="/profile/id/$userId"
                         params={{ userId: person.id }}
