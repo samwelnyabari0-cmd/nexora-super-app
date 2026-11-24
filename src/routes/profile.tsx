@@ -460,7 +460,7 @@ useEffect(() => {
             ) : connections.map((connection) => (
               <div key={connection.id} className="flex min-w-0 items-center gap-3 border-b py-3 last:border-b-0">
                 {connection.handle ? (
-                  <Link to="/profile/$handle" params={{ handle: connection.handle.replace(/^@+/, "") }} aria-label={`Open @${connection.handle}'s profile`} className="shrink-0">
+                  <Link to="/profile/id/$userId" params={{ userId: connection.id }} aria-label={`Open @${connection.handle}'s profile`} className="shrink-0">
                     {connection.avatar_url ? (
                       <img src={connection.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover" />
                     ) : (
