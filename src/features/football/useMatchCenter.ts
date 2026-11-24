@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { normalizeTeamKey } from "./format";
+import { fetchSportScoreMatches } from "./sportscore";
 import { buildMatchShareMessage, hasActiveClubMembership } from "./club-sharing";
 import type { FootballAnnouncement, FootballHighlight, FootballMatch } from "./types";
 
@@ -150,7 +151,15 @@ export function useMatchCenter() {
           .select("id,club_id,team_name,team_provider_id,enabled")
           .eq("created_by", user.id)
       : Promise.resolve({ data: [] as ClubTeamSync[], error: null });
-    const [matchResult, announcementResult, highlightResult, favoriteResult, syncResult] =
+    const sportScorePromise = fetchSportScoreMatches()
+      .then((matches) => ({ matches, error: null as string | null }))
+      .catch((providerError: unknown) => ({
+        matches: [] as FootballMatch[],
+        error: providerError instanceof Error
+          ? providerError.message
+          : "SportScore live scores are temporarily unavailable.",
+      }));
+    const [matchResult, announcementResult, highlightResult, favoriteResult, syncResult, sportScoreResult] =
       await Promise.all([
         table<MatchRow>("football_matches")
           .select("*")
@@ -171,6 +180,7 @@ export function useMatchCenter() {
           .limit(8),
         favoriteQuery,
         syncQuery,
+        sportScorePromise,
       ]);
 
     const firstError =
@@ -179,20 +189,34 @@ export function useMatchCenter() {
       highlightResult.error ??
       favoriteResult.error ??
       syncResult.error;
+    const mergedMatches = new Map<string, FootballMatch>();
+    const cacheMatches = (matchResult.data ?? []).map(toMatch);
+    const fixtureKey = (match: FootballMatch) =>
+      normalizeTeamKey(match.homeTeam) + "|" +
+      normalizeTeamKey(match.awayTeam) + "|" +
+      match.kickoffAt.slice(0, 10);
+    for (const match of cacheMatches) mergedMatches.set(fixtureKey(match), match);
+    for (const match of sportScoreResult.matches) mergedMatches.set(fixtureKey(match), match);
+
+    const visibleMatches = [...mergedMatches.values()].sort(
+      (left, right) => left.kickoffAt.localeCompare(right.kickoffAt),
+    );
+    setMatches(visibleMatches);
+    setAnnouncements((announcementResult.data ?? []).map(toAnnouncement));
+    setHighlights((highlightResult.data ?? []).map(toHighlight));
+    setFavorites(favoriteResult.data ?? []);
+    setClubSyncs(syncResult.data ?? []);
+
     if (firstError) {
-      setError(
-        "Football updates are not available yet. The Match Center will show data once its cache is configured.",
-      );
+      setError("Some cached football updates could not load. Live scores may still be available.");
+    } else if (sportScoreResult.error) {
+      setError("SportScore is temporarily unavailable. Showing cached scores where available.");
     } else {
       setError(null);
-      setMatches((matchResult.data ?? []).map(toMatch));
-      setAnnouncements((announcementResult.data ?? []).map(toAnnouncement));
-      setHighlights((highlightResult.data ?? []).map(toHighlight));
-      setFavorites(favoriteResult.data ?? []);
-      setClubSyncs(syncResult.data ?? []);
-      const timestamps = (matchResult.data ?? []).map((row) => row.updated_at).filter(Boolean);
-      setLastUpdated(timestamps.sort().at(-1) ?? null);
     }
+
+    const timestamps = visibleMatches.map((match) => match.updatedAt).filter(Boolean);
+    setLastUpdated(timestamps.sort().at(-1) ?? null);
     setLoading(false);
   }, [user]);
 
