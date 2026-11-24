@@ -222,9 +222,16 @@ export function useMatchCenter() {
 
   useEffect(() => {
     if (!ready) return;
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 60_000);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    refreshWhenVisible();
+    const timer = window.setInterval(refreshWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [ready, refresh]);
 
   const addFavorite = useCallback(
