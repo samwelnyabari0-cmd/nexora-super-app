@@ -56,28 +56,44 @@ function StandingRows({ rows }: { rows: FootballStanding[] }) {
   );
 }
 
+function nairobiDateKey(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Nairobi",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 export function ArenaFixturesTables() {
   const data = useArenaCompetitionData();
   const [view, setView] = useState<ArenaView>("fixtures");
   const [competition, setCompetition] = useState<ArenaCompetitionCode>("ALL");
+  const [selectedDate, setSelectedDate] = useState("");
 
   const matchList = useMemo(
-    () => view === "tables" ? [] : selectArenaMatches(data.matches, view, competition),
-    [data.matches, view, competition],
+    () => view === "tables"
+      ? []
+      : selectArenaMatches(data.matches, view, competition).filter((match) =>
+          !selectedDate || nairobiDateKey(match.kickoffAt) === selectedDate),
+    [data.matches, view, competition, selectedDate],
   );
   const tableRows = useMemo(
     () => data.standings
       .filter((row) => row.standing_type === "TOTAL")
       .filter((row) => competition === "ALL" || row.competition_code === competition)
-      .sort((left, right) => left.competition_code.localeCompare(right.competition_code) || left.position - right.position),
+      .sort((left, right) => left.competition_code.localeCompare(right.competition_code) || left.group_name.localeCompare(right.group_name) || left.position - right.position),
     [data.standings, competition],
   );
   const competitionGroups = useMemo(() => {
     const groups = new Map<string, FootballStanding[]>();
     for (const row of tableRows) {
-      const group = groups.get(row.competition_code) ?? [];
+      const key = `${row.competition_code}:${row.group_name || "overall"}`;
+      const group = groups.get(key) ?? [];
       group.push(row);
-      groups.set(row.competition_code, group);
+      groups.set(key, group);
     }
     return [...groups.entries()];
   }, [tableRows]);
@@ -112,13 +128,27 @@ export function ArenaFixturesTables() {
         ))}
       </div>
 
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1">
         <button type="button" onClick={() => setCompetition("ALL")} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${competition === "ALL" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>All</button>
         {ARENA_COMPETITIONS.map((item) => (
           <button key={item.code} type="button" onClick={() => setCompetition(item.code)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${competition === item.code ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
             {item.label}
           </button>
         ))}
+        </div>
+        {view !== "tables" && (
+          <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+            Date
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="rounded-lg border bg-background px-2 py-1.5 text-xs text-foreground"
+            />
+            {selectedDate && <button type="button" onClick={() => setSelectedDate("")} className="underline">Clear</button>}
+          </label>
+        )}
       </div>
 
       {data.loading ? (
@@ -129,7 +159,7 @@ export function ArenaFixturesTables() {
             {competitionGroups.map(([code, rows]) => (
               <section key={code} className="overflow-hidden rounded-xl border">
                 <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
-                  <h3 className="text-sm font-semibold">{rows[0]?.competition_name}</h3>
+                  <h3 className="text-sm font-semibold">{rows[0]?.competition_name}{rows[0]?.group_name ? ` · ${rows[0].group_name}` : ""}</h3>
                   <span className="text-[10px] text-muted-foreground">{rows[0]?.current_matchday ? `Matchday ${rows[0].current_matchday}` : "Current season"}</span>
                 </div>
                 <StandingRows rows={rows} />
