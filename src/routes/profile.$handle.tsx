@@ -81,7 +81,14 @@ export const Route = createFileRoute("/profile/$handle")({
 // Force a clean component lifecycle whenever navigation changes the requested account.
 function PublicProfileRouteComponent() {
   const { handle } = Route.useParams();
-  return <PublicProfile key={handle.toLowerCase()} />;
+  const { post } = Route.useSearch();
+  return (
+    <PublicProfileByIdentity
+      key={`handle:${handle.toLowerCase()}`}
+      identity={{ type: "handle", value: handle }}
+      requestedPostId={post}
+    />
+  );
 }
 
 function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
@@ -101,9 +108,18 @@ function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
   );
 }
 
-function PublicProfile() {
-  const { handle } = Route.useParams();
-  const { post: requestedPostId } = Route.useSearch();
+export type PublicProfileIdentity = {
+  type: "handle" | "id";
+  value: string;
+};
+
+export function PublicProfileByIdentity({
+  identity,
+  requestedPostId = "",
+}: {
+  identity: PublicProfileIdentity;
+  requestedPostId?: string;
+}) {
   const { user } = useSession();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -166,16 +182,32 @@ function PublicProfile() {
 
     void (async () => {
       try {
-        const normalizedHandle = handle.trim().replace(/^@+/, "");
-        const { data: profileRows, error: profileError } = await (supabase as any).rpc(
-          "get_public_profile",
-          { p_handle: normalizedHandle },
-        );
+        const normalizedHandle =
+          identity.type === "handle" ? identity.value.trim().replace(/^@+/, "") : "";
+        const validUserId =
+          identity.type === "id" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            identity.value,
+          );
+        if (identity.type === "id" && !validUserId) {
+          setError("This profile link is invalid.");
+          setLoading(false);
+          return;
+        }
+
+        const { data: profileRows, error: profileError } =
+          identity.type === "id"
+            ? await (supabase as any).rpc("get_public_profile_by_id", {
+                p_user_id: identity.value,
+              })
+            : await (supabase as any).rpc("get_public_profile", {
+                p_handle: normalizedHandle,
+              });
 
         if (cancelled) return;
 
-        // The exact-handle RPC is authoritative. Do not substitute a directory/search
-        // result or the signed-in user's profile when resolving another account.
+        // The selected identity is authoritative. Never substitute the current user's
+        // profile or a directory result when the requested account cannot be resolved.
         const normalize = (value: unknown) =>
           String(value ?? "").trim().replace(/^@+/, "").toLowerCase();
         if (profileError) throw profileError;
@@ -184,13 +216,25 @@ function PublicProfile() {
           : profileRows
             ? [profileRows]
             : [];
-        const row = rpcRows.find(
-          (candidate: Record<string, unknown>) =>
-            normalize(candidate.handle) === normalize(normalizedHandle) &&
-            typeof candidate.id === "string" && candidate.id.length > 0,
-        ) ?? null;
+        const row =
+          identity.type === "id"
+            ? rpcRows.find(
+                (candidate: Record<string, unknown>) =>
+                  typeof candidate.id === "string" &&
+                  candidate.id.toLowerCase() === identity.value.toLowerCase(),
+              ) ?? null
+            : rpcRows.find(
+                (candidate: Record<string, unknown>) =>
+                  normalize(candidate.handle) === normalize(normalizedHandle) &&
+                  typeof candidate.id === "string" &&
+                  candidate.id.length > 0,
+              ) ?? null;
 
-        if (!row || normalize(row.handle) !== normalize(normalizedHandle)) {
+        if (
+          !row ||
+          (identity.type === "handle" &&
+            normalize(row.handle) !== normalize(normalizedHandle))
+        ) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
@@ -315,7 +359,7 @@ function PublicProfile() {
     return () => {
       cancelled = true;
     };
-  }, [handle, user?.id, tab]);
+  }, [identity.type, identity.value, user?.id, tab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -447,7 +491,7 @@ function PublicProfile() {
         </Link>
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="max-w-[min(65vw,18rem)] truncate text-sm font-semibold">
-            @{profile.handle || handle}
+            {profile.handle ? `@${profile.handle}` : "NEXORA member"}
           </span>
           {(profile.settings?.verified === true || profile.settings?.is_verified === true) && (
             <BadgeCheck className="h-4 w-4 shrink-0 text-sky-400" aria-label="Verified" />
@@ -586,7 +630,7 @@ function PublicProfile() {
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/${profile.handle || handle}`,
+                  returnTo: `/profile/id/${profile.id}`,
                   prompt: "Ask about rates",
                 }}
               >
@@ -629,7 +673,7 @@ function PublicProfile() {
                 to="/messages"
                 search={{
                   recipient: profile.id,
-                  returnTo: `/profile/${profile.handle || handle}`,
+                  returnTo: `/profile/id/${profile.id}`,
                   prompt,
                 }}
                 className="rounded-full border border-slate-700 px-3 py-1.5 text-[10px] text-slate-300 hover:border-indigo-500"
