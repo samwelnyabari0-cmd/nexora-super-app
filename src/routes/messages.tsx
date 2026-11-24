@@ -983,7 +983,7 @@ if (recipient === user.id) {
       const payload = {
         sender_id: user.id,
         recipient_id: forwardRecipient,
-        body: message.body ? `↪ Forwarded\\n${message.body}` : "↪ Forwarded attachment",
+        body: message.body ? `↪ Forwarded\n${message.body}` : "↪ Forwarded attachment",
         media_path: copiedMediaPath,
         media_type: message.media_type ?? null,
         attachment_name: message.attachment_name ?? null,
@@ -1238,7 +1238,13 @@ if (recipient === user.id) {
     if (mediaPath) {
       void supabase.storage.from("chat-media").createSignedUrl(mediaPath, 3600).then(({ data }) => {
         if (data?.signedUrl) {
-          setMediaUrls((current) => ({ ...current, [optimisticId]: data.signedUrl }));
+          const finalMessageId = insertedMessage?.id ?? optimisticId;
+          setMediaUrls((current) => {
+            const next = { ...current };
+            delete next[optimisticId];
+            next[finalMessageId] = data.signedUrl;
+            return next;
+          });
           if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
         }
       });
