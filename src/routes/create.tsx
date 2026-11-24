@@ -256,6 +256,7 @@ const previewFilter =
         }}
         caption={caption} onCaptionChange={setCaption} tags={tags} onTagsChange={setTags}
         audience={audience} onAudienceChange={setAudience}
+        shareToAcademicHub={shareToAcademicHub} onShareToAcademicHubChange={setShareToAcademicHub}
         uploadLimits={`${uploadTier.replaceAll("_", " ")} plan: ${uploadLimits.short === Infinity ? "unlimited" : uploadLimits.short} Reels, ${uploadLimits.feed === Infinity ? "unlimited" : uploadLimits.feed} feed posts, ${uploadLimits.long_form === Infinity ? "unlimited" : uploadLimits.long_form} long-form videos daily. Maximum file size: ${uploadLimits.maxBytes >= 1024 ** 3 ? `${uploadLimits.maxBytes / 1024 ** 3} GB` : `${uploadLimits.maxBytes / 1024 ** 2} MB`}.`}
         error={error} note={note} uploadProgress={uploadProgress} uploadStatus={uploadStatus}
         publishDisabled={!caption.trim() || queued || uploadProgress !== null}
