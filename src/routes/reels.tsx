@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3, Bookmark, Repeat2, Eye, Volume2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
+import { profilePathForUser } from "@/lib/profile-navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useStrictMediaItems } from "@/components/nexora/StrictMediaFeed";
 import { recordUserMediaPostView } from "@/lib/post-views";
