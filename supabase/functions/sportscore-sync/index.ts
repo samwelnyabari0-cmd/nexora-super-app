@@ -121,8 +121,15 @@ function normalizeMatch(value: unknown, updatedAt: string): SportScoreMatchRow |
 
   const score = record(match.score);
   const goals = record(match.goals);
-  const statusText = textValue(first(match.status_text, match.statusText, match.elapsed, match.minute)) ?? "";
-  const statusValue = textValue(first(match.status, match.status_code, match.state)) ?? "";
+  const statusRecord = record(match.status);
+  const statusText = textValue(first(
+    match.status_text, match.statusText, statusRecord.description, statusRecord.detail,
+    match.elapsed, match.minute,
+  )) ?? "";
+  const statusValue = textValue(first(
+    statusRecord.short, statusRecord.code, statusRecord.name,
+    match.status_code, match.state, match.status,
+  )) ?? "";
   return {
     provider: PROVIDER,
     provider_id: providerId,
