@@ -836,14 +836,20 @@ if (recipient === user.id) {
 
     try {
       setError("");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Microphone permission prompts can background Android browsers. Treat
+      // that transition like the system attachment picker so it does not
+      // immediately re-lock the conversation before recording can begin.
+      chatLock.beginAttachmentPicker();
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } finally {
+        chatLock.endAttachmentPicker();
+      }
       recordingStreamRef.current = stream;
 
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-          ? "audio/mp4"
-          : "";
+      const mimeType = ["audio/webm", "audio/mp4", "audio/ogg"]
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
 
       const recorder = new MediaRecorder(
         stream,
@@ -864,8 +870,8 @@ if (recipient === user.id) {
       };
 
       recorder.onstop = () => {
-        const type = recorder.mimeType || mimeType || "audio/webm";
-        const extension = type.includes("mp4") ? "m4a" : "webm";
+        const type = (recorder.mimeType || mimeType || "audio/webm").split(";", 1)[0].trim().toLowerCase();
+        const extension = type === "audio/mp4" ? "m4a" : type === "audio/ogg" ? "ogg" : "webm";
         const blob = new Blob(recordingChunksRef.current, { type });
         if (blob.size > 0) {
           setSelectedFile(new File([blob], `voice-message.${extension}`, { type }));
