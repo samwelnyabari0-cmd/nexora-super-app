@@ -89,16 +89,16 @@ function statusFromProvider(status: string, statusText: string): ProviderStatus 
   if (/postpon/.test(value)) return "POSTPONED";
   if (/cancel/.test(value)) return "CANCELLED";
   if (/abandon|walkover/.test(value)) return "ABANDONED";
-  if (/half.?time|\\bht\\b|break/.test(value)) return "HT";
-  if (/finished|full.?time|\\bft\\b|after extra|penalt/.test(value)) return "FT";
-  if (/live|in.?play|first half|second half|extra time|\\b1h\\b|\\b2h\\b/.test(value)) return "LIVE";
+  if (/half.?time|\bht\b|break/.test(value)) return "HT";
+  if (/finished|full.?time|\bft\b|after extra|penalt/.test(value)) return "FT";
+  if (/live|in.?play|progress|ongoing|playing|first half|second half|extra time|\b1h\b|\b2h\b/.test(value)) return "LIVE";
   return "SCHEDULED";
 }
 
 function elapsedMinute(statusText: string, value: unknown): number | null {
   const direct = numberValue(value);
   if (direct !== null) return direct;
-  const match = statusText.match(/(\\d{1,3})\\s*(?:\\+\\s*\\d+)?\\s*(?:['′m]|min)/i);
+  const match = statusText.match(/(\d{1,3})\s*(?:\\+\s*\d+)?\s*(?:['′m]|min)/i);
   return match ? Number(match[1]) : null;
 }
 
@@ -296,8 +296,8 @@ Deno.serve(async (request: Request) => {
           const status = match.status === "LIVE" && match.elapsed_minute !== null
             ? "LIVE " + match.elapsed_minute + "′"
             : match.status;
-          const message = "⚽ " + match.competition_name + "\\n" + match.home_team + " " + score +
-            " " + match.away_team + "\\n" + status + "\\nAutomatic update from Nexora Arena · SportScore";
+          const message = "⚽ " + match.competition_name + "\n" + match.home_team + " " + score +
+            " " + match.away_team + "\n" + status + "\\nAutomatic update from Nexora Arena · SportScore";
           const result = await restRequest("rpc/share_football_match_update", serviceKey, {
             method: "POST",
             body: JSON.stringify({
