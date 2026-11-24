@@ -51,6 +51,7 @@ function Create() {
   const [id, setId] = useState("");
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState("creators");
+  const [shareToAcademicHub, setShareToAcademicHub] = useState(false);
   const [audience, setAudience] = useState<"public" | "private">(
     preferences.privateProfile ? "private" : "public",
   );
@@ -157,6 +158,7 @@ function Create() {
     setMediaType(undefined);
     setCover(null);
     setContentType("post");
+    setShareToAcademicHub(false);
     setMediaClassification({ contentType: "post", aspectRatio: null, durationSeconds: null });
     setFilter("original");
     setFormat("landscape");
@@ -645,7 +647,7 @@ const previewFilter =
               setUploadProgress(100);
               setUploadStatus("Upload complete. Publishing your post...");
             }
-                        const typedTags = [...tagList, typeTag(contentType)];
+                        const typedTags = [...tagList, typeTag(contentType), ...(shareToAcademicHub ? ["nx-education-content"] : [])];
             const strictContentType = contentType === "collab" || tagList.some((tag) => tag.toLowerCase() === "collab")
               ? "collab"
               : mediaClassification.contentType;
@@ -756,6 +758,18 @@ const previewFilter =
               onChange={(e) => setTags(e.target.value)}
               className="w-full rounded-lg border bg-card px-3 py-2"
             />
+          </label>
+          <label className="flex items-start gap-3 rounded-xl border bg-card p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={shareToAcademicHub}
+              onChange={(e) => setShareToAcademicHub(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <span className="space-y-1">
+              <span className="block font-semibold">Share to Academic Hub</span>
+              <span className="block text-xs text-muted-foreground">Show this public post in Academic Hub as well as on your main profile. Views and engagement stay on the same post.</span>
+            </span>
           </label>
           <label className="block space-y-2 text-sm">
             Audience
