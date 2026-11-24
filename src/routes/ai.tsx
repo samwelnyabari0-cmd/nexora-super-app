@@ -61,12 +61,12 @@ function AIPage() {
   const session = useSession();
   const [tab, setTab] = useState<Tab>("chat");
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto w-full min-w-0 max-w-2xl">
       <PageHeader
         title="AI Studio"
         subtitle="Powered by OpenAI through Vercel AI Gateway · double-check important info"
       />
-      <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto" role="tablist">
+      <div className="no-scrollbar mb-4 flex min-w-0 max-w-full gap-2 overflow-x-auto" role="tablist">
         {TABS.map((t) => (
           <Chip key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             <t.icon className="mr-1 inline h-3.5 w-3.5" />
@@ -141,7 +141,7 @@ function Chat() {
           <div
             key={i}
             className={cn(
-              "max-w-[88%] rounded-2xl px-4 py-3 text-sm",
+              "min-w-0 max-w-[88%] overflow-hidden break-words rounded-2xl px-4 py-3 text-sm",
               m.role === "user" ? "bg-brand ml-auto text-primary-foreground" : "",
             )}
           >
@@ -150,7 +150,7 @@ function Chat() {
                 <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase text-accent">
                   <Bot className="h-3 w-3" /> Nexora AI
                 </span>
-                <div className="prose prose-sm prose-invert max-w-none">
+                <div className="prose prose-sm prose-invert max-w-full break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto">
                   <ReactMarkdown>{m.content}</ReactMarkdown>
                 </div>
                 <Button
@@ -174,7 +174,7 @@ function Chat() {
           {error}
         </p>
       )}
-      <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto">
+      <div className="no-scrollbar mb-3 flex min-w-0 max-w-full gap-2 overflow-x-auto">
         {[
           "Plan my Saturday in Nairobi",
           "Write a birthday message",
@@ -190,7 +190,7 @@ function Chat() {
           e.preventDefault();
           ask(t);
         }}
-        className="flex gap-2"
+        className="flex min-w-0 gap-2"
       >
         <label htmlFor="ai-input" className="sr-only">
           Message
@@ -218,7 +218,7 @@ function Chat() {
 
 function Result({ text }: { text: string }) {
   return (
-    <div className="mt-4 rounded-2xl border bg-card p-4 text-sm">
+    <div className="mt-4 min-w-0 max-w-full overflow-hidden rounded-2xl border bg-card p-4 text-sm">
       <div className="prose prose-sm prose-invert max-w-none">
         <ReactMarkdown>{text}</ReactMarkdown>
       </div>
@@ -303,7 +303,7 @@ function TaskTool({ task }: { task: "summarize" | "caption" }) {
             ? "Paste long text here…"
             : "e.g. A day exploring street food in Nairobi CBD under KES 500"
         }
-        className="w-full rounded-2xl border bg-card p-3 text-sm"
+        className="w-full min-w-0 max-w-full rounded-2xl border bg-card p-3 text-sm"
       />
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -400,7 +400,7 @@ function Voice() {
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-5">
+    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border bg-card p-4 sm:p-5">
       <p className="mb-4 text-sm text-muted-foreground">
         Record or upload a voice note — get a transcript plus summary, action items and tags.
       </p>

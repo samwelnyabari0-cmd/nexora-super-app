@@ -105,17 +105,17 @@ function WalletPage() {
         ? "Insufficient verified balance"
         : "";
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div>
+    <div className="grid w-full min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="min-w-0 space-y-4">
         <PageHeader title="Wallet" action={<DemoBadge>Live ledger</DemoBadge>} />
         <Panel className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm font-semibold"><Globe className="h-4 w-4 text-cyan-400" /> Currency</label><select aria-label="Wallet currency" value={currency} onChange={(event) => setCurrency(event.target.value as (typeof CURRENCIES)[number])} className="rounded-xl border bg-background px-3 py-2 text-sm">{CURRENCIES.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{CURRENCIES.map((item) => <button type="button" key={item} onClick={() => setCurrency(item)} className={`rounded-xl border p-3 text-left transition-colors hover:bg-muted ${currency === item ? "border-primary bg-primary/10" : ""}`}><p className="text-xs text-muted-foreground">{item} balance</p><p className="mt-1 font-semibold">{formatCurrency(balances[item] ?? 0, item)}</p></button>)}</div>
+          <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">{CURRENCIES.map((item) => <button type="button" key={item} onClick={() => setCurrency(item)} className={`min-w-0 rounded-xl border p-2.5 text-left transition-colors hover:bg-muted sm:p-3 ${currency === item ? "border-primary bg-primary/10" : ""}`}><p className="text-xs text-muted-foreground">{item} balance</p><p className="mt-1 break-words text-sm font-semibold sm:text-base">{formatCurrency(balances[item] ?? 0, item)}</p></button>)}</div>
           <p className="text-xs text-muted-foreground">Gateway: {gatewayFor(currency)} · FX conversion fee estimate: 1.5%–2% shown before settlement.</p>
         </Panel>
-        <div className="bg-brand rounded-3xl p-6 text-primary-foreground shadow-glow">
+        <div className="min-w-0 overflow-hidden rounded-3xl bg-brand p-5 text-primary-foreground shadow-glow sm:p-6">
           <p className="text-sm opacity-80">Available balance</p>
-          <p className="font-display text-4xl font-bold">{formatCurrency(liveBalance, currency)}</p>
+          <p className="break-words font-display text-3xl font-bold sm:text-4xl">{formatCurrency(liveBalance, currency)}</p>
           <p className="mt-2 text-xs opacity-80">
             Balance updates only after a verified Paystack webhook. No demo funds are shown.
           </p>
@@ -189,14 +189,14 @@ function WalletPage() {
           )}
         </Panel>
       </div>
-      <Panel className="h-fit">
+      <Panel className="h-fit min-w-0 max-w-full overflow-hidden">
         <p className="mb-2 font-display font-semibold">
           Transactions <span className="text-xs text-muted-foreground">(verified only)</span>
         </p>
         <ul className="divide-y">
           {!walletLoading && liveTxns.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">No verified {currency} transactions yet.</li>}
           {liveTxns.map((t) => (
-            <li key={t.id} className="flex items-center gap-3 py-3">
+            <li key={t.id} className="flex min-w-0 items-center gap-2 py-3 sm:gap-3">
               <span
                 className={
                   t.kind === "in"
@@ -216,7 +216,7 @@ function WalletPage() {
               </div>
               <p
                 className={
-                  t.kind === "in" ? "text-sm font-semibold text-success" : "text-sm font-semibold"
+                  t.kind === "in" ? "max-w-[42%] break-words text-right text-xs font-semibold text-success sm:text-sm" : "max-w-[42%] break-words text-right text-xs font-semibold sm:text-sm"
                 }
               >
                 {t.kind === "in" ? "+" : "−"}

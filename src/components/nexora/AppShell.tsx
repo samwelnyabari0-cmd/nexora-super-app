@@ -398,7 +398,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </>
       )}
 
-      <main className={cn(activeConversation ? "w-full max-w-none p-0" : isPublicProfile ? "mx-auto w-full max-w-3xl px-0 pb-28 pt-0 md:px-0 md:pb-12" : "mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-12", !activeConversation && keyboardOpen && "pb-5")}>{children}</main>
+      <main className={cn("min-w-0 max-w-full", activeConversation ? "w-full max-w-none overflow-x-hidden p-0" : isPublicProfile ? "mx-auto w-full max-w-3xl overflow-x-clip px-0 pb-28 pt-0 md:px-0 md:pb-12" : "mx-auto w-full max-w-6xl overflow-x-clip px-4 pb-28 pt-5 md:px-8 md:pb-12", !activeConversation && keyboardOpen && "pb-5")}>{children}</main>
 
       {/* Mobile bottom nav */}
       {!activeConversation && <nav
