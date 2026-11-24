@@ -150,8 +150,18 @@ export function useMatchCenter() {
 
   const setGoalAlertsEnabled = useCallback((enabled: boolean) => {
     window.localStorage.setItem("nexora:arena-goal-alerts", enabled ? "true" : "false");
+    if (enabled) {
+      previousGoalScores.current = new Map(
+        matches
+          .filter((match) => match.provider === "sportscore" && match.homeScore !== null && match.awayScore !== null)
+          .map((match) => [
+            match.id,
+            { homeScore: match.homeScore as number, awayScore: match.awayScore as number },
+          ]),
+      );
+    }
     setGoalAlertsEnabledState(enabled);
-  }, []);
+  }, [matches]);
 
   const refresh = useCallback(async () => {
     const favoriteQuery = user
