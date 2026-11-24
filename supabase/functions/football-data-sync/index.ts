@@ -170,17 +170,24 @@ async function restRequest(path: string, serviceKey: string, init: RequestInit =
   return response;
 }
 
+let lastProviderRequestAt = 0;
+const PROVIDER_REQUEST_INTERVAL_MS = 6_100;
+
 async function providerRequest(path: string, token: string) {
+  const waitMs = Math.max(0, PROVIDER_REQUEST_INTERVAL_MS - (Date.now() - lastProviderRequestAt));
+  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+
   const response = await fetch(`https://api.football-data.org/v4/${path}`, {
     headers: { "X-Auth-Token": token, accept: "application/json" },
     signal: AbortSignal.timeout(12_000),
   });
-  if (!response.ok) throw new Error(`Football-data provider returned ${response.status}`);
-  return await response.json();
-}
+  lastProviderRequestAt = Date.now();
 
-async function pause(ms: number) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 500);
+    throw new Error(`Football-data provider returned ${response.status}: ${detail}`);
+  }
+  return await response.json();
 }
 
 Deno.serve(async (request: Request) => {
@@ -202,9 +209,25 @@ Deno.serve(async (request: Request) => {
     const dateFrom = shiftDate(today, -14);
     const dateTo = shiftDate(today, 45);
     const codes = COMPETITIONS.map((competition) => competition.code).join(",");
-    const matchParams = new URLSearchParams({ dateFrom, dateTo, competitions: codes });
-    const matchPayload = await providerRequest(`matches?${matchParams.toString()}`, apiToken);
-    const matches = Array.isArray(matchPayload?.matches) ? matchPayload.matches as FootballDataMatch[] : [];
+    const matches: FootballDataMatch[] = [];
+    let windowStart = dateFrom;
+
+    // The provider limits match date-range queries. Fetch the requested 59-day
+    // window in non-overlapping chunks of at most 10 days (dateTo is exclusive).
+    while (windowStart < dateTo) {
+      const windowEnd = [shiftDate(windowStart, 10), dateTo].sort()[0];
+      const matchParams = new URLSearchParams({
+        dateFrom: windowStart,
+        dateTo: windowEnd,
+        competitions: codes,
+      });
+      const matchPayload = await providerRequest(`matches?${matchParams.toString()}`, apiToken);
+      if (Array.isArray(matchPayload?.matches)) {
+        matches.push(...matchPayload.matches as FootballDataMatch[]);
+      }
+      windowStart = windowEnd;
+    }
+
     const matchRows = matches
       .map((match) => normalizeMatch(match, updatedAt))
       .filter((row): row is NonNullable<typeof row> => row !== null);
@@ -220,7 +243,6 @@ Deno.serve(async (request: Request) => {
     let standingsUpdated = 0;
     for (let index = 0; index < COMPETITIONS.length; index += 1) {
       const competition = COMPETITIONS[index];
-      await pause(1_100);
       const payload = await providerRequest(`competitions/${competition.code}/standings`, apiToken) as FootballDataStandings;
       const rows = normalizeStandings(payload, competition, updatedAt);
       if (!rows.length) continue;
