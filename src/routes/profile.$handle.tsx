@@ -197,10 +197,14 @@ function PublicProfile({
             : [];
         const row = rpcRows.find((candidate: Record<string, unknown>) => {
           if (typeof candidate.id !== "string" || candidate.id.length === 0) return false;
-          return profileId ? candidate.id === profileId : normalize(candidate.handle) === normalize(normalizedHandle);
+          return profileId
+            ? candidate.id.toLowerCase() === profileId.toLowerCase()
+            : normalize(candidate.handle) === normalize(normalizedHandle);
         }) ?? null;
 
-        if (!row || (profileId ? row.id !== profileId : normalize(row.handle) !== normalize(normalizedHandle))) {
+        if (!row || (profileId
+          ? row.id.toLowerCase() !== profileId.toLowerCase()
+          : normalize(row.handle) !== normalize(normalizedHandle))) {
           setError("This profile could not be found or is not available.");
           setLoading(false);
           return;
