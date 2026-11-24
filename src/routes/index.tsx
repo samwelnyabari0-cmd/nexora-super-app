@@ -188,10 +188,10 @@ function SuggestedAccount({ person }: { person: DirectoryPerson }) {
   const { user } = useSession();
   return (
     <div className="flex items-center gap-3 py-2">
-      <Link to="/profile/$handle" params={{ handle: person.handle }}>
+      <Link to="/profile/id/$userId" params={{ userId: person.id }}>
         <Avatar name={person.display_name ?? person.handle} src={person.avatar_url} size={38} />
       </Link>
-      <Link to="/profile/$handle" params={{ handle: person.handle }} className="min-w-0 flex-1">
+      <Link to="/profile/id/$userId" params={{ userId: person.id }} className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{person.display_name ?? person.handle}</p>
         <p className="truncate text-xs text-muted-foreground">@{person.handle}{person.private_profile ? " · Private" : ""}</p>
       </Link>
