@@ -3,5 +3,8 @@ project_id = "pmtoinszybenhdbggctk"
 [functions.football-sync]
 verify_jwt = false
 
+[functions.sportscore-sync]
+verify_jwt = false
+
 [functions.delete-account]
 verify_jwt = true
