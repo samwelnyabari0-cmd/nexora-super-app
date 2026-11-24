@@ -30,6 +30,7 @@ import { hasStoredChatLock } from "@/components/nexora/chat-lock";
 import { useChatLock } from "@/hooks/useChatLock";
 import { flushOfflineMessages, isLikelyNetworkFailure, queueTextMessage } from "@/lib/offline-messages";
 import { toast } from "sonner";
+import { isSafeProfileReturnPath } from "@/lib/profile-navigation";
 
 type DirectMessage = {
   id: string;
@@ -86,11 +87,11 @@ export const Route = createFileRoute("/messages")({
       typeof search.recipient === "string" ? search.recipient : "",
     group: typeof search.group === "string" ? search.group : "",
     prompt: typeof search.prompt === "string" ? search.prompt.slice(0, 500) : "",
-    returnTo:
-      typeof search.returnTo === "string" &&
-      search.returnTo.startsWith("/profile")
-        ? search.returnTo
-        : "/profile",
+    returnTo: isSafeProfileReturnPath(
+      typeof search.returnTo === "string" ? search.returnTo : null,
+    )
+      ? search.returnTo as string
+      : "/profile",
   }),
   head: () => ({
     meta: [{ title: "Messages — NEXORA" }],
