@@ -85,8 +85,8 @@ function PublicProfileRouteComponent() {
   return <PublicProfile key={handle.toLowerCase()} handle={handle} requestedPostId={post} />;
 }
 
-export function PublicProfileById({ userId }: { userId: string }) {
-  return <PublicProfile key={userId} profileId={userId} handle="" requestedPostId="" />;
+export function PublicProfileById({ userId, requestedPostId = "" }: { userId: string; requestedPostId?: string }) {
+  return <PublicProfile key={userId} profileId={userId} handle="" requestedPostId={requestedPostId} />;
 }
 
 function PublicProfileErrorComponent({ reset }: ErrorComponentProps) {
