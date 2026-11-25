@@ -195,6 +195,7 @@ export function useMatchCenter() {
         table<AnnouncementRow>("football_announcements")
           .select("*")
           .eq("is_published", true)
+          .eq("provider", "sky-sports-rss")
           .order("published_at", { ascending: false })
           .limit(8),
         table<HighlightRow>("football_highlights")
