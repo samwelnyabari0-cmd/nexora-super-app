@@ -90,7 +90,7 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
       ? rawTitle.split(" - ").at(-1) ?? ""
       : "";
     const publisher = googlePublisher || fallbackPublisher || source.name;
-    const hasPublisherSuffix = source.provider === "kenya-google-news-rss" && Boolean(googlePublisher || fallbackPublisher);
+    const hasPublisherSuffix = source.provider === "kenya-google-news-rss" && rawTitle.includes(" - ");
     const headline = cleanText(
       hasPublisherSuffix ? rawTitle.slice(0, Math.max(0, rawTitle.lastIndexOf(" - "))) : rawTitle,
       220,
