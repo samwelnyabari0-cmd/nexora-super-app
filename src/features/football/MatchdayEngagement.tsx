@@ -133,7 +133,12 @@ export function MatchAudioPrompt({ match }: { match: FootballMatch }) {
 
 export function MatchReactionLink({ match }: { match: FootballMatch }) {
   if (match.status !== "FT") return null;
-  const hashtag = "#" + (match.homeTeam.replace(/[^a-z0-9]/gi, "").slice(0, 12) + "v" + match.awayTeam.replace(/[^a-z0-9]/gi, "").slice(0, 12)).toUpperCase();
+  const shortName = (name: string) => {
+    const normalized = name.toLowerCase();
+    const aliases: Record<string, string> = { arsenal: "ARS", "manchester city": "MCI", "manchester united": "MUN", tottenham: "TOT", "tottenham hotspur": "TOT", liverpool: "LIV", chelsea: "CHE", "real madrid": "RMA", barcelona: "BAR", "inter milan": "INT", milan: "MIL", bayern: "BAY", "paris saint-germain": "PSG" };
+    return aliases[normalized] ?? name.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase();
+  };
+  const hashtag = "#" + shortName(match.homeTeam) + "v" + shortName(match.awayTeam);
   const caption = "Full-time: " + match.homeTeam + " " + match.homeScore + "–" + match.awayScore + " " + match.awayTeam + " " + hashtag + " #NexoraArena";
   return <Link to="/create" search={{} as never} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold hover:bg-muted" onClick={() => { window.sessionStorage.setItem("nexora:match-reaction-caption", caption); window.sessionStorage.setItem("nexora:match-reaction-max-seconds", "15"); }}><MessageSquareText className="h-3.5 w-3.5" /> Post reaction to Reels/Feed</Link>;
 }
