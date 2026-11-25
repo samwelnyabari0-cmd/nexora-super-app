@@ -27,10 +27,10 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Check formatting of new media modules
-        run: npx prettier --check src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
+        run: npx prettier --check src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx src/components/nexora/WorldNewsPanel.tsx src/components/nexora/WorldNewsPanel.test.tsx
       - name: Run focused media tests
-        run: npm test -- src/lib/media-framing.test.ts src/lib/media-poster.test.ts
+        run: npm test -- src/lib/media-framing.test.ts src/lib/media-poster.test.ts src/components/nexora/WorldNewsPanel.test.tsx
       - name: Lint new media modules
-        run: npx eslint src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx
+        run: npx eslint src/lib/media-framing.ts src/lib/media-framing.test.ts src/lib/media-poster.ts src/lib/media-poster.test.ts src/components/nexora/MediaFramingEditor.tsx src/components/nexora/WorldNewsPanel.tsx src/components/nexora/WorldNewsPanel.test.tsx
       - name: Build application
         run: npm run build
