@@ -26,6 +26,8 @@ type HighlightItem = {
 };
 const NEWS_FEEDS = [
   { name: "Sky Sports", provider: "sky-sports-rss", url: "https://www.skysports.com/rss/11095", hosts: ["skysports.com"] },
+  { name: "ESPN Sports", provider: "espn-sports-rss", url: "https://www.espn.com/espn/rss/news", hosts: ["espn.com", "espncdn.com"] },
+  { name: "BBC Sport", provider: "bbc-sport-rss", url: "https://feeds.bbci.co.uk/sport/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
   { name: "BBC World", provider: "world-bbc-rss", url: "https://feeds.bbci.co.uk/news/world/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
   { name: "Al Jazeera", provider: "world-aljazeera-rss", url: "https://www.aljazeera.com/xml/rss/all.xml", hosts: ["aljazeera.com"] },
   { name: "DW News", provider: "world-dw-rss", url: "https://rss.dw.com/xml/rss-en-all", hosts: ["dw.com"] },
@@ -199,6 +201,126 @@ async function upsertRows(table: string, rows: unknown[], serviceKey: string) {
     body: JSON.stringify(rows),
   });
 }
+type CachedSportMatch = {
+  provider: string;
+  provider_id: string;
+  competition_code: string;
+  competition_name: string;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: "SCHEDULED" | "LIVE" | "HT" | "FT" | "POSTPONED" | "CANCELLED" | "ABANDONED";
+  elapsed_minute: number | null;
+  kickoff_at: string;
+  updated_at: string;
+  source_url: string | null;
+};
+async function fetchJson(url: string, userAgent = "NexoraArena/1.0"): Promise<any> {
+  const response = await fetch(url, {
+    headers: { accept: "application/json", "user-agent": userAgent },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error("Sports provider returned HTTP " + response.status);
+  return await response.json();
+}
+function parseEspnMatches(payload: any, provider: string): CachedSportMatch[] {
+  const output: CachedSportMatch[] = [];
+  for (const event of Array.isArray(payload?.events) ? payload.events : []) {
+    const competition = event?.competitions?.[0];
+    const competitors = Array.isArray(competition?.competitors) ? competition.competitors : [];
+    const home = competitors.find((team: any) => team.homeAway === "home") ?? competitors[0];
+    const away = competitors.find((team: any) => team.homeAway === "away") ?? competitors[1];
+    const kickoff = safePublishedAt(event?.date ?? "");
+    if (!event?.id || !home?.team?.displayName || !away?.team?.displayName || !kickoff) continue;
+    const type = competition?.status?.type ?? event?.status?.type ?? {};
+    const state = String(type.state ?? "").toLowerCase();
+    const detail = String(type.detail ?? "").toLowerCase();
+    const status: CachedSportMatch["status"] = /postponed/.test(detail) ? "POSTPONED"
+      : /cancel/.test(detail) ? "CANCELLED"
+      : state === "in" && /half|halftime|intermission/.test(detail) ? "HT"
+      : state === "in" ? "LIVE"
+      : state === "post" ? "FT" : "SCHEDULED";
+    const score = (team: any) => {
+      const value = Number.parseInt(String(team?.score ?? ""), 10);
+      return Number.isFinite(value) ? value : null;
+    };
+    output.push({
+      provider,
+      provider_id: String(event.id),
+      competition_code: provider.replace("espn-", "").toUpperCase(),
+      competition_name: String(payload?.leagues?.[0]?.name ?? provider.replace("espn-", "").toUpperCase()),
+      home_team: String(home.team.displayName),
+      away_team: String(away.team.displayName),
+      home_score: score(home),
+      away_score: score(away),
+      status,
+      elapsed_minute: Number.isFinite(Number(competition?.status?.period)) ? Number(competition.status.period) : null,
+      kickoff_at: kickoff,
+      updated_at: new Date().toISOString(),
+      source_url: Array.isArray(event.links) ? (event.links.find((link: any) => link?.rel?.includes("summary"))?.href ?? null) : null,
+    });
+  }
+  return output;
+}
+async function syncMultiSportScores(serviceKey: string): Promise<{ rows: CachedSportMatch[]; sources: Record<string, unknown> }> {
+  const leagues = [
+    { label: "NBA", provider: "espn-nba", path: "basketball/nba" },
+    { label: "NFL", provider: "espn-nfl", path: "football/nfl" },
+    { label: "MLB", provider: "espn-mlb", path: "baseball/mlb" },
+    { label: "NHL", provider: "espn-nhl", path: "hockey/nhl" },
+  ];
+  const sources: Record<string, unknown> = {};
+  const results = await Promise.allSettled(leagues.map(async (league) => {
+    const payload = await fetchJson("https://site.api.espn.com/apis/site/v2/sports/" + league.path + "/scoreboard");
+    return { league, rows: parseEspnMatches(payload, league.provider) };
+  }));
+  const rows: CachedSportMatch[] = [];
+  for (let index = 0; index < results.length; index += 1) {
+    const result = results[index];
+    const league = leagues[index];
+    if (result.status === "fulfilled") {
+      rows.push(...result.value.rows);
+      sources[league.label] = { ok: true, events: result.value.rows.length };
+    } else {
+      sources[league.label] = { ok: false, error: result.reason instanceof Error ? result.reason.message : "Scoreboard unavailable" };
+    }
+  }
+  try {
+    const season = new Date().getUTCFullYear();
+    const payload = await fetchJson("https://api.jolpi.ca/ergast/f1/" + season + ".json", "NexoraArena/1.0");
+    const races = payload?.MRData?.RaceTable?.Races ?? [];
+    for (const race of races) {
+      const kickoff = safePublishedAt(String(race.date ?? "") + "T" + String(race.time ?? "12:00:00Z"));
+      if (!kickoff || !race.raceName || !race.Circuit?.circuitName) continue;
+      rows.push({
+        provider: "jolpica-f1",
+        provider_id: String(season) + "-" + String(race.round),
+        competition_code: "F1",
+        competition_name: "Formula 1",
+        home_team: String(race.raceName),
+        away_team: String(race.Circuit.circuitName),
+        home_score: null,
+        away_score: null,
+        status: Date.parse(kickoff) < Date.now() ? "FT" : "SCHEDULED",
+        elapsed_minute: null,
+        kickoff_at: kickoff,
+        updated_at: new Date().toISOString(),
+        source_url: "https://api.jolpi.ca/ergast/f1/" + season + "/" + String(race.round) + "/results.json",
+      });
+    }
+    sources["Formula 1"] = { ok: true, races: races.length };
+  } catch (error) {
+    sources["Formula 1"] = { ok: false, error: error instanceof Error ? error.message : "F1 calendar unavailable" };
+  }
+  if (rows.length) {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const freshRows = rows.filter((row) => Date.parse(row.kickoff_at) >= Date.parse(cutoff));
+    await upsertRows("football_matches", freshRows, serviceKey);
+  }
+  return { rows, sources };
+}
+
 async function isAuthorized(candidate: string, serviceKey: string): Promise<boolean> {
   const baseUrl = Deno.env.get("SUPABASE_URL");
   if (!baseUrl) throw new Error("SUPABASE_URL is missing");
@@ -225,6 +347,12 @@ Deno.serve(async (request: Request) => {
 
   const sourceResults: Record<string, unknown> = {};
   let newsRows: NewsItem[] = [];
+  try {
+    const sportScores = await syncMultiSportScores(serviceKey);
+    Object.assign(sourceResults, sportScores.sources);
+  } catch (error) {
+    sourceResults["Multi-sport scoreboards"] = { ok: false, error: error instanceof Error ? error.message : "Scoreboard sync failed" };
+  }
   let highlightRows: HighlightItem[] = [];
   const newsResults = await Promise.allSettled(NEWS_FEEDS.map(async (source) => {
     const xml = await fetchFeed(source.url);
