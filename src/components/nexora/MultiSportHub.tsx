@@ -91,14 +91,13 @@ export function MultiSportHub() {
     ? news
     : news.filter((item) => selected.terms.test(item.headline + " " + item.summary)), [activeSport, news, selected]);
   const filteredMatches = useMemo(() => {
-    if (activeSport === "all") return matches;
-    const provider = activeSport === "football" ? "sportscore"
+    const provider = activeSport === "all" ? null : activeSport === "football" ? "sportscore"
       : activeSport === "nba" ? "espn-nba"
       : activeSport === "nfl" ? "espn-nfl"
       : activeSport === "mlb" ? "espn-mlb"
       : activeSport === "nhl" ? "espn-nhl"
       : activeSport === "f1" ? "jolpica-f1" : "";
-    const selectedMatches = provider ? matches.filter((match) => match.provider === provider) : [];
+    const selectedMatches = provider === null ? matches : provider ? matches.filter((match) => match.provider === provider) : [];
     return selectedMatches.sort((left, right) => {
       const priority = (status: string) => status === "LIVE" || status === "HT" ? 0 : status === "SCHEDULED" ? 1 : status === "FT" ? 2 : 3;
       return priority(left.status) - priority(right.status) || left.kickoff_at.localeCompare(right.kickoff_at);
