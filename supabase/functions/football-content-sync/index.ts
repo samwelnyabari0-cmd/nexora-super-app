@@ -347,10 +347,8 @@ Deno.serve(async (request: Request) => {
 
   const sourceResults: Record<string, unknown> = {};
   let newsRows: NewsItem[] = [];
-  let sportScoreRows: CachedSportMatch[] = [];
   try {
     const sportScores = await syncMultiSportScores(serviceKey);
-    sportScoreRows = sportScores.rows;
     Object.assign(sourceResults, sportScores.sources);
   } catch (error) {
     sourceResults["Multi-sport scoreboards"] = { ok: false, error: error instanceof Error ? error.message : "Scoreboard sync failed" };
