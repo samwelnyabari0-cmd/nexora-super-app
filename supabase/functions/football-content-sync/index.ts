@@ -81,7 +81,7 @@ async function fetchFeed(url: string): Promise<string> {
   return await response.text();
 }
 function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem[] {
-  const items = [...xml.matchAll(/<item\\b[^>]*>([\\s\\S]*?)<\\/item>/gi)].map((match) => match[1]);
+  const items = [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map((match) => match[1]);
   const output: NewsItem[] = [];
   for (const item of items) {
     const rawTitle = cleanText(textTag(item, "title"), 320);
