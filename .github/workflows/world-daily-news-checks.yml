@@ -13,7 +13,7 @@ on:
       - "docs/world-daily-news.md"
       - ".github/workflows/world-daily-news-checks.yml"
   push:
-    branches: [main]
+    branches: [main, feat/world-kenya-news-rss]
     paths:
       - "src/components/nexora/WorldNewsPanel.tsx"
       - "src/components/nexora/WorldNewsPanel.test.tsx"
