@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { StrictMediaGrid } from "@/components/nexora/StrictMediaFeed";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { normalizeMediaFraming } from "@/lib/media-framing";
+import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 export const Route = createFileRoute("/explore")({
   validateSearch: (search: Record<string, unknown>) => ({
     post: typeof search.post === "string" ? search.post : "",
@@ -78,6 +79,7 @@ function Explore() {
     (show("Creators") ? people.length : 0) +
     (show("Places") ? locations.length : 0) +
     (show("Watch") ? titles.length : 0) +
+    (show("News") ? 1 : 0) +
     (strictMediaTab ? 1 : 0);
   return (
     <div>
@@ -94,7 +96,7 @@ function Explore() {
         />
       </label>
       <div className="mb-6 flex flex-wrap gap-2">
-        {["All", "Posts", "Reels", "Videos", "Collabs", "Creators", "Places", "Watch"].map((t) => (
+        {["All", "News", "Posts", "Reels", "Videos", "Collabs", "Creators", "Places", "Watch"].map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -106,6 +108,7 @@ function Explore() {
         ))}
       </div>
       <div className="space-y-7" aria-live="polite">
+        {show("News") && <WorldNewsPanel variant="full" />}
         {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
         {show("Videos") && <section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section>}
         {show("Collabs") && <section><h2 className="mb-3 text-lg font-semibold">Collabs</h2><StrictMediaGrid contentType="collab" /></section>}
