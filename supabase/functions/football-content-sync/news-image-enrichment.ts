@@ -29,6 +29,40 @@ function decodeAttribute(value: string): string {
     String.fromCodePoint(parseInt(dec, 10)));
 }
 
+function isSafeImageHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
+  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  const parts = host.split(".").map(Number);
+  if (parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)) {
+    const [a, b] = parts;
+    if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+  }
+  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:")) return false;
+  return true;
+}
+
+async function readLimitedText(response: Response): Promise<string | null> {
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let output = "";
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    total += chunk.value.byteLength;
+    if (total > MAX_HTML_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    output += decoder.decode(chunk.value, { stream: true });
+  }
+  return output + decoder.decode();
+}
+
 export function extractPublisherImage(html: string, pageUrl: string): string | null {
   const limitedHtml = html.slice(0, MAX_HTML_BYTES);
   const metaTags = [...limitedHtml.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
@@ -41,7 +75,7 @@ export function extractPublisherImage(html: string, pageUrl: string): string | n
     try {
       const image = new URL(decodeAttribute(raw), pageUrl);
       if (image.protocol !== "https:" || !image.hostname || image.username || image.password) continue;
-      if (image.hostname === "localhost" || image.hostname.endsWith(".local") || image.hostname.endsWith(".internal")) continue;
+      if (!isSafeImageHost(image.hostname)) continue;
       return image.toString();
     } catch {
       continue;
@@ -55,7 +89,8 @@ export function extractPublisherImage(html: string, pageUrl: string): string | n
   if (!raw) return null;
   try {
     const image = new URL(decodeAttribute(raw), pageUrl);
-    return image.protocol === "https:" && image.hostname && !image.username && !image.password
+    return image.protocol === "https:" && image.hostname && !image.username && !image.password &&
+        isSafeImageHost(image.hostname)
       ? image.toString()
       : null;
   } catch {
@@ -95,8 +130,8 @@ export async function fetchPublisherImage(
     if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) return null;
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
     if (declaredLength > MAX_HTML_BYTES) return null;
-    const html = (await response.text()).slice(0, MAX_HTML_BYTES);
-    return extractPublisherImage(html, current.toString());
+    const html = await readLimitedText(response);
+    return html ? extractPublisherImage(html, current.toString()) : null;
   }
   return null;
 }
