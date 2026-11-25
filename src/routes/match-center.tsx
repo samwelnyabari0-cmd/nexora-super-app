@@ -451,7 +451,7 @@ function MatchCenterPage() {
           <div className="rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
             <div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Zap className="h-5 w-5" /></div><div className="min-w-0"><h2 className="font-display text-lg font-bold">Play instantly</h2><p className="mt-1 text-sm text-muted-foreground">Lightweight games run right here — no app-store download or heavy 3D assets.</p></div></div>
           </div>
-          <div className="grid gap-3 md:grid-cols-2"><Panel><PenaltyShootout /></Panel><Panel><ArenaTrivia /></Panel></div>
+          <div className="grid gap-3 md:grid-cols-2"><Panel><FreeKickChallenge /></Panel><Panel><PenaltyShootout /></Panel><Panel><ArenaTrivia /></Panel></div>
           <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h2 className="font-semibold">Challenge your squad</h2></div><p className="mt-2 text-sm text-muted-foreground">Finish a run, share your score link in a Nexora conversation, and invite friends to beat it.</p><Link to="/messages" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-muted"><Swords className="h-4 w-4" /> Open messages</Link></Panel>
         </section>
       ) : (
@@ -539,6 +539,97 @@ function PenaltyShootout() {
     <div className="rounded-xl border bg-muted/40 p-3 text-center"><div className="mx-auto mb-2 grid h-20 max-w-52 grid-cols-3 items-end gap-1 rounded-t-[3rem] border-2 border-b-0 border-foreground/30 px-2 pt-4">{["Left","Center","Right"].map((side) => <div key={side} className="grid h-12 place-items-center rounded-t-lg bg-emerald-500/20 text-[10px] font-bold text-emerald-700">{side === "Center" ? "🥅" : "⚽"}</div>)}</div><p className="text-sm font-semibold">{message}</p><p className="mt-1 text-xs tabular-nums text-muted-foreground">Goals {goals} · Saves {saves} · Shots {attempts}/5</p>{validTarget !== null && <p className="mt-1 text-xs font-semibold text-primary">Challenge: beat {validTarget}/5</p>}</div>
     <div className="grid grid-cols-3 gap-2">{["Left","Center","Right"].map((side) => <Button key={side} variant="outline" size="sm" disabled={finished} onClick={() => shoot(side)}>{side}</Button>)}</div>
     {finished ? <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void challenge()}>Challenge squad</Button><Button size="sm" variant="outline" onClick={() => { setAttempts(0); setGoals(0); setSaves(0); setFinished(false); setMessage("New round. Pick a corner."); }}>Play again</Button></div> : <p className="text-[10px] text-muted-foreground">No downloads. Simple graphics and motion keep the game lightweight.</p>}
+  </div>;
+}
+
+
+function FreeKickChallenge() {
+  const [attempts, setAttempts] = useState(0);
+  const [goals, setGoals] = useState(0);
+  const [aim, setAim] = useState("Top left");
+  const [power, setPower] = useState(68);
+  const [curve, setCurve] = useState(35);
+  const [message, setMessage] = useState("Set your aim, power and curve — then shoot.");
+  const [finished, setFinished] = useState(false);
+  const [lastShot, setLastShot] = useState<"goal" | "saved" | "wide" | null>(null);
+  const [best, setBest] = useState(0);
+
+  useEffect(() => {
+    const stored = Number(window.localStorage.getItem("nexora-arena-free-kick-best") || 0);
+    if (Number.isFinite(stored)) setBest(stored);
+  }, []);
+
+  const shoot = () => {
+    if (finished || attempts >= 5) return;
+    const keeper = ["Top left", "Top center", "Top right", "Bottom left", "Bottom center", "Bottom right"][Math.floor(Math.random() * 6)];
+    const accuracy = Math.max(0.72, 1 - Math.max(0, power - 78) * 0.009 - Math.abs(curve - 45) * 0.002);
+    const wide = Math.random() > accuracy;
+    const scored = !wide && keeper !== aim;
+    const nextAttempts = attempts + 1;
+    const nextGoals = goals + (scored ? 1 : 0);
+    setAttempts(nextAttempts);
+    if (scored) setGoals(nextGoals);
+    setLastShot(wide ? "wide" : scored ? "goal" : "saved");
+    setMessage(wide ? "Just wide! Try a little less power." : scored ? "WHAT A STRIKE! GOAL!" : "The keeper got a hand to it. Change your target!");
+    if (nextAttempts === 5) {
+      setFinished(true);
+      if (nextGoals > best) {
+        setBest(nextGoals);
+        window.localStorage.setItem("nexora-arena-free-kick-best", String(nextGoals));
+      }
+    }
+  };
+
+  const reset = () => {
+    setAttempts(0); setGoals(0); setFinished(false); setLastShot(null);
+    setAim("Top left"); setPower(68); setCurve(35);
+    setMessage("New set. Pick your target and take the free kick.");
+  };
+
+  const share = async () => {
+    const text = "I scored " + goals + "/5 in Nexora Arena Free Kick Challenge. Can you beat me?";
+    try {
+      if (navigator.share) await navigator.share({ title: "Nexora Free Kick Challenge", text });
+      else { await navigator.clipboard.writeText(text); setMessage("Score copied — share it with your squad!"); }
+    } catch { /* The player may close the share sheet. */ }
+  };
+
+  const targets = ["Top left", "Top center", "Top right", "Bottom left", "Bottom center", "Bottom right"];
+  return <div className="space-y-3">
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4 text-primary" /> Free Kick Challenge</h2>
+      <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">5 kicks</span>
+    </div>
+    <div className="rounded-xl border bg-gradient-to-b from-emerald-900/10 to-muted/40 p-3">
+      <div className="relative mx-auto max-w-xs rounded-t-[3.5rem] border-[5px] border-b-0 border-foreground/50 bg-emerald-600/10 p-2 pb-0">
+        <div className="grid grid-cols-3 grid-rows-2 gap-1">
+          {targets.map((target) => <button key={target} type="button" aria-label={"Aim " + target} aria-pressed={aim === target} disabled={finished} onClick={() => setAim(target)} className={"grid aspect-[1.55] place-items-center rounded-md border text-[10px] font-bold transition " + (aim === target ? "border-primary bg-primary/25 text-primary ring-2 ring-primary/40" : "border-foreground/15 bg-background/50 hover:bg-primary/10")}>
+            {aim === target ? "⚽" : "＋"}
+          </button>)}
+        </div>
+      </div>
+      <div className="mx-auto mt-2 h-1 max-w-xs rounded-full bg-foreground/20" />
+      <p className="mt-3 min-h-10 text-center text-sm font-semibold" aria-live="polite">{message}</p>
+      {lastShot && <p className={"text-center text-xs font-bold " + (lastShot === "goal" ? "text-emerald-600" : lastShot === "saved" ? "text-amber-600" : "text-muted-foreground")}>{lastShot === "goal" ? "GOAL" : lastShot === "saved" ? "SAVED BY THE KEEPER" : "OFF TARGET"}</p>}
+      <p className="mt-2 text-center text-xs tabular-nums text-muted-foreground">Goals {goals} · Kicks {attempts}/5 · Personal best {best}/5</p>
+    </div>
+    <div className="space-y-3">
+      <div>
+        <div className="mb-1 flex justify-between text-xs"><label htmlFor="free-kick-power" className="font-medium">Shot power</label><span className="tabular-nums text-muted-foreground">{power}%</span></div>
+        <input id="free-kick-power" aria-label="Shot power" type="range" min="25" max="100" value={power} disabled={finished} onChange={(event) => setPower(Number(event.target.value))} className="w-full accent-primary" />
+      </div>
+      <div>
+        <div className="mb-1 flex justify-between text-xs"><label htmlFor="free-kick-curve" className="font-medium">Ball curve</label><span className="tabular-nums text-muted-foreground">{curve}%</span></div>
+        <input id="free-kick-curve" aria-label="Ball curve" type="range" min="0" max="100" value={curve} disabled={finished} onChange={(event) => setCurve(Number(event.target.value))} className="w-full accent-primary" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Button variant="outline" size="sm" onClick={() => setAim("Top left")} disabled={finished}>Left</Button>
+        <Button variant="outline" size="sm" onClick={() => setAim("Top center")} disabled={finished}>Center</Button>
+        <Button variant="outline" size="sm" onClick={() => setAim("Top right")} disabled={finished}>Right</Button>
+      </div>
+      {finished ? <div className="flex gap-2"><Button className="flex-1" size="sm" onClick={reset}>Play again</Button><Button className="flex-1" size="sm" variant="outline" onClick={() => void share()}><Share2 className="mr-1 h-3.5 w-3.5" /> Challenge</Button></div> : <Button className="w-full" onClick={shoot}><Zap className="mr-2 h-4 w-4" /> Take the free kick</Button>}
+      <p className="text-[10px] text-muted-foreground">Tip: high power can reduce accuracy. Aim away from the keeper and find your perfect curve.</p>
+    </div>
   </div>;
 }
 
