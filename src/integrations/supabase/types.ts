@@ -76,6 +76,426 @@ export type Database = {
         }
         Relationships: []
       }
+      arena_match_results: {
+        Row: {
+          created_at: string
+          evidence_path: string
+          id: string
+          match_id: string
+          notes: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          score_a: number
+          score_b: number
+          status: string
+          submitted_by: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_path: string
+          id?: string
+          match_id: string
+          notes?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          score_a: number
+          score_b: number
+          status?: string
+          submitted_by: string
+        }
+        Update: {
+          created_at?: string
+          evidence_path?: string
+          id?: string
+          match_id?: string
+          notes?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          score_a?: number
+          score_b?: number
+          status?: string
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_match_results_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_pubg_round_scores: {
+        Row: {
+          eliminations: number
+          entry_id: string
+          id: string
+          match_id: string
+          placement: number
+          points: number
+          recorded_by: string
+          updated_at: string
+        }
+        Insert: {
+          eliminations: number
+          entry_id: string
+          id?: string
+          match_id: string
+          placement: number
+          points: number
+          recorded_by: string
+          updated_at?: string
+        }
+        Update: {
+          eliminations?: number
+          entry_id?: string
+          id?: string
+          match_id?: string
+          placement?: number
+          points?: number
+          recorded_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_pubg_round_scores_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_pubg_round_scores_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_tournament_entries: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          player_id: string | null
+          seed: number | null
+          status: string
+          team_id: string | null
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          player_id?: string | null
+          seed?: number | null
+          status?: string
+          team_id?: string | null
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          player_id?: string | null
+          seed?: number | null
+          status?: string
+          team_id?: string | null
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_tournament_entries_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_tournament_entries_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_tournament_matches: {
+        Row: {
+          created_at: string
+          entry_a_id: string | null
+          entry_b_id: string | null
+          id: string
+          match_number: number
+          next_match_id: string | null
+          next_slot: string | null
+          round_number: number
+          scheduled_at: string | null
+          score_a: number | null
+          score_b: number | null
+          status: string
+          tournament_id: string
+          winner_entry_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entry_a_id?: string | null
+          entry_b_id?: string | null
+          id?: string
+          match_number: number
+          next_match_id?: string | null
+          next_slot?: string | null
+          round_number: number
+          scheduled_at?: string | null
+          score_a?: number | null
+          score_b?: number | null
+          status?: string
+          tournament_id: string
+          winner_entry_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entry_a_id?: string | null
+          entry_b_id?: string | null
+          id?: string
+          match_number?: number
+          next_match_id?: string | null
+          next_slot?: string | null
+          round_number?: number
+          scheduled_at?: string | null
+          score_a?: number | null
+          score_b?: number | null
+          status?: string
+          tournament_id?: string
+          winner_entry_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_tournament_matches_entry_a_id_fkey"
+            columns: ["entry_a_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_tournament_matches_entry_b_id_fkey"
+            columns: ["entry_b_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_tournament_matches_next_match_id_fkey"
+            columns: ["next_match_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_tournament_matches_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_tournament_matches_winner_entry_id_fkey"
+            columns: ["winner_entry_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_tournament_standings: {
+        Row: {
+          draws: number
+          eliminations: number
+          entry_id: string
+          id: string
+          losses: number
+          placement_points: number
+          played: number
+          points: number
+          tournament_id: string
+          updated_at: string
+          wins: number
+        }
+        Insert: {
+          draws?: number
+          eliminations?: number
+          entry_id: string
+          id?: string
+          losses?: number
+          placement_points?: number
+          played?: number
+          points?: number
+          tournament_id: string
+          updated_at?: string
+          wins?: number
+        }
+        Update: {
+          draws?: number
+          eliminations?: number
+          entry_id?: string
+          id?: string
+          losses?: number
+          placement_points?: number
+          played?: number
+          points?: number
+          tournament_id?: string
+          updated_at?: string
+          wins?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_tournament_standings_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_tournament_standings_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_tournament_team_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_tournament_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_tournament_teams: {
+        Row: {
+          captain_id: string
+          created_at: string
+          id: string
+          name: string
+          tournament_id: string
+        }
+        Insert: {
+          captain_id: string
+          created_at?: string
+          id?: string
+          name: string
+          tournament_id: string
+        }
+        Update: {
+          captain_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_tournament_teams_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arena_tournaments: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          champion_entry_id: string | null
+          created_at: string
+          created_by: string
+          description: string
+          entry_mode: string
+          format_key: string
+          game_key: string
+          id: string
+          max_entries: number
+          platform_key: string
+          registration_closes_at: string | null
+          rules: string
+          starts_at: string | null
+          status: string
+          team_size: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          champion_entry_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          entry_mode?: string
+          format_key: string
+          game_key: string
+          id?: string
+          max_entries?: number
+          platform_key?: string
+          registration_closes_at?: string | null
+          rules?: string
+          starts_at?: string | null
+          status?: string
+          team_size?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          champion_entry_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          entry_mode?: string
+          format_key?: string
+          game_key?: string
+          id?: string
+          max_entries?: number
+          platform_key?: string
+          registration_closes_at?: string | null
+          rules?: string
+          starts_at?: string | null
+          status?: string
+          team_size?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brand_campaigns: {
         Row: {
           budget_per_creator: number
@@ -2673,6 +3093,90 @@ export type Database = {
         }
         Relationships: []
       }
+      football_standings: {
+        Row: {
+          competition_code: string
+          competition_name: string
+          created_at: string
+          current_matchday: number | null
+          drawn: number
+          goal_difference: number
+          goals_against: number
+          goals_for: number
+          group_name: string
+          id: string
+          lost: number
+          played_games: number
+          points: number
+          position: number
+          provider: string
+          season_end: string | null
+          season_id: string
+          season_start: string | null
+          standing_type: string
+          team_crest_url: string | null
+          team_name: string
+          team_provider_id: string
+          team_short_name: string | null
+          updated_at: string
+          won: number
+        }
+        Insert: {
+          competition_code: string
+          competition_name: string
+          created_at?: string
+          current_matchday?: number | null
+          drawn?: number
+          goal_difference?: number
+          goals_against?: number
+          goals_for?: number
+          group_name?: string
+          id?: string
+          lost?: number
+          played_games?: number
+          points?: number
+          position: number
+          provider: string
+          season_end?: string | null
+          season_id: string
+          season_start?: string | null
+          standing_type?: string
+          team_crest_url?: string | null
+          team_name: string
+          team_provider_id: string
+          team_short_name?: string | null
+          updated_at?: string
+          won?: number
+        }
+        Update: {
+          competition_code?: string
+          competition_name?: string
+          created_at?: string
+          current_matchday?: number | null
+          drawn?: number
+          goal_difference?: number
+          goals_against?: number
+          goals_for?: number
+          group_name?: string
+          id?: string
+          lost?: number
+          played_games?: number
+          points?: number
+          position?: number
+          provider?: string
+          season_end?: string | null
+          season_id?: string
+          season_start?: string | null
+          standing_type?: string
+          team_crest_url?: string | null
+          team_name?: string
+          team_provider_id?: string
+          team_short_name?: string | null
+          updated_at?: string
+          won?: number
+        }
+        Relationships: []
+      }
       football_sync_state: {
         Row: {
           key: string
@@ -4610,9 +5114,71 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: boolean
       }
+      arena_approve_tournament: {
+        Args: { p_tournament_id: string }
+        Returns: undefined
+      }
+      arena_create_team: {
+        Args: {
+          p_member_ids: string[]
+          p_name: string
+          p_tournament_id: string
+        }
+        Returns: string
+      }
+      arena_create_tournament: {
+        Args: {
+          p_description?: string
+          p_format_key: string
+          p_game_key: string
+          p_max_entries: number
+          p_platform_key: string
+          p_registration_closes_at?: string
+          p_rules?: string
+          p_starts_at?: string
+          p_team_size: number
+          p_title: string
+        }
+        Returns: string
+      }
+      arena_generate_bracket: {
+        Args: { p_tournament_id: string }
+        Returns: number
+      }
+      arena_register_solo: {
+        Args: { p_display_name: string; p_tournament_id: string }
+        Returns: string
+      }
+      arena_review_match_result: {
+        Args: { p_decision: string; p_result_id: string }
+        Returns: undefined
+      }
+      arena_submit_match_result: {
+        Args: {
+          p_evidence_path: string
+          p_match_id: string
+          p_notes?: string
+          p_score_a: number
+          p_score_b: number
+        }
+        Returns: string
+      }
+      arena_update_pubg_points: {
+        Args: {
+          p_eliminations: number
+          p_entry_id: string
+          p_match_id: string
+          p_placement: number
+        }
+        Returns: undefined
+      }
       bump_nexora_pillar_affinity: {
         Args: { p_delta: number; p_post_id: string }
         Returns: undefined
+      }
+      can_view_user_media_post: {
+        Args: { target_post_id: string }
+        Returns: boolean
       }
       cancel_creator_payout_request: {
         Args: { p_payout_id: string }
@@ -4909,6 +5475,10 @@ export type Database = {
         Args: { p_creator_id: string }
         Returns: boolean
       }
+      is_arena_content_sync_authorized: {
+        Args: { candidate: string }
+        Returns: boolean
+      }
       is_my_account_suspended: { Args: never; Returns: boolean }
       is_platform_admin: { Args: { p_user_id: string }; Returns: boolean }
       is_platform_super_admin: { Args: { p_user_id: string }; Returns: boolean }
@@ -5083,6 +5653,10 @@ export type Database = {
           learner_name: string
           verification_code: string
         }[]
+      }
+      verify_sportscore_sync_secret: {
+        Args: { p_token: string }
+        Returns: boolean
       }
     }
     Enums: {

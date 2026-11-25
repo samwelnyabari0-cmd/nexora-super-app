@@ -16,6 +16,7 @@ import {
 } from "@/features/football/format";
 import type { FootballMatch } from "@/features/football/types";
 import { ConnectedGames } from "@/features/arena/ConnectedGames";
+import { ArenaTournamentHub } from "@/features/arena/ArenaTournamentHub";
 
 export const Route = createFileRoute("/match-center")({
   head: () => ({
