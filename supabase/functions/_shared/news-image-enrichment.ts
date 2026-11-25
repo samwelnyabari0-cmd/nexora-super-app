@@ -23,8 +23,15 @@ function safeArticleUrl(value: string, base: string, allowedHosts: string[]): UR
   }
 }
 
+function decodeAttribute(value: string): string {
+  return value.replace(/&amp;/gi, "&").replace(/&#x([0-9a-f]+);/gi, (_match, hex) =>
+    String.fromCodePoint(parseInt(hex, 16))).replace(/&#([0-9]+);/g, (_match, dec) =>
+    String.fromCodePoint(parseInt(dec, 10)));
+}
+
 export function extractPublisherImage(html: string, pageUrl: string): string | null {
-  const metaTags = [...html.slice(0, MAX_HTML_BYTES).matchAll(/<meta\\b[^>]*>/gi)].map((match) => match[0]);
+  const limitedHtml = html.slice(0, MAX_HTML_BYTES);
+  const metaTags = [...limitedHtml.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
   const accepted = new Set(["og:image", "og:image:url", "twitter:image", "twitter:image:src", "image"]);
   for (const tag of metaTags) {
     const key = (attribute(tag, "property") ?? attribute(tag, "name") ?? attribute(tag, "itemprop") ?? "").toLowerCase();
@@ -32,7 +39,7 @@ export function extractPublisherImage(html: string, pageUrl: string): string | n
     const raw = attribute(tag, "content");
     if (!raw) continue;
     try {
-      const image = new URL(raw, pageUrl);
+      const image = new URL(decodeAttribute(raw), pageUrl);
       if (image.protocol !== "https:" || !image.hostname || image.username || image.password) continue;
       if (image.hostname === "localhost" || image.hostname.endsWith(".local") || image.hostname.endsWith(".internal")) continue;
       return image.toString();
@@ -41,13 +48,13 @@ export function extractPublisherImage(html: string, pageUrl: string): string | n
     }
   }
 
-  const imageSource = [...html.slice(0, MAX_HTML_BYTES).matchAll(/<link\\b[^>]*>/gi)]
+  const imageSource = [...limitedHtml.matchAll(/<link\b[^>]*>/gi)]
     .map((match) => match[0])
-    .find((tag) => (attribute(tag, "rel") ?? "").toLowerCase().split(/\\s+/).includes("image_src"));
+    .find((tag) => (attribute(tag, "rel") ?? "").toLowerCase().split(/\s+/).includes("image_src"));
   const raw = imageSource ? attribute(imageSource, "href") : null;
   if (!raw) return null;
   try {
-    const image = new URL(raw, pageUrl);
+    const image = new URL(decodeAttribute(raw), pageUrl);
     return image.protocol === "https:" && image.hostname && !image.username && !image.password
       ? image.toString()
       : null;
@@ -85,7 +92,7 @@ export async function fetchPublisherImage(
 
     if (!response.ok) return null;
     const contentType = response.headers.get("content-type") ?? "";
-    if (!/text\\/html|application\\/xhtml\\+xml/i.test(contentType)) return null;
+    if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) return null;
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
     if (declaredLength > MAX_HTML_BYTES) return null;
     const html = (await response.text()).slice(0, MAX_HTML_BYTES);
