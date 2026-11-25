@@ -38,7 +38,7 @@ const SPORTS: { key: SportKey; label: string; icon: string; terms: RegExp }[] = 
   { key: "cricket", label: "Cricket", icon: "🏏", terms: /cricket|icc|ipl|t20|test match|ashes|odi|wicket|virat kohli|world cup/i },
   { key: "tennis", label: "Tennis", icon: "🎾", terms: /tennis|atp|wta|wimbledon|us open|french open|australian open|grand slam|djokovic|alcaraz|swiatek/i },
 ];
-const SCORE_PROVIDERS = ["sportscore", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1"];
+const SCORE_PROVIDERS = ["sportscore", "sportscore-cricket", "sportscore-tennis", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1"];
 function relativeTime(value: string) {
   const date = new Date(value);
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60_000));
@@ -96,7 +96,9 @@ export function MultiSportHub() {
       : activeSport === "nfl" ? "espn-nfl"
       : activeSport === "mlb" ? "espn-mlb"
       : activeSport === "nhl" ? "espn-nhl"
-      : activeSport === "f1" ? "jolpica-f1" : "";
+      : activeSport === "f1" ? "jolpica-f1"
+      : activeSport === "cricket" ? "sportscore-cricket"
+      : activeSport === "tennis" ? "sportscore-tennis" : "";
     const selectedMatches = provider === null ? matches : provider ? matches.filter((match) => match.provider === provider) : [];
     return selectedMatches.sort((left, right) => {
       const priority = (status: string) => status === "LIVE" || status === "HT" ? 0 : status === "SCHEDULED" ? 1 : status === "FT" ? 2 : 3;
@@ -131,6 +133,9 @@ export function MultiSportHub() {
         </a>)}
       </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading sports news…" : "No matching stories yet. Check back after the next scheduled news sync."}</p>}
     </div>
-    <p className="text-[10px] text-muted-foreground">Scoreboards and news are supplied by third-party public feeds and may be delayed or temporarily unavailable.</p>
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+      <p className="text-[10px] text-muted-foreground">Scoreboards and news are supplied by third-party public feeds and may be delayed or temporarily unavailable.</p>
+      <a href="https://sportscore.com/" rel="dofollow" title="Sports data by SportScore" target="_blank" className="inline-flex shrink-0 items-center rounded-full border px-2.5 py-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground">Powered by SportScore</a>
+    </div>
   </section>;
 }
