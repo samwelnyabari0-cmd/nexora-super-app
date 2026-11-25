@@ -458,7 +458,7 @@ function MatchCenterPage() {
           <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h2 className="font-semibold">Challenge your squad</h2></div><p className="mt-2 text-sm text-muted-foreground">Finish a run, share your score link in a Nexora conversation, and invite friends to beat it.</p><Link to="/messages" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-muted"><Swords className="h-4 w-4" /> Open messages</Link></Panel>
         </section>
       ) : (
-        <ArenaBracketDraft />
+        <ArenaTournamentHub />
       )}
     </main>
   );
@@ -651,18 +651,6 @@ function ArenaTrivia() {
     {done ? <div className="rounded-xl bg-muted/40 p-4 text-center"><p className="text-2xl font-bold tabular-nums">{points}/{questions.length}</p><p className="text-sm text-muted-foreground">Correct answers</p><Button size="sm" className="mt-3" onClick={() => { setIndex(0); setPoints(0); setPicked(""); setDone(false); }}>Play again</Button></div> : <><p className="text-sm font-medium">{current.q}</p><div className="grid gap-2">{current.a.map((option) => <button key={option} type="button" disabled={!!picked} onClick={() => answer(option)} className={`rounded-xl border px-3 py-2 text-left text-sm ${picked === option ? option === current.correct ? "border-emerald-500 bg-emerald-500/10" : "border-destructive bg-destructive/10" : "hover:bg-muted"}`}>{option}</button>)}</div>{picked && <Button size="sm" className="w-full" onClick={next}>{index === questions.length - 1 ? "Finish quiz" : "Next question"}</Button>}</>}
   </div>;
 }
-
-function ArenaBracketDraft() {
-  const [size, setSize] = useState("8"); const [entrants, setEntrants] = useState(""); const [pairings, setPairings] = useState<string[]>([]);
-  const generate = () => { const names = entrants.split(/[\n,]+/).map((name) => name.trim()).filter(Boolean).slice(0, Number(size)); const slots = Array.from({ length: Number(size) }, (_, i) => names[i] || "Open slot " + (i + 1)); setPairings(Array.from({ length: Number(size) / 2 }, (_, i) => slots[i * 2] + " vs " + slots[i * 2 + 1])); };
-  return <section className="space-y-4">
-    <div className="rounded-2xl border bg-gradient-to-br from-amber-500/10 via-card to-card p-4"><div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /><h2 className="font-display text-lg font-bold">Arena Cups & brackets</h2></div><p className="mt-1 text-sm text-muted-foreground">Prepare free community tournaments for eFootball, EA FC Mobile, PUBG Mobile and Nexora mini-games.</p></div>
-    <Panel><h3 className="font-semibold">Bracket builder</h3><p className="mt-1 text-xs text-muted-foreground">Create a local bracket preview for 8, 16 or 32 players. No entry fees or payments.</p><label className="mt-3 block text-xs font-medium" htmlFor="arena-bracket-size">Bracket size</label><select id="arena-bracket-size" className={input + " mt-1"} value={size} onChange={(event) => setSize(event.target.value)}><option value="8">8 players</option><option value="16">16 players</option><option value="32">32 players</option></select><label className="mt-3 block text-xs font-medium" htmlFor="arena-entrants">Player names (one per line or comma-separated)</label><textarea id="arena-entrants" className={input + " mt-1 min-h-28"} value={entrants} onChange={(event) => setEntrants(event.target.value)} placeholder={"Player 1\nPlayer 2\nPlayer 3"} /><Button className="mt-3 w-full" onClick={generate} disabled={!entrants.trim()}>Generate bracket preview</Button>{pairings.length > 0 && <div className="mt-4 space-y-2"><h4 className="text-sm font-semibold">Round 1</h4>{pairings.map((pairing, index) => <div key={index} className="flex items-center gap-2 rounded-lg border p-3 text-sm"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-xs">{index + 1}</span><span className="min-w-0 break-words">{pairing}</span></div>)}</div>}</Panel>
-    <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h3 className="font-semibold">Create a tournament with your squad</h3></div><p className="mt-2 text-sm text-muted-foreground">Use the existing squad events, member approvals and discussion channels to organise your first free competition.</p><Link to="/clubs" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Trophy className="h-4 w-4" /> Open squads</Link><p className="mt-2 text-[10px] text-muted-foreground">This is a draft bracket only. Online registration, screenshot verification, disputes and automatic bracket advancement still need their shared tournament data workflow.</p></Panel>
-    <Panel><div className="flex items-center gap-2"><Radio className="h-4 w-4" /><h3 className="font-semibold">Community watch-along</h3></div><p className="mt-2 text-sm text-muted-foreground">Host a matchday room, discuss tactics and invite players to your next cup.</p><Link to="/calls" search={{ arenaAudio: true }} className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold hover:bg-muted"><Volume2 className="h-4 w-4" /> Open audio / group room</Link></Panel>
-  </section>;
-}
-
 
 const ARENA_POLL_CHOICES = ["Home", "Away", "No more goals"] as const;
 
