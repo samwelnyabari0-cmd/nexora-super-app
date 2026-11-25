@@ -31,7 +31,16 @@ vi.mock("@/features/clubs/useClubData", () => ({
 vi.mock("@/features/football/useMatchCenter", () => ({
   useMatchCenter: () => ({
     matches: [],
-    announcements: [],
+    announcements: [{
+      id: "news-1",
+      providerId: "news-1",
+      sourceName: "Sky Sports",
+      headline: "Premier League transfer update",
+      summary: "A football transfer story.",
+      thumbnailUrl: "https://images.skysports.com/football-news.jpg",
+      sourceUrl: "https://www.skysports.com/football/news",
+      publishedAt: "2026-11-25T12:00:00.000Z",
+    }],
     highlights: [],
     lastUpdated: null,
     goalAlertsEnabled: false,
@@ -101,6 +110,12 @@ describe("Match Center football quick navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: `Open ${label}` }));
     expect(screen.getByRole("button", { name: "Back to Football" })).toBeInTheDocument();
     expect(screen.getByText(expectedContent)).toBeInTheDocument();
+    if (label === "News") {
+      expect(screen.getByRole("img", { name: "Premier League transfer update" })).toHaveAttribute(
+        "src",
+        "https://images.skysports.com/football-news.jpg",
+      );
+    }
 
     if (label === "Golden Boot") {
       expect(screen.getByTestId("golden-boot")).toBeInTheDocument();
