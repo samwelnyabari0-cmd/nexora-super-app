@@ -48,6 +48,28 @@ as $$
 $$;
 grant execute on function public.get_football_team_form(text, integer) to anon, authenticated;
 
+
+create or replace function public.get_football_form_guide(p_team_names text[])
+returns table(team_name text, match_id uuid, kickoff_at timestamptz, opponent text, result text)
+language sql stable security invoker set search_path = public
+as $
+  select requested.team_name, recent.id, recent.kickoff_at,
+    case when recent.is_home then recent.away_team else recent.home_team end,
+    case when (recent.is_home and recent.home_score > recent.away_score) or (not recent.is_home and recent.away_score > recent.home_score) then 'W'
+         when recent.home_score = recent.away_score then 'D' else 'L' end
+  from (select distinct trim(value) as team_name from unnest(coalesce(p_team_names, array[]::text[])) value where trim(value) <> '') requested
+  cross join lateral (
+    select m.id, m.kickoff_at, m.home_team, m.away_team, m.home_score, m.away_score,
+      lower(trim(m.home_team)) = lower(trim(requested.team_name)) as is_home
+    from public.football_matches m
+    where m.status = 'FT' and m.home_score is not null and m.away_score is not null
+      and (lower(trim(m.home_team)) = lower(trim(requested.team_name)) or lower(trim(m.away_team)) = lower(trim(requested.team_name)))
+    order by m.kickoff_at desc limit 5
+  ) recent
+  order by requested.team_name, recent.kickoff_at asc;
+$;
+grant execute on function public.get_football_form_guide(text[]) to anon, authenticated;
+
 create table if not exists public.football_match_polls (
   id uuid primary key default gen_random_uuid(),
   match_id uuid not null unique references public.football_matches(id) on delete cascade,
@@ -104,3 +126,10 @@ after insert or update of status on public.football_matches
 for each row execute function public.open_finished_football_match_poll();
 
 -- A poll can be read after expiry for historical results; submissions are time-gated by RLS.
+
+-- Backfill recently completed fixtures so polls are available immediately after rollout.
+insert into public.football_match_polls(match_id, opens_at, closes_at)
+select id, now(), now() + interval '24 hours'
+from public.football_matches
+where status = 'FT' and updated_at >= now() - interval '24 hours'
+on conflict (match_id) do nothing;
