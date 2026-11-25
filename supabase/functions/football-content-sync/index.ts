@@ -25,7 +25,7 @@ const NEWS_FEEDS = [{
   name: "Sky Sports",
   provider: "sky-sports-rss",
   url: "https://www.skysports.com/rss/11095",
-  host: "www.skysports.com",
+  host: "skysports.com",
 }];
 const OFFICIAL_HIGHLIGHT_FEEDS = [
   { name: "Premier League", code: "PL", channelId: "UCG5qGWdu8nIRZqJ_GgDwQ-w" },
@@ -57,7 +57,7 @@ function cleanText(value: string, maxLength: number): string {
 function safeHttpsUrl(value: string, allowedHost: string): string | null {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:" || url.hostname !== allowedHost) return null;
+    if (url.protocol !== "https:" || (url.hostname !== allowedHost && !url.hostname.endsWith("." + allowedHost))) return null;
     return url.toString();
   } catch { return null; }
 }
@@ -89,13 +89,13 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
       provider_id: link,
       source_name: source.name,
       headline,
-      summary: cleanText(textTag(item, "description"), 280),
+      summary: "",
       source_url: link,
       published_at: publishedAt,
       is_published: true,
     });
   }
-  return output.slice(0, 20);
+  return output.sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at)).slice(0, 20);
 }
 function parseOfficialHighlights(xml: string, source: typeof OFFICIAL_HIGHLIGHT_FEEDS[number]): HighlightItem[] {
   const entries = [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map((match) => match[1]);
@@ -197,14 +197,20 @@ Deno.serve(async (request: Request) => {
     await upsertRows("football_announcements", newsRows, serviceKey);
     await upsertRows("football_highlights", highlightRows, serviceKey);
     const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
-    await restRequest(
-      "football_announcements?provider=eq.sky-sports-rss&published_at=lt." + encodeURIComponent(cutoff),
-      serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
-    );
-    await restRequest(
-      "football_highlights?provider=eq.youtube-official&published_at=lt." + encodeURIComponent(cutoff),
-      serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
-    );
+    if (newsResults.some((result) => result.status === "fulfilled")) {
+      await restRequest(
+        "football_announcements?provider=eq.sky-sports-rss&published_at=lt." + encodeURIComponent(cutoff),
+        serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
+      );
+    }
+    for (const result of highlightResults) {
+      if (result.status !== "fulfilled") continue;
+      await restRequest(
+        "football_highlights?provider=eq.youtube-official&competition_code=eq." +
+          encodeURIComponent(result.value.source.code) + "&published_at=lt." + encodeURIComponent(cutoff),
+        serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
+      );
+    }
     const anyFeedSucceeded = Object.values(sourceResults).some(
       (value) => typeof value === "object" && value !== null && (value as { ok?: boolean }).ok === true,
     );
