@@ -59,7 +59,7 @@ The `football-content-sync` Edge Function fills the existing source-attributed c
 - **Official highlights:** the public YouTube feeds for the verified [Premier League channel](https://www.youtube.com/@premierleague) and [UEFA channel](https://www.youtube.com/@UEFA) are checked for videos whose titles identify highlights/goals. Nexora stores the official video link and YouTube thumbnail URL. The video itself is never embedded, mirrored or autoplayed; it opens only after a user taps the card.
 - News and highlight cache rows older than 45 days are pruned only for feeds that completed successfully, so a temporary provider outage does not erase previously cached items.
 - Only source-attributed headline/link previews are displayed. Obtain written commercial syndication permission before reproducing article excerpts, full text, or publisher imagery. Follow each publisher/platform's current terms.
-- The sync uses the existing server-only `ARENA_FOOTBALL_SYNC_SECRET` and `SUPABASE_SERVICE_ROLE_KEY`; neither is exposed in browser code. The cron job invokes the function every 15 minutes using the project's existing Vault-backed secret setup.
+- The sync uses the existing server-only `ARENA_FOOTBALL_SYNC_SECRET` and `SUPABASE_SERVICE_ROLE_KEY`; neither is exposed in browser code. The Edge Function validates the bearer token against the Vault secret through a restricted database RPC that only `service_role` can execute. The cron job invokes the function every 15 minutes using the project's existing Vault-backed secret setup.
 
 ## Official references
 
