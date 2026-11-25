@@ -126,6 +126,54 @@ export type Database = {
           },
         ]
       }
+      arena_pubg_round_scores: {
+        Row: {
+          eliminations: number
+          entry_id: string
+          id: string
+          match_id: string
+          placement: number
+          points: number
+          recorded_by: string
+          updated_at: string
+        }
+        Insert: {
+          eliminations: number
+          entry_id: string
+          id?: string
+          match_id: string
+          placement: number
+          points: number
+          recorded_by: string
+          updated_at?: string
+        }
+        Update: {
+          eliminations?: number
+          entry_id?: string
+          id?: string
+          match_id?: string
+          placement?: number
+          points?: number
+          recorded_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arena_pubg_round_scores_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arena_pubg_round_scores_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "arena_tournament_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       arena_tournament_entries: {
         Row: {
           created_at: string
