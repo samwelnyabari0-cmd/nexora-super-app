@@ -172,11 +172,12 @@ export function ArenaTournamentHub() {
   };
   const saveMyGameId = async () => {
     if (!myEntry || !gamePlayerId.trim()) { toast.error("Enter your in-game player ID."); return; }
-    const { error } = await supabase.rpc("arena_set_game_player_id", { p_entry_id: myEntry.id, p_game_player_id: gamePlayerId.trim() });
+    const { error } = await (supabase as any).rpc("arena_set_game_player_id", { p_entry_id: myEntry.id, p_game_player_id: gamePlayerId.trim() });
     if (error) toast.error(error.message); else { toast.success("Your in-game ID was saved."); setGamePlayerId(""); await load(); }
   };
   const saveRoom = async (matchId: string) => {
-    const { error } = await (supabase as any).rpc("arena_update_match_room", { p_match_id: matchId, p_room_id: roomId.trim() || null, p_room_password: roomPassword.trim() || null });
+    const currentMatch = matches.find((item) => item.id === matchId);
+    const { error } = await (supabase as any).rpc("arena_update_match_room", { p_match_id: matchId, p_room_id: roomId.trim() || currentMatch?.room_id || null, p_room_password: roomPassword.trim() || currentMatch?.room_password || null });
     if (error) toast.error(error.message); else { toast.success("Match room details saved."); setRoomId(""); setRoomPassword(""); await load(); }
   };
   const launchGame = (key: GameKey) => { const config = gameLaunch[key]; if (config) window.location.href = "intent://launch/#Intent;package=" + config.packageName + ";S.browser_fallback_url=" + encodeURIComponent(config.storeUrl) + ";end"; };
