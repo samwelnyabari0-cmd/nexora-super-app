@@ -70,8 +70,7 @@ export function WorldNewsPanel({
 
   useEffect(() => {
     let active = true;
-    void (async () => {
-      setLoading(true);
+    const loadNews = async () => {
       const { data, error: queryError } = await (supabase as any)
         .from("football_announcements")
         .select("provider,provider_id,source_name,headline,summary,source_url,published_at")
@@ -92,8 +91,13 @@ export function WorldNewsPanel({
         })));
       }
       setLoading(false);
-    })();
-    return () => { active = false; };
+    };
+    void loadNews();
+    const refreshInterval = window.setInterval(() => void loadNews(), 15 * 60 * 1000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshInterval);
+    };
   }, []);
 
   const visible = useMemo(
