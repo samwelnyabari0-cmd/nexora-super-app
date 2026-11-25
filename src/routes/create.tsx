@@ -75,10 +75,23 @@ function Create() {
   const [mediaClassification, setMediaClassification] = useState<UploadClassification>({ contentType: "post", aspectRatio: null, durationSeconds: null });
   const [note, setNote] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
+  const [isMatchReaction, setIsMatchReaction] = useState(false);
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
   const publishFormRef = useRef<HTMLFormElement>(null);
   const saveDraftButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const reactionCaption = window.sessionStorage.getItem("nexora:match-reaction-caption");
+    if (!reactionCaption) return;
+    setCaption(reactionCaption);
+    setIsMatchReaction(true);
+    window.sessionStorage.removeItem("nexora:match-reaction-max-seconds");
+    setTags("NexoraArena, MatchReaction");
+    setContentType("reel");
+    setMediaClassification({ contentType: "reel", aspectRatio: null, durationSeconds: null });
+    setNote("Match reaction mode: keep your clip to 15 seconds or less. Your fixture score and hashtag are prefilled.");
+    window.sessionStorage.removeItem("nexora:match-reaction-caption");
+  }, []);
   const uploadTier = accountTierFromUser(user);
   const appMetadata = user?.app_metadata ?? {};
   const rawPlan = String(
@@ -482,6 +495,10 @@ const previewFilter =
           onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
+            if (isMatchReaction && (!mediaType?.startsWith("video/") || mediaClassification.durationSeconds === null || mediaClassification.durationSeconds > 15)) {
+              setError("Choose a video clip with a confirmed duration of 15 seconds or less for a match reaction.");
+              return;
+            }
             if (!user) {
               notify("Sign in required", "Create an account before publishing to your profile.");
               void nav({ to: "/auth" });

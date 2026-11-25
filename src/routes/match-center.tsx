@@ -17,6 +17,7 @@ import {
 import type { FootballMatch } from "@/features/football/types";
 import { ConnectedGames } from "@/features/arena/ConnectedGames";
 import { ArenaTournamentHub } from "@/features/arena/ArenaTournamentHub";
+import { GoldenBootLeaderboard, MatchdayFanPolls, MatchAudioPrompt, MatchReactionLink, TeamFormGuide, useMatchdayForm } from "@/features/football/MatchdayEngagement";
 
 export const Route = createFileRoute("/match-center")({
   head: () => ({
@@ -43,6 +44,7 @@ const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
 
 function MatchCenterPage() {
   const data = useMatchCenter();
+  const formByTeam = useMatchdayForm(data.matches);
   const clubs = useClubData("");
   const [filter, setFilter] = useState<CompetitionFilter>("ALL");
   const [liteMode, setLiteMode] = useState(false);
@@ -184,6 +186,7 @@ function MatchCenterPage() {
               <MatchRow
                 key={match.id}
                 match={match}
+                formByTeam={formByTeam}
                 onShare={() => void shareMatch(match)}
                 shareDisabled={!shareClubId || busyMatchId === match.id}
                 busy={busyMatchId === match.id}
@@ -203,6 +206,8 @@ function MatchCenterPage() {
         {data.error && <p className="mt-3 text-xs text-muted-foreground">{data.error}</p>}
       </Panel>
 
+      <GoldenBootLeaderboard />
+      <MatchdayFanPolls matches={data.matches} />
       <ArenaFixturesTables />
 
       <Panel>
@@ -466,26 +471,28 @@ function MatchCenterPage() {
 
 function MatchRow({
   match,
+  formByTeam,
   onShare,
   shareDisabled,
   busy,
 }: {
   match: FootballMatch;
+  formByTeam: Record<string, Array<{ result: string; opponent: string }>>;
   onShare: () => void;
   shareDisabled: boolean;
   busy: boolean;
 }) {
   const live = match.status === "LIVE";
   return (
-    <div className="flex min-h-16 items-center gap-3 py-2">
+    <div className="py-2"><div className="flex min-h-16 items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="mb-1 truncate text-[10px] text-muted-foreground">{match.competitionName}</p>
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-sm">
-          <span className="truncate font-medium">{match.homeTeam}</span>
+          <div className="min-w-0"><span className="block truncate font-medium">{match.homeTeam}</span><TeamFormGuide teamName={match.homeTeam} form={formByTeam[match.homeTeam]} /></div>
           <span className="min-w-12 text-center font-bold tabular-nums">
             {match.homeScore ?? "–"} : {match.awayScore ?? "–"}
           </span>
-          <span className="truncate text-right font-medium">{match.awayTeam}</span>
+          <div className="min-w-0 text-right"><span className="block truncate font-medium">{match.awayTeam}</span><div className="flex justify-end"><TeamFormGuide teamName={match.awayTeam} form={formByTeam[match.awayTeam]} /></div></div>
         </div>
       </div>
       <div className="w-16 shrink-0 text-right">
@@ -506,6 +513,11 @@ function MatchRow({
       >
         {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
       </Button>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 pl-1">
+        <MatchReactionLink match={match} />
+        <MatchAudioPrompt match={match} />
+      </div>
     </div>
   );
 }
