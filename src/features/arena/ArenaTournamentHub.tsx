@@ -180,7 +180,7 @@ export function ArenaTournamentHub() {
     const { error } = await (supabase as any).rpc("arena_update_match_room", { p_match_id: matchId, p_room_id: roomId.trim() || currentMatch?.room_id || null, p_room_password: roomPassword.trim() || currentMatch?.room_password || null });
     if (error) toast.error(error.message); else { toast.success("Match room details saved."); setRoomId(""); setRoomPassword(""); await load(); }
   };
-  const launchGame = (key: GameKey) => { const config = gameLaunch[key]; if (config) window.location.href = "intent://launch/#Intent;package=" + config.packageName + ";S.browser_fallback_url=" + encodeURIComponent(config.storeUrl) + ";end"; };
+  const launchGame = (key: GameKey) => { const config = gameLaunch[key]; if (!config) return; if (!/Android/i.test(navigator.userAgent)) { window.open(config.storeUrl, "_blank", "noopener,noreferrer"); return; } window.location.href = "intent://launch/#Intent;package=" + config.packageName + ";S.browser_fallback_url=" + encodeURIComponent(config.storeUrl) + ";end"; };
   const copyValue = async (value: string, labelText: string) => { try { await navigator.clipboard.writeText(value); toast.success(labelText + " copied."); } catch { toast.error("Could not copy. Please copy manually."); } };
   const submitResult = async (event: FormEvent) => {
     event.preventDefault();
