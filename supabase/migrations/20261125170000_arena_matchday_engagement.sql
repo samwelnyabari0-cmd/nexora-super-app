@@ -52,7 +52,7 @@ grant execute on function public.get_football_team_form(text, integer) to anon, 
 create or replace function public.get_football_form_guide(p_team_names text[])
 returns table(team_name text, match_id uuid, kickoff_at timestamptz, opponent text, result text)
 language sql stable security invoker set search_path = public
-as $
+as $form$
   select requested.team_name, recent.id, recent.kickoff_at,
     case when recent.is_home then recent.away_team else recent.home_team end,
     case when (recent.is_home and recent.home_score > recent.away_score) or (not recent.is_home and recent.away_score > recent.home_score) then 'W'
@@ -67,7 +67,7 @@ as $
     order by m.kickoff_at desc limit 5
   ) recent
   order by requested.team_name, recent.kickoff_at asc;
-$;
+$form$;
 grant execute on function public.get_football_form_guide(text[]) to anon, authenticated;
 
 create table if not exists public.football_match_polls (
