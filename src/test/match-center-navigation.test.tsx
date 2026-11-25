@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MatchCenterPage } from "@/routes/match-center";
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ options }),
-  Link: ({ children }: { children: React.ReactNode }) => <a href="#">{children}</a>,
+  Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
 }));
 
 vi.mock("@/components/nexora/ui", () => ({
@@ -18,7 +19,7 @@ vi.mock("@/components/ui/button", () => ({
     variant: _variant,
     size: _size,
     ...props
-  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+  }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
     <button {...props}>{children}</button>
   ),
 }));
