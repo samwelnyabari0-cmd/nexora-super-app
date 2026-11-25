@@ -24,6 +24,7 @@ export type FootballAnnouncement = {
   sourceName: string;
   headline: string;
   summary: string;
+  thumbnailUrl: string | null;
   sourceUrl: string;
   publishedAt: string;
 };
