@@ -85,7 +85,7 @@ export function WorldNewsPanel({
   useEffect(() => {
     let active = true;
     const loadNews = async () => {
-      const query = supabase.from("football_announcements") as unknown as NewsQuery;
+      const query = (supabase as unknown as { from: (table: string) => NewsQuery }).from("football_announcements");
       const { data, error: queryError } = await query
         .select("provider,provider_id,source_name,headline,summary,source_url,published_at")
         .in("provider", NEWS_PROVIDERS)
