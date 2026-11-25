@@ -25,6 +25,45 @@ type MatchRow = {
   kickoff_at: string;
   source_url: string | null;
 };
+type F1Race = {
+  raceName?: string;
+  date?: string;
+  time?: string;
+  Circuit?: { circuitName?: string; Location?: { locality?: string; country?: string } };
+  QualifyingResults?: Array<{
+    position?: string;
+    Driver?: { givenName?: string; familyName?: string; code?: string };
+    Constructor?: { name?: string };
+    Q1?: string;
+    Q2?: string;
+    Q3?: string;
+  }>;
+  Results?: Array<{
+    position?: string;
+    points?: string;
+    status?: string;
+    Time?: { time?: string };
+    FastestLap?: { Time?: { time?: string } };
+    Driver?: { givenName?: string; familyName?: string; code?: string };
+    Constructor?: { name?: string };
+  }>;
+};
+type F1Standing = {
+  position?: string;
+  points?: string;
+  wins?: string;
+  Driver?: { givenName?: string; familyName?: string; code?: string };
+  Constructors?: Array<{ name?: string }>;
+  Constructor?: { name?: string };
+};
+type F1PanelData = {
+  qualifyingRace: F1Race | null;
+  resultRace: F1Race | null;
+  drivers: F1Standing[];
+  constructors: F1Standing[];
+  errors: string[];
+};
+type F1Tab = "qualifying" | "results" | "drivers" | "teams";
 const SPORTS: { key: SportKey; label: string; icon: string; terms: RegExp }[] = [
   { key: "all", label: "All Sports", icon: "🏆", terms: /.*/i },
   { key: "football", label: "Football", icon: "⚽", terms: /football|soccer|premier league|champions league|goal|striker|transfer|manchester|arsenal|chelsea|liverpool|real madrid|barcelona/i },
@@ -32,13 +71,14 @@ const SPORTS: { key: SportKey; label: string; icon: string; terms: RegExp }[] = 
   { key: "nfl", label: "NFL", icon: "🏈", terms: /nfl|american football|touchdown|quarterback|super bowl|chiefs|eagles|cowboys/i },
   { key: "mlb", label: "MLB", icon: "⚾", terms: /mlb|baseball|world series|home run|yankees|dodgers|red sox/i },
   { key: "nhl", label: "NHL", icon: "🏒", terms: /nhl|ice hockey|stanley cup|oilers|maple leafs|bruins/i },
-  { key: "f1", label: "Formula 1", icon: "🏎️", terms: /formula 1|formula one|\bf1\b|grand prix|motorsport|verstappen|hamilton|leclerc|norris|ferrari|mclaren/i },
+  { key: "f1", label: "Formula 1", icon: "🏎️", terms: /formula 1|formula one|\\bf1\\b|grand prix|motorsport|verstappen|hamilton|leclerc|norris|ferrari|mclaren/i },
   { key: "rugby", label: "Rugby", icon: "🏉", terms: /rugby|six nations|world rugby|super rugby|premiership rugby|all blacks|springboks|crusaders/i },
   { key: "mma", label: "MMA / UFC", icon: "🥊", terms: /mma|ufc|mixed martial arts|cage warriors|bellator|octagon|fight night|dana white/i },
   { key: "cricket", label: "Cricket", icon: "🏏", terms: /cricket|icc|ipl|t20|test match|ashes|odi|wicket|virat kohli|world cup/i },
   { key: "tennis", label: "Tennis", icon: "🎾", terms: /tennis|atp|wta|wimbledon|us open|french open|australian open|grand slam|djokovic|alcaraz|swiatek/i },
 ];
 const SCORE_PROVIDERS = ["sportscore", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1", "rugbyapi", "ufcalendar-mma"];
+const F1_API = "https://api.jolpi.ca/ergast/f1";
 function relativeTime(value: string) {
   const date = new Date(value);
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60_000));
@@ -49,12 +89,27 @@ function relativeTime(value: string) {
 function eventTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
+function f1DriverName(driver?: F1Standing["Driver"]) {
+  return [driver?.givenName, driver?.familyName].filter(Boolean).join(" ") || "Driver";
+}
+async function fetchF1Endpoint(path: string) {
+  const response = await fetch(F1_API + path + ".json?limit=100", {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!response.ok) throw new Error("F1 data returned HTTP " + response.status);
+  return response.json();
+}
 export function MultiSportHub() {
   const [activeSport, setActiveSport] = useState<SportKey>("all");
   const [news, setNews] = useState<NewsRow[]>([]);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [f1Tab, setF1Tab] = useState<F1Tab>("qualifying");
+  const [f1Data, setF1Data] = useState<F1PanelData | null>(null);
+  const [f1Loading, setF1Loading] = useState(false);
+  const [f1UpdatedAt, setF1UpdatedAt] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -86,6 +141,50 @@ export function MultiSportHub() {
     return () => { mounted = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisibility); };
   }, []);
 
+  useEffect(() => {
+    if (activeSport !== "f1") return;
+    let mounted = true;
+    const loadF1 = async () => {
+      setF1Loading(true);
+      const season = new Date().getUTCFullYear();
+      const endpoints = [
+        fetchF1Endpoint("/" + season + "/last/qualifying"),
+        fetchF1Endpoint("/" + season + "/last/results"),
+        fetchF1Endpoint("/" + season + "/driverstandings"),
+        fetchF1Endpoint("/" + season + "/constructorstandings"),
+      ];
+      const responses = await Promise.allSettled(endpoints);
+      if (!mounted) return;
+      const errors = responses.flatMap((result, index) => result.status === "rejected"
+        ? [["Latest qualifying", "Latest race results", "Driver standings", "Constructor standings"][index] + " unavailable"] : []);
+      const value = (index: number) => responses[index].status === "fulfilled" ? responses[index].value : null;
+      const qualifyingRaces = value(0)?.MRData?.RaceTable?.Races ?? [];
+      const resultRaces = value(1)?.MRData?.RaceTable?.Races ?? [];
+      const driverRows = value(2)?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings ?? [];
+      const constructorRows = value(3)?.MRData?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings ?? [];
+      setF1Data({
+        qualifyingRace: qualifyingRaces[0] ?? null,
+        resultRace: resultRaces[0] ?? null,
+        drivers: driverRows,
+        constructors: constructorRows,
+        errors,
+      });
+      setF1UpdatedAt(new Date().toISOString());
+      setF1Loading(false);
+    };
+    void loadF1();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadF1();
+    }, 5 * 60_000);
+    const onVisibility = () => { if (document.visibilityState === "visible") void loadF1(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [activeSport]);
+
   const selected = SPORTS.find((sport) => sport.key === activeSport) ?? SPORTS[0];
   const filteredNews = useMemo(() => activeSport === "all"
     ? news
@@ -106,6 +205,11 @@ export function MultiSportHub() {
     });
   }, [activeSport, matches]);
 
+  const qualifyingRace = f1Data?.qualifyingRace;
+  const resultRace = f1Data?.resultRace;
+  const activeRace = f1Tab === "qualifying" ? qualifyingRace : resultRace;
+  const f1SessionRows: any[] = f1Tab === "qualifying" ? activeRace?.QualifyingResults ?? [] : activeRace?.Results ?? [];
+
   return <section aria-label="Multi-sport hub" className="space-y-4 rounded-2xl border bg-card p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Nexora Arena</p><h2 className="text-xl font-black">Sports Live Hub</h2><p className="text-xs text-muted-foreground">Scores, race weekends and breaking sports news</p></div>
@@ -124,6 +228,50 @@ export function MultiSportHub() {
         </article>)}
       </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading cached scores…" : activeSport === "cricket" || activeSport === "tennis" ? "Breaking news and sport updates are shown below. Live score coverage for this sport is not connected yet." : "No cached fixtures or live scores are available right now."}</p>}
     </div>
+    {activeSport === "f1" && <section aria-label="Formula 1 championship centre" className="space-y-3 rounded-xl border bg-background p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><h3 className="font-black">Formula 1 Championship Centre</h3><p className="text-xs text-muted-foreground">{new Date().getUTCFullYear()} season · Qualifying, race classification and standings</p></div>
+        <span className="text-[10px] text-muted-foreground">{f1Loading ? "Refreshing…" : f1UpdatedAt ? "Updated " + relativeTime(f1UpdatedAt) : "Loading F1 data…"}</span>
+      </div>
+      <nav aria-label="Formula 1 data" className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+        {([
+          ["qualifying", "Qualifying"],
+          ["results", "Race results"],
+          ["drivers", "Drivers"],
+          ["teams", "Constructors"],
+        ] as [F1Tab, string][]).map(([tab, label]) => <button key={tab} type="button" onClick={() => setF1Tab(tab)} aria-pressed={f1Tab === tab} className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-bold ${f1Tab === tab ? "border-primary bg-primary text-primary-foreground" : "bg-muted/50"}`}>{label}</button>)}
+      </nav>
+      {(f1Tab === "qualifying" || f1Tab === "results") ? <>
+        <div className="rounded-lg bg-muted/50 p-3">
+          <p className="text-xs font-bold">{activeRace?.raceName ?? (f1Tab === "qualifying" ? "Latest qualifying session" : "Latest race classification")}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">{activeRace?.Circuit?.circuitName ?? "Session data will appear when published"}{activeRace?.date ? " · " + new Date(activeRace.date + "T12:00:00Z").toLocaleDateString() : ""}</p>
+        </div>
+        {f1SessionRows.length ? <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full min-w-[440px] text-left text-xs">
+            <thead className="bg-muted/60 text-[10px] uppercase text-muted-foreground"><tr><th className="p-2">Pos</th><th className="p-2">Driver</th><th className="p-2">Team</th>{f1Tab === "qualifying" ? <><th className="p-2">Q1</th><th className="p-2">Q2</th><th className="p-2">Q3</th></> : <><th className="p-2">Time / Status</th><th className="p-2">Pts</th></>}</tr></thead>
+            <tbody>{f1SessionRows.map((row: any, index: number) => <tr key={(row.Driver?.code ?? row.Driver?.familyName ?? "driver") + "-" + index} className="border-t">
+              <td className="p-2 font-bold">{row.position ?? index + 1}</td>
+              <td className="p-2 font-semibold">{f1DriverName(row.Driver)}</td>
+              <td className="p-2 text-muted-foreground">{row.Constructor?.name ?? "—"}</td>
+              {f1Tab === "qualifying" ? <><td className="p-2 tabular-nums">{row.Q1 ?? "—"}</td><td className="p-2 tabular-nums">{row.Q2 ?? "—"}</td><td className="p-2 tabular-nums">{row.Q3 ?? "—"}</td></> : <><td className="p-2">{row.Time?.time ?? row.status ?? "—"}</td><td className="p-2 tabular-nums">{row.points ?? "0"}</td></>}
+            </tr>)}</tbody>
+          </table>
+        </div> : <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{f1Loading ? "Loading session data…" : "No session classification has been published for the latest round yet."}</p>}
+      </> : <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[340px] text-left text-xs">
+          <thead className="bg-muted/60 text-[10px] uppercase text-muted-foreground"><tr><th className="p-2">Pos</th><th className="p-2">{f1Tab === "drivers" ? "Driver" : "Constructor"}</th><th className="p-2">Points</th><th className="p-2">Wins</th></tr></thead>
+          <tbody>{(f1Tab === "drivers" ? f1Data?.drivers ?? [] : f1Data?.constructors ?? []).map((row, index) => <tr key={f1Tab === "drivers" ? row.Driver?.code ?? index : row.Constructor?.name ?? index} className="border-t">
+            <td className="p-2 font-bold">{row.position ?? index + 1}</td>
+            <td className="p-2 font-semibold">{f1Tab === "drivers" ? f1DriverName(row.Driver) : row.Constructor?.name ?? "Constructor"}</td>
+            <td className="p-2 font-bold tabular-nums">{row.points ?? "0"}</td>
+            <td className="p-2 tabular-nums">{row.wins ?? "0"}</td>
+          </tr>)}</tbody>
+        </table>
+        {!f1Loading && !(f1Tab === "drivers" ? f1Data?.drivers.length : f1Data?.constructors.length) && <p className="p-4 text-sm text-muted-foreground">Championship standings are not available yet.</p>}
+      </div>}
+      {f1Data?.errors.length ? <p role="status" className="text-xs text-amber-600">Some F1 feeds could not be reached: {f1Data.errors.join(", ")}. Other available sections remain usable.</p> : null}
+      <p className="text-[10px] text-muted-foreground">F1 data via Jolpica API. Session classifications and championship points update when the source publishes official data.</p>
+    </section>}
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2"><h3 className="font-bold">{activeSport === "all" ? "Sports breaking news" : selected.label + " news"}</h3><span className="text-xs text-muted-foreground">{filteredNews.length} stories</span></div>
       {filteredNews.length ? <div className="grid gap-3 md:grid-cols-2">
