@@ -70,16 +70,23 @@ export function ArenaTournamentHub() {
       const current = rows.find((item) => item.id === active.id) ?? null;
       setActive(current);
       if (current) {
-        const [entryResult, matchResult, resultResult, standingResult, memberResult] = await Promise.all([
+        const [entryResult, matchResult, standingResult, memberResult] = await Promise.all([
           (supabase as any).from("arena_tournament_entries").select("*").eq("tournament_id", current.id).order("created_at"),
           (supabase as any).from("arena_tournament_matches").select("*").eq("tournament_id", current.id).order("round_number").order("match_number"),
-          (supabase as any).from("arena_match_results").select("*").in("match_id", ((await (supabase as any).from("arena_tournament_matches").select("id").eq("tournament_id", current.id)).data ?? []).map((m: {id:string}) => m.id)).order("created_at", { ascending: false }),
+          (supabase as any).from("arena_tournament_standings").select("*").eq("tournament_id", current.id),
+          currentUser
+            ? (supabase as any).from("arena_tournament_team_members").select("team_id").eq("user_id", currentUser)
+            : Promise.resolve({ data: [], error: null }),
         ]);
+        const matchIds = ((matchResult.data ?? []) as Match[]).map((match) => match.id);
+        const resultResult = matchIds.length
+          ? await (supabase as any).from("arena_match_results").select("*").in("match_id", matchIds).order("created_at", { ascending: false })
+          : { data: [], error: null };
         setEntries((entryResult.data ?? []) as Entry[]);
         setMatches((matchResult.data ?? []) as Match[]);
         setResults((resultResult.data ?? []) as Result[]);
         setStandings((standingResult.data ?? []) as Standing[]);
-        setMyTeamIds((memberResult.data ?? []).map((row: {team_id:string}) => row.team_id));
+        setMyTeamIds((memberResult.data ?? []).map((row: { team_id: string }) => row.team_id));
       }
     }
     setLoading(false);
