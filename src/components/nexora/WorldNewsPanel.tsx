@@ -202,9 +202,7 @@ export function WorldNewsPanel({
                   </span>
                   <span>{item.source_name}</span>
                   <span aria-hidden="true">·</span>
-                  <time dateTime={item.published_at}>
-                    {formatRelativeTime(item.published_at)}
-                  </time>
+                  <time dateTime={item.published_at}>{formatRelativeTime(item.published_at)}</time>
                 </div>
                 {validPublisherUrl(item.source_url) ? (
                   <a
