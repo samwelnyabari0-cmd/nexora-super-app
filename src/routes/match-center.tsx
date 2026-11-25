@@ -15,6 +15,7 @@ import {
   type CompetitionFilter,
 } from "@/features/football/format";
 import type { FootballMatch } from "@/features/football/types";
+import { ConnectedGames } from "@/features/arena/ConnectedGames";
 
 export const Route = createFileRoute("/match-center")({
   head: () => ({
@@ -452,6 +453,7 @@ function MatchCenterPage() {
             <div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Zap className="h-5 w-5" /></div><div className="min-w-0"><h2 className="font-display text-lg font-bold">Play instantly</h2><p className="mt-1 text-sm text-muted-foreground">Lightweight games run right here — no app-store download or heavy 3D assets.</p></div></div>
           </div>
           <div className="grid gap-3 md:grid-cols-2"><Panel><FreeKickChallenge /></Panel><Panel><PenaltyShootout /></Panel><Panel><ArenaTrivia /></Panel></div>
+          <Panel><ConnectedGames /></Panel>
           <Panel><div className="flex items-center gap-2"><Users className="h-4 w-4" /><h2 className="font-semibold">Challenge your squad</h2></div><p className="mt-2 text-sm text-muted-foreground">Finish a run, share your score link in a Nexora conversation, and invite friends to beat it.</p><Link to="/messages" className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold hover:bg-muted"><Swords className="h-4 w-4" /> Open messages</Link></Panel>
         </section>
       ) : (
