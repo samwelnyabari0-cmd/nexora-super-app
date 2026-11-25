@@ -495,8 +495,8 @@ const previewFilter =
           onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
-            if (isMatchReaction && (mediaClassification.durationSeconds ?? 0) > 15) {
-              setError("Match reaction clips must be 15 seconds or shorter.");
+            if (isMatchReaction && (!mediaType?.startsWith("video/") || mediaClassification.durationSeconds === null || mediaClassification.durationSeconds > 15)) {
+              setError("Choose a video clip with a confirmed duration of 15 seconds or less for a match reaction.");
               return;
             }
             if (!user) {
