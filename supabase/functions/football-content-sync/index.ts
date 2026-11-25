@@ -21,12 +21,14 @@ type HighlightItem = {
   published_at: string;
   is_published: boolean;
 };
-const NEWS_FEEDS = [{
-  name: "Sky Sports",
-  provider: "sky-sports-rss",
-  url: "https://www.skysports.com/rss/11095",
-  host: "skysports.com",
-}];
+const NEWS_FEEDS = [
+  { name: "Sky Sports", provider: "sky-sports-rss", url: "https://www.skysports.com/rss/11095", hosts: ["skysports.com"] },
+  { name: "BBC World", provider: "world-bbc-rss", url: "https://feeds.bbci.co.uk/news/world/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "Al Jazeera", provider: "world-aljazeera-rss", url: "https://www.aljazeera.com/xml/rss/all.xml", hosts: ["aljazeera.com"] },
+  { name: "DW News", provider: "world-dw-rss", url: "https://rss.dw.com/xml/rss-en-all", hosts: ["dw.com"] },
+  { name: "BBC Africa", provider: "kenya-bbc-africa-rss", url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "Kenya Top News", provider: "kenya-google-news-rss", url: "https://news.google.com/rss?hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+];
 const OFFICIAL_HIGHLIGHT_FEEDS = [
   { name: "Premier League", code: "PL", channelId: "UCG5qGWdu8nIRZqJ_GgDwQ-w" },
   { name: "UEFA", code: "CL", channelId: "UCyGa1YEx9ST66rYrJTGIKOw" },
@@ -54,10 +56,11 @@ function cleanText(value: string, maxLength: number): string {
     .replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
-function safeHttpsUrl(value: string, allowedHost: string): string | null {
+function safeHttpsUrl(value: string, allowedHosts: string[]): string | null {
   try {
     const url = new URL(value);
-    if ((url.protocol !== "https:" && url.protocol !== "http:") || (url.hostname !== allowedHost && !url.hostname.endsWith("." + allowedHost))) return null;
+    const allowed = allowedHosts.some((host) => url.hostname === host || url.hostname.endsWith("." + host));
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || !allowed) return null;
     url.protocol = "https:";
     return url.toString();
   } catch { return null; }
@@ -187,7 +190,7 @@ Deno.serve(async (request: Request) => {
       newsRows.push(...result.value.rows);
       sourceResults[result.value.source.name] = { ok: true, items: result.value.rows.length };
     } else {
-      sourceResults["Sky Sports"] = {
+      sourceResults[result.reason instanceof Error ? "Feed error" : "News feed"] = {
         ok: false,
         error: result.reason instanceof Error ? result.reason.message : "Feed unavailable",
       };
