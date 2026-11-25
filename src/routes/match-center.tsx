@@ -362,7 +362,7 @@ function MatchCenterPage() {
                     <span>{new Date(item.publishedAt).toLocaleDateString()}</span>
                   </div>
                   <p className="text-sm font-semibold">{item.headline}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>
+                  {item.summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>}
                 </a>
               ))}
             </div>
