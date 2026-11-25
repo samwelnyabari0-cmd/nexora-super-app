@@ -21,12 +21,14 @@ type HighlightItem = {
   published_at: string;
   is_published: boolean;
 };
-const NEWS_FEEDS = [{
-  name: "Sky Sports",
-  provider: "sky-sports-rss",
-  url: "https://www.skysports.com/rss/11095",
-  host: "skysports.com",
-}];
+const NEWS_FEEDS = [
+  { name: "Sky Sports", provider: "sky-sports-rss", url: "https://www.skysports.com/rss/11095", hosts: ["skysports.com"] },
+  { name: "BBC World", provider: "world-bbc-rss", url: "https://feeds.bbci.co.uk/news/world/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "Al Jazeera", provider: "world-aljazeera-rss", url: "https://www.aljazeera.com/xml/rss/all.xml", hosts: ["aljazeera.com"] },
+  { name: "DW News", provider: "world-dw-rss", url: "https://rss.dw.com/xml/rss-en-all", hosts: ["dw.com"] },
+  { name: "BBC Africa", provider: "kenya-bbc-africa-rss", url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "Kenya Top News", provider: "kenya-google-news-rss", url: "https://news.google.com/rss?hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+];
 const OFFICIAL_HIGHLIGHT_FEEDS = [
   { name: "Premier League", code: "PL", channelId: "UCG5qGWdu8nIRZqJ_GgDwQ-w" },
   { name: "UEFA", code: "CL", channelId: "UCyGa1YEx9ST66rYrJTGIKOw" },
@@ -54,10 +56,11 @@ function cleanText(value: string, maxLength: number): string {
     .replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
-function safeHttpsUrl(value: string, allowedHost: string): string | null {
+function safeHttpsUrl(value: string, allowedHosts: string[]): string | null {
   try {
     const url = new URL(value);
-    if ((url.protocol !== "https:" && url.protocol !== "http:") || (url.hostname !== allowedHost && !url.hostname.endsWith("." + allowedHost))) return null;
+    const allowed = allowedHosts.some((host) => url.hostname === host || url.hostname.endsWith("." + host));
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || !allowed) return null;
     url.protocol = "https:";
     return url.toString();
   } catch { return null; }
@@ -81,16 +84,26 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
   const items = [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map((match) => match[1]);
   const output: NewsItem[] = [];
   for (const item of items) {
-    const headline = cleanText(textTag(item, "title"), 220);
-    const link = safeHttpsUrl(textTag(item, "link"), source.host);
-    const publishedAt = safePublishedAt(textTag(item, "pubDate"));
+    const rawTitle = cleanText(textTag(item, "title"), 320);
+    const googlePublisher = cleanText(textTag(item, "source"), 100);
+    const fallbackPublisher = source.provider === "kenya-google-news-rss" && rawTitle.includes(" - ")
+      ? rawTitle.split(" - ").at(-1) ?? ""
+      : "";
+    const publisher = googlePublisher || fallbackPublisher || source.name;
+    const hasPublisherSuffix = source.provider === "kenya-google-news-rss" && rawTitle.includes(" - ");
+    const headline = cleanText(
+      hasPublisherSuffix ? rawTitle.slice(0, Math.max(0, rawTitle.lastIndexOf(" - "))) : rawTitle,
+      220,
+    );
+    const link = safeHttpsUrl(textTag(item, "link"), source.hosts);
+    const publishedAt = safePublishedAt(textTag(item, "pubDate") || textTag(item, "dc:date"));
     if (!headline || !link || !publishedAt) continue;
     output.push({
       provider: source.provider,
       provider_id: link,
-      source_name: source.name,
+      source_name: publisher,
       headline,
-      summary: "",
+      summary: cleanText(textTag(item, "description"), 500),
       source_url: link,
       published_at: publishedAt,
       is_published: true,
@@ -182,12 +195,14 @@ Deno.serve(async (request: Request) => {
     const xml = await fetchFeed(source.url);
     return { source, rows: parseNewsFeed(xml, source) };
   }));
-  for (const result of newsResults) {
+  for (let index = 0; index < newsResults.length; index += 1) {
+    const result = newsResults[index];
+    const source = NEWS_FEEDS[index];
     if (result.status === "fulfilled") {
       newsRows.push(...result.value.rows);
-      sourceResults[result.value.source.name] = { ok: true, items: result.value.rows.length };
+      sourceResults[source.name] = { ok: true, items: result.value.rows.length };
     } else {
-      sourceResults["Sky Sports"] = {
+      sourceResults[source.name] = {
         ok: false,
         error: result.reason instanceof Error ? result.reason.message : "Feed unavailable",
       };
