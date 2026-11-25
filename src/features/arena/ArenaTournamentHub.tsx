@@ -21,7 +21,10 @@ const games: { id: GameKey; name: string; subtitle: string; image: string; tint:
   { id: "pubg_mobile", name: "PUBG Mobile", subtitle: "Mobile · 4-player squads", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1000&q=85", tint: "from-orange-950/90" },
   { id: "nexora_minigames", name: "Nexora Mini-Games", subtitle: "Free Kick · Penalty · Trivia", image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1000&q=85", tint: "from-violet-950/90" },
 ];
-const footballClubs = ["Arsenal","Aston Villa","Atalanta","Atletico Madrid","Barcelona","Bayern Munich","Borussia Dortmund","Chelsea","Inter Milan","Juventus","Liverpool","Manchester City","Manchester United","AC Milan","Napoli","Newcastle United","Paris Saint-Germain","Real Madrid","Roma","Tottenham Hotspur"];\nconst footballGames: GameKey[] = ["efootball","fc_mobile"];\nconst roundName = (round: number, total: number) => { const remaining = total - round; const labels: Record<number,string> = {0:"Final",1:"Semi-finals",2:"Quarter-finals",3:"Round of 16",4:"Round of 32",5:"Round of 64",6:"Round of 128"}; return labels[remaining] ?? `Round ${round}`; };\nconst input = "w-full rounded-xl border bg-background px-3 py-2.5 text-sm";
+const footballClubs = ["Arsenal","Aston Villa","Atalanta","Atletico Madrid","Barcelona","Bayern Munich","Borussia Dortmund","Chelsea","Inter Milan","Juventus","Liverpool","Manchester City","Manchester United","AC Milan","Napoli","Newcastle United","Paris Saint-Germain","Real Madrid","Roma","Tottenham Hotspur"];
+const footballGames: GameKey[] = ["efootball","fc_mobile"];
+const roundName = (round: number, total: number) => { const remaining = total - round; const labels: Record<number,string> = {0:"Final",1:"Semi-finals",2:"Quarter-finals",3:"Round of 16",4:"Round of 32",5:"Round of 64",6:"Round of 128"}; return labels[remaining] ?? `Round ${round}`; };
+const input = "w-full rounded-xl border bg-background px-3 py-2.5 text-sm";
 const label = "mb-1.5 block text-xs font-semibold text-muted-foreground";
 const gameName = (key: GameKey) => games.find((game) => game.id === key)?.name ?? key;
 const dateLabel = (value: string | null) => value ? new Date(value).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Date to be announced";
