@@ -2878,6 +2878,7 @@ export type Database = {
           source_name?: string
           source_url?: string
           summary?: string
+          thumbnail_url?: string | null
         }
         Relationships: []
       }
