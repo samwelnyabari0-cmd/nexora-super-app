@@ -57,7 +57,8 @@ function cleanText(value: string, maxLength: number): string {
 function safeHttpsUrl(value: string, allowedHost: string): string | null {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:" || (url.hostname !== allowedHost && !url.hostname.endsWith("." + allowedHost))) return null;
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || (url.hostname !== allowedHost && !url.hostname.endsWith("." + allowedHost))) return null;
+    url.protocol = "https:";
     return url.toString();
   } catch { return null; }
 }
