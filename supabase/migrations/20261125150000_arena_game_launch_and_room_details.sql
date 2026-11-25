@@ -1,12 +1,61 @@
 -- Secure per-player game IDs and organizer-managed match room details for Nexora Arena.
 create table if not exists public.arena_game_player_ids (entry_id uuid not null references public.arena_tournament_entries(id) on delete cascade,user_id uuid not null references auth.users(id) on delete cascade,game_player_id text not null check(char_length(trim(game_player_id)) between 1 and 80),updated_at timestamptz not null default now(),primary key(entry_id,user_id));
 alter table public.arena_game_player_ids enable row level security;
+
+create policy "Players can insert own Arena game IDs"
+on public.arena_game_player_ids for insert to authenticated
+with check (
+  user_id = (select auth.uid())
+  and exists (
+    select 1 from public.arena_tournament_entries e
+    where e.id = entry_id
+      and (
+        e.player_id = (select auth.uid())
+        or exists (
+          select 1 from public.arena_tournament_team_members tm
+          where tm.team_id = e.team_id and tm.user_id = (select auth.uid())
+        )
+      )
+  )
+);
+create policy "Players can update own Arena game IDs"
+on public.arena_game_player_ids for update to authenticated
+using (
+  user_id = (select auth.uid())
+  and exists (
+    select 1 from public.arena_tournament_entries e
+    where e.id = entry_id
+      and (
+        e.player_id = (select auth.uid())
+        or exists (
+          select 1 from public.arena_tournament_team_members tm
+          where tm.team_id = e.team_id and tm.user_id = (select auth.uid())
+        )
+      )
+  )
+)
+with check (
+  user_id = (select auth.uid())
+  and exists (
+    select 1 from public.arena_tournament_entries e
+    where e.id = entry_id
+      and (
+        e.player_id = (select auth.uid())
+        or exists (
+          select 1 from public.arena_tournament_team_members tm
+          where tm.team_id = e.team_id and tm.user_id = (select auth.uid())
+        )
+      )
+  )
+);
+
 create policy "Arena game IDs visible only to same match participants and managers" on public.arena_game_player_ids for select to authenticated using (user_id=(select auth.uid()) or private.is_arena_tournament_manager((select e.tournament_id from public.arena_tournament_entries e where e.id=entry_id)) or exists (select 1 from public.arena_tournament_matches m join public.arena_tournament_entries mine on mine.tournament_id=m.tournament_id and (mine.id=m.entry_a_id or mine.id=m.entry_b_id) where (m.entry_a_id=arena_game_player_ids.entry_id or m.entry_b_id=arena_game_player_ids.entry_id) and (mine.player_id=(select auth.uid()) or exists (select 1 from public.arena_tournament_team_members tm where tm.team_id=mine.team_id and tm.user_id=(select auth.uid())))) or exists (select 1 from public.arena_tournament_entries target join public.arena_tournament_matches m on m.tournament_id=target.tournament_id and m.entry_a_id is null and m.entry_b_id is null join public.arena_tournament_entries mine on mine.tournament_id=target.tournament_id where target.id=arena_game_player_ids.entry_id and (mine.player_id=(select auth.uid()) or exists (select 1 from public.arena_tournament_team_members tm where tm.team_id=mine.team_id and tm.user_id=(select auth.uid())))));
-create or replace function public.arena_set_game_player_id(p_entry_id uuid,p_game_player_id text) returns void language plpgsql security definer set search_path='' as $$ declare v_entry public.arena_tournament_entries%rowtype; begin if auth.uid() is null then raise exception 'Sign in to save your game ID'; end if; if char_length(trim(coalesce(p_game_player_id,''))) not between 1 and 80 then raise exception 'Enter a valid in-game player ID (1–80 characters)'; end if; select * into v_entry from public.arena_tournament_entries where id=p_entry_id; if not found then raise exception 'Tournament entry not found'; end if; if not (v_entry.player_id=auth.uid() or exists (select 1 from public.arena_tournament_team_members tm where tm.team_id=v_entry.team_id and tm.user_id=auth.uid())) then raise exception 'You can only update your own game ID'; end if; insert into public.arena_game_player_ids(entry_id,user_id,game_player_id,updated_at) values(p_entry_id,auth.uid(),trim(p_game_player_id),now()) on conflict(entry_id,user_id) do update set game_player_id=excluded.game_player_id,updated_at=now(); end; $$;
+create or replace function public.arena_set_game_player_id(p_entry_id uuid,p_game_player_id text) returns void language plpgsql security invoker set search_path='' as $$ declare v_entry public.arena_tournament_entries%rowtype; begin if auth.uid() is null then raise exception 'Sign in to save your game ID'; end if; if char_length(trim(coalesce(p_game_player_id,''))) not between 1 and 80 then raise exception 'Enter a valid in-game player ID (1–80 characters)'; end if; select * into v_entry from public.arena_tournament_entries where id=p_entry_id; if not found then raise exception 'Tournament entry not found'; end if; if not (v_entry.player_id=auth.uid() or exists (select 1 from public.arena_tournament_team_members tm where tm.team_id=v_entry.team_id and tm.user_id=auth.uid())) then raise exception 'You can only update your own game ID'; end if; insert into public.arena_game_player_ids(entry_id,user_id,game_player_id,updated_at) values(p_entry_id,auth.uid(),trim(p_game_player_id),now()) on conflict(entry_id,user_id) do update set game_player_id=excluded.game_player_id,updated_at=now(); end; $$;
 revoke all on function public.arena_set_game_player_id(uuid,text) from public,anon;
 grant execute on function public.arena_set_game_player_id(uuid,text) to authenticated;
 alter table public.arena_tournament_matches add column if not exists room_id text check(room_id is null or char_length(room_id)<=100), add column if not exists room_password text check(room_password is null or char_length(room_password)<=100);
-create or replace function public.arena_update_match_room(p_match_id uuid,p_room_id text,p_room_password text) returns void language plpgsql security definer set search_path='' as $$ declare v_tournament_id uuid; begin select tournament_id into v_tournament_id from public.arena_tournament_matches where id=p_match_id; if v_tournament_id is null then raise exception 'Match not found'; end if; if not private.is_arena_tournament_manager(v_tournament_id) then raise exception 'Only the tournament organizer can set room details'; end if; if char_length(coalesce(p_room_id,''))>100 or char_length(coalesce(p_room_password,''))>100 then raise exception 'Room details are too long'; end if; update public.arena_tournament_matches set room_id=nullif(trim(coalesce(p_room_id,'')),''),room_password=nullif(trim(coalesce(p_room_password,'')),'') where id=p_match_id; end; $$;
+create or replace function public.arena_update_match_room(p_match_id uuid,p_room_id text,p_room_password text) returns void language plpgsql security invoker set search_path='' as $$ declare v_tournament_id uuid; begin select tournament_id into v_tournament_id from public.arena_tournament_matches where id=p_match_id; if v_tournament_id is null then raise exception 'Match not found'; end if; if not private.is_arena_tournament_manager(v_tournament_id) then raise exception 'Only the tournament organizer can set room details'; end if; if char_length(coalesce(p_room_id,''))>100 or char_length(coalesce(p_room_password,''))>100 then raise exception 'Room details are too long'; end if; update public.arena_tournament_matches set room_id=nullif(trim(coalesce(p_room_id,'')),''),room_password=nullif(trim(coalesce(p_room_password,'')),'') where id=p_match_id; end; $$;
 revoke all on function public.arena_update_match_room(uuid,text,text) from public,anon;
 grant execute on function public.arena_update_match_room(uuid,text,text) to authenticated;
-grant select on public.arena_game_player_ids to authenticated;
+grant select, insert, update on public.arena_game_player_ids to authenticated;
+grant update (room_id, room_password) on public.arena_tournament_matches to authenticated;
