@@ -14,6 +14,16 @@ type NewsRow = {
   published_at: string;
 };
 type NewsItem = NewsRow & { vertical: NewsVertical };
+type NewsQuery = {
+  select: (columns: string) => NewsQuery;
+  in: (column: string, values: string[]) => NewsQuery;
+  eq: (column: string, value: unknown) => NewsQuery;
+  order: (column: string, options?: { ascending?: boolean }) => NewsQuery;
+  limit: (count: number) => Promise<{
+    data: NewsRow[] | null;
+    error: { message: string } | null;
+  }>;
+};
 
 const NEWS_PROVIDERS = [
   "world-bbc-rss",
@@ -40,12 +50,16 @@ async function shareHeadline(item: NewsItem) {
   const shareText = item.headline + " — " + item.source_name;
   try {
     if (navigator.share) {
-      await navigator.share({ title: item.headline, text: shareText, url: shareUrl });
+      await navigator.share({
+        title: item.headline,
+        text: shareText,
+        url: shareUrl,
+      });
     } else {
       await navigator.clipboard.writeText(shareText + "\n" + shareUrl);
     }
   } catch (error) {
-    if ((error as Error).name !== "AbortError") {
+    if (error instanceof Error && error.name !== "AbortError") {
       try {
         await navigator.clipboard.writeText(shareText + "\n" + shareUrl);
       } catch {
@@ -71,13 +85,14 @@ export function WorldNewsPanel({
   useEffect(() => {
     let active = true;
     const loadNews = async () => {
-      const { data, error: queryError } = await (supabase as any)
-        .from("football_announcements")
+      const query = supabase.from("football_announcements") as unknown as NewsQuery;
+      const { data, error: queryError } = await query
         .select("provider,provider_id,source_name,headline,summary,source_url,published_at")
         .in("provider", NEWS_PROVIDERS)
         .eq("is_published", true)
         .order("published_at", { ascending: false })
         .limit(60);
+
       if (!active) return;
       if (queryError) {
         console.error("World news could not load:", queryError.message);
@@ -85,13 +100,16 @@ export function WorldNewsPanel({
         setItems([]);
       } else {
         setError(false);
-        setItems(((data ?? []) as NewsRow[]).map((item) => ({
-          ...item,
-          vertical: verticalForProvider(item.provider),
-        })));
+        setItems(
+          (data ?? []).map((item) => ({
+            ...item,
+            vertical: verticalForProvider(item.provider),
+          })),
+        );
       }
       setLoading(false);
     };
+
     void loadNews();
     const refreshInterval = window.setInterval(() => void loadNews(), 15 * 60 * 1000);
     return () => {
@@ -101,7 +119,10 @@ export function WorldNewsPanel({
   }, []);
 
   const visible = useMemo(
-    () => items.filter((item) => filter === "all" || item.vertical === filter).slice(0, variant === "briefing" ? 5 : maxItems),
+    () =>
+      items
+        .filter((item) => filter === "all" || item.vertical === filter)
+        .slice(0, variant === "briefing" ? 5 : maxItems),
     [items, filter, maxItems, variant],
   );
 
@@ -114,55 +135,106 @@ export function WorldNewsPanel({
             {variant === "briefing" ? "Morning Briefing" : "World Daily News"}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {variant === "briefing" ? "Top 5 headlines · a quick 60-second scan" : "Publisher headlines from around the world and Kenya"}
+            {variant === "briefing"
+              ? "Top 5 headlines · a quick 60-second scan"
+              : "Publisher headlines from around the world and Kenya"}
           </p>
         </div>
         {variant === "full" && (
-          <button type="button" onClick={() => setLiteMode((value) => !value)}
-            aria-pressed={liteMode} className="rounded-full border px-3 py-1.5 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setLiteMode((value) => !value)}
+            aria-pressed={liteMode}
+            className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+          >
             {liteMode ? "Lite reader on" : "Lite reader off"}
           </button>
         )}
       </div>
+
       {variant === "full" && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="News region">
           {(["all", "world", "kenya"] as const).map((value) => (
-            <button key={value} type="button" onClick={() => setFilter(value)} aria-pressed={filter === value}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? "bg-primary text-primary-foreground" : "border bg-card"}`}>
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
+              className={
+                filter === value
+                  ? "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                  : "rounded-full border bg-card px-3 py-1.5 text-xs font-semibold"
+              }
+            >
               {value === "all" ? "All news" : value === "world" ? "World" : "Kenya"}
             </button>
           ))}
         </div>
       )}
-      {loading ? <p className="rounded-xl border p-4 text-sm text-muted-foreground">Loading publisher headlines…</p> :
-        error ? <p className="rounded-xl border p-4 text-sm text-muted-foreground">News is temporarily unavailable. Try again shortly.</p> :
-        visible.length === 0 ? <p className="rounded-xl border p-4 text-sm text-muted-foreground">No recent headlines yet. The next RSS sync runs automatically.</p> :
+
+      {loading ? (
+        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+          Loading publisher headlines…
+        </p>
+      ) : error ? (
+        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+          News is temporarily unavailable. Try again shortly.
+        </p>
+      ) : visible.length === 0 ? (
+        <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+          No recent headlines yet. The next RSS sync runs automatically.
+        </p>
+      ) : (
         <div className="divide-y rounded-xl border bg-card">
           {visible.map((item) => (
-            <article key={item.provider + ":" + item.provider_id} className="flex items-start gap-3 p-3">
+            <article
+              key={item.provider + ":" + item.provider_id}
+              className="flex items-start gap-3 p-3"
+            >
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span className="font-semibold text-primary">{item.vertical === "kenya" ? "KENYA" : "WORLD"}</span>
+                  <span className="font-semibold text-primary">
+                    {item.vertical === "kenya" ? "KENYA" : "WORLD"}
+                  </span>
                   <span>{item.source_name}</span>
                   <span aria-hidden="true">·</span>
-                  <time dateTime={item.published_at}>{formatRelativeTime(item.published_at)}</time>
+                  <time dateTime={item.published_at}>
+                    {formatRelativeTime(item.published_at)}
+                  </time>
                 </div>
                 {validPublisherUrl(item.source_url) ? (
-                  <a href={item.source_url} target="_blank" rel="noopener noreferrer"
-                    className="block text-sm font-semibold leading-snug hover:text-primary">
+                  <a
+                    href={item.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-sm font-semibold leading-snug hover:text-primary"
+                  >
                     {item.headline}
                   </a>
-                ) : <p className="text-sm font-semibold">{item.headline}</p>}
-                {!liteMode && item.summary && <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{item.summary}</p>}
+                ) : (
+                  <p className="text-sm font-semibold">{item.headline}</p>
+                )}
+                {!liteMode && item.summary && (
+                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                    {item.summary}
+                  </p>
+                )}
                 <div className="mt-2 flex items-center gap-3">
                   {validPublisherUrl(item.source_url) && (
-                    <a href={item.source_url} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                    <a
+                      href={item.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary"
+                    >
                       Read at publisher <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
-                  <button type="button" onClick={() => void shareHeadline(item)}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-primary">
+                  <button
+                    type="button"
+                    onClick={() => void shareHeadline(item)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-primary"
+                  >
                     <Share2 className="h-3 w-3" /> Share headline
                   </button>
                 </div>
@@ -170,7 +242,7 @@ export function WorldNewsPanel({
             </article>
           ))}
         </div>
-      }
+      )}
     </section>
   );
 }
