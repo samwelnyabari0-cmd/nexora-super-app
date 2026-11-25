@@ -142,5 +142,5 @@ for each row execute function public.open_finished_football_match_poll();
 insert into public.football_match_polls(match_id, opens_at, closes_at)
 select id, now(), now() + interval '24 hours'
 from public.football_matches
-where status = 'FT' and updated_at >= now() - interval '24 hours'
+where status = 'FT' and kickoff_at >= now() - interval '26 hours'
 on conflict (match_id) do nothing;
