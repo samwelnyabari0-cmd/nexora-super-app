@@ -53,7 +53,13 @@ The database cache table and client UI can exist before a provider token is conf
 
 ## News and highlights
 
-`football_announcements` and `football_highlights` remain source-attributed cache tables. Populate them only from feeds/links that permit redistribution or embedding; prefer official club/league/broadcaster destinations. Highlights open the external destination only when tapped. No third-party video is mirrored or autoplayed.
+The `football-content-sync` Edge Function fills the existing source-attributed cache tables:
+
+- **News:** Sky Sports' football RSS feed (`https://www.skysports.com/rss/11095`) is polled every 15 minutes. Nexora stores the headline, source name, publication time and canonical article link only; it does not copy article text or images. Each card links to the original publisher.
+- **Official highlights:** the public YouTube feeds for the verified [Premier League channel](https://www.youtube.com/@premierleague) and [UEFA channel](https://www.youtube.com/@UEFA) are checked for videos whose titles identify highlights/goals. Nexora stores the official video link and YouTube thumbnail URL. The video itself is never embedded, mirrored or autoplayed; it opens only after a user taps the card.
+- News and highlight cache rows older than 45 days are pruned only for feeds that completed successfully, so a temporary provider outage does not erase previously cached items.
+- Only source-attributed headline/link previews are displayed. Obtain written commercial syndication permission before reproducing article excerpts, full text, or publisher imagery. Follow each publisher/platform's current terms.
+- The sync uses the existing server-only `ARENA_FOOTBALL_SYNC_SECRET` and `SUPABASE_SERVICE_ROLE_KEY`; neither is exposed in browser code. The cron job invokes the function every 15 minutes using the project's existing Vault-backed secret setup.
 
 ## Official references
 
