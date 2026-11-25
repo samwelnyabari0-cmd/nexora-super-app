@@ -277,21 +277,24 @@ Deno.serve(async (request: Request) => {
     let scorerRowsUpdated = 0;
     let scorerCompetitionsRefreshed = 0;
     for (const competition of COMPETITIONS) {
-      const cached = await restRequest("football_scorers?select=updated_at&competition_code=eq." + encodeURIComponent(competition.code) + "&order=updated_at.desc&limit=1", serviceKey);
-      const cachedRows = await cached.json() as Array<{ updated_at: string }>;
-      if (cachedRows[0]?.updated_at && dateInNairobi(new Date(cachedRows[0].updated_at)) === today) continue;
+      const cached = await restRequest("football_scorer_sync_runs?select=attempted_at&competition_code=eq." + encodeURIComponent(competition.code) + "&limit=1", serviceKey);
+      const cachedRows = await cached.json() as Array<{ attempted_at: string }>;
+      if (cachedRows[0]?.attempted_at && dateInNairobi(new Date(cachedRows[0].attempted_at)) === today) continue;
       try {
         const payload = await providerRequest("competitions/" + competition.code + "/scorers", apiToken) as FootballDataScorers;
         const rows = normalizeScorers(payload, competition, updatedAt);
-        if (!rows.length) continue;
-        const seasonId = rows[0].season_id;
-        await restRequest("football_scorers?provider=eq." + PROVIDER + "&competition_code=eq." + encodeURIComponent(competition.code) + "&season_id=neq." + encodeURIComponent(seasonId), serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } });
-        await restRequest("football_scorers?on_conflict=provider,competition_code,season_id,player_name,team_name", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
-        scorerRowsUpdated += rows.length;
+        const seasonId = rows[0]?.season_id ?? (payload.season?.id ? String(payload.season.id) : null);
+        if (rows.length) {
+          await restRequest("football_scorers?provider=eq." + PROVIDER + "&competition_code=eq." + encodeURIComponent(competition.code) + (seasonId ? "&season_id=neq." + encodeURIComponent(seasonId) : ""), serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+          await restRequest("football_scorers?on_conflict=provider,competition_code,season_id,player_name,team_name", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
+          scorerRowsUpdated += rows.length;
+        }
+        await restRequest("football_scorer_sync_runs?on_conflict=competition_code", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ competition_code: competition.code, attempted_at: updatedAt, season_id: seasonId, last_error: null }) });
         scorerCompetitionsRefreshed += 1;
       } catch (scorerError) {
-        // Scorer access can be restricted by provider plan; do not fail the core fixture sync.
+        // Record the attempt so provider restrictions/outages do not cause hourly retries.
         console.warn("Golden Boot refresh skipped for " + competition.code, scorerError);
+        await restRequest("football_scorer_sync_runs?on_conflict=competition_code", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ competition_code: competition.code, attempted_at: updatedAt, last_error: String(scorerError).slice(0, 500) }) }).catch(() => undefined);
       }
     }
     return json({ ok: true, provider: PROVIDER, fixturesAndResultsUpdated: matchRows.length, standingsRowsUpdated: standingsUpdated, scorerRowsUpdated, scorerCompetitionsRefreshed, competitions: COMPETITIONS.map((competition) => competition.code), updatedAt });
