@@ -232,61 +232,6 @@ async function fetchJson(url: string, userAgent = "NexoraArena/1.0"): Promise<an
   if (!response.ok) throw new Error("Sports provider returned HTTP " + response.status);
   return await response.json();
 }
-function parseSportScoreMatches(payload: any, sport: "cricket" | "tennis"): CachedSportMatch[] {
-  const candidates = [
-    payload?.data, payload?.matches, payload?.events, payload?.results,
-    payload?.data?.matches, payload?.data?.events, payload?.data?.results,
-  ];
-  const list = candidates.find((value) => Array.isArray(value)) ?? [];
-  const provider = "sportscore-" + sport;
-  const output: CachedSportMatch[] = [];
-  const textValue = (value: any): string => {
-    if (typeof value === "string" || typeof value === "number") return String(value);
-    if (value && typeof value === "object") return String(value.name ?? value.display_name ?? value.full_name ?? value.title ?? "");
-    return "";
-  };
-  const scoreValue = (value: any): number | null => {
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-      const match = value.match(/^\s*(\d+)/);
-      return match ? Number(match[1]) : null;
-    }
-    if (value && typeof value === "object") return scoreValue(value.total ?? value.runs ?? value.points ?? value.score);
-    return null;
-  };
-  for (const item of list) {
-    const teams = Array.isArray(item?.participants) ? item.participants : Array.isArray(item?.teams) ? item.teams : [];
-    const home = item?.home_team ?? item?.home ?? item?.participant_home ?? teams[0];
-    const away = item?.away_team ?? item?.away ?? item?.participant_away ?? teams[1];
-    const homeName = textValue(home);
-    const awayName = textValue(away);
-    const kickoff = safePublishedAt(String(item?.start_time ?? item?.kickoff_at ?? item?.scheduled_at ?? item?.date ?? item?.match_date ?? ""));
-    const id = item?.id ?? item?.match_id ?? item?.slug ?? item?.url;
-    if (!id || !homeName || !awayName || !kickoff) continue;
-    const rawStatus = String(item?.status ?? item?.state ?? item?.match_status ?? "").toLowerCase();
-    const status: CachedSportMatch["status"] = /live|in.progress|in_play|playing|started/.test(rawStatus) ? "LIVE"
-      : /finished|complete|ended|result|full.time/.test(rawStatus) ? "FT"
-      : /postpon/.test(rawStatus) ? "POSTPONED"
-      : /cancel/.test(rawStatus) ? "CANCELLED" : "SCHEDULED";
-    const competition = item?.competition ?? item?.league ?? item?.tournament ?? {};
-    output.push({
-      provider,
-      provider_id: String(id),
-      competition_code: sport.toUpperCase(),
-      competition_name: textValue(competition) || (sport === "cricket" ? "Cricket" : "Tennis"),
-      home_team: homeName,
-      away_team: awayName,
-      home_score: scoreValue(item?.home_score ?? home?.score ?? home?.result),
-      away_score: scoreValue(item?.away_score ?? away?.score ?? away?.result),
-      status,
-      elapsed_minute: null,
-      kickoff_at: kickoff,
-      updated_at: new Date().toISOString(),
-      source_url: typeof item?.url === "string" && item.url.startsWith("https://") ? item.url : null,
-    });
-  }
-  return output;
-}
 function parseEspnMatches(payload: any, provider: string): CachedSportMatch[] {
   const output: CachedSportMatch[] = [];
   for (const event of Array.isArray(payload?.events) ? payload.events : []) {
@@ -334,28 +279,11 @@ async function syncMultiSportScores(serviceKey: string): Promise<{ rows: CachedS
     { label: "NHL", provider: "espn-nhl", path: "hockey/nhl" },
   ];
   const sources: Record<string, unknown> = {};
-  const additionalSports = await Promise.allSettled((["cricket", "tennis"] as const).map(async (sport) => {
-    const payload = await fetchJson("https://sportscore.com/api/widget/matches/?sport=" + sport + "&limit=30");
-    return { sport, rows: parseSportScoreMatches(payload, sport) };
-  }));
-  const additionalRows: CachedSportMatch[] = [];
-  for (let index = 0; index < additionalSports.length; index += 1) {
-    const result = additionalSports[index];
-    const sport = (["cricket", "tennis"] as const)[index];
-    if (result.status === "fulfilled") {
-      additionalRows.push(...result.value.rows);
-      sources[sport === "cricket" ? "Cricket" : "Tennis"] = { ok: true, events: result.value.rows.length, provider: "SportScore" };
-    } else {
-      sources[sport === "cricket" ? "Cricket" : "Tennis"] = {
-        ok: false, error: result.reason instanceof Error ? result.reason.message : "Scoreboard unavailable",
-      };
-    }
-  }
   const results = await Promise.allSettled(leagues.map(async (league) => {
     const payload = await fetchJson("https://site.api.espn.com/apis/site/v2/sports/" + league.path + "/scoreboard");
     return { league, rows: parseEspnMatches(payload, league.provider) };
   }));
-  const rows: CachedSportMatch[] = [...additionalRows];
+  const rows: CachedSportMatch[] = [];
   for (let index = 0; index < results.length; index += 1) {
     const result = results[index];
     const league = leagues[index];
