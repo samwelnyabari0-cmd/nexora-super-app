@@ -14,6 +14,11 @@ describe("publisher news image enrichment", () => {
     expect(extractPublisherImage(html, "https://news.publisher.example/story/1")).toBeNull();
   });
 
+  it("rejects private-network image hosts", () => {
+    const html = '<meta property="og:image" content="https://192.168.1.20/story.jpg">';
+    expect(extractPublisherImage(html, "https://news.publisher.example/story/1")).toBeNull();
+  });
+
   it("fetches an article only on an allowlisted publisher host", async () => {
     const fetcher = vi.fn(async () => new Response(
       '<meta property="og:image" content="https://cdn.publisher.example/story.jpg">',
