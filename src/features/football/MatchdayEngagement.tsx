@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Award, MessageSquareText, Star, Trophy, Users } from "lucide-react";
+import { Award, MessageSquareText, Trophy, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -86,16 +86,26 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
   })}</div></section>;
 }
 
-export function TeamFormGuide({ teamName }: { teamName: string }) {
-  const [form, setForm] = useState<Array<{ result: string; opponent: string }>>([]);
+export function useMatchdayForm(matches: FootballMatch[]) {
+  const [formByTeam, setFormByTeam] = useState<Record<string, Array<{ result: string; opponent: string }>>>({});
+  const teamNames = useMemo(() => [...new Set(matches.flatMap((match) => [match.homeTeam, match.awayTeam]))].sort(), [matches]);
+  const key = teamNames.join("|");
   useEffect(() => {
     let active = true;
-    void (supabase as any).rpc("get_football_team_form", { p_team_name: teamName, p_limit: 5 }).then(({ data, error }: { data: Array<{ result: string; opponent: string }> | null; error: unknown }) => {
-      if (active && !error) setForm(data ?? []);
+    if (!teamNames.length) { setFormByTeam({}); return; }
+    void (supabase as any).rpc("get_football_form_guide", { p_team_names: teamNames }).then(({ data, error }: { data: Array<{ team_name: string; result: string; opponent: string }> | null; error: unknown }) => {
+      if (!active || error) return;
+      const next: Record<string, Array<{ result: string; opponent: string }>> = {};
+      for (const row of data ?? []) (next[row.team_name] ??= []).push({ result: row.result, opponent: row.opponent });
+      setFormByTeam(next);
     });
     return () => { active = false; };
-  }, [teamName]);
-  if (!form.length) return null;
+  }, [key]);
+  return formByTeam;
+}
+
+export function TeamFormGuide({ teamName, form }: { teamName: string; form?: Array<{ result: string; opponent: string }> }) {
+  if (!form?.length) return null;
   return <div className="mt-1 flex items-center gap-1" aria-label={teamName + " last five results"}><span className="mr-1 text-[9px] text-muted-foreground">FORM</span>{form.map((item, index) => <span key={index} title={item.result + " vs " + item.opponent} className={"grid h-4 w-4 place-items-center rounded text-[9px] font-bold text-white " + (item.result === "W" ? "bg-emerald-600" : item.result === "D" ? "bg-amber-500" : "bg-red-600")}>{item.result}</span>)}</div>;
 }
 
