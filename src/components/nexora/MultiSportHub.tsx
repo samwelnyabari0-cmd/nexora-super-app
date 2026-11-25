@@ -98,7 +98,11 @@ export function MultiSportHub() {
       : activeSport === "mlb" ? "espn-mlb"
       : activeSport === "nhl" ? "espn-nhl"
       : activeSport === "f1" ? "jolpica-f1" : "";
-    return provider ? matches.filter((match) => match.provider === provider) : [];
+    const selectedMatches = provider ? matches.filter((match) => match.provider === provider) : [];
+    return selectedMatches.sort((left, right) => {
+      const priority = (status: string) => status === "LIVE" || status === "HT" ? 0 : status === "SCHEDULED" ? 1 : status === "FT" ? 2 : 3;
+      return priority(left.status) - priority(right.status) || left.kickoff_at.localeCompare(right.kickoff_at);
+    });
   }, [activeSport, matches]);
 
   return <section aria-label="Multi-sport hub" className="space-y-4 rounded-2xl border bg-card p-3 sm:p-4">
