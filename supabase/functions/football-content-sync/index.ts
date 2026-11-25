@@ -271,6 +271,98 @@ function parseEspnMatches(payload: any, provider: string): CachedSportMatch[] {
   }
   return output;
 }
+
+function parseEspnCricketMatches(payload: any, leagueName: string): CachedSportMatch[] {
+  const rows: CachedSportMatch[] = [];
+  for (const event of Array.isArray(payload?.events) ? payload.events : []) {
+    const competition = event?.competitions?.[0] ?? {};
+    const competitors = Array.isArray(competition?.competitors) ? competition.competitors : [];
+    const home = competitors.find((team: any) => team?.homeAway === "home") ?? competitors[0];
+    const away = competitors.find((team: any) => team?.homeAway === "away") ?? competitors[1];
+    const homeName = String(home?.team?.displayName ?? home?.team?.name ?? "");
+    const awayName = String(away?.team?.displayName ?? away?.team?.name ?? "");
+    const kickoff = safePublishedAt(String(event?.date ?? ""));
+    if (!event?.id || !homeName || !awayName || !kickoff) continue;
+    const scoreLabel = (team: any) => {
+      const score = String(team?.score ?? "").trim();
+      const linescores = Array.isArray(team?.linescores) ? team.linescores : [];
+      const overs = linescores.map((line: any) => line?.displayValue ?? line?.value).filter(Boolean).join(" ");
+      return [score, overs && !score.includes(overs) ? overs : ""].filter(Boolean).join(" · ");
+    };
+    const homeScore = scoreLabel(home);
+    const awayScore = scoreLabel(away);
+    const type = competition?.status?.type ?? event?.status?.type ?? {};
+    const state = String(type?.state ?? "").toLowerCase();
+    const detail = String(type?.detail ?? type?.description ?? "").toLowerCase();
+    const status: CachedSportMatch["status"] = /abandon/.test(detail) ? "ABANDONED"
+      : /postpon/.test(detail) ? "POSTPONED"
+      : /cancel/.test(detail) ? "CANCELLED"
+      : state === "in" && /break|interval|innings/.test(detail) ? "HT"
+      : state === "in" ? "LIVE"
+      : state === "post" ? "FT" : "SCHEDULED";
+    rows.push({
+      provider: "espn-cricket",
+      provider_id: String(event.id),
+      competition_code: "CRICKET",
+      competition_name: String(event?.name ?? event?.shortName ?? leagueName ?? "Cricket"),
+      home_team: homeName + (homeScore ? " · " + homeScore : ""),
+      away_team: awayName + (awayScore ? " · " + awayScore : ""),
+      home_score: null,
+      away_score: null,
+      status,
+      elapsed_minute: null,
+      kickoff_at: kickoff,
+      updated_at: new Date().toISOString(),
+      source_url: Array.isArray(event?.links)
+        ? (event.links.find((link: any) => Array.isArray(link?.rel) && link.rel.includes("summary"))?.href ?? "https://www.espn.com/cricket/")
+        : "https://www.espn.com/cricket/",
+    });
+  }
+  return rows;
+}
+async function syncCricket(serviceKey: string): Promise<{ rows: CachedSportMatch[]; sources: Record<string, unknown> }> {
+  const sources: Record<string, unknown> = {};
+  if (await providerCacheIsFresh("espn-cricket", 10 * 60 * 1000, serviceKey)) {
+    return { rows: [], sources: { Cricket: { ok: true, cached: true, refreshMinutes: 10 } } };
+  }
+  const rows: CachedSportMatch[] = [];
+  try {
+    const header = await fetchJson(
+      "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=cricket&region=in&tz=Asia/Calcutta",
+    );
+    const leagues = Array.isArray(header?.sports?.[0]?.leagues) ? header.sports[0].leagues : [];
+    const activeLeagues = leagues
+      .filter((league: any) => league?.id && (Array.isArray(league?.events) ? league.events.length > 0 : true))
+      .slice(0, 8);
+    const results = await Promise.allSettled(activeLeagues.map(async (league: any) => {
+      const payload = await fetchJson(
+        "https://site.api.espn.com/apis/site/v2/sports/cricket/" + encodeURIComponent(String(league.id)) + "/scoreboard?limit=100",
+      );
+      return parseEspnCricketMatches(payload, String(league.name ?? "Cricket"));
+    }));
+    for (const result of results) {
+      if (result.status === "fulfilled") rows.push(...result.value);
+      else console.warn("Cricket series scoreboard unavailable", result.reason);
+    }
+    // The header can still contain useful match events if an individual series scoreboard is unavailable.
+    if (!rows.length) {
+      for (const league of activeLeagues) rows.push(...parseEspnCricketMatches({ events: league.events }, String(league.name ?? "Cricket")));
+    }
+    const unique = new Map(rows.map((row) => [row.provider_id, row]));
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const fresh = [...unique.values()].filter((row) => {
+      const time = Date.parse(row.kickoff_at);
+      return time >= cutoff && time <= Date.now() + 14 * 24 * 60 * 60 * 1000;
+    });
+    await upsertRows("football_matches", fresh, serviceKey);
+    sources.Cricket = { ok: true, events: fresh.length, seriesChecked: activeLeagues.length, cached: false, refreshMinutes: 10 };
+    return { rows: fresh, sources };
+  } catch (error) {
+    sources.Cricket = { ok: false, error: error instanceof Error ? error.message : "Cricket feed unavailable" };
+    return { rows, sources };
+  }
+}
+
 async function syncMultiSportScores(serviceKey: string): Promise<{ rows: CachedSportMatch[]; sources: Record<string, unknown> }> {
   const leagues = [
     { label: "NBA", provider: "espn-nba", path: "basketball/nba" },
@@ -501,6 +593,12 @@ Deno.serve(async (request: Request) => {
     Object.assign(sourceResults, extendedSports.sources);
   } catch (error) {
     sourceResults["Extended sports"] = { ok: false, error: error instanceof Error ? error.message : "Extended sports sync failed" };
+  }
+  try {
+    const cricket = await syncCricket(serviceKey);
+    Object.assign(sourceResults, cricket.sources);
+  } catch (error) {
+    sourceResults.Cricket = { ok: false, error: error instanceof Error ? error.message : "Cricket sync failed" };
   }
   let highlightRows: HighlightItem[] = [];
   const newsResults = await Promise.allSettled(NEWS_FEEDS.map(async (source) => {
