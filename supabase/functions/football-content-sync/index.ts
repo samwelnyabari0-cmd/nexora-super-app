@@ -363,7 +363,7 @@ function parseRugbyRows(payload: any): CachedSportMatch[] {
       : /finish|complete|full.time/.test(raw) ? "FT"
       : /postpon/.test(raw) ? "POSTPONED"
       : /cancel/.test(raw) ? "CANCELLED" : "SCHEDULED";
-    const score = (value: any) => Number.isFinite(Number(value)) ? Number(value) : null;
+    const score = (value: any) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
     rows.push({
       provider: "rugbyapi",
       provider_id: String(item.id),
