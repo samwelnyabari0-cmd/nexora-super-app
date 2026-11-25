@@ -38,7 +38,8 @@ export function ArenaTournamentHub() {
   const [myTeamIds, setMyTeamIds] = useState<string[]>([]);
   const [pubgEntryId, setPubgEntryId] = useState("");
   const [pubgPlacement, setPubgPlacement] = useState("1");
-  const [pubgEliminations, setPubgEliminations] = useState("0");\n  const [selectedClub, setSelectedClub] = useState("");
+  const [pubgEliminations, setPubgEliminations] = useState("0");
+  const [selectedClub, setSelectedClub] = useState("");
   const [active, setActive] = useState<Tournament | null>(null);
   const [filter, setFilter] = useState<GameKey | "all">("all");
   const [tab, setTab] = useState<"discover" | "my" | "history">("discover");
@@ -124,7 +125,9 @@ export function ArenaTournamentHub() {
     if (!userId) { toast.error("Sign in to register."); return; }
     const { data: profile } = await (supabase as any).from("profiles").select("display_name,handle").eq("id", userId).maybeSingle();
     const name = profile?.display_name || profile?.handle || "Nexora Player";
-    const needsClub = footballGames.includes(tournament.game_key);\n    if (needsClub && !selectedClub) { toast.error("Choose an available football club first."); return; }\n    const { error } = await supabase.rpc("arena_register_solo", { p_tournament_id: tournament.id, p_display_name: name, p_club_name: needsClub ? selectedClub : null });
+    const needsClub = footballGames.includes(tournament.game_key);
+    if (needsClub && !selectedClub) { toast.error("Choose an available football club first."); return; }
+    const { error } = await supabase.rpc("arena_register_solo", { p_tournament_id: tournament.id, p_display_name: name, p_club_name: needsClub ? selectedClub : null });
     if (error) toast.error(error.message); else { toast.success("You're registered."); await load(); }
   };
   const registerTeam = async (event: FormEvent) => {
