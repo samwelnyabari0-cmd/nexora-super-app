@@ -280,12 +280,19 @@ Deno.serve(async (request: Request) => {
       const cached = await restRequest("football_scorers?select=updated_at&competition_code=eq." + encodeURIComponent(competition.code) + "&order=updated_at.desc&limit=1", serviceKey);
       const cachedRows = await cached.json() as Array<{ updated_at: string }>;
       if (cachedRows[0]?.updated_at && dateInNairobi(new Date(cachedRows[0].updated_at)) === today) continue;
-      const payload = await providerRequest("competitions/" + competition.code + "/scorers", apiToken) as FootballDataScorers;
-      const rows = normalizeScorers(payload, competition, updatedAt);
-      if (!rows.length) continue;
-      await restRequest("football_scorers?on_conflict=provider,competition_code,season_id,player_name,team_name", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
-      scorerRowsUpdated += rows.length;
-      scorerCompetitionsRefreshed += 1;
+      try {
+        const payload = await providerRequest("competitions/" + competition.code + "/scorers", apiToken) as FootballDataScorers;
+        const rows = normalizeScorers(payload, competition, updatedAt);
+        if (!rows.length) continue;
+        const seasonId = rows[0].season_id;
+        await restRequest("football_scorers?provider=eq." + PROVIDER + "&competition_code=eq." + encodeURIComponent(competition.code) + "&season_id=neq." + encodeURIComponent(seasonId), serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+        await restRequest("football_scorers?on_conflict=provider,competition_code,season_id,player_name,team_name", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
+        scorerRowsUpdated += rows.length;
+        scorerCompetitionsRefreshed += 1;
+      } catch (scorerError) {
+        // Scorer access can be restricted by provider plan; do not fail the core fixture sync.
+        console.warn("Golden Boot refresh skipped for " + competition.code, scorerError);
+      }
     }
     return json({ ok: true, provider: PROVIDER, fixturesAndResultsUpdated: matchRows.length, standingsRowsUpdated: standingsUpdated, scorerRowsUpdated, scorerCompetitionsRefreshed, competitions: COMPETITIONS.map((competition) => competition.code), updatedAt });
   } catch (error) {
