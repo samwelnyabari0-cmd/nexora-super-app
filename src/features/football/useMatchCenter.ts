@@ -44,6 +44,7 @@ type AnnouncementRow = {
   source_name: string;
   headline: string;
   summary: string;
+  thumbnail_url: string | null;
   source_url: string;
   published_at: string;
 };
@@ -110,6 +111,7 @@ function toAnnouncement(row: AnnouncementRow): FootballAnnouncement {
     sourceName: row.source_name,
     headline: row.headline,
     summary: row.summary,
+    thumbnailUrl: row.thumbnail_url,
     sourceUrl: row.source_url,
     publishedAt: row.published_at,
   };
