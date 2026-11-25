@@ -40,7 +40,11 @@ function verticalForProvider(provider: string): NewsVertical {
 
 function validImageUrl(value: string | null): value is string {
   if (!value) return false;
-  try { return new URL(value).protocol === "https:"; } catch { return false; }
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function validPublisherUrl(value: string): boolean {
@@ -97,7 +101,9 @@ export function WorldNewsPanel({
         }
       ).from("football_announcements");
       const { data, error: queryError } = await query
-        .select("provider,provider_id,source_name,headline,summary,thumbnail_url,source_url,published_at")
+        .select(
+          "provider,provider_id,source_name,headline,summary,thumbnail_url,source_url,published_at",
+        )
         .in("provider", NEWS_PROVIDERS)
         .eq("is_published", true)
         .order("published_at", { ascending: false })
