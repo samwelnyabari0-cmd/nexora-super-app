@@ -10,6 +10,7 @@ type NewsRow = {
   source_name: string;
   headline: string;
   summary: string | null;
+  thumbnail_url: string | null;
   source_url: string;
   published_at: string;
 };
@@ -35,6 +36,11 @@ const NEWS_PROVIDERS = [
 
 function verticalForProvider(provider: string): NewsVertical {
   return provider.startsWith("kenya-") ? "kenya" : "world";
+}
+
+function validImageUrl(value: string | null): value is string {
+  if (!value) return false;
+  try { return new URL(value).protocol === "https:"; } catch { return false; }
 }
 
 function validPublisherUrl(value: string): boolean {
@@ -91,7 +97,7 @@ export function WorldNewsPanel({
         }
       ).from("football_announcements");
       const { data, error: queryError } = await query
-        .select("provider,provider_id,source_name,headline,summary,source_url,published_at")
+        .select("provider,provider_id,source_name,headline,summary,thumbnail_url,source_url,published_at")
         .in("provider", NEWS_PROVIDERS)
         .eq("is_published", true)
         .order("published_at", { ascending: false })
@@ -195,6 +201,23 @@ export function WorldNewsPanel({
               key={item.provider + ":" + item.provider_id}
               className="flex items-start gap-3 p-3"
             >
+              {validImageUrl(item.thumbnail_url) ? (
+                <img
+                  src={item.thumbnail_url}
+                  alt={item.headline}
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="h-[76px] w-[104px] shrink-0 rounded-lg bg-muted object-cover sm:h-[88px] sm:w-[128px]"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="flex h-[76px] w-[104px] shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 via-muted to-primary/10 text-primary sm:h-[88px] sm:w-[128px]"
+                >
+                  <Globe2 className="h-7 w-7 opacity-80" />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                   <span className="font-semibold text-primary">
