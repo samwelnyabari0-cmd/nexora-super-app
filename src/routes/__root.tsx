@@ -104,7 +104,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", href: "/nexora-icon.svg", type: "image/svg+xml" },
       { rel: "alternate icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "apple-touch-icon", href: "/nexora-icon.svg" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { name: "theme-color", content: "#101018" },
       { name: "mobile-web-app-capable", content: "yes" },
