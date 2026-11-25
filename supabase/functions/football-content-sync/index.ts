@@ -195,12 +195,14 @@ Deno.serve(async (request: Request) => {
     const xml = await fetchFeed(source.url);
     return { source, rows: parseNewsFeed(xml, source) };
   }));
-  for (const result of newsResults) {
+  for (let index = 0; index < newsResults.length; index += 1) {
+    const result = newsResults[index];
+    const source = NEWS_FEEDS[index];
     if (result.status === "fulfilled") {
       newsRows.push(...result.value.rows);
-      sourceResults[result.value.source.name] = { ok: true, items: result.value.rows.length };
+      sourceResults[source.name] = { ok: true, items: result.value.rows.length };
     } else {
-      sourceResults[result.reason instanceof Error ? "Feed error" : "News feed"] = {
+      sourceResults[source.name] = {
         ok: false,
         error: result.reason instanceof Error ? result.reason.message : "Feed unavailable",
       };
