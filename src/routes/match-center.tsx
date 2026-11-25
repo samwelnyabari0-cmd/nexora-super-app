@@ -484,7 +484,7 @@ function MatchRow({
 }) {
   const live = match.status === "LIVE";
   return (
-    <div className="flex min-h-16 items-center gap-3 py-2">
+    <div className="py-2"><div className="flex min-h-16 items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="mb-1 truncate text-[10px] text-muted-foreground">{match.competitionName}</p>
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-sm">
@@ -513,8 +513,11 @@ function MatchRow({
       >
         {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
       </Button>
-      <MatchReactionLink match={match} />
-      <MatchAudioPrompt match={match} />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 pl-1">
+        <MatchReactionLink match={match} />
+        <MatchAudioPrompt match={match} />
+      </div>
     </div>
   );
 }
