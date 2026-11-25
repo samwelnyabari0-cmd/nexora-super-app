@@ -1,4 +1,4 @@
-import { fetchPublisherImage } from "../_shared/news-image-enrichment.ts";
+import { fetchPublisherImage } from "./news-image-enrichment.ts";
 type NewsItem = {
   provider: string;
   provider_id: string;
