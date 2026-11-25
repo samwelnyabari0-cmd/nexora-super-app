@@ -1,3 +1,4 @@
+import { fetchPublisherImage } from "./news-image-enrichment.ts";
 type NewsItem = {
   provider: string;
   provider_id: string;
@@ -5,6 +6,7 @@ type NewsItem = {
   headline: string;
   summary: string;
   thumbnail_url: string | null;
+  thumbnail_checked_at: string | null;
   source_url: string;
   published_at: string;
   is_published: boolean;
@@ -125,6 +127,7 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
       headline,
       summary: cleanText(textTag(item, "description"), 500),
       thumbnail_url: imageUrlFromItem(item, source.hosts),
+      thumbnail_checked_at: null,
       source_url: link,
       published_at: publishedAt,
       is_published: true,
@@ -176,6 +179,17 @@ async function restRequest(path: string, serviceKey: string, init: RequestInit =
     throw new Error("Supabase content cache returned HTTP " + response.status + ": " + detail);
   }
   return response;
+}
+async function loadThumbnailCache(provider: string, serviceKey: string) {
+  const query = "football_announcements?select=provider_id,thumbnail_url,thumbnail_checked_at" +
+    "&provider=eq." + encodeURIComponent(provider) + "&limit=500";
+  const response = await restRequest(query, serviceKey);
+  const rows = await response.json() as Array<{
+    provider_id: string;
+    thumbnail_url: string | null;
+    thumbnail_checked_at: string | null;
+  }>;
+  return new Map(rows.map((row) => [row.provider_id, row]));
 }
 async function upsertRows(table: string, rows: unknown[], serviceKey: string) {
   if (!rows.length) return;
@@ -229,6 +243,68 @@ Deno.serve(async (request: Request) => {
       };
     }
   }
+  // Reuse previously discovered images and negative-cache misses to avoid re-fetching article pages.
+  const cacheResults = await Promise.allSettled(
+    NEWS_FEEDS.map(async (source) => ({
+      source,
+      cache: await loadThumbnailCache(source.provider, serviceKey),
+    })),
+  );
+  const thumbnailCaches = new Map<string, Map<string, {
+    provider_id: string;
+    thumbnail_url: string | null;
+    thumbnail_checked_at: string | null;
+  }>>();
+  for (const result of cacheResults) {
+    if (result.status === "fulfilled") {
+      thumbnailCaches.set(result.value.source.provider, result.value.cache);
+    } else {
+      console.warn("Could not load cached news thumbnails", result.reason);
+    }
+  }
+
+  for (const row of newsRows) {
+    const cached = thumbnailCaches.get(row.provider)?.get(row.provider_id);
+    if (!row.thumbnail_url && cached?.thumbnail_url) row.thumbnail_url = cached.thumbnail_url;
+    row.thumbnail_checked_at = cached?.thumbnail_checked_at ?? null;
+  }
+
+  // Keep each scheduled run bounded: at most 12 article-page lookups, six at a time.
+  // Google News URLs redirect to arbitrary publishers, so they are deliberately excluded.
+  const recheckAfterMs = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const imageCandidates = newsRows
+    .filter((row) => {
+      if (row.thumbnail_url || row.provider === "kenya-google-news-rss") return false;
+      const checkedAt = row.thumbnail_checked_at ? Date.parse(row.thumbnail_checked_at) : 0;
+      return !checkedAt || now - checkedAt >= recheckAfterMs;
+    })
+    .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at))
+    .slice(0, 12);
+
+  let enrichedImages = 0;
+  for (let index = 0; index < imageCandidates.length; index += 6) {
+    const batch = imageCandidates.slice(index, index + 6);
+    await Promise.all(batch.map(async (row) => {
+      const source = NEWS_FEEDS.find((candidate) => candidate.provider === row.provider);
+      if (!source) return;
+      try {
+        row.thumbnail_url = await fetchPublisherImage(row.source_url, source.hosts);
+      } catch (error) {
+        console.warn("Publisher image lookup failed", source.name, error);
+        row.thumbnail_url = null;
+      }
+      row.thumbnail_checked_at = new Date().toISOString();
+      if (row.thumbnail_url) enrichedImages += 1;
+    }));
+  }
+  sourceResults["Article image enrichment"] = {
+    checked: imageCandidates.length,
+    found: enrichedImages,
+    maxPerRun: 12,
+    cacheDays: 7,
+  };
+
   const highlightResults = await Promise.allSettled(OFFICIAL_HIGHLIGHT_FEEDS.map(async (source) => {
     const url = "https://www.youtube.com/feeds/videos.xml?channel_id=" + source.channelId;
     const xml = await fetchFeed(url);
