@@ -23,6 +23,21 @@ type FootballDataStandingRow = {
   goalsAgainst?: number;
   goalDifference?: number;
 };
+type FootballDataScorers = {
+  competition?: { code?: string; name?: string };
+  season?: { id?: number | string };
+  scorers?: Array<{ player?: { id?: number | string; name?: string }; team?: { id?: number | string; name?: string }; goals?: number | null; assists?: number | null; penalties?: number | null }>;
+};
+
+function normalizeScorers(payload: FootballDataScorers, competition: Competition, updatedAt: string) {
+  if (!payload.season?.id) return [];
+  return (payload.scorers ?? []).flatMap((scorer) => {
+    const player = scorer.player; const team = scorer.team;
+    if (!player?.name || !team?.name) return [];
+    return [{ provider: PROVIDER, competition_code: payload.competition?.code ?? competition.code, competition_name: payload.competition?.name ?? competition.name, season_id: String(payload.season.id), player_provider_id: player.id === undefined ? null : String(player.id), player_name: player.name, team_provider_id: team.id === undefined ? null : String(team.id), team_name: team.name, goals: scorer.goals ?? 0, assists: scorer.assists ?? 0, penalties: scorer.penalties ?? 0, updated_at: updatedAt }];
+  });
+}
+
 type FootballDataStandings = {
   competition?: { code?: string; name?: string };
   season?: { id?: number | string; startDate?: string; endDate?: string; currentMatchday?: number | null };
@@ -258,14 +273,21 @@ Deno.serve(async (request: Request) => {
       standingsUpdated += rows.length;
     }
 
-    return json({
-      ok: true,
-      provider: PROVIDER,
-      fixturesAndResultsUpdated: matchRows.length,
-      standingsRowsUpdated: standingsUpdated,
-      competitions: COMPETITIONS.map((competition) => competition.code),
-      updatedAt,
-    });
+    // Refresh scorer endpoints at most once per Nairobi calendar day per competition.
+    let scorerRowsUpdated = 0;
+    let scorerCompetitionsRefreshed = 0;
+    for (const competition of COMPETITIONS) {
+      const cached = await restRequest("football_scorers?select=updated_at&competition_code=eq." + encodeURIComponent(competition.code) + "&order=updated_at.desc&limit=1", serviceKey);
+      const cachedRows = await cached.json() as Array<{ updated_at: string }>;
+      if (cachedRows[0]?.updated_at && dateInNairobi(new Date(cachedRows[0].updated_at)) === today) continue;
+      const payload = await providerRequest("competitions/" + competition.code + "/scorers", apiToken) as FootballDataScorers;
+      const rows = normalizeScorers(payload, competition, updatedAt);
+      if (!rows.length) continue;
+      await restRequest("football_scorers?on_conflict=provider,competition_code,season_id,player_name,team_name", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
+      scorerRowsUpdated += rows.length;
+      scorerCompetitionsRefreshed += 1;
+    }
+    return json({ ok: true, provider: PROVIDER, fixturesAndResultsUpdated: matchRows.length, standingsRowsUpdated: standingsUpdated, scorerRowsUpdated, scorerCompetitionsRefreshed, competitions: COMPETITIONS.map((competition) => competition.code), updatedAt });
   } catch (error) {
     console.error("Arena football data sync failed", error);
     return json({ error: "Arena football data sync failed; previously cached data was left unchanged." }, 500);
