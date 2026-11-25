@@ -150,8 +150,8 @@ export function MultiSportHub() {
       const endpoints = [
         fetchF1Endpoint("/" + season + "/last/qualifying"),
         fetchF1Endpoint("/" + season + "/last/results"),
-        fetchF1Endpoint("/" + season + "/driverStandings"),
-        fetchF1Endpoint("/" + season + "/constructorStandings"),
+        fetchF1Endpoint("/" + season + "/driverstandings"),
+        fetchF1Endpoint("/" + season + "/constructorstandings"),
       ];
       const responses = await Promise.allSettled(endpoints);
       if (!mounted) return;
@@ -208,7 +208,7 @@ export function MultiSportHub() {
   const qualifyingRace = f1Data?.qualifyingRace;
   const resultRace = f1Data?.resultRace;
   const activeRace = f1Tab === "qualifying" ? qualifyingRace : resultRace;
-  const f1SessionRows = f1Tab === "qualifying" ? activeRace?.QualifyingResults ?? [] : activeRace?.Results ?? [];
+  const f1SessionRows: any[] = f1Tab === "qualifying" ? activeRace?.QualifyingResults ?? [] : activeRace?.Results ?? [];
 
   return <section aria-label="Multi-sport hub" className="space-y-4 rounded-2xl border bg-card p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
