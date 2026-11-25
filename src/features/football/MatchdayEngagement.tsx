@@ -53,22 +53,19 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
         if (error) { setPolls([]); return; }
         const list = data ?? []; setPolls(list);
         if (user && list.length) {
-          const result = await (supabase as any).from("football_match_fan_votes").select("poll_id,user_id,player_name,rating,tactical_take").in("poll_id", list.map((poll) => poll.id));
-          if (active && !result.error) {
+          const pollIds = list.map((poll) => poll.id);
+          const [ownVotes, aggregate] = await Promise.all([
+            (supabase as any).from("football_match_fan_votes").select("poll_id,player_name,rating,tactical_take").eq("user_id", user.id).in("poll_id", pollIds),
+            (supabase as any).rpc("get_football_match_poll_results", { p_poll_ids: pollIds }),
+          ]);
+          if (active && !ownVotes.error) {
             const mapped: Record<string, Vote> = {};
-            const totals: Record<string, { count: number; ratingTotal: number; players: Record<string, number> }> = {};
-            for (const vote of result.data ?? []) {
-              const total = totals[vote.poll_id] ??= { count: 0, ratingTotal: 0, players: {} };
-              total.count += 1; total.ratingTotal += Number(vote.rating);
-              total.players[vote.player_name] = (total.players[vote.player_name] ?? 0) + 1;
-              if (vote.user_id === user.id) mapped[vote.poll_id] = vote;
-            }
+            for (const vote of ownVotes.data ?? []) mapped[vote.poll_id] = vote;
             setVotes(mapped);
+          }
+          if (active && !aggregate.error) {
             const nextSummary: typeof summaries = {};
-            for (const [pollId, total] of Object.entries(totals)) {
-              const top = Object.entries(total.players).sort((a, b) => b[1] - a[1])[0];
-              nextSummary[pollId] = { count: total.count, average: total.ratingTotal / total.count, topPlayer: top?.[0] ?? "", topCount: top?.[1] ?? 0 };
-            }
+            for (const row of aggregate.data ?? []) nextSummary[row.poll_id] = { count: Number(row.vote_count), average: Number(row.average_rating), topPlayer: row.top_player ?? "", topCount: Number(row.top_player_votes ?? 0) };
             setSummaries(nextSummary);
           }
         }
@@ -86,14 +83,10 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
     setBusy(null);
     if (result.error) { toast.error("Your vote could not be saved. Check that the 24-hour poll is still open."); return; }
     setVotes((current) => ({ ...current, [poll.id]: { poll_id: poll.id, player_name: name, rating: score, tactical_take: tactical } }));
-    const refreshed = await (supabase as any).from("football_match_fan_votes").select("player_name,rating").eq("poll_id", poll.id);
-    if (!refreshed.error) {
-      const rows = refreshed.data ?? [];
-      const counts: Record<string, number> = {};
-      let ratingTotal = 0;
-      for (const row of rows) { counts[row.player_name] = (counts[row.player_name] ?? 0) + 1; ratingTotal += Number(row.rating); }
-      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      setSummaries((current) => ({ ...current, [poll.id]: { count: rows.length, average: rows.length ? ratingTotal / rows.length : 0, topPlayer: top?.[0] ?? "", topCount: top?.[1] ?? 0 } }));
+    const refreshed = await (supabase as any).rpc("get_football_match_poll_results", { p_poll_ids: [poll.id] });
+    if (!refreshed.error && refreshed.data?.[0]) {
+      const row = refreshed.data[0];
+      setSummaries((current) => ({ ...current, [poll.id]: { count: Number(row.vote_count), average: Number(row.average_rating), topPlayer: row.top_player ?? "", topCount: Number(row.top_player_votes ?? 0) } }));
     }
     toast.success("Your post-match vote has been recorded.");
   };
