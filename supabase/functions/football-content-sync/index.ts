@@ -232,10 +232,27 @@ async function fetchJson(url: string, userAgent = "NexoraArena/1.0"): Promise<an
   if (!response.ok) throw new Error("Sports provider returned HTTP " + response.status);
   return await response.json();
 }
+async function fetchSportScoreJson(sport: "cricket" | "tennis"): Promise<any> {
+  const url = "https://sportscore.com/api/widget/matches/?sport=" + sport + "&limit=30&src=nexora.app";
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; NexoraArena/1.0; +https://nexora.app)",
+      origin: "https://nexora.app",
+      referer: "https://nexora.app/",
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 240);
+    throw new Error("SportScore " + sport + " returned HTTP " + response.status + (detail ? ": " + detail : ""));
+  }
+  return await response.json();
+}
 function parseSportScoreMatches(payload: any, sport: "cricket" | "tennis"): CachedSportMatch[] {
   const candidates = [
-    payload?.data, payload?.matches, payload?.events, payload?.results,
-    payload?.data?.matches, payload?.data?.events, payload?.data?.results,
+    payload?.data, payload?.matches, payload?.events, payload?.results, payload?.fixtures, payload?.items,
+    payload?.data?.matches, payload?.data?.events, payload?.data?.results, payload?.data?.fixtures, payload?.data?.items,
   ];
   const list = candidates.find((value) => Array.isArray(value)) ?? [];
   const provider = "sportscore-" + sport;
@@ -260,8 +277,8 @@ function parseSportScoreMatches(payload: any, sport: "cricket" | "tennis"): Cach
     const away = item?.away_team ?? item?.away ?? item?.participant_away ?? teams[1];
     const homeName = textValue(home);
     const awayName = textValue(away);
-    const kickoff = safePublishedAt(String(item?.start_time ?? item?.kickoff_at ?? item?.scheduled_at ?? item?.date ?? item?.match_date ?? ""));
-    const id = item?.id ?? item?.match_id ?? item?.slug ?? item?.url;
+    const kickoff = safePublishedAt(String(item?.start_time ?? item?.start_time_utc ?? item?.kickoff_at ?? item?.kickoff_utc ?? item?.starts_at ?? item?.scheduled_at ?? item?.date ?? item?.match_date ?? ""));
+    const id = item?.id ?? item?.match_id ?? item?.fixture_id ?? item?.slug ?? item?.url;
     if (!id || !homeName || !awayName || !kickoff) continue;
     const rawStatus = String(item?.status ?? item?.state ?? item?.match_status ?? "").toLowerCase();
     const status: CachedSportMatch["status"] = /live|in.progress|in_play|playing|started/.test(rawStatus) ? "LIVE"
@@ -335,7 +352,7 @@ async function syncMultiSportScores(serviceKey: string): Promise<{ rows: CachedS
   ];
   const sources: Record<string, unknown> = {};
   const additionalSports = await Promise.allSettled((["cricket", "tennis"] as const).map(async (sport) => {
-    const payload = await fetchJson("https://sportscore.com/api/widget/matches/?sport=" + sport + "&limit=30");
+    const payload = await fetchSportScoreJson(sport);
     return { sport, rows: parseSportScoreMatches(payload, sport) };
   }));
   const additionalRows: CachedSportMatch[] = [];
