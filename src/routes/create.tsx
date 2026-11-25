@@ -75,6 +75,7 @@ function Create() {
   const [mediaClassification, setMediaClassification] = useState<UploadClassification>({ contentType: "post", aspectRatio: null, durationSeconds: null });
   const [note, setNote] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
+  const [isMatchReaction, setIsMatchReaction] = useState(false);
   const accept = CONTENT_TYPES.find((c) => c.id === contentType)?.accept || "image/*,video/*";
   const input = useRef<HTMLInputElement>(null);
   const publishFormRef = useRef<HTMLFormElement>(null);
@@ -83,6 +84,8 @@ function Create() {
     const reactionCaption = window.sessionStorage.getItem("nexora:match-reaction-caption");
     if (!reactionCaption) return;
     setCaption(reactionCaption);
+    setIsMatchReaction(true);
+    window.sessionStorage.removeItem("nexora:match-reaction-max-seconds");
     setTags("NexoraArena, MatchReaction");
     setContentType("reel");
     setMediaClassification({ contentType: "reel", aspectRatio: null, durationSeconds: null });
@@ -492,7 +495,7 @@ const previewFilter =
           onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
-            if (window.sessionStorage.getItem("nexora:match-reaction-max-seconds") === "15" && (mediaClassification.durationSeconds ?? 0) > 15) {
+            if (isMatchReaction && (mediaClassification.durationSeconds ?? 0) > 15) {
               setError("Match reaction clips must be 15 seconds or shorter.");
               return;
             }
