@@ -151,12 +151,29 @@ async function upsertRows(table: string, rows: unknown[], serviceKey: string) {
     body: JSON.stringify(rows),
   });
 }
+async function isAuthorized(candidate: string, serviceKey: string): Promise<boolean> {
+  const baseUrl = Deno.env.get("SUPABASE_URL");
+  if (!baseUrl) throw new Error("SUPABASE_URL is missing");
+  const response = await fetch(baseUrl + "/rest/v1/rpc/is_arena_content_sync_authorized", {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      authorization: "Bearer " + serviceKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ candidate }),
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error("Arena content sync authorization check failed");
+  return await response.json() === true;
+}
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  const syncSecret = Deno.env.get("ARENA_FOOTBALL_SYNC_SECRET");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!syncSecret || !serviceKey) return json({ error: "Arena content sync is not configured." }, 503);
-  if (request.headers.get("authorization") !== "Bearer " + syncSecret) return json({ error: "Unauthorized" }, 401);
+  if (!serviceKey) return json({ error: "Arena content sync is not configured." }, 503);
+  const authorization = request.headers.get("authorization") ?? "";
+  const candidate = authorization.replace(/^Bearer\\s+/i, "").trim();
+  if (!candidate || !(await isAuthorized(candidate, serviceKey))) return json({ error: "Unauthorized" }, 401);
 
   const sourceResults: Record<string, unknown> = {};
   let newsRows: NewsItem[] = [];
