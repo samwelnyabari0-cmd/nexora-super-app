@@ -296,12 +296,30 @@ export function MatchCenterPage() {
                   rel="noreferrer"
                   className="block border-b pb-3 last:border-0 last:pb-0"
                 >
-                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <span className="font-semibold uppercase tracking-wide">{item.sourceName}</span>
-                    <span>{new Date(item.publishedAt).toLocaleDateString()}</span>
+                  <div className="flex gap-3">
+                    <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-emerald-950 via-slate-800 to-primary/70">
+                      {item.thumbnailUrl ? (
+                        <img
+                          src={item.thumbnailUrl}
+                          alt={item.headline}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-white/90">
+                          <Trophy className="h-8 w-8" aria-hidden="true" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-1 text-[11px] text-muted-foreground">
+                        <span className="font-semibold uppercase tracking-wide">{item.sourceName}</span>
+                        <span>{new Date(item.publishedAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-sm font-semibold">{item.headline}</p>
+                      {item.summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>}
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold">{item.headline}</p>
-                  {item.summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>}
                 </a>
               ))}
             </div>
