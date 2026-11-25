@@ -30,7 +30,7 @@ function decodeAttribute(value: string): string {
 }
 
 function isSafeImageHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
+  const host = hostname.toLowerCase().replace("[", "").replace("]", "");
   if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
   const parts = host.split(".").map(Number);
   if (parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)) {
