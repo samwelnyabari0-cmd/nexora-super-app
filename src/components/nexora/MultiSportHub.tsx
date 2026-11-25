@@ -212,21 +212,21 @@ export function MultiSportHub() {
   const activeRace = f1Tab === "qualifying" ? qualifyingRace : resultRace;
   const f1SessionRows: any[] = f1Tab === "qualifying" ? activeRace?.QualifyingResults ?? [] : activeRace?.Results ?? [];
 
-  return <section aria-label="Multi-sport hub" className="space-y-4 rounded-2xl border bg-card p-3 sm:p-4">
+  return <section aria-label="Multi-sport hub" className="min-w-0 w-full max-w-full space-y-4 overflow-hidden rounded-2xl border bg-card p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Nexora Arena</p><h2 className="text-xl font-black">Sports Live Hub</h2><p className="text-xs text-muted-foreground">Scores, race weekends and breaking sports news</p></div>
       <span className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">{loading ? "Updating…" : "Cached updates"}{updatedAt ? " · " + relativeTime(updatedAt) : ""}</span>
     </div>
-    <nav aria-label="Choose a sport" className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+    <nav aria-label="Choose a sport" className="flex min-w-0 flex-wrap gap-2 pb-1">
       {SPORTS.map((sport) => <button key={sport.key} type="button" onClick={() => setActiveSport(sport.key)} aria-pressed={activeSport === sport.key} className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${activeSport === sport.key ? "border-primary bg-primary text-primary-foreground" : "bg-muted/50 hover:bg-muted"}`}><span aria-hidden="true" className="text-base">{sport.icon}</span>{sport.label}</button>)}
     </nav>
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2"><h3 className="font-bold">{activeSport === "all" ? "Live scores & upcoming events" : selected.label + " scores & events"}</h3><span className="text-[11px] text-muted-foreground">Auto-refreshes while open</span></div>
-      {filteredMatches.length ? <div className="grid gap-2 sm:grid-cols-2">
-        {filteredMatches.slice(0, 8).map((match) => <article key={match.id} className="rounded-xl border bg-background p-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2"><h3 className="min-w-0 break-words font-bold">{activeSport === "all" ? "Live scores & upcoming events" : selected.label + " scores & events"}</h3><span className="text-[11px] text-muted-foreground">Auto-refreshes while open</span></div>
+      {filteredMatches.length ? <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        {filteredMatches.slice(0, 8).map((match) => <article key={match.id} className="min-w-0 max-w-full overflow-hidden rounded-xl border bg-background p-3">
           <div className="mb-2 flex items-center justify-between gap-2"><span className="truncate text-[11px] font-semibold text-muted-foreground">{match.competition_name}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${match.status === "LIVE" || match.status === "HT" ? "bg-red-500/10 text-red-600" : "bg-muted text-muted-foreground"}`}>{match.status === "LIVE" ? "LIVE" : match.status === "HT" ? "HALF TIME" : match.status === "FT" ? "FULL TIME" : match.status}</span></div>
           {match.provider === "jolpica-f1" || match.provider === "ufcalendar-mma" || match.provider === "espn-cricket" ? <><p className="font-bold">{match.home_team}</p><p className="mt-1 text-xs text-muted-foreground">{match.away_team}</p></> : match.provider === "livetennisapi" ? <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-semibold">{match.home_team}</span><strong className="shrink-0 tabular-nums">{match.home_score ?? "–"} : {match.away_score ?? "–"}</strong><span className="min-w-0 flex-1 truncate text-right font-semibold">{match.away_team}</span></div> : <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-semibold">{match.home_team}</span><strong className="tabular-nums">{match.home_score ?? "–"} : {match.away_score ?? "–"}</strong><span className="min-w-0 flex-1 truncate text-right font-semibold">{match.away_team}</span></div>}
-          <p className="mt-2 text-[10px] text-muted-foreground">{eventTime(match.kickoff_at)}{match.elapsed_minute ? " · Period " + match.elapsed_minute : ""}</p>
+          <p className="mt-2 break-words text-[10px] text-muted-foreground">{eventTime(match.kickoff_at)}{match.elapsed_minute ? " · Period " + match.elapsed_minute : ""}</p>
         </article>)}
       </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading cached scores…" : activeSport === "tennis" ? "No tennis matches are live right now, or the tennis feed key has not been connected yet." : "No cached fixtures or live scores are available right now."}</p>}
     </div>
@@ -235,7 +235,7 @@ export function MultiSportHub() {
         <div><h3 className="font-black">Formula 1 Championship Centre</h3><p className="text-xs text-muted-foreground">{new Date().getUTCFullYear()} season · Qualifying, race classification and standings</p></div>
         <span className="text-[10px] text-muted-foreground">{f1Loading ? "Refreshing…" : f1UpdatedAt ? "Updated " + relativeTime(f1UpdatedAt) : "Loading F1 data…"}</span>
       </div>
-      <nav aria-label="Formula 1 data" className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+      <nav aria-label="Formula 1 data" className="flex min-w-0 flex-wrap gap-2 pb-1">
         {([
           ["qualifying", "Qualifying"],
           ["results", "Race results"],
@@ -276,7 +276,7 @@ export function MultiSportHub() {
     </section>}
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2"><h3 className="font-bold">{activeSport === "all" ? "Sports breaking news" : selected.label + " news"}</h3><span className="text-xs text-muted-foreground">{filteredNews.length} stories</span></div>
-      {filteredNews.length ? <div className="grid gap-3 md:grid-cols-2">
+      {filteredNews.length ? <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
         {filteredNews.slice(0, 12).map((item) => <a key={item.id} href={item.source_url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 gap-3 rounded-xl border p-3 transition hover:bg-muted/40">
           {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" loading="lazy" className="h-20 w-24 shrink-0 rounded-lg object-cover" /> : <span className="grid h-20 w-24 shrink-0 place-items-center rounded-lg bg-primary/10 text-2xl">📰</span>}
           <span className="min-w-0"><span className="line-clamp-2 block text-sm font-bold">{item.headline}</span><span className="mt-1 block text-xs text-muted-foreground">{item.source_name} · {relativeTime(item.published_at)}</span>{item.summary && <span className="mt-1 line-clamp-2 block text-xs text-muted-foreground">{item.summary}</span>}</span>
