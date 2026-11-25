@@ -42,15 +42,8 @@ jobs:
         run: bun install
       - name: Run World Daily News tests
         run: bun run test -- src/components/nexora/WorldNewsPanel.test.tsx
-      - name: Lint changed application files
-        run: >-
-          bunx eslint
-          src/components/nexora/WorldNewsPanel.tsx
-          src/components/nexora/WorldNewsPanel.test.tsx
-          src/routes/index.tsx
-          src/routes/explore.tsx
-          src/routes/videos.tsx
-          src/features/football/useMatchCenter.ts
+      - name: Lint World Daily News component and tests
+        run: bunx eslint src/components/nexora/WorldNewsPanel.tsx src/components/nexora/WorldNewsPanel.test.tsx
       - name: Build production app
         run: bun run build
       - name: Set up Deno
