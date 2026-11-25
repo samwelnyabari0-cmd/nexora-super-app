@@ -181,8 +181,8 @@ function Videos() {
     }
   }
 
-  if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
-  if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
+  if (loading && category !== "News") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
+  if (error && category !== "News") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
   if (!items.length && category !== "News") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
 
   if (activeId && !active) return <div className="mx-auto max-w-5xl py-12"><button onClick={() => void backToVideos()} className="mb-5 inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft className="h-4 w-4" /> Back to Videos</button><p className="text-sm text-muted-foreground">This video is unavailable or you do not have permission to view it.</p></div>;
