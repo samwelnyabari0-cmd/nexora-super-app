@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { extractPublisherImage, fetchPublisherImage } from "../../supabase/functions/football-content-sync/news-image-enrichment.ts";
+import {
+  extractPublisherImage,
+  fetchPublisherImage,
+} from "../../supabase/functions/football-content-sync/news-image-enrichment.ts";
 
 describe("publisher news image enrichment", () => {
   it("extracts Open Graph images and resolves relative image paths", () => {
