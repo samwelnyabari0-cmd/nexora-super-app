@@ -31,6 +31,8 @@ vi.mock("@/features/clubs/useClubData", () => ({
 vi.mock("@/features/football/useMatchCenter", () => ({
   useMatchCenter: () => ({
     matches: [],
+    announcements: [],
+    highlights: [],
     lastUpdated: null,
     goalAlertsEnabled: false,
     setGoalAlertsEnabled: vi.fn(),
