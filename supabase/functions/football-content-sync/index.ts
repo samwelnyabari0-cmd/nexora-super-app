@@ -193,12 +193,20 @@ async function loadThumbnailCache(provider: string, serviceKey: string) {
   }>;
   return new Map(rows.map((row) => [row.provider_id, row]));
 }
-async function upsertRows(table: string, rows: unknown[], serviceKey: string) {
+async function upsertRows<T extends { provider: string; provider_id: string }>(
+  table: string,
+  rows: T[],
+  serviceKey: string,
+) {
   if (!rows.length) return;
+  // A single RSS response can repeat the same item. Postgres rejects an
+  // ON CONFLICT batch that tries to update the same unique row twice.
+  const uniqueRows = new Map<string, T>();
+  for (const row of rows) uniqueRows.set(row.provider + "\\0" + row.provider_id, row);
   await restRequest(table + "?on_conflict=provider,provider_id", serviceKey, {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify(rows),
+    body: JSON.stringify([...uniqueRows.values()]),
   });
 }
 type CachedSportMatch = {
