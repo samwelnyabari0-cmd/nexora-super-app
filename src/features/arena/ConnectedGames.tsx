@@ -172,7 +172,13 @@ export function ConnectedGames({ games = connectedGames }: ConnectedGamesProps) 
             <article key={game.id} className="overflow-hidden rounded-xl border bg-card">
               <div className="grid aspect-video place-items-center overflow-hidden bg-gradient-to-br from-primary/15 via-muted to-muted">
                 {game.thumbnailUrl ? (
-                  <img src={game.thumbnailUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <img
+                    src={game.thumbnailUrl}
+                    alt={`${game.title} cover artwork`}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.03]"
+                  />
                 ) : (
                   <Gamepad2 className="h-12 w-12 text-primary/70" aria-hidden="true" />
                 )}
