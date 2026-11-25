@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, CheckCircle2, ChevronRight, Loader2, Plus, ShieldCheck, Swords, Trophy } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronRight, Copy, ExternalLink, Gamepad2, Loader2, Plus, ShieldCheck, Swords, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,9 @@ type Tournament = {
   starts_at: string | null; registration_closes_at: string | null; created_by: string;
 };
 type Entry = { id: string; tournament_id: string; display_name: string; player_id: string | null; team_id: string | null; selected_club_name?: string | null; status: string };
-type Match = { id: string; tournament_id: string; round_number: number; match_number: number; entry_a_id: string | null; entry_b_id: string | null; winner_entry_id: string | null; score_a: number | null; score_b: number | null; status: string };
+type Match = { id: string; tournament_id: string; round_number: number; match_number: number; entry_a_id: string | null; entry_b_id: string | null; winner_entry_id: string | null; score_a: number | null; score_b: number | null; status: string; room_id?: string | null; room_password?: string | null };
+type GamePlayerId = { entry_id: string; user_id: string; game_player_id: string };
+const gameLaunch: Partial<Record<GameKey, { packageName: string; storeUrl: string }>> = { efootball: { packageName: "jp.konami.pesam", storeUrl: "https://play.google.com/store/apps/details?id=jp.konami.pesam" }, fc_mobile: { packageName: "com.ea.gp.fifamobile", storeUrl: "https://play.google.com/store/apps/details?id=com.ea.gp.fifamobile" }, pubg_mobile: { packageName: "com.tencent.ig", storeUrl: "https://play.google.com/store/apps/details?id=com.tencent.ig" } };
 type Result = { id: string; match_id: string; score_a: number; score_b: number; evidence_path: string; notes: string; status: string; submitted_by: string };
 type Standing = { entry_id: string; played: number; wins: number; draws: number; losses: number; points: number; eliminations: number; placement_points: number };
 const games: { id: GameKey; name: string; subtitle: string; image: string; tint: string }[] = [
@@ -40,6 +42,10 @@ export function ArenaTournamentHub() {
   const [pubgPlacement, setPubgPlacement] = useState("1");
   const [pubgEliminations, setPubgEliminations] = useState("0");
   const [selectedClub, setSelectedClub] = useState("");
+  const [gamePlayerId, setGamePlayerId] = useState("");
+  const [gamePlayerIds, setGamePlayerIds] = useState<GamePlayerId[]>([]);
+  const [roomId, setRoomId] = useState("");
+  const [roomPassword, setRoomPassword] = useState("");
   const [active, setActive] = useState<Tournament | null>(null);
   const [filter, setFilter] = useState<GameKey | "all">("all");
   const [tab, setTab] = useState<"discover" | "my" | "history">("discover");
@@ -82,12 +88,16 @@ export function ArenaTournamentHub() {
             ? (supabase as any).from("arena_tournament_team_members").select("team_id").eq("user_id", currentUser)
             : Promise.resolve({ data: [], error: null }),
         ]);
-        const matchIds = ((matchResult.data ?? []) as Match[]).map((match) => match.id);
+        const matchRows = (matchResult.data ?? []) as Match[];
+        const matchIds = matchRows.map((match) => match.id);
+        const entryIds = ((entryResult.data ?? []) as Entry[]).map((entry) => entry.id);
+        const gameIdResult = entryIds.length ? await (supabase as any).from("arena_game_player_ids").select("entry_id,user_id,game_player_id").in("entry_id", entryIds) : { data: [], error: null };
         const resultResult = matchIds.length
           ? await (supabase as any).from("arena_match_results").select("*").in("match_id", matchIds).order("created_at", { ascending: false })
           : { data: [], error: null };
         setEntries((entryResult.data ?? []) as Entry[]);
-        setMatches((matchResult.data ?? []) as Match[]);
+        setMatches(matchRows);
+        setGamePlayerIds((gameIdResult.data ?? []) as GamePlayerId[]);
         setResults((resultResult.data ?? []) as Result[]);
         setStandings((standingResult.data ?? []) as Standing[]);
         setMyTeamIds((memberResult.data ?? []).map((row: { team_id: string }) => row.team_id));
@@ -159,6 +169,17 @@ export function ArenaTournamentHub() {
     const { error } = await supabase.rpc("arena_generate_bracket", { p_tournament_id: tournament.id });
     if (error) toast.error(error.message); else { toast.success("Fixtures generated."); await load(); }
   };
+  const saveMyGameId = async () => {
+    if (!myEntry || !gamePlayerId.trim()) { toast.error("Enter your in-game player ID."); return; }
+    const { error } = await supabase.rpc("arena_set_game_player_id", { p_entry_id: myEntry.id, p_game_player_id: gamePlayerId.trim() });
+    if (error) toast.error(error.message); else { toast.success("Your in-game ID was saved."); setGamePlayerId(""); await load(); }
+  };
+  const saveRoom = async (matchId: string) => {
+    const { error } = await supabase.rpc("arena_update_match_room", { p_match_id: matchId, p_room_id: roomId.trim() || null, p_room_password: roomPassword.trim() || null });
+    if (error) toast.error(error.message); else { toast.success("Match room details saved."); setRoomId(""); setRoomPassword(""); await load(); }
+  };
+  const launchGame = (key: GameKey) => { const config = gameLaunch[key]; if (config) window.location.href = "intent://launch/#Intent;package=" + config.packageName + ";S.browser_fallback_url=" + encodeURIComponent(config.storeUrl) + ";end"; };
+  const copyValue = async (value: string, labelText: string) => { try { await navigator.clipboard.writeText(value); toast.success(labelText + " copied."); } catch { toast.error("Could not copy. Please copy manually."); } };
   const submitResult = async (event: FormEvent) => {
     event.preventDefault();
     if (!selectedMatch || !evidence || !userId) return;
