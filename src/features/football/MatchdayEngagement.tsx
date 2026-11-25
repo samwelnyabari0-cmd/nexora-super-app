@@ -92,8 +92,9 @@ export function useMatchdayForm(matches: FootballMatch[]) {
   const key = teamNames.join("|");
   useEffect(() => {
     let active = true;
-    if (!teamNames.length) { setFormByTeam({}); return; }
-    void (supabase as any).rpc("get_football_form_guide", { p_team_names: teamNames }).then(({ data, error }: { data: Array<{ team_name: string; result: string; opponent: string }> | null; error: unknown }) => {
+    const requestedTeams = key ? key.split("|") : [];
+    if (!requestedTeams.length) { setFormByTeam({}); return; }
+    void (supabase as any).rpc("get_football_form_guide", { p_team_names: requestedTeams }).then(({ data, error }: { data: Array<{ team_name: string; result: string; opponent: string }> | null; error: unknown }) => {
       if (!active || error) return;
       const next: Record<string, Array<{ result: string; opponent: string }>> = {};
       for (const row of data ?? []) (next[row.team_name] ??= []).push({ result: row.result, opponent: row.opponent });
