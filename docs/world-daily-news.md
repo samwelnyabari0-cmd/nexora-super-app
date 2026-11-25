@@ -24,7 +24,7 @@ The public read policy is limited to rows with `is_published = true`. RSS ingest
 
 The existing `nexora-arena-content-sync` pg_cron job already invokes `football-content-sync` every 15 minutes. The RSS sources are added to that same run, so there is no duplicate scheduler or additional Edge Function.
 
-A separate daily cleanup job named `nexora-prune-old-news` removes only World/Kenya RSS rows older than seven days. It must not delete Sky Sports or other football announcements:
+On release, schedule a daily cleanup job named `nexora-prune-old-news` to remove only World/Kenya RSS rows older than seven days. It must not delete Sky Sports or other football announcements:
 
 ```sql
 select cron.schedule(
