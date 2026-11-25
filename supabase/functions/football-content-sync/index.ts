@@ -4,6 +4,7 @@ type NewsItem = {
   source_name: string;
   headline: string;
   summary: string;
+  thumbnail_url: string | null;
   source_url: string;
   published_at: string;
   is_published: boolean;
@@ -65,6 +66,25 @@ function safeHttpsUrl(value: string, allowedHosts: string[]): string | null {
     return url.toString();
   } catch { return null; }
 }
+function imageUrlFromItem(item: string, allowedHosts: string[]): string | null {
+  const imageHosts = [...allowedHosts, "bbci.co.uk", "googleusercontent.com", "gstatic.com"];
+  const candidates: string[] = [];
+  const mediaTags = [...item.matchAll(/<(?:media:thumbnail|media:content|enclosure)\b([^>]*)\/?>(?:<\/(?:media:thumbnail|media:content|enclosure)>)?/gi)];
+  for (const tag of mediaTags) {
+    const attribute = tag[1].match(/\b(?:url|href)\s*=\s*["']([^"']+)["']/i);
+    if (attribute) candidates.push(decodeXml(attribute[1]));
+  }
+  const htmlImages = [...item.matchAll(/<img\b([^>]*)>/gi)];
+  for (const tag of htmlImages) {
+    const attribute = tag[1].match(/\b(?:src|data-src)\s*=\s*["']([^"']+)["']/i);
+    if (attribute) candidates.push(decodeXml(attribute[1]));
+  }
+  for (const candidate of candidates) {
+    const safe = safeHttpsUrl(candidate, imageHosts);
+    if (safe) return safe;
+  }
+  return null;
+}
 function safePublishedAt(value: string): string | null {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
@@ -104,6 +124,7 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
       source_name: publisher,
       headline,
       summary: cleanText(textTag(item, "description"), 500),
+      thumbnail_url: imageUrlFromItem(item, source.hosts),
       source_url: link,
       published_at: publishedAt,
       is_published: true,
