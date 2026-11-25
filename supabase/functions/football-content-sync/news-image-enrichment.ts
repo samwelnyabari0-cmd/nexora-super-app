@@ -2,7 +2,9 @@ const MAX_HTML_BYTES = 1_000_000;
 const MAX_REDIRECTS = 3;
 
 function attribute(tag: string, name: string): string | null {
-  const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i"));
+  const match = tag.match(
+    new RegExp("\\b" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i"),
+  );
   return match ? (match[1] ?? match[2] ?? match[3] ?? "").trim() : null;
 }
 
@@ -14,7 +16,12 @@ function isAllowedHost(hostname: string, allowedHosts: string[]): boolean {
 function safeArticleUrl(value: string, base: string, allowedHosts: string[]): URL | null {
   try {
     const url = new URL(value, base);
-    if (url.protocol !== "https:" || url.username || url.password || !isAllowedHost(url.hostname, allowedHosts)) {
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      !isAllowedHost(url.hostname, allowedHosts)
+    ) {
       return null;
     }
     return url;
@@ -33,14 +40,22 @@ function isSafeImageHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace("[", "").replace("]", "");
   if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
   const parts = host.split(".").map(Number);
-  if (parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)) {
+  if (
+    parts.length === 4 &&
+    parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)
+  ) {
     const [a, b] = parts;
     if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
     if (a === 169 && b === 254) return false;
     if (a === 172 && b >= 16 && b <= 31) return false;
     if (a === 192 && b === 168) return false;
   }
-  if (host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:")) return false;
+  if (
+    host === "::1" ||
+    host.startsWith("fc") ||
+    host.startsWith("fd") ||
+    host.startsWith("fe80:")
+  ) return false;
   return true;
 }
 
@@ -66,15 +81,31 @@ async function readLimitedText(response: Response): Promise<string | null> {
 export function extractPublisherImage(html: string, pageUrl: string): string | null {
   const limitedHtml = html.slice(0, MAX_HTML_BYTES);
   const metaTags = [...limitedHtml.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
-  const accepted = new Set(["og:image", "og:image:url", "twitter:image", "twitter:image:src", "image"]);
+  const accepted = new Set([
+    "og:image",
+    "og:image:url",
+    "twitter:image",
+    "twitter:image:src",
+    "image",
+  ]);
   for (const tag of metaTags) {
-    const key = (attribute(tag, "property") ?? attribute(tag, "name") ?? attribute(tag, "itemprop") ?? "").toLowerCase();
+    const key = (
+      attribute(tag, "property") ??
+      attribute(tag, "name") ??
+      attribute(tag, "itemprop") ??
+      ""
+    ).toLowerCase();
     if (!accepted.has(key)) continue;
     const raw = attribute(tag, "content");
     if (!raw) continue;
     try {
       const image = new URL(decodeAttribute(raw), pageUrl);
-      if (image.protocol !== "https:" || !image.hostname || image.username || image.password) continue;
+      if (
+        image.protocol !== "https:" ||
+        !image.hostname ||
+        image.username ||
+        image.password
+      ) continue;
       if (!isSafeImageHost(image.hostname)) continue;
       return image.toString();
     } catch {
