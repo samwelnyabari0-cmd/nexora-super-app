@@ -134,15 +134,15 @@ function Home() {
           </div>
         </section>
 
-        <FootballMatchPreview />
-
-        <WorldNewsPanel variant="briefing" maxItems={5} />
-
         <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4" role="toolbar" aria-label="Feed filters">
           {feedFilters.map((item) => (
             <Chip key={item} active={filter === item} onClick={() => setFilter(item)}>{item}</Chip>
           ))}
         </div>
+
+        <FootballMatchPreview />
+
+        <WorldNewsPanel variant="briefing" maxItems={5} />
 
         <div className="space-y-6" aria-live="polite" aria-busy={feedLoading}>
           {feedLoading ? (
