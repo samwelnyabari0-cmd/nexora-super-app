@@ -188,7 +188,7 @@ export function useMatchCenter() {
         table<MatchRow>("football_matches")
           .select("*")
           .eq("is_published", true)
-          .gte("kickoff_at", new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString())
+          .gte("kickoff_at", new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString())
           .lte("kickoff_at", new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
           .order("kickoff_at", { ascending: true })
           .limit(100),
