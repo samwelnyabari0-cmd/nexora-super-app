@@ -36,30 +36,6 @@ revoke all on table public.football_scorers from public;
 grant select on public.football_scorers to anon, authenticated;
 grant all on public.football_scorers to service_role;
 
-create or replace function public.get_football_team_form(p_team_name text, p_limit integer default 5)
-returns table(match_id uuid, kickoff_at timestamptz, opponent text, result text, is_home boolean, goals_for integer, goals_against integer)
-language sql stable security invoker set search_path = public
-as $$
-  with team_matches as (
-    select m.id, m.kickoff_at, m.home_team, m.away_team, m.home_score, m.away_score,
-      (lower(trim(m.home_team)) = lower(trim(p_team_name))) as is_home
-    from public.football_matches m
-    where m.status = 'FT' and m.home_score is not null and m.away_score is not null
-      and (lower(trim(m.home_team)) = lower(trim(p_team_name)) or lower(trim(m.away_team)) = lower(trim(p_team_name)))
-    order by m.kickoff_at desc limit greatest(1, least(coalesce(p_limit,5),5))
-  )
-  select id, kickoff_at,
-    case when is_home then away_team else home_team end,
-    case when (is_home and home_score > away_score) or (not is_home and away_score > home_score) then 'W'
-         when home_score = away_score then 'D' else 'L' end,
-    is_home,
-    case when is_home then home_score else away_score end,
-    case when is_home then away_score else home_score end
-  from team_matches order by kickoff_at asc;
-$$;
-grant execute on function public.get_football_team_form(text, integer) to anon, authenticated;
-
-
 create or replace function public.get_football_form_guide(p_team_names text[])
 returns table(team_name text, match_id uuid, kickoff_at timestamptz, opponent text, result text)
 language sql stable security invoker set search_path = public
@@ -68,7 +44,7 @@ as $form$
     case when recent.is_home then recent.away_team else recent.home_team end,
     case when (recent.is_home and recent.home_score > recent.away_score) or (not recent.is_home and recent.away_score > recent.home_score) then 'W'
          when recent.home_score = recent.away_score then 'D' else 'L' end
-  from (select distinct trim(value) as team_name from unnest(coalesce(p_team_names, array[]::text[])) value where trim(value) <> '') requested
+  from (select distinct trim(input.team_name) as team_name from unnest(coalesce(p_team_names, array[]::text[])) as input(team_name) where trim(input.team_name) <> '') requested
   cross join lateral (
     select m.id, m.kickoff_at, m.home_team, m.away_team, m.home_score, m.away_score,
       lower(trim(m.home_team)) = lower(trim(requested.team_name)) as is_home
