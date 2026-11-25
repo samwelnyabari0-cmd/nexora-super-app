@@ -4,7 +4,7 @@ const OFFLINE_PAGE = "/offline.html";
 const APP_ROOT = "/";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll([OFFLINE_PAGE])).catch(() => undefined));
+  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll([OFFLINE_PAGE, "/nexora-icon.svg", "/manifest.webmanifest"])).catch(() => undefined));
   self.skipWaiting();
 });
 
