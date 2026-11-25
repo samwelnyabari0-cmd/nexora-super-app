@@ -81,19 +81,29 @@ async function fetchFeed(url: string): Promise<string> {
   return await response.text();
 }
 function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem[] {
-  const items = [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map((match) => match[1]);
+  const items = [...xml.matchAll(/<item\\b[^>]*>([\\s\\S]*?)<\\/item>/gi)].map((match) => match[1]);
   const output: NewsItem[] = [];
   for (const item of items) {
-    const headline = cleanText(textTag(item, "title"), 220);
-    const link = safeHttpsUrl(textTag(item, "link"), source.host);
-    const publishedAt = safePublishedAt(textTag(item, "pubDate"));
+    const rawTitle = cleanText(textTag(item, "title"), 320);
+    const googlePublisher = cleanText(textTag(item, "source"), 100);
+    const fallbackPublisher = source.provider === "kenya-google-news-rss" && rawTitle.includes(" - ")
+      ? rawTitle.split(" - ").at(-1) ?? ""
+      : "";
+    const publisher = googlePublisher || fallbackPublisher || source.name;
+    const hasPublisherSuffix = source.provider === "kenya-google-news-rss" && Boolean(googlePublisher || fallbackPublisher);
+    const headline = cleanText(
+      hasPublisherSuffix ? rawTitle.slice(0, Math.max(0, rawTitle.lastIndexOf(" - "))) : rawTitle,
+      220,
+    );
+    const link = safeHttpsUrl(textTag(item, "link"), source.hosts);
+    const publishedAt = safePublishedAt(textTag(item, "pubDate") || textTag(item, "dc:date"));
     if (!headline || !link || !publishedAt) continue;
     output.push({
       provider: source.provider,
       provider_id: link,
-      source_name: source.name,
+      source_name: publisher,
       headline,
-      summary: "",
+      summary: cleanText(textTag(item, "description"), 500),
       source_url: link,
       published_at: publishedAt,
       is_published: true,
