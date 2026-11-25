@@ -139,7 +139,7 @@ export function ArenaTournamentHub() {
     if (needsClub && !selectedClub) { toast.error("Choose an available football club first."); return; }
     if (gameLaunch[tournament.game_key] && !gamePlayerId.trim()) { toast.error("Enter your in-game player ID before registering."); return; }
     const { data: entryId, error } = await supabase.rpc("arena_register_solo", { p_tournament_id: tournament.id, p_display_name: name, p_club_name: needsClub ? selectedClub : null });
-    if (error) toast.error(error.message); else { if (entryId && gameLaunch[tournament.game_key]) { const { error: idError } = await supabase.rpc("arena_set_game_player_id", { p_entry_id: entryId, p_game_player_id: gamePlayerId.trim() }); if (idError) { toast.error("Registered but game ID was not saved: " + idError.message); await load(); return; } } toast.success("Registration complete."); setGamePlayerId(""); await load(); }
+    if (error) toast.error(error.message); else { if (entryId && gameLaunch[tournament.game_key]) { const { error: idError } = await (supabase as any).rpc("arena_set_game_player_id", { p_entry_id: entryId, p_game_player_id: gamePlayerId.trim() }); if (idError) { toast.error("Registered but game ID was not saved: " + idError.message); await load(); return; } } toast.success("Registration complete."); setGamePlayerId(""); await load(); }
   };
   const registerTeam = async (event: FormEvent) => {
     event.preventDefault();
@@ -176,7 +176,7 @@ export function ArenaTournamentHub() {
     if (error) toast.error(error.message); else { toast.success("Your in-game ID was saved."); setGamePlayerId(""); await load(); }
   };
   const saveRoom = async (matchId: string) => {
-    const { error } = await supabase.rpc("arena_update_match_room", { p_match_id: matchId, p_room_id: roomId.trim() || null, p_room_password: roomPassword.trim() || null });
+    const { error } = await (supabase as any).rpc("arena_update_match_room", { p_match_id: matchId, p_room_id: roomId.trim() || null, p_room_password: roomPassword.trim() || null });
     if (error) toast.error(error.message); else { toast.success("Match room details saved."); setRoomId(""); setRoomPassword(""); await load(); }
   };
   const launchGame = (key: GameKey) => { const config = gameLaunch[key]; if (config) window.location.href = "intent://launch/#Intent;package=" + config.packageName + ";S.browser_fallback_url=" + encodeURIComponent(config.storeUrl) + ";end"; };
