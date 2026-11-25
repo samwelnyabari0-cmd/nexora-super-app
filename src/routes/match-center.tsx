@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Bell, BellOff, Clock3, ExternalLink, Gamepad2, Heart, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
+import { Activity, ArrowLeft, Bell, BellOff, CalendarDays, Clapperboard, Clock3, ExternalLink, Gamepad2, Heart, Newspaper, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,17 @@ const filters: { id: CompetitionFilter; label: string }[] = [
 ];
 const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
 
+type FootballSection = "home" | "scores" | "golden-boot" | "news" | "highlights" | "fixtures" | "fan-zone";
+
+const footballSections = [
+  { id: "scores", label: "Live Scores", description: "Follow live matches and score updates.", icon: Activity, color: "from-sky-500/15 to-cyan-500/5 text-sky-600" },
+  { id: "golden-boot", label: "Golden Boot", description: "See the leading goal scorers.", icon: Trophy, color: "from-amber-500/20 to-yellow-500/5 text-amber-600" },
+  { id: "news", label: "News", description: "Breaking stories and transfer updates.", icon: Newspaper, color: "from-rose-500/15 to-orange-500/5 text-rose-600" },
+  { id: "highlights", label: "Highlights", description: "Watch key moments from the matches.", icon: Clapperboard, color: "from-violet-500/15 to-fuchsia-500/5 text-violet-600" },
+  { id: "fixtures", label: "Fixtures", description: "Upcoming matches and league tables.", icon: CalendarDays, color: "from-emerald-500/15 to-teal-500/5 text-emerald-600" },
+  { id: "fan-zone", label: "Fan Zone", description: "Polls, ratings, squads and watch-alongs.", icon: Users, color: "from-primary/15 to-primary/5 text-primary" },
+] as const;
+
 function MatchCenterPage() {
   const data = useMatchCenter();
   const formByTeam = useMatchdayForm(data.matches);
@@ -55,6 +66,7 @@ function MatchCenterPage() {
   const [busyMatchId, setBusyMatchId] = useState<string | null>(null);
   const [savingTeam, setSavingTeam] = useState(false);
   const [activeMode, setActiveMode] = useState<"football" | "gaming" | "cups">("football");
+  const [activeFootballSection, setActiveFootballSection] = useState<FootballSection>("home");
 
   const matches = useMemo(
     () => filterMatchesByCompetition(data.matches, filter),
@@ -162,6 +174,46 @@ function MatchCenterPage() {
         </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No verified fixtures are available yet. Match cards appear when the football data cache is populated.</p>}
       </Panel>
 
+      {activeFootballSection === "home" ? (
+        <section aria-label="Football sections" className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Explore Football</h2>
+            <p className="text-xs text-muted-foreground">Choose a section to get straight to the action.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {footballSections.map(({ id, label, description, icon: Icon, color }) => (
+              <button
+                key={id}
+                type="button"
+                aria-label={`Open ${label}`}
+                onClick={() => setActiveFootballSection(id)}
+                className="group flex min-w-0 flex-col items-center gap-2 rounded-2xl border bg-card p-3 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4"
+              >
+                <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${color} sm:h-12 sm:w-12`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                </span>
+                <span className="text-xs font-semibold leading-tight sm:text-sm">{label}</span>
+                <span className="hidden text-[11px] leading-snug text-muted-foreground sm:block">{description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setActiveFootballSection("home")}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Football
+          </button>
+          <div>
+            <h2 className="text-lg font-bold">{footballSections.find((section) => section.id === activeFootballSection)?.label}</h2>
+            <p className="text-xs text-muted-foreground">{footballSections.find((section) => section.id === activeFootballSection)?.description}</p>
+          </div>
+          {activeFootballSection === "scores" && (
+            <>
       <Panel>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Match ticker</h2>
@@ -205,11 +257,90 @@ function MatchCenterPage() {
         )}
         {data.error && <p className="mt-3 text-xs text-muted-foreground">{data.error}</p>}
       </Panel>
-
-      <GoldenBootLeaderboard />
-      <MatchdayFanPolls matches={data.matches} />
-      <ArenaFixturesTables />
-
+            </>
+          )}
+          {activeFootballSection === "golden-boot" && <GoldenBootLeaderboard />}
+          {activeFootballSection === "news" && (
+        <Panel>
+          <h2 className="mb-3 font-semibold">Breaking & transfer news</h2>
+          {data.announcements.length ? (
+            <div className="space-y-3">
+              {data.announcements.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block border-b pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-semibold uppercase tracking-wide">{item.sourceName}</span>
+                    <span>{new Date(item.publishedAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-sm font-semibold">{item.headline}</p>
+                  {item.summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Football headlines will appear when a trusted news source is connected.
+            </p>
+          )}
+        </Panel>
+          )}
+          {activeFootballSection === "highlights" && (
+        <Panel>
+          <h2 className="mb-3 font-semibold">Quick highlights</h2>
+          {data.highlights.length ? (
+            <div className="grid grid-cols-2 gap-3">
+              {data.highlights.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.videoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="overflow-hidden rounded-xl border"
+                >
+                  <div className="relative aspect-video bg-muted">
+                    {!liteMode && item.thumbnailUrl && (
+                      <img
+                        src={item.thumbnailUrl}
+                        loading="lazy"
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    )}
+                    <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-white">
+                      {item.durationSeconds
+                        ? `${Math.floor(item.durationSeconds / 60)}:${String(item.durationSeconds % 60).padStart(2, "0")}`
+                        : "Watch"}
+                    </span>
+                  </div>
+                  <div className="p-2">
+                    <p className="line-clamp-2 text-xs font-semibold">{item.matchLabel}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {item.scoreLabel ?? item.sourceName}
+                    </p>
+                    <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary">
+                      Open highlight <ExternalLink className="h-3 w-3" />
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Official highlight links will appear here. Video is never loaded until you open a
+              highlight.
+            </p>
+          )}
+        </Panel>
+          )}
+          {activeFootballSection === "fixtures" && <ArenaFixturesTables />}
+          {activeFootballSection === "fan-zone" && (
+            <>
+              <MatchdayFanPolls matches={data.matches} />
       <Panel>
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-semibold">Squad discussion</h2>
@@ -340,7 +471,6 @@ function MatchCenterPage() {
           </p>
         )}
       </Panel>
-
       <section className="grid gap-3 md:grid-cols-2">
         <Panel><ArenaFanPoll match={liveMatch} /></Panel>
         <Panel>
@@ -350,83 +480,11 @@ function MatchCenterPage() {
           <p className="mt-2 text-[10px] text-muted-foreground">Group rooms are hosted through Jitsi Meet.</p>
         </Panel>
       </section>
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <Panel>
-          <h2 className="mb-3 font-semibold">Breaking & transfer news</h2>
-          {data.announcements.length ? (
-            <div className="space-y-3">
-              {data.announcements.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block border-b pb-3 last:border-0 last:pb-0"
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                    <span className="font-semibold uppercase tracking-wide">{item.sourceName}</span>
-                    <span>{new Date(item.publishedAt).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-sm font-semibold">{item.headline}</p>
-                  {item.summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p>}
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Football headlines will appear when a trusted news source is connected.
-            </p>
+            </>
           )}
-        </Panel>
-        <Panel>
-          <h2 className="mb-3 font-semibold">Quick highlights</h2>
-          {data.highlights.length ? (
-            <div className="grid grid-cols-2 gap-3">
-              {data.highlights.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.videoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="overflow-hidden rounded-xl border"
-                >
-                  <div className="relative aspect-video bg-muted">
-                    {!liteMode && item.thumbnailUrl && (
-                      <img
-                        src={item.thumbnailUrl}
-                        loading="lazy"
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                    <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-white">
-                      {item.durationSeconds
-                        ? `${Math.floor(item.durationSeconds / 60)}:${String(item.durationSeconds % 60).padStart(2, "0")}`
-                        : "Watch"}
-                    </span>
-                  </div>
-                  <div className="p-2">
-                    <p className="line-clamp-2 text-xs font-semibold">{item.matchLabel}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {item.scoreLabel ?? item.sourceName}
-                    </p>
-                    <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary">
-                      Open highlight <ExternalLink className="h-3 w-3" />
-                    </span>
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Official highlight links will appear here. Video is never loaded until you open a
-              highlight.
-            </p>
-          )}
-        </Panel>
-      </section>
-      <div className="flex flex-col gap-2 rounded-xl border p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        </section>
+      )}
+            <div className="flex flex-col gap-2 rounded-xl border p-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <span>Live scores load from SportScore’s public feed in your browser. Nexora’s saved match cache remains as a fallback when the provider is unavailable.</span>
