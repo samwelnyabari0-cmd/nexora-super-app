@@ -35,6 +35,7 @@ import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { Avatar } from "./ui";
+import { NexoraMark } from "./NexoraMark";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -261,9 +262,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop rail */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-20 flex-col border-r bg-sidebar px-3 py-5 md:flex lg:w-60">
         <Link to="/" className="mb-8 flex items-center gap-2 px-2" aria-label="NEXORA home">
-          <span className="bg-brand grid h-9 w-9 place-items-center rounded-xl font-display text-lg font-bold text-primary-foreground shadow-glow">
-            N
-          </span>
+          <NexoraMark className="h-9 w-9 rounded-xl shadow-glow" />
           <span className="hidden font-display text-xl font-bold tracking-tight lg:block">
             NEXORA
           </span>
@@ -321,9 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         )}
         <Link to="/" className="flex items-center gap-2 md:hidden" aria-label="NEXORA home">
-          <span className="bg-brand grid h-8 w-8 place-items-center rounded-lg font-display font-bold text-primary-foreground">
-            N
-          </span>
+          <NexoraMark className="h-8 w-8 rounded-lg" />
           <span className="font-display text-lg font-bold">NEXORA</span>
         </Link>
         <Link
