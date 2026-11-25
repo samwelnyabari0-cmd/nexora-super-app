@@ -1,6 +1,29 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Activity, ArrowLeft, Bell, BellOff, CalendarDays, Clapperboard, Clock3, ExternalLink, Gamepad2, Heart, Newspaper, Radio, RefreshCw, Share2, ShieldCheck, Swords, Target, Trophy, Users, Volume2, WifiOff, Zap } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  Bell,
+  BellOff,
+  CalendarDays,
+  Clapperboard,
+  Clock3,
+  ExternalLink,
+  Gamepad2,
+  Heart,
+  Newspaper,
+  Radio,
+  RefreshCw,
+  Share2,
+  ShieldCheck,
+  Swords,
+  Target,
+  Trophy,
+  Users,
+  Volume2,
+  WifiOff,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -53,7 +76,7 @@ const footballSections = [
   { id: "fan-zone", label: "Fan Zone", description: "Polls, ratings, squads and watch-alongs.", icon: Users, color: "from-primary/15 to-primary/5 text-primary" },
 ] as const;
 
-function MatchCenterPage() {
+export function MatchCenterPage() {
   const data = useMatchCenter();
   const formByTeam = useMatchdayForm(data.matches);
   const clubs = useClubData("");
