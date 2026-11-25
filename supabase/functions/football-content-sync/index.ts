@@ -320,6 +320,99 @@ function parseEspnCricketMatches(payload: any, leagueName: string): CachedSportM
   }
   return rows;
 }
+
+function tennisScoreLabel(score: any, side: number): string {
+  const games = Array.isArray(score?.games?.[side]) ? score.games[side] : [];
+  const gameText = games.length ? games.join("-") : "";
+  const points = Array.isArray(score?.points) ? score.points[side] : null;
+  return [gameText ? "Games " + gameText : "", points != null ? "Points " + String(points) : ""].filter(Boolean).join(" · ");
+}
+function parseLiveTennisMatches(payload: any): CachedSportMatch[] {
+  const rows: CachedSportMatch[] = [];
+  const items = Array.isArray(payload?.data) ? payload.data : [];
+  for (const match of items) {
+    const p1 = match?.players?.p1 ?? {};
+    const p2 = match?.players?.p2 ?? {};
+    const name1 = String(p1?.name ?? "").trim();
+    const name2 = String(p2?.name ?? "").trim();
+    const kickoff = safePublishedAt(String(match?.start_time ?? match?.scheduled_at ?? match?.event_date ?? ""));
+    if (!match?.id || !name1 || !name2 || !kickoff) continue;
+    const score = match?.score ?? match ?? {};
+    const sets = Array.isArray(score?.sets) ? score.sets : [];
+    const statusText = String(match?.status ?? match?.event_status ?? "live").toLowerCase();
+    const status: CachedSportMatch["status"] = /postpon/.test(statusText) ? "POSTPONED"
+      : /cancel|abandon/.test(statusText) ? "CANCELLED"
+      : /complete|finished|retired|walkover|default/.test(statusText) ? "FT"
+      : /pause|break|suspend/.test(statusText) ? "HT" : "LIVE";
+    const tournament = String(match?.tournament ?? match?.competition ?? "Tennis");
+    const side1 = tennisScoreLabel(score, 0);
+    const side2 = tennisScoreLabel(score, 1);
+    rows.push({
+      provider: "livetennisapi",
+      provider_id: String(match.id),
+      competition_code: "TENNIS",
+      competition_name: tournament + (match?.round ? " · " + String(match.round) : ""),
+      home_team: name1 + (side1 ? " · " + side1 : ""),
+      away_team: name2 + (side2 ? " · " + side2 : ""),
+      home_score: sets[0] != null && Number.isFinite(Number(sets[0])) ? Number(sets[0]) : null,
+      away_score: sets[1] != null && Number.isFinite(Number(sets[1])) ? Number(sets[1]) : null,
+      status,
+      elapsed_minute: null,
+      kickoff_at: kickoff,
+      updated_at: new Date().toISOString(),
+      source_url: "https://livetennisapi.com/",
+    });
+  }
+  return rows;
+}
+async function syncTennis(serviceKey: string): Promise<{ rows: CachedSportMatch[]; sources: Record<string, unknown> }> {
+  const sources: Record<string, unknown> = {};
+  const apiKey = Deno.env.get("LIVETENNISAPI_KEY");
+  if (!apiKey) {
+    sources.Tennis = { ok: false, configured: false, error: "LIVETENNISAPI_KEY is not configured in Supabase Edge Function secrets." };
+    return { rows: [], sources };
+  }
+  // A hidden cache marker records successful empty-board reads too, preventing
+  // the 15-minute cron from exhausting the provider's 100-request daily free quota.
+  if (await providerCacheIsFresh("livetennisapi-cache", 30 * 60 * 1000, serviceKey)) {
+    return { rows: [], sources: { Tennis: { ok: true, cached: true, refreshMinutes: 30 } } };
+  }
+  try {
+    const payload = await fetchProviderJson(
+      "https://api.livetennisapi.com/api/public/v1/matches?status=live&limit=100",
+      apiKey,
+    );
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const rows = parseLiveTennisMatches(payload).filter((row) => Date.parse(row.kickoff_at) >= cutoff);
+    await upsertRows("football_matches", rows, serviceKey);
+    await restRequest("football_matches?on_conflict=provider,provider_id", serviceKey, {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{
+        provider: "livetennisapi-cache",
+        provider_id: "last-successful-live-board",
+        competition_code: "TENNIS_CACHE",
+        competition_name: "Tennis sync cache marker",
+        home_team: "N/A",
+        away_team: "N/A",
+        home_score: null,
+        away_score: null,
+        status: "CANCELLED",
+        elapsed_minute: null,
+        kickoff_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        source_url: null,
+        is_published: false,
+      }]),
+    });
+    sources.Tennis = { ok: true, events: rows.length, cached: false, refreshMinutes: 30, source: "Live Tennis API" };
+    return { rows, sources };
+  } catch (error) {
+    sources.Tennis = { ok: false, error: error instanceof Error ? error.message : "Tennis feed unavailable" };
+    return { rows: [], sources };
+  }
+}
+
 async function syncCricket(serviceKey: string): Promise<{ rows: CachedSportMatch[]; sources: Record<string, unknown> }> {
   const sources: Record<string, unknown> = {};
   if (await providerCacheIsFresh("espn-cricket", 10 * 60 * 1000, serviceKey)) {
@@ -599,6 +692,12 @@ Deno.serve(async (request: Request) => {
     Object.assign(sourceResults, cricket.sources);
   } catch (error) {
     sourceResults.Cricket = { ok: false, error: error instanceof Error ? error.message : "Cricket sync failed" };
+  }
+  try {
+    const tennis = await syncTennis(serviceKey);
+    Object.assign(sourceResults, tennis.sources);
+  } catch (error) {
+    sourceResults.Tennis = { ok: false, error: error instanceof Error ? error.message : "Tennis sync failed" };
   }
   let highlightRows: HighlightItem[] = [];
   const newsResults = await Promise.allSettled(NEWS_FEEDS.map(async (source) => {
