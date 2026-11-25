@@ -329,6 +329,141 @@ async function syncMultiSportScores(serviceKey: string): Promise<{ rows: CachedS
   return { rows, sources };
 }
 
+
+async function fetchProviderJson(url: string, apiKey: string): Promise<any> {
+  const response = await fetch(url, {
+    headers: { accept: "application/json", authorization: "Bearer " + apiKey, "user-agent": "NexoraArena/1.0" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 240);
+    throw new Error("Sports provider returned HTTP " + response.status + (detail ? ": " + detail : ""));
+  }
+  return await response.json();
+}
+async function providerCacheIsFresh(provider: string, staleMs: number, serviceKey: string): Promise<boolean> {
+  const response = await restRequest(
+    "football_matches?select=updated_at&provider=eq." + encodeURIComponent(provider) + "&order=updated_at.desc&limit=1",
+    serviceKey,
+  );
+  const rows = await response.json() as Array<{ updated_at: string }>;
+  return !!rows[0]?.updated_at && Date.now() - Date.parse(rows[0].updated_at) < staleMs;
+}
+function parseRugbyRows(payload: any): CachedSportMatch[] {
+  const items = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.matches) ? payload.matches : [];
+  const rows: CachedSportMatch[] = [];
+  for (const item of items) {
+    const home = item?.home;
+    const away = item?.away;
+    const kickoff = safePublishedAt(String(item?.kickoff_utc ?? item?.kickoff_at ?? item?.date ?? ""));
+    if (!item?.id || !home?.name || !away?.name || !kickoff) continue;
+    const raw = String(item?.status ?? "").toLowerCase();
+    const status: CachedSportMatch["status"] = /live|in.play|in_progress/.test(raw) ? "LIVE"
+      : /half/.test(raw) ? "HT"
+      : /finish|complete|full.time/.test(raw) ? "FT"
+      : /postpon/.test(raw) ? "POSTPONED"
+      : /cancel/.test(raw) ? "CANCELLED" : "SCHEDULED";
+    const score = (value: any) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+    rows.push({
+      provider: "rugbyapi",
+      provider_id: String(item.id),
+      competition_code: "RUGBY",
+      competition_name: String(item?.competition?.name ?? "Rugby"),
+      home_team: String(home.name),
+      away_team: String(away.name),
+      home_score: score(home.score),
+      away_score: score(away.score),
+      status,
+      elapsed_minute: Number.isFinite(Number(item?.minute)) ? Number(item.minute) : null,
+      kickoff_at: kickoff,
+      updated_at: new Date().toISOString(),
+      source_url: typeof item?.url === "string" && item.url.startsWith("https://") ? item.url : "https://rugbyapi.com/",
+    });
+  }
+  return rows;
+}
+function parseMmaEvents(payload: any): CachedSportMatch[] {
+  const items = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.events) ? payload.events : [];
+  const rows: CachedSportMatch[] = [];
+  for (const item of items) {
+    const kickoff = safePublishedAt(String(item?.starts_at ?? item?.start_at ?? item?.date ?? ""));
+    const id = item?.id ?? item?.slug;
+    const title = String(item?.title ?? item?.name ?? item?.short_title ?? "");
+    if (!id || !title || !kickoff) continue;
+    const raw = String(item?.status ?? "").toLowerCase();
+    const status: CachedSportMatch["status"] = /live|in.progress/.test(raw) ? "LIVE"
+      : /complete|finished|over/.test(raw) ? "FT"
+      : /postpon/.test(raw) ? "POSTPONED"
+      : /cancel/.test(raw) ? "CANCELLED" : "SCHEDULED";
+    const venue = item?.venue;
+    const venueLabel = [venue?.name, venue?.city, venue?.country].filter(Boolean).join(" · ");
+    rows.push({
+      provider: "ufcalendar-mma",
+      provider_id: String(id),
+      competition_code: "MMA",
+      competition_name: String(item?.org?.toUpperCase?.() ?? item?.organization?.name ?? "MMA / UFC"),
+      home_team: title,
+      away_team: venueLabel || "Fight card",
+      home_score: null,
+      away_score: null,
+      status,
+      elapsed_minute: null,
+      kickoff_at: kickoff,
+      updated_at: new Date().toISOString(),
+      source_url: "https://www.ufcalendar.com/",
+    });
+  }
+  return rows;
+}
+async function syncRugbyAndMma(serviceKey: string): Promise<{ rows: CachedSportMatch[]; sources: Record<string, unknown> }> {
+  const rows: CachedSportMatch[] = [];
+  const sources: Record<string, unknown> = {};
+  const rugbyKey = Deno.env.get("RUGBYAPI_KEY");
+  if (!rugbyKey) {
+    sources.Rugby = { ok: false, error: "RUGBYAPI_KEY is not configured in Supabase Edge Function secrets." };
+  } else {
+    try {
+      if (await providerCacheIsFresh("rugbyapi", 60 * 60 * 1000, serviceKey)) {
+        sources.Rugby = { ok: true, cached: true };
+      } else {
+        const [fixtures, results] = await Promise.all([
+          fetchProviderJson("https://api.rugbyapi.com/v1/fixtures", rugbyKey),
+          fetchProviderJson("https://api.rugbyapi.com/v1/results", rugbyKey),
+        ]);
+        const combined = [...parseRugbyRows(fixtures), ...parseRugbyRows(results)];
+        const unique = new Map(combined.map((row) => [row.provider_id, row]));
+        const fresh = [...unique.values()].filter((row) => {
+          const time = Date.parse(row.kickoff_at);
+          return time >= Date.now() - 30 * 24 * 60 * 60 * 1000 && time <= Date.now() + 14 * 24 * 60 * 60 * 1000;
+        });
+        rows.push(...fresh);
+        sources.Rugby = { ok: true, events: fresh.length, cached: false, refreshMinutes: 60, planNote: "Free tier fixtures and results; live match-day push requires RugbyAPI Live." };
+      }
+    } catch (error) {
+      sources.Rugby = { ok: false, error: error instanceof Error ? error.message : "Rugby feed unavailable" };
+    }
+  }
+  const mmaKey = Deno.env.get("UFCAL_API_KEY");
+  if (!mmaKey) {
+    sources["MMA / UFC"] = { ok: false, error: "UFCAL_API_KEY is not configured in Supabase Edge Function secrets." };
+  } else {
+    try {
+      if (await providerCacheIsFresh("ufcalendar-mma", 8 * 60 * 60 * 1000, serviceKey)) {
+        sources["MMA / UFC"] = { ok: true, cached: true };
+      } else {
+        const payload = await fetchProviderJson("https://api.ufcalendar.com/v1/events?org=ufc&status=upcoming&limit=25", mmaKey);
+        const fresh = parseMmaEvents(payload).filter((row) => Date.parse(row.kickoff_at) <= Date.now() + 365 * 24 * 60 * 60 * 1000);
+        rows.push(...fresh);
+        sources["MMA / UFC"] = { ok: true, events: fresh.length, cached: false, refreshHours: 8 };
+      }
+    } catch (error) {
+      sources["MMA / UFC"] = { ok: false, error: error instanceof Error ? error.message : "MMA feed unavailable" };
+    }
+  }
+  if (rows.length) await upsertRows("football_matches", rows, serviceKey);
+  return { rows, sources };
+}
+
 async function isAuthorized(candidate: string, serviceKey: string): Promise<boolean> {
   const baseUrl = Deno.env.get("SUPABASE_URL");
   if (!baseUrl) throw new Error("SUPABASE_URL is missing");
@@ -360,6 +495,12 @@ Deno.serve(async (request: Request) => {
     Object.assign(sourceResults, sportScores.sources);
   } catch (error) {
     sourceResults["Multi-sport scoreboards"] = { ok: false, error: error instanceof Error ? error.message : "Scoreboard sync failed" };
+  }
+  try {
+    const extendedSports = await syncRugbyAndMma(serviceKey);
+    Object.assign(sourceResults, extendedSports.sources);
+  } catch (error) {
+    sourceResults["Extended sports"] = { ok: false, error: error instanceof Error ? error.message : "Extended sports sync failed" };
   }
   let highlightRows: HighlightItem[] = [];
   const newsResults = await Promise.allSettled(NEWS_FEEDS.map(async (source) => {

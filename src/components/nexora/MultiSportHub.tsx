@@ -38,7 +38,7 @@ const SPORTS: { key: SportKey; label: string; icon: string; terms: RegExp }[] = 
   { key: "cricket", label: "Cricket", icon: "🏏", terms: /cricket|icc|ipl|t20|test match|ashes|odi|wicket|virat kohli|world cup/i },
   { key: "tennis", label: "Tennis", icon: "🎾", terms: /tennis|atp|wta|wimbledon|us open|french open|australian open|grand slam|djokovic|alcaraz|swiatek/i },
 ];
-const SCORE_PROVIDERS = ["sportscore", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1"];
+const SCORE_PROVIDERS = ["sportscore", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1", "rugbyapi", "ufcalendar-mma"];
 function relativeTime(value: string) {
   const date = new Date(value);
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60_000));
@@ -96,7 +96,9 @@ export function MultiSportHub() {
       : activeSport === "nfl" ? "espn-nfl"
       : activeSport === "mlb" ? "espn-mlb"
       : activeSport === "nhl" ? "espn-nhl"
-      : activeSport === "f1" ? "jolpica-f1" : "";
+      : activeSport === "f1" ? "jolpica-f1"
+      : activeSport === "rugby" ? "rugbyapi"
+      : activeSport === "mma" ? "ufcalendar-mma" : "";
     const selectedMatches = provider === null ? matches : provider ? matches.filter((match) => match.provider === provider) : [];
     return selectedMatches.sort((left, right) => {
       const priority = (status: string) => status === "LIVE" || status === "HT" ? 0 : status === "SCHEDULED" ? 1 : status === "FT" ? 2 : 3;
@@ -117,10 +119,10 @@ export function MultiSportHub() {
       {filteredMatches.length ? <div className="grid gap-2 sm:grid-cols-2">
         {filteredMatches.slice(0, 8).map((match) => <article key={match.id} className="rounded-xl border bg-background p-3">
           <div className="mb-2 flex items-center justify-between gap-2"><span className="truncate text-[11px] font-semibold text-muted-foreground">{match.competition_name}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${match.status === "LIVE" || match.status === "HT" ? "bg-red-500/10 text-red-600" : "bg-muted text-muted-foreground"}`}>{match.status === "LIVE" ? "LIVE" : match.status === "HT" ? "HALF TIME" : match.status === "FT" ? "FULL TIME" : match.status}</span></div>
-          {match.provider === "jolpica-f1" ? <><p className="font-bold">{match.home_team}</p><p className="mt-1 text-xs text-muted-foreground">{match.away_team}</p></> : <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-semibold">{match.home_team}</span><strong className="tabular-nums">{match.home_score ?? "–"} : {match.away_score ?? "–"}</strong><span className="min-w-0 flex-1 truncate text-right font-semibold">{match.away_team}</span></div>}
+          {match.provider === "jolpica-f1" || match.provider === "ufcalendar-mma" ? <><p className="font-bold">{match.home_team}</p><p className="mt-1 text-xs text-muted-foreground">{match.away_team}</p></> : <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-semibold">{match.home_team}</span><strong className="tabular-nums">{match.home_score ?? "–"} : {match.away_score ?? "–"}</strong><span className="min-w-0 flex-1 truncate text-right font-semibold">{match.away_team}</span></div>}
           <p className="mt-2 text-[10px] text-muted-foreground">{eventTime(match.kickoff_at)}{match.elapsed_minute ? " · Period " + match.elapsed_minute : ""}</p>
         </article>)}
-      </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading cached scores…" : activeSport === "rugby" || activeSport === "mma" || activeSport === "cricket" || activeSport === "tennis" ? "Breaking news and sport updates are shown below. Live score coverage for this sport is not connected yet." : "No cached fixtures or live scores are available right now."}</p>}
+      </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading cached scores…" : activeSport === "cricket" || activeSport === "tennis" ? "Breaking news and sport updates are shown below. Live score coverage for this sport is not connected yet." : "No cached fixtures or live scores are available right now."}</p>}
     </div>
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2"><h3 className="font-bold">{activeSport === "all" ? "Sports breaking news" : selected.label + " news"}</h3><span className="text-xs text-muted-foreground">{filteredNews.length} stories</span></div>
