@@ -79,6 +79,16 @@ function Create() {
   const input = useRef<HTMLInputElement>(null);
   const publishFormRef = useRef<HTMLFormElement>(null);
   const saveDraftButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const reactionCaption = window.sessionStorage.getItem("nexora:match-reaction-caption");
+    if (!reactionCaption) return;
+    setCaption(reactionCaption);
+    setTags("NexoraArena, MatchReaction");
+    setContentType("reel");
+    setMediaClassification({ contentType: "reel", aspectRatio: null, durationSeconds: null });
+    setNote("Match reaction mode: keep your clip to 15 seconds or less. Your fixture score and hashtag are prefilled.");
+    window.sessionStorage.removeItem("nexora:match-reaction-caption");
+  }, []);
   const uploadTier = accountTierFromUser(user);
   const appMetadata = user?.app_metadata ?? {};
   const rawPlan = String(
@@ -482,6 +492,10 @@ const previewFilter =
           onSubmit={async (e) => {
             e.preventDefault();
             if (!caption.trim() || queued) return;
+            if (window.sessionStorage.getItem("nexora:match-reaction-max-seconds") === "15" && (mediaClassification.durationSeconds ?? 0) > 15) {
+              setError("Match reaction clips must be 15 seconds or shorter.");
+              return;
+            }
             if (!user) {
               notify("Sign in required", "Create an account before publishing to your profile.");
               void nav({ to: "/auth" });
