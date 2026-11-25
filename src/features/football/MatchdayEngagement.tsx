@@ -38,6 +38,7 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
   const { user } = useSession();
   const [polls, setPolls] = useState<Poll[]>([]);
   const [votes, setVotes] = useState<Record<string, Vote>>({});
+  const [summaries, setSummaries] = useState<Record<string, { count: number; average: number; topPlayer: string; topCount: number }>>({});
   const [player, setPlayer] = useState<Record<string, string>>({});
   const [rating, setRating] = useState<Record<string, number>>({});
   const [take, setTake] = useState<Record<string, string>>({});
@@ -52,11 +53,23 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
         if (error) { setPolls([]); return; }
         const list = data ?? []; setPolls(list);
         if (user && list.length) {
-          const result = await (supabase as any).from("football_match_fan_votes").select("poll_id,player_name,rating,tactical_take").eq("user_id", user.id).in("poll_id", list.map((poll) => poll.id));
+          const result = await (supabase as any).from("football_match_fan_votes").select("poll_id,user_id,player_name,rating,tactical_take").in("poll_id", list.map((poll) => poll.id));
           if (active && !result.error) {
             const mapped: Record<string, Vote> = {};
-            for (const vote of result.data ?? []) mapped[vote.poll_id] = vote;
+            const totals: Record<string, { count: number; ratingTotal: number; players: Record<string, number> }> = {};
+            for (const vote of result.data ?? []) {
+              const total = totals[vote.poll_id] ??= { count: 0, ratingTotal: 0, players: {} };
+              total.count += 1; total.ratingTotal += Number(vote.rating);
+              total.players[vote.player_name] = (total.players[vote.player_name] ?? 0) + 1;
+              if (vote.user_id === user.id) mapped[vote.poll_id] = vote;
+            }
             setVotes(mapped);
+            const nextSummary: typeof summaries = {};
+            for (const [pollId, total] of Object.entries(totals)) {
+              const top = Object.entries(total.players).sort((a, b) => b[1] - a[1])[0];
+              nextSummary[pollId] = { count: total.count, average: total.ratingTotal / total.count, topPlayer: top?.[0] ?? "", topCount: top?.[1] ?? 0 };
+            }
+            setSummaries(nextSummary);
           }
         }
       });
@@ -73,6 +86,15 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
     setBusy(null);
     if (result.error) { toast.error("Your vote could not be saved. Check that the 24-hour poll is still open."); return; }
     setVotes((current) => ({ ...current, [poll.id]: { poll_id: poll.id, player_name: name, rating: score, tactical_take: tactical } }));
+    const refreshed = await (supabase as any).from("football_match_fan_votes").select("player_name,rating").eq("poll_id", poll.id);
+    if (!refreshed.error) {
+      const rows = refreshed.data ?? [];
+      const counts: Record<string, number> = {};
+      let ratingTotal = 0;
+      for (const row of rows) { counts[row.player_name] = (counts[row.player_name] ?? 0) + 1; ratingTotal += Number(row.rating); }
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      setSummaries((current) => ({ ...current, [poll.id]: { count: rows.length, average: rows.length ? ratingTotal / rows.length : 0, topPlayer: top?.[0] ?? "", topCount: top?.[1] ?? 0 } }));
+    }
     toast.success("Your post-match vote has been recorded.");
   };
   if (!polls.length) return null;
@@ -81,6 +103,7 @@ export function MatchdayFanPolls({ matches }: { matches: FootballMatch[] }) {
     if (!match) return null;
     const existing = votes[poll.id];
     return <div key={poll.id} className="rounded-xl border p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-semibold">{match.homeTeam} {match.homeScore} – {match.awayScore} {match.awayTeam}</p><p className="text-[10px] text-muted-foreground">{match.competitionName}</p></div><span className="shrink-0 text-[10px] text-muted-foreground">Closes {new Date(poll.closes_at).toLocaleString()}</span></div>
+      {summaries[poll.id] && <div className="mt-3 rounded-lg bg-muted/40 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><span><strong>{summaries[poll.id].count}</strong> fan votes</span><span>Average rating <strong>{summaries[poll.id].average.toFixed(1)}/10</strong></span></div>{summaries[poll.id].topPlayer && <p className="mt-1">Leading nomination: <strong>{summaries[poll.id].topPlayer}</strong> ({summaries[poll.id].topCount})</p>}</div>}
       {existing ? <div className="mt-3 rounded-lg bg-muted/50 p-3 text-sm"><p className="font-semibold">Your Man of the Match: {existing.player_name}</p><p className="mt-1 text-xs text-muted-foreground">Your rating: {existing.rating}/10</p><p className="mt-1 text-xs">{existing.tactical_take}</p><p className="mt-2 text-[10px] text-muted-foreground">Your vote is saved for this match.</p></div> : <div className="mt-3 grid gap-2"><input className="w-full rounded-lg border bg-background px-3 py-2 text-sm" maxLength={80} placeholder="Nominate any player by name" value={player[poll.id] ?? ""} onChange={(event) => setPlayer((current) => ({ ...current, [poll.id]: event.target.value }))} /><label className="text-xs font-medium">Rate this match: {rating[poll.id] ?? 8}/10<input className="mt-1 w-full accent-primary" type="range" min="1" max="10" value={rating[poll.id] ?? 8} onChange={(event) => setRating((current) => ({ ...current, [poll.id]: Number(event.target.value) }))} /></label><textarea className="w-full rounded-lg border bg-background px-3 py-2 text-sm" rows={2} maxLength={240} placeholder="One-line tactical take (240 characters max)" value={take[poll.id] ?? ""} onChange={(event) => setTake((current) => ({ ...current, [poll.id]: event.target.value }))} /><button type="button" disabled={busy === poll.id} onClick={() => void submit(poll)} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">{busy === poll.id ? "Saving…" : "Submit fan vote"}</button></div>}
     </div>;
   })}</div></section>;
