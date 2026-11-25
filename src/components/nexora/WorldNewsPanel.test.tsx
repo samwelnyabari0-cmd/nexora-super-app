@@ -18,6 +18,7 @@ function makeNews(provider: string, provider_id: string, headline: string, sourc
     headline,
     source_name,
     summary: "A short publisher summary.",
+    thumbnail_url: "https://images.publisher.example/story.jpg",
     source_url: "https://publisher.example/story",
     published_at: new Date().toISOString(),
   };
@@ -40,6 +41,11 @@ describe("WorldNewsPanel", () => {
     }
     chain.limit = vi.fn(async () => mocks.result);
     mocks.from.mockReturnValue(chain);
+  });
+
+  it("renders each available publisher thumbnail with an accessible headline label", async () => {
+    render(<WorldNewsPanel variant="full" />);
+    expect(await screen.findByRole("img", { name: "World leaders meet today" })).toHaveAttribute("src", "https://images.publisher.example/story.jpg");
   });
 
   it("loads publisher headlines and filters World and Kenya separately", async () => {
