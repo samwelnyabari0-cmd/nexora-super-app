@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MatchCenterPage } from "@/routes/match-center";
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => ({ options: {} }),
+  createFileRoute: () => (options: unknown) => ({ options }),
   Link: ({ children }: { children: React.ReactNode }) => <a href="#">{children}</a>,
 }));
 
