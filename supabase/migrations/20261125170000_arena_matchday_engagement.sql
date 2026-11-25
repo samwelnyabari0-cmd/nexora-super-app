@@ -16,6 +16,17 @@ create table if not exists public.football_scorers (
   constraint football_scorers_provider_competition_season_player_key
     unique (provider, competition_code, season_id, player_name, team_name)
 );
+
+create table if not exists public.football_scorer_sync_runs (
+  competition_code text primary key,
+  attempted_at timestamptz not null,
+  season_id text,
+  last_error text
+);
+alter table public.football_scorer_sync_runs enable row level security;
+revoke all on table public.football_scorer_sync_runs from public, anon, authenticated;
+grant all on table public.football_scorer_sync_runs to service_role;
+
 create index if not exists football_scorers_leaderboard_idx
   on public.football_scorers (competition_code, goals desc, assists desc, player_name);
 alter table public.football_scorers enable row level security;
