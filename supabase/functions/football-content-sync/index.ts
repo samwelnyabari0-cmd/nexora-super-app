@@ -172,7 +172,7 @@ Deno.serve(async (request: Request) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!serviceKey) return json({ error: "Arena content sync is not configured." }, 503);
   const authorization = request.headers.get("authorization") ?? "";
-  const candidate = authorization.replace(/^Bearer\\s+/i, "").trim();
+  const candidate = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : "";
   if (!candidate || !(await isAuthorized(candidate, serviceKey))) return json({ error: "Unauthorized" }, 401);
 
   const sourceResults: Record<string, unknown> = {};
