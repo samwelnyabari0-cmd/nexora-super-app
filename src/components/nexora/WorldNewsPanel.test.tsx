@@ -45,9 +45,10 @@ describe("WorldNewsPanel", () => {
 
   it("renders each available publisher thumbnail with an accessible headline label", async () => {
     render(<WorldNewsPanel variant="full" />);
-    expect(
-      await screen.findByRole("img", { name: "World leaders meet today" }),
-    ).toHaveAttribute("src", "https://images.publisher.example/story.jpg");
+    expect(await screen.findByRole("img", { name: "World leaders meet today" })).toHaveAttribute(
+      "src",
+      "https://images.publisher.example/story.jpg",
+    );
   });
 
   it("loads publisher headlines and filters World and Kenya separately", async () => {
