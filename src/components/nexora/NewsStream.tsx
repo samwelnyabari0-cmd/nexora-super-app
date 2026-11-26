@@ -32,14 +32,14 @@ function categoryForProvider(provider: string, headline = "", summary = "") {
   const text = (headline + " " + summary).toLowerCase();
   if (provider.includes("sport") || /\b(match|football|premier league|champions league|athletics|rugby|cricket|tennis|basketball|goal|coach|tournament)\b/.test(text)) return "Sports";
   if (provider.includes("politics") || /\b(election|parliament|president|prime minister|governor|senator|mp |political|politics|government|cabinet|campaign)\b/.test(text)) return "Politics";
-  if (provider.includes("business") || /\b(business|economy|economic|market|stocks|bank|trade|company|companies|inflation|jobs)\b/.test(text)) return "Business";
+  if (provider.includes("business") || /\b(business|economy|economic|market|stocks|bank|trade|company|companies|inflation|jobs)\b/.test(text)) return "Business & Economy";
   if (provider.includes("entertainment") || /\b(entertainment|celebrity|film|movie|music|artist|actor|actress|concert|tv show)\b/.test(text)) return "Entertainment";
   if (provider.includes("science") || /\b(science|research|space|nasa|climate|environment|discovery)\b/.test(text)) return "Science";
   if (provider.includes("health") || /\b(health|hospital|medical|medicine|disease|doctor|vaccine)\b/.test(text)) return "Health";
   if (provider.includes("trending")) return "Trending";
   if (provider.includes("tech") || /\b(technology|tech|artificial intelligence| AI |software|cybersecurity|gadget)\b/.test(text)) return "Technology";
-  if (provider.includes("video-kenya") || provider.startsWith("kenya-")) return "Kenya";
-  return "World";
+  if (provider.includes("video-kenya") || provider.startsWith("kenya-") || provider.startsWith("world-") || provider.includes("video-world")) return "World & Kenya";
+  return "World & Kenya";
 }
 
 function validHttps(value: string | null | undefined) {
@@ -97,6 +97,11 @@ export function NewsStoryCard({ story }: { story: NewsStory }) {
     return null;
   })();
   const directVideo = validHttps(story.video_url) && /\.(?:mp4|webm)(?:$|[?#])/i.test(story.video_url!);
+  // YouTube Atom feeds sometimes expose a watch-page URL as their thumbnail.
+  // Always use YouTube's image CDN for a real preview when the story is a YouTube video.
+  const previewImage = youtubeId
+    ? "https://i.ytimg.com/vi/" + youtubeId + "/hqdefault.jpg"
+    : story.thumbnail_url;
   const share = async () => {
     const text = story.headline + " — " + story.source_name + "\n" + story.source_url;
     try {
@@ -119,8 +124,8 @@ export function NewsStoryCard({ story }: { story: NewsStory }) {
           <video className="h-full w-full bg-black object-contain" src={story.video_url!} controls autoPlay playsInline preload="metadata" />
         ) : (
           <>
-            {validHttps(story.thumbnail_url) && !imageFailed ? (
-              <img src={story.thumbnail_url!} alt={story.headline} loading="lazy" decoding="async"
+            {validHttps(previewImage) && !imageFailed ? (
+              <img src={previewImage!} alt={story.headline} loading="lazy" decoding="async"
                 referrerPolicy="no-referrer" onError={() => setImageFailed(true)}
                 className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
             ) : (
@@ -167,12 +172,36 @@ export function NewsStoryCard({ story }: { story: NewsStory }) {
   );
 }
 
-const CATEGORIES = ["All", "Trending", "Kenya", "World", "Sports", "Politics", "Business", "Entertainment", "Technology", "Science", "Health"];
+const CATEGORIES = ["All", "Videos", "Trending", "World & Kenya", "Sports", "Politics", "Business & Economy", "Entertainment", "Technology", "Science", "Health"];
+
+export function NewsVideoShelf({ stories, limit = 4 }: { stories: NewsStory[]; limit?: number }) {
+  const videos = useMemo(
+    () => stories.filter((story) => Boolean(story.video_url) && validHttps(story.video_url)).slice(0, limit),
+    [stories, limit],
+  );
+  if (!videos.length) return null;
+  return (
+    <section aria-label="Latest playable news videos" className="min-w-0 space-y-3">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Watch now</p>
+        <h2 className="text-lg font-bold">Latest news videos</h2>
+        <p className="text-xs text-muted-foreground">BBC, Al Jazeera, Citizen TV, KTN, NTV and Premier League</p>
+      </div>
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+        {videos.map((story) => <NewsStoryCard key={story.provider + ":" + story.provider_id} story={story} />)}
+      </div>
+    </section>
+  );
+}
 
 export function NewsStream({ limit = 24, showFilters = true }: { limit?: number; showFilters?: boolean }) {
   const stories = useNewsStories(100);
   const [category, setCategory] = useState("All");
-  const visible = useMemo(() => stories.filter((story) => category === "All" || story.category === category).slice(0, limit), [stories, category, limit]);
+  const visible = useMemo(() => {
+    if (category === "Videos") return stories.filter((story) => Boolean(story.video_url)).slice(0, limit);
+    if (category === "All") return stories.filter((story) => !story.video_url).slice(0, limit);
+    return stories.filter((story) => story.category === category).slice(0, limit);
+  }, [stories, category, limit]);
   if (!stories.length) return <p className="rounded-xl border p-4 text-sm text-muted-foreground">News updates are temporarily unavailable. Please check again shortly.</p>;
   return (
     <section aria-label="Latest news across categories" className="min-w-0 space-y-4">
@@ -181,6 +210,7 @@ export function NewsStream({ limit = 24, showFilters = true }: { limit?: number;
         <h2 className="text-lg font-bold">What's happening</h2>
         <p className="text-xs text-muted-foreground">Sports, politics, business, entertainment, technology and more</p>
       </div>
+      {category === "All" && <NewsVideoShelf stories={stories} limit={4} />}
       {showFilters && <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter news by category">
         {CATEGORIES.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} aria-pressed={category === item}
           className={category === item ? "shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground" : "shrink-0 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold"}>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { PostCard } from "@/components/nexora/PostCard";
 import { TechnologyVideoCard, useTechnologyCreatorVideos } from "@/components/nexora/TechnologyVideoFeed";
-import { NewsStoryCard, useNewsStories } from "@/components/nexora/NewsStream";
+import { NewsStoryCard, NewsVideoShelf, useNewsStories } from "@/components/nexora/NewsStream";
 import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { Avatar, Chip, EmptyState } from "@/components/nexora/ui";
@@ -47,6 +47,7 @@ function Home() {
   const posts = useMemo(() => app.posts.filter((post) => !muted.includes(post.creatorId)), [app.posts, muted]);
   const technologyVideos = useTechnologyCreatorVideos(8);
   const newsStories = useNewsStories(100);
+  const regularNewsStories = useMemo(() => newsStories.filter((story) => !story.video_url), [newsStories]);
   const [filter, setFilter] = useState("For you");
   const [loading, setLoading] = useState(true);
   const feedLoading = loading || app.postsLoading;
@@ -148,6 +149,10 @@ function Home() {
 
         <WorldNewsPanel variant="briefing" maxItems={5} />
 
+        <div className="mb-6">
+          <NewsVideoShelf stories={newsStories} limit={4} />
+        </div>
+
         <div className="space-y-6" aria-live="polite" aria-busy={feedLoading}>
           {feedLoading ? (
             [0, 1].map((index) => (
@@ -164,9 +169,9 @@ function Home() {
           ) : shown.map((post, index) => (
             <Fragment key={post.id}>
               <PostCard post={post} />
-              {index === 2 && newsStories[0] && <NewsStoryCard story={newsStories[0]} />}
+              {index === 2 && regularNewsStories[0] && <NewsStoryCard story={regularNewsStories[0]} />}
               {index === 3 && technologyVideos[0] && <TechnologyVideoCard video={technologyVideos[0]} />}
-              {index === 7 && newsStories[1] && <NewsStoryCard story={newsStories[1]} />}
+              {index === 7 && regularNewsStories[1] && <NewsStoryCard story={regularNewsStories[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
             </Fragment>
           ))}
