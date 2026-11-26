@@ -36,7 +36,7 @@ function mediaFor(kind: "audio" | "video") {
   );
 }
 
-export function CallSession({ invite, userId, other }: { invite: Invite; userId: string; other?: Person }) {
+export function CallSession({ invite, userId, other }: { invite: CallInvite; userId: string; other?: Person }) {
   const isCaller = invite.caller === userId;
   const [connected, setConnected] = useState(false);
   const [err, setErr] = useState("");
