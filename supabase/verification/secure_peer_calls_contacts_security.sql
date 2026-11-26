@@ -135,10 +135,17 @@ begin
 
   select pg_get_functiondef('private.can_start_call(uuid, uuid)'::regprocedure)
     into v_definition;
-  if position('advisory_xact_lock' in lower(v_definition)) = 0
+  if position('lock_contact_pair' in lower(v_definition)) = 0
      or position('accepted' in lower(v_definition)) = 0
      or position('ringing' in lower(v_definition)) = 0 then
     raise exception 'Call creation must serialize participants and require accepted contacts with no active call';
+  end if;
+
+  select pg_get_functiondef('private.lock_contact_pair(uuid, uuid)'::regprocedure)
+    into v_definition;
+  if position('advisory_xact_lock' in lower(v_definition)) = 0
+     or position('hashtextextended' in lower(v_definition)) = 0 then
+    raise exception 'Contact pair lock must use transaction-scoped advisory locks';
   end if;
 
   if not exists (
