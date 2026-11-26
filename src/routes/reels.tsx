@@ -34,6 +34,7 @@ function Reels() {
   const { items, loading, error, loadMediaUrl } = useStrictMediaItems("reel");
   const [comedyVideos, setComedyVideos] = useState<ComedyReelVideo[]>([]);
   const [educationVideos, setEducationVideos] = useState<ComedyReelVideo[]>([]);
+  const [educationLoading, setEducationLoading] = useState(true);
   const [comedyLoading, setComedyLoading] = useState(true);
   const [liked, setLiked] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
@@ -88,6 +89,7 @@ function Reels() {
         .eq("provider", "youtube-education").eq("is_published", true)
         .order("published_at", { ascending: false }).limit(18);
       if (!active) return;
+      setEducationLoading(false);
       if (!feedError) {
         const uniqueVideos = new Map<string, ComedyReelVideo>();
         for (const row of (data ?? []) as ComedyReelVideo[]) {
@@ -246,9 +248,9 @@ function Reels() {
     }
   }
 
-  if (loading && !items.length && comedyLoading && !comedyVideos.length) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
-  if (error && !items.length && !comedyVideos.length) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!items.length && !comedyVideos.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos and comedy Shorts will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
+  if ((loading || comedyLoading || educationLoading) && !items.length && !comedyVideos.length && !educationVideos.length) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
+  if (error && !items.length && !comedyVideos.length && !educationVideos.length) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
+  if (!items.length && !comedyVideos.length && !educationVideos.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos and comedy Shorts will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
 
   const requestedId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("post") : null;
   const ordered = requestedId ? [...items].sort((a, b) => Number(b.id === requestedId) - Number(a.id === requestedId)) : items;
