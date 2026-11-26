@@ -112,6 +112,46 @@ grant execute on function private.can_request_contact(uuid, uuid) to authenticat
 revoke all on function private.is_blocked_pair(uuid, uuid) from anon, public;
 revoke all on function private.can_request_contact(uuid, uuid) from anon, public;
 
+create or replace function private.can_start_call(a uuid, b uuid)
+returns boolean
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $
+begin
+  if auth.uid() is null or auth.uid() is distinct from a
+    or a is null or b is null or a = b then
+    return false;
+  end if;
+
+  -- Lock both participants in a stable order so simultaneous calls cannot
+  -- create overlapping active sessions for either person.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(least(a::text, b::text), 0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(greatest(a::text, b::text), 0)
+  );
+
+  return not private.is_blocked_pair(a, b)
+    and exists (
+      select 1 from public.contacts c
+      where c.status = 'accepted'
+        and ((c.requester = a and c.addressee = b)
+          or (c.requester = b and c.addressee = a))
+    )
+    and not exists (
+      select 1 from public.call_invites ci
+      where ci.status in ('ringing', 'accepted')
+        and (ci.caller in (a, b) or ci.callee in (a, b))
+    );
+end;
+$;
+
+grant execute on function private.can_start_call(uuid, uuid) to authenticated;
+revoke all on function private.can_start_call(uuid, uuid) from anon, public;
+
 drop policy if exists contacts_read on public.contacts;
 create policy contacts_read on public.contacts
   for select to authenticated
@@ -455,7 +495,7 @@ create policy calls_create on public.call_invites
     and caller <> callee
     and status = 'ringing'
     and callee_peer_id is null
-    and public.are_contacts(caller, callee)
+    and private.can_start_call(caller, callee)
   );
 
 drop policy if exists calls_update on public.call_invites;
