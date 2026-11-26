@@ -18,7 +18,7 @@ function getYoutubeId(value: string) {
     const url = new URL(value);
     if (url.hostname === "youtu.be") return url.pathname.slice(1);
     if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) {
-      return url.searchParams.get("v") || url.pathname.match(/^\\/(?:embed|shorts)\\/([^/]+)/)?.[1] || "";
+      return url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1] || "";
     }
   } catch { /* Invalid YouTube URL. */ }
   return "";
