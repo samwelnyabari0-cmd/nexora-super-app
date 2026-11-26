@@ -181,3 +181,10 @@ audio { max-width: 100%; }
 
 .low-bandwidth video[autoplay]:not([aria-label="Camera preview"]) { display: none; }
 .low-bandwidth img { filter: blur(0); content-visibility: auto; }
+
+
+/* Reduce work for long feeds by skipping off-screen card rendering. */
+.media-feed-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
+}
