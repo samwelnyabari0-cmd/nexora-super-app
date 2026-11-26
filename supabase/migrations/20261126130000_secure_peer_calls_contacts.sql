@@ -366,6 +366,27 @@ begin
 end;
 $$;
 
+create or replace function private.guard_profile_invite_code()
+returns trigger
+language plpgsql
+set search_path = ''
+as $
+begin
+  if new.invite_code is distinct from old.invite_code
+    and current_user not in ('postgres', 'service_role') then
+    raise exception 'invite codes can only be changed through the secure rotation function';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists profiles_invite_code_guard on public.profiles;
+create trigger profiles_invite_code_guard
+before update of invite_code on public.profiles
+for each row execute function private.guard_profile_invite_code();
+
+revoke all on function private.guard_profile_invite_code() from public, anon, authenticated;
+
 create or replace function private.call_invite_guard()
 returns trigger
 language plpgsql
