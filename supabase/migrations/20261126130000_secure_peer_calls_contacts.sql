@@ -141,6 +141,43 @@ grant execute on function private.can_request_contact(uuid, uuid) to authenticat
 revoke all on function private.is_blocked_pair(uuid, uuid) from anon, public;
 revoke all on function private.can_request_contact(uuid, uuid) from anon, public;
 
+create or replace function private.prepare_contact_request()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $prepare$
+begin
+  if auth.uid() is null or auth.uid() is distinct from new.requester
+    or new.addressee is null or new.addressee = new.requester
+    or new.status <> 'pending' or new.blocked_by is not null then
+    raise exception 'invalid contact request';
+  end if;
+
+  perform private.lock_contact_pair(new.requester, new.addressee);
+
+  if private.is_blocked_pair(new.requester, new.addressee) then
+    raise exception 'this contact is blocked';
+  end if;
+
+  -- Allow a fresh request after a previous request was declined, regardless
+  -- of which participant initiated the earlier request.
+  delete from public.contacts c
+  where c.status = 'declined'
+    and ((c.requester = new.requester and c.addressee = new.addressee)
+      or (c.requester = new.addressee and c.addressee = new.requester));
+
+  return new;
+end;
+$prepare$;
+
+drop trigger if exists contacts_prepare_request on public.contacts;
+create trigger contacts_prepare_request
+before insert on public.contacts
+for each row execute function private.prepare_contact_request();
+
+revoke all on function private.prepare_contact_request() from public, anon, authenticated;
+
 create or replace function private.can_start_call(a uuid, b uuid)
 returns boolean
 language plpgsql
