@@ -184,7 +184,7 @@ export function EducationDiscovery({ variant = "full" }: { variant?: "full" | "c
       {loading ? <p className="text-xs text-muted-foreground">Loading free lessons…</p> : videos.length ? (
         <div className={variant === "compact" ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2"}>{videos.map((video) => <EducationVideoCard key={video.id} video={video} />)}</div>
       ) : <p className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">New free video lessons are being collected. Explore the resources below in the meantime.</p>}
-      {variant !== "compact" && <><DailyQuiz /><ScienceGallery /><OpenLearningResources /></>}
+      {variant === "compact" ? <><ScienceGallery /><OpenLearningResources /></> : <><DailyQuiz /><ScienceGallery /><OpenLearningResources /></>}
     </section>
   );
 }
