@@ -823,7 +823,7 @@ async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: H
   // Public YouTube channel RSS feeds: use creator-owned embeds, never rehost video files.
   // These defaults keep the video feed populated even before the optional Exitmode ID is supplied.
   const channelSpecs: Array<{ name: string; channelId: string }> = [
-    { name: "Ndugu Yangu Comedy", channelId: "UC1K1HCO1zywx7cvSLMN6Eig" },
+    { name: "Crazy Kennar", channelId: "UCiXj0BfxM0WQGFr9mxdR0qg" },
     { name: "Just For Laughs Gags", channelId: "UCpsSadsgX_Qk9i6i_bJoUwQ" },
   ];
   const exitmodeChannelId = Deno.env.get("EXITMODE_YOUTUBE_CHANNEL_ID") ?? "";
