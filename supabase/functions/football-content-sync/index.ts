@@ -718,12 +718,12 @@ async function syncRugbyAndMma(serviceKey: string): Promise<{ rows: CachedSportM
 
 
 function parseComedyRedditFeed(xml: string, subreddit: string): NewsItem[] {
-  const entries = [...xml.matchAll(/<(?:entry|item)\\b[^>]*>([\\s\\S]*?)<\\/(?:entry|item)\\s*>/gi)].map((match) => match[1]);
+  const entries = [...xml.matchAll(/<(?:entry|item)\b[^>]*>([\s\S]*?)<\/(?:entry|item)\s*>/gi)].map((match) => match[1]);
   const allowedHosts = ["reddit.com", "redd.it", "i.redd.it", "preview.redd.it", "external-preview.redd.it"];
   const rows: NewsItem[] = [];
   for (const entry of entries) {
     const headline = cleanText(textTag(entry, "title"), 220);
-    const rawLink = textTag(entry, "link") || entry.match(/<link\\b[^>]*href=["']([^"']+)["']/i)?.[1] || "";
+    const rawLink = textTag(entry, "link") || entry.match(/<link\b[^>]*href=["']([^"']+)["']/i)?.[1] || "";
     const link = safeHttpsUrl(decodeXml(rawLink), ["reddit.com", "www.reddit.com"]);
     const publishedAt = safePublishedAt(textTag(entry, "published") || textTag(entry, "updated") || textTag(entry, "pubDate"));
     if (!headline || !link || !publishedAt) continue;
@@ -745,7 +745,7 @@ function parseComedyRedditFeed(xml: string, subreddit: string): NewsItem[] {
 }
 
 function parseComedyYouTubeFeed(xml: string, channelName: string): HighlightItem[] {
-  const entries = [...xml.matchAll(/<entry\\b[^>]*>([\\s\\S]*?)<\\/entry>/gi)].map((match) => match[1]);
+  const entries = [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map((match) => match[1]);
   return entries.flatMap((entry) => {
     const videoId = textTag(entry, "yt:videoId");
     const headline = cleanText(textTag(entry, "title"), 220);
@@ -780,7 +780,7 @@ async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: H
         const id = String(joke?.id ?? "");
         const category = cleanText(String(joke?.category ?? "General"), 40);
         const text = joke?.type === "twopart"
-          ? cleanText(String(joke?.setup ?? ""), 400) + "\\n\\n" + cleanText(String(joke?.delivery ?? ""), 500)
+          ? cleanText(String(joke?.setup ?? ""), 400) + "\n\n" + cleanText(String(joke?.delivery ?? ""), 500)
           : cleanText(String(joke?.joke ?? ""), 900);
         if (!id || !text.trim()) return [];
         const headline = joke?.type === "twopart" ? cleanText(String(joke.setup ?? "A quick joke"), 180) : text.slice(0, 180);
