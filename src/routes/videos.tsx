@@ -17,6 +17,7 @@ import { saveCommuteMedia } from "@/lib/offline-storage";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { MultiSportHub } from "@/components/nexora/MultiSportHub";
 import { ComedyHub } from "@/components/nexora/ComedyHub";
+import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
 
 const categories = [
   { label: "Home", icon: House, terms: [] as string[] },
@@ -189,9 +190,9 @@ function Videos() {
     }
   }
 
-  if (loading && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
-  if (error && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!items.length && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
+  if (loading && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy" && category !== "Education") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
+  if (error && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy" && category !== "Education") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
+  if (!items.length && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy" && category !== "Education") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
 
   if (activeId && !active) return <div className="mx-auto max-w-5xl py-12"><button onClick={() => void backToVideos()} className="mb-5 inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft className="h-4 w-4" /> Back to Videos</button><p className="text-sm text-muted-foreground">This video is unavailable or you do not have permission to view it.</p></div>;
 
@@ -263,7 +264,7 @@ function Videos() {
         {categories.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => setCategory(label)} aria-pressed={category === label} className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${category === label ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80"}`}><Icon className="h-4 w-4" />{label}</button>)}
         <Link to="/live" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-muted px-4 py-2.5 text-sm font-semibold hover:bg-muted/80"><Radio className="h-4 w-4 text-red-500" /> Live</Link>
       </nav>
-      {category === "News" ? <WorldNewsPanel variant="full" /> : <>
+      {category === "Education" ? <EducationDiscovery variant="full" /> : category === "News" ? <WorldNewsPanel variant="full" /> : <>
       {category === "Sports" && <MultiSportHub />}
       {category === "Technology" && <TechnologyHub />}
       {category === "Comedy" && <ComedyHub />}
