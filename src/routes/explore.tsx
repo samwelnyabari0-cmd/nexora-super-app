@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { StrictMediaGrid } from "@/components/nexora/StrictMediaFeed";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { normalizeMediaFraming } from "@/lib/media-framing";
-import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { TechnologyVideoShelf } from "@/components/nexora/TechnologyVideoFeed";
 import { NewsStream } from "@/components/nexora/NewsStream";
 export const Route = createFileRoute("/explore")({
