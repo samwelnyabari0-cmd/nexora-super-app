@@ -3,7 +3,7 @@
 -- and was not present in the connected Supabase project when this migration was prepared.
 
 create schema if not exists private;
-revoke all on schema private from public, anon;
+-- Preserve existing private-schema grants for Nexora's other internal functions.
 grant usage on schema private to authenticated;
 
 alter table public.profiles
