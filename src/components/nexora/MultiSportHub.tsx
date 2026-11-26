@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { FootballCentre } from "./FootballCentre";
-import { FootballCentre } from "./FootballCentre";
+
 
 type SportKey = "all" | "football" | "nba" | "nfl" | "mlb" | "nhl" | "f1" | "rugby" | "mma" | "cricket" | "tennis";
 type NewsRow = {
