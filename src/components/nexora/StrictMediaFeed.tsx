@@ -117,10 +117,10 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
         const batch = initialItems.slice(offset, offset + 8);
         const resolved = await Promise.all(batch.map(async (item) => ({
           id: item.id,
-          thumbnailSrc: item.thumbnailSrc || await resolveStorageUrl(
+          thumbnailSrc: item.thumbnailSrc || (!item.thumbnail_url && !item.thumbnail_storage_key ? undefined : await resolveStorageUrl(
             item.thumbnail_url, item.id, "thumbnail",
             item.thumbnail_storage_provider, item.thumbnail_storage_key,
-          ),
+          )),
         })));
         if (!active) return;
         const byId = new Map(resolved.map((entry) => [entry.id, entry.thumbnailSrc]));
@@ -146,8 +146,12 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
       item.media_storage_provider, item.media_storage_key,
     );
     pendingMediaUrls.current.set(item.id, request);
-    const mediaSrc = await request;
-    pendingMediaUrls.current.delete(item.id);
+    let mediaSrc: string | undefined;
+    try {
+      mediaSrc = await request;
+    } finally {
+      pendingMediaUrls.current.delete(item.id);
+    }
     if (mediaSrc) {
       setItems((current) => current.map((entry) =>
         entry.id === item.id ? { ...entry, mediaSrc } : entry,
