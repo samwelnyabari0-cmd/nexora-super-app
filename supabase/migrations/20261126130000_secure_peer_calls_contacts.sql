@@ -645,6 +645,7 @@ create policy calls_update on public.call_invites
     and status in ('ringing', 'accepted', 'declined', 'cancelled', 'ended')
   );
 
+revoke all on public.contacts, public.call_invites from public, anon;
 grant select, insert, update, delete on public.contacts to authenticated;
 grant select, insert, update on public.call_invites to authenticated;
 grant all on public.contacts, public.call_invites to service_role;
