@@ -48,6 +48,7 @@ function Home() {
   const technologyVideos = useTechnologyCreatorVideos(8);
   const newsStories = useNewsStories(100);
   const regularNewsStories = useMemo(() => newsStories.filter((story) => !story.video_url), [newsStories]);
+  const newsVideoStories = useMemo(() => newsStories.filter((story) => Boolean(story.video_url)), [newsStories]);
   const [filter, setFilter] = useState("For you");
   const [loading, setLoading] = useState(true);
   const feedLoading = loading || app.postsLoading;
@@ -171,8 +172,11 @@ function Home() {
               <PostCard post={post} />
               {index === 2 && regularNewsStories[0] && <NewsStoryCard story={regularNewsStories[0]} />}
               {index === 3 && technologyVideos[0] && <TechnologyVideoCard video={technologyVideos[0]} />}
+              {index === 4 && newsVideoStories[0] && <NewsStoryCard story={newsVideoStories[0]} />}
               {index === 7 && regularNewsStories[1] && <NewsStoryCard story={regularNewsStories[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
+              {index === 9 && newsVideoStories[1] && <NewsStoryCard story={newsVideoStories[1]} />}
+              {index === 14 && newsVideoStories[2] && <NewsStoryCard story={newsVideoStories[2]} />}
             </Fragment>
           ))}
         </div>

@@ -716,6 +716,138 @@ async function syncRugbyAndMma(serviceKey: string): Promise<{ rows: CachedSportM
   return { rows, sources };
 }
 
+
+function parseComedyRedditFeed(xml: string, subreddit: string): NewsItem[] {
+  const entries = [...xml.matchAll(/<(?:entry|item)\b[^>]*>([\s\S]*?)<\/(?:entry|item)\s*>/gi)].map((match) => match[1]);
+  const allowedHosts = ["reddit.com", "redd.it", "i.redd.it", "preview.redd.it", "external-preview.redd.it"];
+  const rows: NewsItem[] = [];
+  for (const entry of entries) {
+    const headline = cleanText(textTag(entry, "title"), 220);
+    const rawLink = textTag(entry, "link") || entry.match(/<link\b[^>]*href=["']([^"']+)["']/i)?.[1] || "";
+    const link = safeHttpsUrl(decodeXml(rawLink), ["reddit.com", "www.reddit.com"]);
+    const publishedAt = safePublishedAt(textTag(entry, "published") || textTag(entry, "updated") || textTag(entry, "pubDate"));
+    if (!headline || !link || !publishedAt) continue;
+    rows.push({
+      provider: "comedy-reddit",
+      provider_id: link,
+      source_name: "r/" + subreddit,
+      headline,
+      summary: cleanText(textTag(entry, "content") || textTag(entry, "description") || textTag(entry, "summary"), 700),
+      thumbnail_url: imageUrlFromItem(entry, allowedHosts),
+      video_url: null,
+      thumbnail_checked_at: null,
+      source_url: link,
+      published_at: publishedAt,
+      is_published: true,
+    });
+  }
+  return rows.slice(0, 12);
+}
+
+function parseComedyYouTubeFeed(xml: string, channelName: string): HighlightItem[] {
+  const entries = [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map((match) => match[1]);
+  return entries.flatMap((entry) => {
+    const videoId = textTag(entry, "yt:videoId");
+    const headline = cleanText(textTag(entry, "title"), 220);
+    const publishedAt = safePublishedAt(textTag(entry, "published"));
+    if (!/^[A-Za-z0-9_-]{6,20}$/.test(videoId) || !headline || !publishedAt) return [];
+    return [{
+      provider: "youtube-comedy",
+      provider_id: videoId,
+      competition_code: "COMEDY",
+      match_label: headline,
+      score_label: null,
+      duration_seconds: null,
+      thumbnail_url: "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg",
+      video_url: "https://www.youtube.com/watch?v=" + videoId,
+      source_name: channelName,
+      published_at: publishedAt,
+      is_published: true,
+    }];
+  }).slice(0, 20);
+}
+
+async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: HighlightItem[]; sources: Record<string, unknown> }> {
+  const jokeRows: NewsItem[] = [];
+  const videoRows: HighlightItem[] = [];
+  const sources: Record<string, unknown> = {};
+
+  const jokeResults = await Promise.allSettled([
+    (async () => {
+      const payload = await fetchJson("https://v2.jokeapi.dev/joke/Any?safe-mode&amount=10&blacklistFlags=nsfw,religious,political,racist,sexist,explicit", "NexoraComedy/1.0");
+      const jokes = Array.isArray(payload?.jokes) ? payload.jokes : payload?.id ? [payload] : [];
+      return jokes.flatMap((joke: any) => {
+        const id = String(joke?.id ?? "");
+        const category = cleanText(String(joke?.category ?? "General"), 40);
+        const text = joke?.type === "twopart"
+          ? cleanText(String(joke?.setup ?? ""), 400) + "\n\n" + cleanText(String(joke?.delivery ?? ""), 500)
+          : cleanText(String(joke?.joke ?? ""), 900);
+        if (!id || !text.trim()) return [];
+        const headline = joke?.type === "twopart" ? cleanText(String(joke.setup ?? "A quick joke"), 180) : text.slice(0, 180);
+        return [{
+          provider: "comedy-jokeapi", provider_id: id, source_name: "Safe JokeAPI · " + category,
+          headline, summary: text, thumbnail_url: null, video_url: null, thumbnail_checked_at: null,
+          source_url: "https://v2.jokeapi.dev/", published_at: new Date().toISOString(), is_published: true,
+        }];
+      });
+    })(),
+    (async () => {
+      const payload = await fetchJson("https://icanhazdadjoke.com/", "NexoraComedy/1.0");
+      const id = String(payload?.id ?? "");
+      const joke = cleanText(String(payload?.joke ?? ""), 900);
+      if (!id || !joke) return [];
+      return [{
+        provider: "comedy-dadjokes", provider_id: id, source_name: "Clean Dad Jokes",
+        headline: joke.slice(0, 180), summary: joke, thumbnail_url: null, video_url: null, thumbnail_checked_at: null,
+        source_url: "https://icanhazdadjoke.com/", published_at: new Date().toISOString(), is_published: true,
+      }];
+    })(),
+    ...["wholesomememes", "programmerhumor"].map(async (subreddit) => {
+      const xml = await fetchFeed("https://www.reddit.com/r/" + subreddit + "/top/.rss?t=day&limit=12");
+      return parseComedyRedditFeed(xml, subreddit);
+    }),
+  ]);
+  const jokeSourceNames = ["JokeAPI safe-mode", "icanhazdadjoke", "r/wholesomememes", "r/programmerhumor"];
+  for (let index = 0; index < jokeResults.length; index += 1) {
+    const result = jokeResults[index];
+    const name = jokeSourceNames[index];
+    if (result.status === "fulfilled") {
+      const rows = index < 2 ? result.value as NewsItem[] : result.value as NewsItem[];
+      jokeRows.push(...rows);
+      sources[name] = { ok: true, items: rows.length };
+    } else {
+      sources[name] = { ok: false, error: result.reason instanceof Error ? result.reason.message : "Comedy source unavailable" };
+    }
+  }
+
+  const exitmodeChannelId = Deno.env.get("EXITMODE_YOUTUBE_CHANNEL_ID") ?? "";
+  const channelSpecs: Array<{ name: string; channelId: string }> = [];
+  if (/^UC[A-Za-z0-9_-]{20,30}$/.test(exitmodeChannelId)) {
+    channelSpecs.push({ name: "Exitmode", channelId: exitmodeChannelId });
+  } else {
+    sources.Exitmode = { ok: false, configured: false, note: "Set EXITMODE_YOUTUBE_CHANNEL_ID to syndicate the Exitmode channel." };
+  }
+  const extraChannelIds = (Deno.env.get("NEXORA_COMEDY_CHANNEL_IDS") ?? "").split(",").map((value) => value.trim())
+    .filter((value) => /^UC[A-Za-z0-9_-]{20,30}$/.test(value));
+  extraChannelIds.forEach((channelId, index) => channelSpecs.push({ name: "Community Comedy Channel " + (index + 1), channelId }));
+  const videoResults = await Promise.allSettled(channelSpecs.map(async (channel) => {
+    const xml = await fetchFeed("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId);
+    return { channel, rows: parseComedyYouTubeFeed(xml, channel.name) };
+  }));
+  for (let index = 0; index < videoResults.length; index += 1) {
+    const result = videoResults[index];
+    if (result.status === "fulfilled") {
+      videoRows.push(...result.value.rows);
+      sources[result.value.channel.name + " YouTube"] = { ok: true, items: result.value.rows.length };
+    } else {
+      sources["Comedy YouTube channel " + (index + 1)] = {
+        ok: false, error: result.reason instanceof Error ? result.reason.message : "YouTube channel feed unavailable",
+      };
+    }
+  }
+  return { jokeRows, videoRows, sources };
+}
+
 async function isAuthorized(candidate: string, serviceKey: string): Promise<boolean> {
   const baseUrl = Deno.env.get("SUPABASE_URL");
   if (!baseUrl) throw new Error("SUPABASE_URL is missing");
@@ -767,6 +899,16 @@ Deno.serve(async (request: Request) => {
     sourceResults.Tennis = { ok: false, error: error instanceof Error ? error.message : "Tennis sync failed" };
   }
   let highlightRows: HighlightItem[] = [];
+  let comedyJokeRows: NewsItem[] = [];
+  let comedyVideoRows: HighlightItem[] = [];
+  try {
+    const comedy = await syncComedyContent();
+    comedyJokeRows = comedy.jokeRows;
+    comedyVideoRows = comedy.videoRows;
+    Object.assign(sourceResults, comedy.sources);
+  } catch (error) {
+    sourceResults.Comedy = { ok: false, error: error instanceof Error ? error.message : "Comedy sync failed" };
+  }
   const newsResults = await Promise.allSettled(NEWS_FEEDS.map(async (source) => {
     const xml = await fetchFeed(source.url);
     return { source, rows: parseNewsFeed(xml, source) };
@@ -865,8 +1007,19 @@ Deno.serve(async (request: Request) => {
     }
   }
   try {
-    await upsertRows("football_announcements", newsRows, serviceKey);
-    await upsertRows("football_highlights", highlightRows, serviceKey);
+    await upsertRows("football_announcements", [...newsRows, ...comedyJokeRows], serviceKey);
+    await upsertRows("football_highlights", [...highlightRows, ...comedyVideoRows], serviceKey);
+    const comedyCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    for (const provider of ["comedy-jokeapi", "comedy-dadjokes", "comedy-reddit"]) {
+      await restRequest(
+        "football_announcements?provider=eq." + provider + "&published_at=lt." + encodeURIComponent(comedyCutoff),
+        serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
+      );
+    }
+    await restRequest(
+      "football_highlights?provider=eq.youtube-comedy&published_at=lt." + encodeURIComponent(comedyCutoff),
+      serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
+    );
     const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
     if (newsResults.some((result) => result.status === "fulfilled")) {
       await restRequest(
@@ -890,6 +1043,7 @@ Deno.serve(async (request: Request) => {
     }, 502);
     return json({
       ok: true, newsUpdated: newsRows.length, highlightsUpdated: highlightRows.length,
+      comedyJokesUpdated: comedyJokeRows.length, comedyVideosUpdated: comedyVideoRows.length,
       sources: sourceResults, updatedAt: new Date().toISOString(),
     });
   } catch (error) {

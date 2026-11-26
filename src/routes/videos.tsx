@@ -16,6 +16,7 @@ import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-t
 import { saveCommuteMedia } from "@/lib/offline-storage";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { MultiSportHub } from "@/components/nexora/MultiSportHub";
+import { ComedyHub } from "@/components/nexora/ComedyHub";
 
 const categories = [
   { label: "Home", icon: House, terms: [] as string[] },
@@ -182,9 +183,9 @@ function Videos() {
     }
   }
 
-  if (loading && category !== "News" && category !== "Sports" && category !== "Technology") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
-  if (error && category !== "News" && category !== "Sports" && category !== "Technology") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!items.length && category !== "News" && category !== "Sports" && category !== "Technology") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
+  if (loading && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
+  if (error && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
+  if (!items.length && category !== "News" && category !== "Sports" && category !== "Technology" && category !== "Comedy") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
 
   if (activeId && !active) return <div className="mx-auto max-w-5xl py-12"><button onClick={() => void backToVideos()} className="mb-5 inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft className="h-4 w-4" /> Back to Videos</button><p className="text-sm text-muted-foreground">This video is unavailable or you do not have permission to view it.</p></div>;
 
@@ -259,6 +260,7 @@ function Videos() {
       {category === "News" ? <WorldNewsPanel variant="full" /> : <>
       {category === "Sports" && <MultiSportHub />}
       {category === "Technology" && <TechnologyHub />}
+      {category === "Comedy" && <ComedyHub />}
       <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{submittedSearch ? `Search results for “${submittedSearch}”` : category === "Home" ? "Recommended videos" : category}</h2><span className="text-xs text-muted-foreground">{filteredItems.length} videos</span></div>
       {filteredItems.length ? <div className="grid gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
         {filteredItems.map((item) => <button key={item.id} type="button" onClick={() => void openVideo(item.id)} className="group min-w-0 text-left">
