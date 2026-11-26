@@ -584,14 +584,24 @@ begin
     end if;
   end if;
 
-  if new.status = 'accepted' and private.is_blocked_pair(old.caller, old.callee) then
-    raise exception 'blocked contacts cannot call';
+  if new.status = 'accepted' then
+    if private.is_blocked_pair(old.caller, old.callee) then
+      raise exception 'blocked contacts cannot call';
+    end if;
+    if new.callee_peer_id is null or length(trim(new.callee_peer_id)) = 0
+      or length(new.callee_peer_id) > 255 then
+      raise exception 'accepted calls require a valid recipient media peer id';
+    end if;
   end if;
 
-  if new.callee_peer_id is distinct from old.callee_peer_id then
-    if auth.uid() <> old.callee or new.status <> 'accepted' then
-      raise exception 'only the recipient can set the media peer id after accepting';
-    end if;
+  if old.callee_peer_id is not null
+    and new.callee_peer_id is distinct from old.callee_peer_id then
+    raise exception 'recipient media peer id cannot be changed once set';
+  end if;
+
+  if new.callee_peer_id is distinct from old.callee_peer_id
+    and (auth.uid() <> old.callee or new.status <> 'accepted') then
+    raise exception 'only the recipient can set the media peer id after accepting';
   end if;
 
   new.updated_at := now();
