@@ -201,15 +201,13 @@ as $$
   from public.profiles p
   where auth.uid() is not null
     and p.id = any(coalesce(ids, '{}'::uuid[]))
-    and exists (
-      select 1 from public.contacts c
-      where ((c.requester = auth.uid() and c.addressee = p.id)
-          or (c.addressee = auth.uid() and c.requester = p.id))
-    )
-    or (
-      auth.uid() is not null
-      and p.id = any(coalesce(ids, '{}'::uuid[]))
-      and exists (
+    and (
+      exists (
+        select 1 from public.contacts c
+        where ((c.requester = auth.uid() and c.addressee = p.id)
+            or (c.addressee = auth.uid() and c.requester = p.id))
+      )
+      or exists (
         select 1 from public.call_invites ci
         where auth.uid() in (ci.caller, ci.callee)
           and p.id in (ci.caller, ci.callee)
@@ -256,11 +254,11 @@ begin
     and addressee = owner_id
     and status in ('pending', 'declined');
 
-  insert into public.contacts (requester, addressee, status, blocked_by)
+  insert into public.contacts as existing_contact (requester, addressee, status, blocked_by)
   values (owner_id, auth.uid(), 'accepted', null)
   on conflict (requester, addressee)
   do update set status = 'accepted', blocked_by = null
-  where public.contacts.status <> 'blocked';
+  where existing_contact.status <> 'blocked';
 
   if not exists (
     select 1 from public.contacts c
