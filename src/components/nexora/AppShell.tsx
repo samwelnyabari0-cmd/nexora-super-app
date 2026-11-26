@@ -80,6 +80,73 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { online, setOnline, relay, syncRelay, passport, conversations } = useApp();
   const { notices } = useWorkspace();
   const { user } = useSession();
+
+  // App-wide media lifecycle: pause videos when they scroll out of view,
+  // the route changes, or the app is backgrounded/closed.
+  useEffect(() => {
+    const pauseElement = (element: Element) => {
+      if (element instanceof HTMLVideoElement) {
+        element.pause();
+        element.preload = "none";
+      } else if (element instanceof HTMLIFrameElement && (element.src.includes("youtube.com/embed/") || element.src.includes("youtube-nocookie.com/embed/"))) {
+        try {
+          element.contentWindow?.postMessage(JSON.stringify({
+            event: "command", func: "pauseVideo", args: [],
+          }), "*");
+        } catch { /* Player may not be ready. */ }
+      }
+    };
+    const pauseAll = () => document.querySelectorAll("video, iframe[src*='youtube']").forEach(pauseElement);
+    const observer = typeof IntersectionObserver !== "undefined"
+      ? new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting || entry.intersectionRatio < 0.25) {
+              pauseElement(entry.target);
+            } else if (entry.target instanceof HTMLVideoElement && entry.target.preload === "none") {
+              entry.target.preload = "metadata";
+            }
+          });
+        }, { threshold: [0, 0.25, 0.5] })
+      : null;
+    const prepareNode = (node: Node) => {
+      if (!(node instanceof Element)) return;
+      const media = [
+        ...(node.matches("video, iframe[src*='youtube']") ? [node] : []),
+        ...Array.from(node.querySelectorAll("video, iframe[src*='youtube']")),
+      ];
+      media.forEach((element) => {
+        if (element instanceof HTMLVideoElement) {
+          element.playsInline = true;
+          if (element.preload === "auto") element.preload = "metadata";
+        } else if (element instanceof HTMLIFrameElement) {
+          if (element.getBoundingClientRect().top > window.innerHeight * 1.25) element.loading = "lazy";
+        }
+        observer?.observe(element);
+      });
+      node.querySelectorAll("img").forEach((image) => {
+        image.decoding = "async";
+        if (image.getBoundingClientRect().top > window.innerHeight * 1.25 && image.loading === "eager") image.loading = "lazy";
+      });
+    };
+    prepareNode(document.documentElement);
+    const mutations = new MutationObserver((records) => {
+      records.forEach((record) => record.addedNodes.forEach(prepareNode));
+    });
+    mutations.observe(document.documentElement, { childList: true, subtree: true });
+    const onVisibility = () => { if (document.visibilityState !== "visible") pauseAll(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", pauseAll);
+    window.addEventListener("beforeunload", pauseAll);
+    return () => {
+      mutations.disconnect();
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", pauseAll);
+      window.removeEventListener("beforeunload", pauseAll);
+      pauseAll();
+    };
+  }, [path]);
+
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const onMessage = (event: MessageEvent) => {

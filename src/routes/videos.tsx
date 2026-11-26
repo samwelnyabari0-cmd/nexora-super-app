@@ -40,7 +40,7 @@ export const Route = createFileRoute("/videos")({
 });
 
 function Videos() {
-  const { items, loading, error, refreshItemUrl } = useStrictMediaItems("video");
+  const { items, loading, error, refreshItemUrl, loadMediaUrl } = useStrictMediaItems("video");
   const { user } = useSession();
   const navigate = useNavigate({ from: "/videos" });
   const { post: requestedPostId } = Route.useSearch();
@@ -60,6 +60,12 @@ function Videos() {
   useEffect(() => {
     setActiveId(requestedPostId ?? null);
   }, [requestedPostId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    const item = items.find((entry) => entry.id === activeId);
+    if (item && !item.mediaSrc) void loadMediaUrl(item);
+  }, [activeId, items, loadMediaUrl]);
 
   useEffect(() => {
     let mounted = true;
@@ -416,7 +422,7 @@ function TechnologyHub() {
           {videos.length ? <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {videos.map((video) => <article key={video.id} className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
               <div className="relative aspect-video bg-black">
-                {playingVideoId === video.provider_id ? <iframe title={video.match_label} src={"https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0"} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen className="h-full w-full" /> : <button type="button" onClick={() => setPlayingVideoId(video.provider_id)} aria-label={"Play " + video.match_label} className="group relative h-full w-full">
+                {playingVideoId === video.provider_id ? <iframe title={video.match_label} src={"https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0&enablejsapi=1&origin=" + encodeURIComponent(window.location.origin)} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen className="h-full w-full" /> : <button type="button" onClick={() => setPlayingVideoId(video.provider_id)} aria-label={"Play " + video.match_label} className="group relative h-full w-full">
                   <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + encodeURIComponent(video.provider_id) + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
                   <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/35"><span className="grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg"><Play className="h-6 w-6 fill-current" /></span></span>
                 </button>}

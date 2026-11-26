@@ -52,7 +52,7 @@ function ComedyVideoCard({ video }: { video: ComedyVideo }) {
     <article className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="relative aspect-video bg-black">
         {playing ? (
-          <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0"}
+          <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0&enablejsapi=1&origin=" + encodeURIComponent(window.location.origin)}
             title={video.match_label} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
         ) : (

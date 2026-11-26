@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Film, Play, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getFreshR2MediaPlaybackUrl } from "@/lib/r2-media-playback";
@@ -52,6 +52,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const attemptedRefresh = useRef(new Set<string>());
+  const pendingMediaUrls = useRef(new Map<string, Promise<string | undefined>>());
 
   const refreshItemUrl = async (
     item: StrictMediaItem,
@@ -86,7 +87,7 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
         .select("id, user_id, caption, media_url, media_type, thumbnail_url, media_storage_provider, media_storage_key, thumbnail_storage_provider, thumbnail_storage_key, content_type, aspect_ratio, framing_aspect_ratio, focal_x, focal_y, zoom, dominant_color, duration_seconds, created_at, like_count, comment_count, share_count, repost_count, view_count")
         .eq("content_type", contentType)
         .order("created_at", { ascending: false })
-        .limit(80);
+        .limit(48);
       if (userId) query = query.eq("user_id", userId);
       else query = query.eq("audience", "public");
 
@@ -98,16 +99,35 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
         setLoading(false);
         return;
       }
-      const hydrated = await Promise.all((data ?? []).map(async (row: StrictMediaItem) => {
-        const [mediaSrc, thumbnailSrc] = await Promise.all([
-          resolveStorageUrl(row.media_url, row.id, "media", row.media_storage_provider, row.media_storage_key),
-          resolveStorageUrl(row.thumbnail_url, row.id, "thumbnail", row.thumbnail_storage_provider, row.thumbnail_storage_key),
-        ]);
-        return { ...row, mediaSrc, thumbnailSrc };
+      // Render database rows immediately. Resolve thumbnails in small batches;
+      // fetch full-resolution media only when a viewer actually opens an item.
+      const rows = (data ?? []) as StrictMediaItem[];
+      const initialItems = rows.map((row) => ({
+        ...row,
+        mediaSrc: row.media_storage_provider !== "r2" && /^https?:\/\//i.test(row.media_url ?? "")
+          ? row.media_url ?? undefined : undefined,
+        thumbnailSrc: row.thumbnail_storage_provider !== "r2" && /^https?:\/\//i.test(row.thumbnail_url ?? "")
+          ? row.thumbnail_url ?? undefined : undefined,
       }));
       if (!active) return;
-      setItems(hydrated);
+      setItems(initialItems);
       setLoading(false);
+
+      for (let offset = 0; offset < initialItems.length; offset += 8) {
+        const batch = initialItems.slice(offset, offset + 8);
+        const resolved = await Promise.all(batch.map(async (item) => ({
+          id: item.id,
+          thumbnailSrc: item.thumbnailSrc || (!item.thumbnail_url && !item.thumbnail_storage_key ? undefined : await resolveStorageUrl(
+            item.thumbnail_url, item.id, "thumbnail",
+            item.thumbnail_storage_provider, item.thumbnail_storage_key,
+          )),
+        })));
+        if (!active) return;
+        const byId = new Map(resolved.map((entry) => [entry.id, entry.thumbnailSrc]));
+        setItems((current) => current.map((item) =>
+          byId.get(item.id) ? { ...item, thumbnailSrc: byId.get(item.id) } : item,
+        ));
+      }
     })().catch(() => {
       if (active) {
         setError("This feed is temporarily unavailable.");
@@ -117,7 +137,30 @@ export function useStrictMediaItems(contentType: StrictFeedType, userId?: string
     return () => { active = false; };
   }, [contentType, userId, enabled]);
 
-  return { items, loading, error, refreshItemUrl };
+  const loadMediaUrl = useCallback(async (item: StrictMediaItem) => {
+    if (item.mediaSrc) return item.mediaSrc;
+    const pending = pendingMediaUrls.current.get(item.id);
+    if (pending) return pending;
+    const request = resolveStorageUrl(
+      item.media_url, item.id, "media",
+      item.media_storage_provider, item.media_storage_key,
+    );
+    pendingMediaUrls.current.set(item.id, request);
+    let mediaSrc: string | undefined;
+    try {
+      mediaSrc = await request;
+    } finally {
+      pendingMediaUrls.current.delete(item.id);
+    }
+    if (mediaSrc) {
+      setItems((current) => current.map((entry) =>
+        entry.id === item.id ? { ...entry, mediaSrc } : entry,
+      ));
+    }
+    return mediaSrc;
+  }, []);
+
+  return { items, loading, error, refreshItemUrl, loadMediaUrl };
 }
 
 export function StrictMediaGrid({ contentType, userId }: { contentType: StrictFeedType; userId?: string }) {

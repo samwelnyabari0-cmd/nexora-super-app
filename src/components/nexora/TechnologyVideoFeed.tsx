@@ -38,7 +38,7 @@ export function useTechnologyCreatorVideos(limit = 12) {
 
 export function TechnologyVideoCard({ video }: { video: TechnologyCreatorVideo }) {
   const [playing, setPlaying] = useState(false);
-  const embedUrl = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0";
+  const embedUrl = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0&enablejsapi=1&origin=" + encodeURIComponent(window.location.origin);
   const thumbnail = video.thumbnail_url || "https://i.ytimg.com/vi/" + encodeURIComponent(video.provider_id) + "/hqdefault.jpg";
   return (
     <article className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
