@@ -330,7 +330,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
 };
   const startCall = async (callee: string, kind: "audio" | "video") => {
     const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
-    if (error) toast.error("You can only call accepted contacts.");
+    if (error) toast.error("Calls require an accepted contact, and neither person can already be in another call.");
     void load();
   };
 
