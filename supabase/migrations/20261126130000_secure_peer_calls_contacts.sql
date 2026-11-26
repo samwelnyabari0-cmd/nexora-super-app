@@ -189,7 +189,7 @@ create policy contacts_remove on public.contacts
     and status <> 'blocked'
   );
 
-create or replace function public.are_contacts(a uuid, b uuid)
+create or replace function private.are_contacts(a uuid, b uuid)
 returns boolean
 language sql
 stable
@@ -207,7 +207,7 @@ as $$
     );
 $$;
 
-create or replace function public.search_directory(q text)
+create or replace function private.search_directory(q text)
 returns table (id uuid, display_name text, handle text, avatar_url text)
 language sql
 stable
@@ -230,7 +230,7 @@ as $$
   limit 20;
 $$;
 
-create or replace function public.contact_names(ids uuid[])
+create or replace function private.contact_names(ids uuid[])
 returns table (id uuid, display_name text, handle text)
 language sql
 stable
@@ -255,7 +255,7 @@ as $$
     );
 $$;
 
-create or replace function public.redeem_invite(code text)
+create or replace function private.redeem_invite(code text)
 returns uuid
 language plpgsql
 security definer
@@ -313,7 +313,7 @@ begin
 end;
 $$;
 
-create or replace function public.block_contact(p_other_user_id uuid)
+create or replace function private.block_contact(p_other_user_id uuid)
 returns boolean
 language plpgsql
 security definer
@@ -354,7 +354,7 @@ begin
 end;
 $$;
 
-create or replace function public.unblock_contact(p_other_user_id uuid)
+create or replace function private.unblock_contact(p_other_user_id uuid)
 returns boolean
 language plpgsql
 security definer
@@ -378,7 +378,7 @@ begin
 end;
 $$;
 
-create or replace function public.rotate_contact_invite()
+create or replace function private.rotate_contact_invite()
 returns text
 language plpgsql
 security definer
@@ -403,6 +403,64 @@ begin
   return new_code;
 end;
 $$;
+
+-- Keep PostgREST-facing RPCs as SECURITY INVOKER wrappers. The privileged
+-- implementations live in the non-exposed private schema.
+create or replace function public.are_contacts(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security invoker
+set search_path = ''
+as $ select private.are_contacts(a, b); $;
+
+create or replace function public.search_directory(q text)
+returns table (id uuid, display_name text, handle text, avatar_url text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $ select * from private.search_directory(q); $;
+
+create or replace function public.contact_names(ids uuid[])
+returns table (id uuid, display_name text, handle text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $ select * from private.contact_names(ids); $;
+
+create or replace function public.redeem_invite(code text)
+returns uuid
+language sql
+volatile
+security invoker
+set search_path = ''
+as $ select private.redeem_invite(code); $;
+
+create or replace function public.block_contact(p_other_user_id uuid)
+returns boolean
+language sql
+volatile
+security invoker
+set search_path = ''
+as $ select private.block_contact(p_other_user_id); $;
+
+create or replace function public.unblock_contact(p_other_user_id uuid)
+returns boolean
+language sql
+volatile
+security invoker
+set search_path = ''
+as $ select private.unblock_contact(p_other_user_id); $;
+
+create or replace function public.rotate_contact_invite()
+returns text
+language sql
+volatile
+security invoker
+set search_path = ''
+as $ select private.rotate_contact_invite(); $;
 
 create or replace function private.guard_profile_invite_code()
 returns trigger
@@ -514,6 +572,14 @@ grant select, insert, update, delete on public.contacts to authenticated;
 grant select, insert, update on public.call_invites to authenticated;
 grant all on public.contacts, public.call_invites to service_role;
 
+revoke all on function private.are_contacts(uuid, uuid) from public, anon;
+revoke all on function private.search_directory(text) from public, anon;
+revoke all on function private.contact_names(uuid[]) from public, anon;
+revoke all on function private.redeem_invite(text) from public, anon;
+revoke all on function private.block_contact(uuid) from public, anon;
+revoke all on function private.unblock_contact(uuid) from public, anon;
+revoke all on function private.rotate_contact_invite() from public, anon;
+
 revoke all on function public.are_contacts(uuid, uuid) from public, anon;
 revoke all on function public.search_directory(text) from public, anon;
 revoke all on function public.contact_names(uuid[]) from public, anon;
@@ -521,6 +587,14 @@ revoke all on function public.redeem_invite(text) from public, anon;
 revoke all on function public.block_contact(uuid) from public, anon;
 revoke all on function public.unblock_contact(uuid) from public, anon;
 revoke all on function public.rotate_contact_invite() from public, anon;
+
+grant execute on function private.are_contacts(uuid, uuid) to authenticated;
+grant execute on function private.search_directory(text) to authenticated;
+grant execute on function private.contact_names(uuid[]) to authenticated;
+grant execute on function private.redeem_invite(text) to authenticated;
+grant execute on function private.block_contact(uuid) to authenticated;
+grant execute on function private.unblock_contact(uuid) to authenticated;
+grant execute on function private.rotate_contact_invite() to authenticated;
 
 grant execute on function public.are_contacts(uuid, uuid) to authenticated;
 grant execute on function public.search_directory(text) to authenticated;
