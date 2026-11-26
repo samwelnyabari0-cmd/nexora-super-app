@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { CallSession, type CallInvite } from "@/components/nexora/CallSession";
@@ -13,8 +13,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const { user, ready } = useSession();
   const [invite, setInvite] = useState<CallInvite | null>(null);
   const [other, setOther] = useState<CallPerson | undefined>();
+  const requestId = useRef(0);
 
   const loadActiveCall = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     if (!ready || !user?.id) {
       setInvite(null);
       setOther(undefined);
@@ -29,6 +31,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       .order("created_at", { ascending: false })
       .limit(1);
 
+    if (currentRequest !== requestId.current) return;
     if (error) {
       console.warn("NEXORA could not refresh the active call:", error);
       return;
@@ -47,6 +50,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       ids: [otherId],
     });
 
+    if (currentRequest !== requestId.current) return;
     if (!namesError) {
       setOther((people?.[0] as CallPerson | undefined) ?? undefined);
     }
@@ -78,6 +82,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
+      requestId.current += 1;
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
