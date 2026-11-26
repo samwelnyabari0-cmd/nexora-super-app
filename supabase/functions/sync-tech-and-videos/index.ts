@@ -25,7 +25,7 @@ type TechVideoRow = {
 
 const TECH_RSS = [
   { name: "The Verge AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml", hosts: ["theverge.com"] },
-  { name: "TechCrunch Startups", url: "https://techcrunch.com/startups/feed/", hosts: ["techcrunch.com"] },
+  { name: "TechCrunch Startups", url: "https://techcrunch.com/category/startups/feed/", hosts: ["techcrunch.com"] },
   { name: "Ars Technica Tech Lab", url: "https://feeds.arstechnica.com/arstechnica/technology-lab", hosts: ["arstechnica.com"] },
   { name: "Cloudflare Engineering", url: "https://blog.cloudflare.com/rss/", hosts: ["blog.cloudflare.com", "cloudflare.com"] },
   { name: "OpenAI Engineering", url: "https://openai.com/news/engineering/rss.xml", hosts: ["openai.com"] },
