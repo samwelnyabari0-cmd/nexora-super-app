@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { FootballCentre } from "./FootballCentre";
+import { FootballCentre } from "./FootballCentre";
 
 type SportKey = "all" | "football" | "nba" | "nfl" | "mlb" | "nhl" | "f1" | "rugby" | "mma" | "cricket" | "tennis";
 type NewsRow = {
@@ -231,6 +232,7 @@ export function MultiSportHub() {
         </article>)}
       </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading cached scores…" : activeSport === "tennis" ? "No tennis matches are live right now, or the tennis feed key has not been connected yet." : "No cached fixtures or live scores are available right now."}</p>}
     </div>
+    {activeSport === "football" && <FootballCentre />}
     {activeSport === "football" && <FootballCentre />}
     {activeSport === "f1" && <section aria-label="Formula 1 championship centre" className="space-y-3 rounded-xl border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
