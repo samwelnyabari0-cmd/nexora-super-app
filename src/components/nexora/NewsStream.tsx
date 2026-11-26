@@ -24,19 +24,20 @@ const NEWS_PROVIDERS = [
   "entertainment-bbc-rss", "science-bbc-rss", "health-bbc-rss",
   "kenya-politics-google-news-rss", "kenya-sports-google-news-rss",
   "kenya-business-google-news-rss", "kenya-entertainment-google-news-rss",
-  "trending-google-news-rss", "tech-rss",
+  "trending-google-news-rss", "tech-rss", "video-world-bbc", "video-world-aljazeera",\n  "video-kenya-citizen", "video-kenya-ktn", "video-kenya-ntv", "video-sports-premier-league",
 ];
 
-function categoryForProvider(provider: string) {
-  if (provider.includes("sport")) return "Sports";
-  if (provider.includes("politics")) return "Politics";
-  if (provider.includes("business")) return "Business";
-  if (provider.includes("entertainment")) return "Entertainment";
-  if (provider.includes("science")) return "Science";
-  if (provider.includes("health")) return "Health";
+function categoryForProvider(provider: string, headline = "", summary = "") {
+  const text = (headline + " " + summary).toLowerCase();
+  if (provider.includes("sport") || /\\b(match|football|premier league|champions league|athletics|rugby|cricket|tennis|basketball|goal|coach|tournament)\\b/.test(text)) return "Sports";
+  if (provider.includes("politics") || /\\b(election|parliament|president|prime minister|governor|senator|mp |political|politics|government|cabinet|campaign)\\b/.test(text)) return "Politics";
+  if (provider.includes("business") || /\\b(business|economy|economic|market|stocks|bank|trade|company|companies|inflation|jobs)\\b/.test(text)) return "Business";
+  if (provider.includes("entertainment") || /\\b(entertainment|celebrity|film|movie|music|artist|actor|actress|concert|tv show)\\b/.test(text)) return "Entertainment";
+  if (provider.includes("science") || /\\b(science|research|space|nasa|climate|environment|discovery)\\b/.test(text)) return "Science";
+  if (provider.includes("health") || /\\b(health|hospital|medical|medicine|disease|doctor|vaccine)\\b/.test(text)) return "Health";
   if (provider.includes("trending")) return "Trending";
-  if (provider === "tech-rss") return "Technology";
-  if (provider.startsWith("kenya-")) return "Kenya";
+  if (provider.includes("tech") || /\\b(technology|tech|artificial intelligence| AI |software|cybersecurity|gadget)\\b/.test(text)) return "Technology";
+  if (provider.includes("video-kenya") || provider.startsWith("kenya-")) return "Kenya";
   return "World";
 }
 
@@ -63,7 +64,7 @@ export function useNewsStories(limit = 80) {
         return;
       }
       setStories((data ?? []).map((row: Omit<NewsStory, "category">) => ({
-        ...row, category: categoryForProvider(row.provider),
+        ...row, category: categoryForProvider(row.provider, row.headline, row.summary ?? ""),
       })));
     };
     void load();
