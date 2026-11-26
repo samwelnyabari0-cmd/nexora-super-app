@@ -121,6 +121,10 @@ begin
     raise exception 'Anonymous clients must not execute private contact implementations';
   end if;
 
+  if has_function_privilege('authenticated', 'private.lock_contact_pair(uuid, uuid)', 'EXECUTE') then
+    raise exception 'Pair-lock helper must remain internal to privileged database functions';
+  end if;
+
   select pg_get_functiondef('private.call_invite_guard()'::regprocedure)
     into v_definition;
   if position('immutable' in lower(v_definition)) = 0
