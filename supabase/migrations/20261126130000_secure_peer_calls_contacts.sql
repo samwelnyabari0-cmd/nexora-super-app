@@ -93,16 +93,21 @@ language plpgsql
 volatile
 security definer
 set search_path = ''
-as $
+as $lock$
 begin
   if auth.uid() is null or a is null or b is null or a = b
     or auth.uid() not in (a, b) then
     raise exception 'not authorized to lock this contact pair';
   end if;
 
-  perform private.lock_contact_pair(a, b);
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(least(a::text, b::text), 0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(greatest(a::text, b::text), 0)
+  );
 end;
-$;
+$lock$;
 
 grant execute on function private.lock_contact_pair(uuid, uuid) to authenticated;
 revoke all on function private.lock_contact_pair(uuid, uuid) from anon, public;
@@ -113,7 +118,7 @@ language plpgsql
 volatile
 security definer
 set search_path = ''
-as $
+as $request$
 begin
   if auth.uid() is distinct from a or a is null or b is null or a = b then
     return false;
@@ -129,7 +134,7 @@ begin
         and c.status in ('pending', 'accepted', 'blocked')
     );
 end;
-$;
+$request$;
 
 grant execute on function private.is_blocked_pair(uuid, uuid) to authenticated;
 grant execute on function private.can_request_contact(uuid, uuid) to authenticated;
@@ -142,7 +147,7 @@ language plpgsql
 volatile
 security definer
 set search_path = ''
-as $
+as $start$
 begin
   if auth.uid() is null or auth.uid() is distinct from a
     or a is null or b is null or a = b then
@@ -151,12 +156,7 @@ begin
 
   -- Lock both participants in a stable order so simultaneous calls cannot
   -- create overlapping active sessions for either person.
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(least(a::text, b::text), 0)
-  );
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(greatest(a::text, b::text), 0)
-  );
+  perform private.lock_contact_pair(a, b);
 
   return not private.is_blocked_pair(a, b)
     and exists (
@@ -171,7 +171,7 @@ begin
         and (ci.caller in (a, b) or ci.callee in (a, b))
     );
 end;
-$;
+$start$;
 
 grant execute on function private.can_start_call(uuid, uuid) to authenticated;
 revoke all on function private.can_start_call(uuid, uuid) from anon, public;
@@ -445,7 +445,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $ select private.are_contacts(a, b); $;
+as $rpc$ select private.are_contacts(a, b); $rpc$;
 
 create or replace function public.search_directory(q text)
 returns table (id uuid, display_name text, handle text, avatar_url text)
@@ -453,7 +453,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $ select * from private.search_directory(q); $;
+as $rpc$ select * from private.search_directory(q); $rpc$;
 
 create or replace function public.contact_names(ids uuid[])
 returns table (id uuid, display_name text, handle text)
@@ -461,7 +461,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $ select * from private.contact_names(ids); $;
+as $rpc$ select * from private.contact_names(ids); $rpc$;
 
 create or replace function public.redeem_invite(code text)
 returns uuid
@@ -469,7 +469,7 @@ language sql
 volatile
 security invoker
 set search_path = ''
-as $ select private.redeem_invite(code); $;
+as $rpc$ select private.redeem_invite(code); $rpc$;
 
 create or replace function public.block_contact(p_other_user_id uuid)
 returns boolean
@@ -477,7 +477,7 @@ language sql
 volatile
 security invoker
 set search_path = ''
-as $ select private.block_contact(p_other_user_id); $;
+as $rpc$ select private.block_contact(p_other_user_id); $rpc$;
 
 create or replace function public.unblock_contact(p_other_user_id uuid)
 returns boolean
@@ -485,7 +485,7 @@ language sql
 volatile
 security invoker
 set search_path = ''
-as $ select private.unblock_contact(p_other_user_id); $;
+as $rpc$ select private.unblock_contact(p_other_user_id); $rpc$;
 
 create or replace function public.rotate_contact_invite()
 returns text
@@ -493,7 +493,7 @@ language sql
 volatile
 security invoker
 set search_path = ''
-as $ select private.rotate_contact_invite(); $;
+as $rpc$ select private.rotate_contact_invite(); $rpc$;
 
 create or replace function private.guard_profile_invite_code()
 returns trigger
