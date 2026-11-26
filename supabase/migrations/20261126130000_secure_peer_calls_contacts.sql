@@ -370,7 +370,7 @@ create or replace function private.guard_profile_invite_code()
 returns trigger
 language plpgsql
 set search_path = ''
-as $
+as $guard$
 begin
   if new.invite_code is distinct from old.invite_code
     and current_user not in ('postgres', 'service_role') then
@@ -378,7 +378,7 @@ begin
   end if;
   return new;
 end;
-$;
+$guard$;
 
 drop trigger if exists profiles_invite_code_guard on public.profiles;
 create trigger profiles_invite_code_guard
