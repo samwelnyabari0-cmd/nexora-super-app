@@ -899,6 +899,16 @@ Deno.serve(async (request: Request) => {
     sourceResults.Tennis = { ok: false, error: error instanceof Error ? error.message : "Tennis sync failed" };
   }
   let highlightRows: HighlightItem[] = [];
+  let comedyJokeRows: NewsItem[] = [];
+  let comedyVideoRows: HighlightItem[] = [];
+  try {
+    const comedy = await syncComedyContent();
+    comedyJokeRows = comedy.jokeRows;
+    comedyVideoRows = comedy.videoRows;
+    Object.assign(sourceResults, comedy.sources);
+  } catch (error) {
+    sourceResults.Comedy = { ok: false, error: error instanceof Error ? error.message : "Comedy sync failed" };
+  }
   const newsResults = await Promise.allSettled(NEWS_FEEDS.map(async (source) => {
     const xml = await fetchFeed(source.url);
     return { source, rows: parseNewsFeed(xml, source) };
@@ -997,8 +1007,19 @@ Deno.serve(async (request: Request) => {
     }
   }
   try {
-    await upsertRows("football_announcements", newsRows, serviceKey);
-    await upsertRows("football_highlights", highlightRows, serviceKey);
+    await upsertRows("football_announcements", [...newsRows, ...comedyJokeRows], serviceKey);
+    await upsertRows("football_highlights", [...highlightRows, ...comedyVideoRows], serviceKey);
+    const comedyCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    for (const provider of ["comedy-jokeapi", "comedy-dadjokes", "comedy-reddit"]) {
+      await restRequest(
+        "football_announcements?provider=eq." + provider + "&published_at=lt." + encodeURIComponent(comedyCutoff),
+        serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
+      );
+    }
+    await restRequest(
+      "football_highlights?provider=eq.youtube-comedy&published_at=lt." + encodeURIComponent(comedyCutoff),
+      serviceKey, { method: "DELETE", headers: { Prefer: "return=minimal" } },
+    );
     const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
     if (newsResults.some((result) => result.status === "fulfilled")) {
       await restRequest(
@@ -1022,6 +1043,7 @@ Deno.serve(async (request: Request) => {
     }, 502);
     return json({
       ok: true, newsUpdated: newsRows.length, highlightsUpdated: highlightRows.length,
+      comedyJokesUpdated: comedyJokeRows.length, comedyVideosUpdated: comedyVideoRows.length,
       sources: sourceResults, updatedAt: new Date().toISOString(),
     });
   } catch (error) {
