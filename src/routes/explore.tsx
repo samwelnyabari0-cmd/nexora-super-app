@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { normalizeMediaFraming } from "@/lib/media-framing";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { TechnologyVideoShelf } from "@/components/nexora/TechnologyVideoFeed";
+import { TechnologyNewsFeed } from "@/components/nexora/TechnologyNewsFeed";
 export const Route = createFileRoute("/explore")({
   validateSearch: (search: Record<string, unknown>) => ({
     post: typeof search.post === "string" ? search.post : "",
@@ -109,7 +110,7 @@ function Explore() {
         ))}
       </div>
       <div className="space-y-7" aria-live="polite">
-        {show("News") && <WorldNewsPanel variant="full" />}
+        {show("News") && <><WorldNewsPanel variant="full" /><TechnologyNewsFeed limit={8} /></>}
         {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
         {show("Videos") && <><section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section><TechnologyVideoShelf limit={4} /></>}
         {show("Collabs") && <section><h2 className="mb-3 text-lg font-semibold">Collabs</h2><StrictMediaGrid contentType="collab" /></section>}
