@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CallSession, type CallInvite } from "@/components/nexora/CallSession";
+import type { CallInvite } from "@/components/nexora/CallSession";
 import { Phone, PhoneOff, Video, Copy, Search, UserPlus, Check, X, Crown, Sparkles, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -317,15 +317,6 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
 
   return (
     <div className="space-y-4">
-      {active && (
-        <LiveCall
-          key={active.id}
-          invite={active}
-          userId={userId}
-          other={names[active.caller === userId ? active.callee : active.caller]}
-        />
-      )}
-
       <Panel>
         <h2 className="mb-2 font-display font-semibold">Your invite link</h2>
         <p className="text-sm text-muted-foreground">
