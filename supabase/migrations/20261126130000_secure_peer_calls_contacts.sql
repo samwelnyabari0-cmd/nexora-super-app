@@ -109,8 +109,7 @@ begin
 end;
 $lock$;
 
-grant execute on function private.lock_contact_pair(uuid, uuid) to authenticated;
-revoke all on function private.lock_contact_pair(uuid, uuid) from anon, public;
+revoke all on function private.lock_contact_pair(uuid, uuid) from public, anon, authenticated;
 
 create or replace function private.can_request_contact(a uuid, b uuid)
 returns boolean
