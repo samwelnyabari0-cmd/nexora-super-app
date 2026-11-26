@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { PostCard } from "@/components/nexora/PostCard";
 import { TechnologyVideoCard, useTechnologyCreatorVideos } from "@/components/nexora/TechnologyVideoFeed";
+import { TechnologyNewsCard, useTechnologyNews } from "@/components/nexora/TechnologyNewsFeed";
 import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { Avatar, Chip, EmptyState } from "@/components/nexora/ui";
@@ -45,6 +46,7 @@ function Home() {
   const { passport } = app;
   const posts = useMemo(() => app.posts.filter((post) => !muted.includes(post.creatorId)), [app.posts, muted]);
   const technologyVideos = useTechnologyCreatorVideos(8);
+  const technologyNews = useTechnologyNews(8);
   const [filter, setFilter] = useState("For you");
   const [loading, setLoading] = useState(true);
   const feedLoading = loading || app.postsLoading;
@@ -162,7 +164,9 @@ function Home() {
           ) : shown.map((post, index) => (
             <Fragment key={post.id}>
               <PostCard post={post} />
+              {index === 2 && technologyNews[0] && <TechnologyNewsCard story={technologyNews[0]} />}
               {index === 3 && technologyVideos[0] && <TechnologyVideoCard video={technologyVideos[0]} />}
+              {index === 7 && technologyNews[1] && <TechnologyNewsCard story={technologyNews[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
             </Fragment>
           ))}
