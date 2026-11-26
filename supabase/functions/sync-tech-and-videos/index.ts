@@ -36,6 +36,12 @@ const YOUTUBE_CHANNELS = [
   { name: "Marques Brownlee", channelId: "UCBJycsmduvYEL83R_U4JriQ" },
   { name: "Two Minute Papers", channelId: "UCbfYPyITQ-7l4upoX8nvctg" },
 ];
+const EDUCATION_CHANNELS = [
+  { name: "TED-Ed", channelId: "UCsooa4yRKGN_zEE8iknghZA" },
+  { name: "CrashCourse", channelId: "UCX6b17PVsYBQ0ip5gyeme-Q" },
+  { name: "3Blue1Brown", channelId: "UCYO_jab_esuFRV4b17AJtAw" },
+  { name: "Khan Academy", channelId: "UC4a-Gbdw7vOaccHmFo40b9g" },
+];
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -116,7 +122,7 @@ function parseTechRss(xml: string, source: typeof TECH_RSS[number]): TechNewsRow
   }
   return rows;
 }
-function parseYouTube(xml: string, channel: typeof YOUTUBE_CHANNELS[number]): TechVideoRow[] {
+function parseYouTube(xml: string, channel: { name: string; channelId: string }, provider = "youtube-tech"): TechVideoRow[] {
   const entries = [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map((m) => m[1]);
   const rows: TechVideoRow[] = [];
   for (const entry of entries.slice(0, 15)) {
@@ -124,7 +130,7 @@ function parseYouTube(xml: string, channel: typeof YOUTUBE_CHANNELS[number]): Te
     const headline = cleanText(tag(entry, "title"), 220);
     if (!/^[A-Za-z0-9_-]{6,20}$/.test(videoId) || !headline) continue;
     rows.push({
-      provider: "youtube-tech",
+      provider,
       provider_id: videoId,
       competition_code: "TECH",
       match_label: headline,
@@ -205,9 +211,14 @@ Deno.serve(async (request: Request) => {
     channel,
     rows: parseYouTube(await fetchXml("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId), channel),
   })));
+  const educationResults = await Promise.allSettled(EDUCATION_CHANNELS.map(async (channel) => ({
+    channel,
+    rows: parseYouTube(await fetchXml("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId), channel, "youtube-education"),
+  })));
 
   const newsRows: TechNewsRow[] = [];
   const videoRows: TechVideoRow[] = [];
+  const educationRows: TechVideoRow[] = [];
   const sources: Record<string, unknown> = {};
   for (let index = 0; index < newsResults.length; index += 1) {
     const result = newsResults[index];
@@ -227,11 +238,20 @@ Deno.serve(async (request: Request) => {
       sources[YOUTUBE_CHANNELS[index].name] = { ok: false, error: result.reason instanceof Error ? result.reason.message : "Channel feed unavailable" };
     }
   }
-  const successfulFeeds = [...newsResults, ...videoResults].filter((result) => result.status === "fulfilled").length;
+  for (let index = 0; index < educationResults.length; index += 1) {
+    const result = educationResults[index];
+    if (result.status === "fulfilled") {
+      educationRows.push(...result.value.rows);
+      sources[result.value.channel.name] = { ok: true, items: result.value.rows.length };
+    } else {
+      sources[EDUCATION_CHANNELS[index].name] = { ok: false, error: result.reason instanceof Error ? result.reason.message : "Education channel unavailable" };
+    }
+  }
+  const successfulFeeds = [...newsResults, ...videoResults, ...educationResults].filter((result) => result.status === "fulfilled").length;
   if (!successfulFeeds) return json({ ok: false, error: "All technology feeds failed.", sources }, 502);
 
   await upsert("football_announcements", newsRows, serviceKey);
-  await upsert("football_highlights", videoRows, serviceKey);
+  await upsert("football_highlights", [...videoRows, ...educationRows], serviceKey);
   const now = new Date().toISOString();
   await upsert("football_announcements", [{
     provider: "tech-sync-cache",
@@ -249,13 +269,14 @@ Deno.serve(async (request: Request) => {
   await rest("football_announcements?provider=eq.tech-rss&published_at=lt." + cutoff, serviceKey, {
     method: "DELETE", headers: { Prefer: "return=minimal" },
   });
-  await rest("football_highlights?provider=eq.youtube-tech&published_at=lt." + cutoff, serviceKey, {
+  await rest("football_highlights?provider=in.(youtube-tech,youtube-education)&published_at=lt." + cutoff, serviceKey, {
     method: "DELETE", headers: { Prefer: "return=minimal" },
   });
   return json({
     ok: true,
     technologyStoriesUpdated: newsRows.length,
     creatorVideosUpdated: videoRows.length,
+    educationVideosUpdated: educationRows.length,
     refreshMinutes: 30,
     sources,
     updatedAt: now,
