@@ -33,6 +33,7 @@ function Reels() {
   const { user } = useSession();
   const { items, loading, error, loadMediaUrl } = useStrictMediaItems("reel");
   const [comedyVideos, setComedyVideos] = useState<ComedyReelVideo[]>([]);
+  const [educationVideos, setEducationVideos] = useState<ComedyReelVideo[]>([]);
   const [comedyLoading, setComedyLoading] = useState(true);
   const [liked, setLiked] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
@@ -49,7 +50,7 @@ function Reels() {
   const [savingOfflineId, setSavingOfflineId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
-  const itemIdsKey = items.map((item) => item.id).join("|") + "::" + comedyVideos.map((item) => item.provider_id).join("|");
+  const itemIdsKey = items.map((item) => item.id).join("|") + "::" + comedyVideos.map((item) => item.provider_id).join("|") + "::edu:" + educationVideos.map((item) => item.provider_id).join("|");
 
   useEffect(() => {
     let active = true;
@@ -77,6 +78,27 @@ function Reels() {
       if (document.visibilityState === "visible") void loadComedyVideos();
     }, 15 * 60_000);
     return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadEducationVideos = async () => {
+      const { data, error: feedError } = await (supabase as any).from("football_highlights")
+        .select("provider_id,match_label,source_name,thumbnail_url,video_url,published_at")
+        .eq("provider", "youtube-education").eq("is_published", true)
+        .order("published_at", { ascending: false }).limit(18);
+      if (!active) return;
+      if (!feedError) {
+        const uniqueVideos = new Map<string, ComedyReelVideo>();
+        for (const row of (data ?? []) as ComedyReelVideo[]) {
+          const youtubeId = getYoutubeId(row.video_url);
+          if (youtubeId && !uniqueVideos.has(youtubeId)) uniqueVideos.set(youtubeId, row);
+        }
+        setEducationVideos(Array.from(uniqueVideos.values()));
+      } else console.warn("Could not load education Reels:", feedError.message);
+    };
+    void loadEducationVideos();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -141,7 +163,7 @@ function Reels() {
   }, [itemIdsKey]);
 
   useEffect(() => {
-    if (!activeReelId || activeReelId.startsWith("comedy:")) return;
+    if (!activeReelId || activeReelId.startsWith("comedy:") || activeReelId.startsWith("education:")) return;
     const item = items.find((entry) => entry.id === activeReelId);
     if (!item) return;
     if (!item.mediaSrc) {
@@ -330,6 +352,29 @@ function Reels() {
                 <p className="text-[11px] text-white/70">{formatRelativeTime(video.published_at)}</p>
               </div>
               <a href={video.video_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-8 right-4 z-30 rounded-full bg-black/70 px-3 py-2 text-[11px] font-semibold">YouTube</a>
+            </article>
+          );
+        })}
+        {educationVideos.map((video) => {
+          const reelId = "education:" + video.provider_id;
+          const id = getYoutubeId(video.video_url);
+          return (
+            <article key={reelId} data-reel-id={reelId} className="relative flex h-[100svh] min-h-[100svh] snap-start snap-always items-center justify-center bg-black">
+              {activeReelId === reelId && requestedComedyPlaybackId === reelId ? (
+                <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&mute=0&playsinline=1&controls=1&rel=0&enablejsapi=1&origin=" + encodeURIComponent(window.location.origin)}
+                  title={video.match_label} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
+              ) : (
+                <button type="button" onClick={() => { setActiveReelId(reelId); setRequestedComedyPlaybackId(reelId); }} className="absolute inset-0 grid place-items-center bg-black" aria-label={"Play lesson " + video.match_label}>
+                  <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-contain" />
+                  <span className="absolute grid h-16 w-16 place-items-center rounded-full bg-primary/90 text-white ring-1 ring-white/50"><Film className="h-7 w-7" /></span>
+                </button>
+              )}
+              <div className="pointer-events-none absolute bottom-8 left-4 right-20 z-20 space-y-2 bg-gradient-to-t from-black/75 to-transparent pb-3 pt-10">
+                <p className="text-xs font-bold text-cyan-200">EDUCATION · {video.source_name}</p>
+                <p className="text-sm font-semibold">{video.match_label}</p>
+                <p className="text-[11px] text-white/70">{formatRelativeTime(video.published_at)}</p>
+              </div>
             </article>
           );
         })}
