@@ -11,10 +11,10 @@ alter table public.profiles
   add column if not exists invite_code text;
 
 alter table public.profiles
-  alter column invite_code set default encode(public.gen_random_bytes(24), 'hex');
+  alter column invite_code set default encode(extensions.gen_random_bytes(24), 'hex');
 
 update public.profiles
-set invite_code = encode(public.gen_random_bytes(24), 'hex')
+set invite_code = encode(extensions.gen_random_bytes(24), 'hex')
 where invite_code is null;
 
 create unique index if not exists profiles_invite_code_unique
@@ -353,7 +353,7 @@ begin
     raise exception 'sign in required';
   end if;
 
-  new_code := encode(public.gen_random_bytes(24), 'hex');
+  new_code := encode(extensions.gen_random_bytes(24), 'hex');
   update public.profiles
   set invite_code = new_code
   where id = auth.uid();
