@@ -96,8 +96,12 @@ function parseTechRss(xml: string, source: typeof TECH_RSS[number]): TechNewsRow
     const rawDate = tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") || tag(block, "dc:date");
     if (!headline || !link) continue;
     const summary = cleanText(tag(block, "description") || tag(block, "summary") || tag(block, "content:encoded") || tag(block, "content"), 600);
-    const media = block.match(/<(?:media:thumbnail|media:content|enclosure)\b[^>]*(?:url|href)=["']([^"']+)["']/i)?.[1] || "";
-    const thumbnail = media ? safeUrl(media, [...source.hosts, "images.unsplash.com", "cloudfront.net"]) : null;
+    const media = block.match(/<(?:media:thumbnail|media:content|enclosure)\\b[^>]*(?:url|href)=["']([^"']+)["']/i)?.[1] || "";
+    const inlineImage = block.match(/<img\\b[^>]*(?:src|data-src)=["']([^"']+)["']/i)?.[1] || "";
+    const imageHosts = [...source.hosts, "cloudfront.net", "imgix.net", "arstechnica.net", "arstechnicacdn.net", "vox-cdn.com", "ctfassets.net", "imagedelivery.net", "wp.com"];
+    const thumbnail = [media, inlineImage]
+      .map((candidate) => candidate ? safeUrl(candidate, imageHosts) : null)
+      .find((candidate) => !!candidate) ?? null;
     rows.push({
       provider: "tech-rss",
       provider_id: link,
