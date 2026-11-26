@@ -121,6 +121,14 @@ begin
     raise exception 'Direct profile updates must not be able to rotate invite codes';
   end if;
 
+  if position('before insert' in lower(pg_get_triggerdef((
+    select oid from pg_trigger
+    where tgrelid = 'public.profiles'::regclass
+      and tgname = 'profiles_invite_code_guard' and not tgisinternal
+  )))) = 0 then
+    raise exception 'Profile inserts must receive server-generated invite tokens';
+  end if;
+
   if (select prosecdef from pg_proc
       where oid = 'private.guard_profile_invite_code()'::regprocedure) is distinct from false then
     raise exception 'Invite-code guard must inspect the actual invoking database role';
@@ -131,6 +139,11 @@ begin
   if position('current_user' in lower(v_definition)) = 0
      or position('service_role' in lower(v_definition)) = 0 then
     raise exception 'Invite-code guard must reject direct client changes and allow trusted server rotation';
+  end if;
+
+  if position('tg_op' in lower(v_definition)) = 0
+     or position('gen_random_bytes' in lower(v_definition)) = 0 then
+    raise exception 'Client profile inserts must receive a new cryptographically random invite token';
   end if;
 
   if has_function_privilege('anon', 'public.block_contact(uuid)', 'EXECUTE')
