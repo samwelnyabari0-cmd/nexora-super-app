@@ -39,7 +39,7 @@ export const Route = createFileRoute("/videos")({
 });
 
 function Videos() {
-  const { items, loading, error } = useStrictMediaItems("video");
+  const { items, loading, error, refreshItemUrl } = useStrictMediaItems("video");
   const { user } = useSession();
   const navigate = useNavigate({ from: "/videos" });
   const { post: requestedPostId } = Route.useSearch();
@@ -182,9 +182,9 @@ function Videos() {
     }
   }
 
-  if (loading && category !== "News" && category !== "Sports") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
-  if (error && category !== "News" && category !== "Sports") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!items.length && category !== "News" && category !== "Sports") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
+  if (loading && category !== "News" && category !== "Sports" && category !== "Technology") return <div className="py-16 text-center text-sm text-muted-foreground">Loading Videos…</div>;
+  if (error && category !== "News" && category !== "Sports" && category !== "Technology") return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
+  if (!items.length && category !== "News" && category !== "Sports" && category !== "Technology") return <div className="mx-auto max-w-md py-16 text-center"><Video className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Videos yet</h1><p className="mt-1 text-sm text-muted-foreground">Videos uploaded to NEXORA will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Upload a Video</Link></div>;
 
   if (activeId && !active) return <div className="mx-auto max-w-5xl py-12"><button onClick={() => void backToVideos()} className="mb-5 inline-flex items-center gap-2 text-sm font-medium"><ArrowLeft className="h-4 w-4" /> Back to Videos</button><p className="text-sm text-muted-foreground">This video is unavailable or you do not have permission to view it.</p></div>;
 
@@ -198,7 +198,7 @@ function Videos() {
         <section className="min-w-0 space-y-4">
           <div className="overflow-hidden rounded-xl bg-black">
             <div className="aspect-video">
-              {active.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls autoPlay muted playsInline onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" />}
+              {active.mediaSrc && <video key={active.id} src={active.mediaSrc} poster={active.thumbnailSrc} controls autoPlay playsInline onError={(event) => void refreshItemUrl(active, "media", event.currentTarget.currentSrc)} onPlay={() => { if (user?.id) void recordUserMediaPostView(active.id); }} className="h-full w-full object-contain" /> }
             </div>
           </div>
           <div className="space-y-3">
@@ -258,6 +258,7 @@ function Videos() {
       </nav>
       {category === "News" ? <WorldNewsPanel variant="full" /> : <>
       {category === "Sports" && <MultiSportHub />}
+      {category === "Technology" && <TechnologyHub />}
       <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{submittedSearch ? `Search results for “${submittedSearch}”` : category === "Home" ? "Recommended videos" : category}</h2><span className="text-xs text-muted-foreground">{filteredItems.length} videos</span></div>
       {filteredItems.length ? <div className="grid gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
         {filteredItems.map((item) => <button key={item.id} type="button" onClick={() => void openVideo(item.id)} className="group min-w-0 text-left">
@@ -300,4 +301,102 @@ function VideoCreatorFollow({ ownerId, profile, isSelf }: { ownerId: string | nu
     </Link>
     {!isSelf && <button type="button" disabled={social.loading} onClick={() => void social.toggleFollow()} className="rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background">{social.isFollowing ? "Following" : social.isPending ? "Requested" : "Subscribe"}</button>}
   </div>;
+}
+
+
+type TechStory = {
+  id: string;
+  source_name: string;
+  headline: string;
+  summary: string;
+  thumbnail_url: string | null;
+  source_url: string;
+  published_at: string;
+};
+type TechVideo = {
+  id: string;
+  provider_id: string;
+  match_label: string;
+  source_name: string;
+  thumbnail_url: string | null;
+  published_at: string;
+};
+
+function TechnologyHub() {
+  const [stories, setStories] = useState<TechStory[]>([]);
+  const [videos, setVideos] = useState<TechVideo[]>([]);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const [storyResult, videoResult] = await Promise.all([
+        (supabase as any).from("football_announcements")
+          .select("id,source_name,headline,summary,thumbnail_url,source_url,published_at")
+          .eq("provider", "tech-rss").eq("is_published", true)
+          .order("published_at", { ascending: false }).limit(40),
+        (supabase as any).from("football_highlights")
+          .select("id,provider_id,match_label,source_name,thumbnail_url,published_at")
+          .eq("provider", "youtube-tech").eq("is_published", true)
+          .order("published_at", { ascending: false }).limit(30),
+      ]);
+      if (!mounted) return;
+      if (storyResult.error || videoResult.error) {
+        setLoadError("Technology feeds are temporarily unavailable. Please try again shortly.");
+      } else {
+        setStories((storyResult.data ?? []) as TechStory[]);
+        setVideos((videoResult.data ?? []) as TechVideo[]);
+        setLoadError("");
+      }
+      setLoading(false);
+    };
+    void load();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 30 * 60_000);
+    const onVisibility = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  return (
+    <section aria-label="Technology updates and videos" className="space-y-6 rounded-2xl border bg-card p-3 sm:p-4">
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">NEXORA TECH</p><h2 className="text-xl font-black">Technology Updates</h2><p className="text-xs text-muted-foreground">AI, startups, engineering and new products</p></div>
+        <span className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">Free RSS feeds · refreshes every 30 min</span>
+      </header>
+      {loadError && <p role="status" className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">{loadError}</p>}
+      {loading && <p className="text-sm text-muted-foreground">Loading technology updates…</p>}
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+        {stories.slice(0, 12).map((story) => (
+          <a key={story.id} href={story.source_url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 gap-3 rounded-xl border p-3 transition hover:bg-muted/50">
+            {story.thumbnail_url ? <img src={story.thumbnail_url} alt="" loading="lazy" className="h-20 w-24 shrink-0 rounded-lg object-cover" /> : <span className="grid h-20 w-24 shrink-0 place-items-center rounded-lg bg-muted"><Cpu className="h-7 w-7 text-muted-foreground" /></span>}
+            <span className="min-w-0 flex-1"><span className="line-clamp-2 block text-sm font-bold">{story.headline}</span><span className="mt-1 block text-xs text-muted-foreground">{story.source_name} · {formatRelativeTime(story.published_at)}</span><span className="mt-1 line-clamp-2 block text-xs text-muted-foreground">{story.summary}</span></span>
+          </a>
+        ))}
+      </div>
+      {!loading && !stories.length && <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">New technology stories will appear here after the next feed sync.</p>}
+      <div className="space-y-3">
+        <div><h3 className="text-lg font-black">Tech & Creator Videos</h3><p className="text-xs text-muted-foreground">Latest public uploads from Fireship, Marques Brownlee and Two Minute Papers</p></div>
+        {videos.length ? <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {videos.map((video) => <article key={video.id} className="min-w-0 overflow-hidden rounded-xl border bg-background">
+            <div className="relative aspect-video bg-black">
+              {playingVideoId === video.provider_id ? <iframe title={video.match_label} src={"https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0"} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen className="h-full w-full" /> : <button type="button" onClick={() => setPlayingVideoId(video.provider_id)} aria-label={"Play " + video.match_label} className="group relative h-full w-full">
+                <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + encodeURIComponent(video.provider_id) + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-cover" />
+                <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/35"><span className="grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg"><Play className="h-6 w-6 fill-current" /></span></span>
+              </button>}
+            </div>
+            <div className="p-3"><h4 className="line-clamp-2 text-sm font-bold">{video.match_label}</h4><p className="mt-1 text-xs text-muted-foreground">{video.source_name} · {formatRelativeTime(video.published_at)}</p><a href={"https://www.youtube.com/watch?v=" + encodeURIComponent(video.provider_id)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-xs font-semibold text-primary">Watch on YouTube</a></div>
+          </article>)}
+        </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading creator videos…" : "Creator videos will appear here after the next feed sync."}</p>}
+      </div>
+      <p className="text-[10px] text-muted-foreground">Articles remain on their publishers’ websites. YouTube videos are embedded only after Play is tapped; Nexora does not download or re-host them.</p>
+    </section>
+  );
 }
