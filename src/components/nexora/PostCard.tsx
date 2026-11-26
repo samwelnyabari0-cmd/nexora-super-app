@@ -304,7 +304,7 @@ export function PostCard({ post }: { post: Post }) {
               }
             }}
             onError={(event) => void refreshMediaUrl(event.currentTarget.currentSrc)}
-            playsInline loop muted={videoMuted} preload="metadata"
+            playsInline loop controls muted={videoMuted} preload="metadata"
             onClick={(event) => {
               const video = event.currentTarget;
               if (video.paused) void video.play().catch(() => undefined);
