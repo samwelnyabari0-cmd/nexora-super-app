@@ -15,7 +15,7 @@ type Standing = {
   lost: number; goals_for: number; goals_against: number; goal_difference: number; points: number;
 };
 type Scorer = {
-  id: string; player_name: string; team_name: string; goals: number; assists: number; penalties: number;
+  id: string; player_name: string; team_name: string; goals: number; assists: number; penalties: number; updated_at: string;
 };
 const COMPETITIONS: Competition[] = [
   { code: "PL", label: "Premier League" },
@@ -60,11 +60,11 @@ export function FootballCentre() {
           .lte("kickoff_at", new Date(now + 45 * 24 * 60 * 60 * 1000).toISOString())
           .order("kickoff_at", { ascending: true }).limit(500),
         (supabase as any).from("football_standings")
-          .select("id,position,team_name,team_short_name,team_crest_url,played_games,won,drawn,lost,goals_for,goals_against,goal_difference,points")
+          .select("id,position,team_name,team_short_name,team_crest_url,played_games,won,drawn,lost,goals_for,goals_against,goal_difference,points,updated_at")
           .eq("provider", "football-data").eq("competition_code", competition)
           .eq("standing_type", "TOTAL").order("position", { ascending: true }).limit(50),
         (supabase as any).from("football_scorers")
-          .select("id,player_name,team_name,goals,assists,penalties")
+          .select("id,player_name,team_name,goals,assists,penalties,updated_at")
           .eq("provider", "football-data").eq("competition_code", competition)
           .order("goals", { ascending: false }).order("assists", { ascending: false }).limit(20),
       ]);
@@ -76,6 +76,8 @@ export function FootballCentre() {
       setScorers(scorerResult.error ? [] : (scorerResult.data ?? []) as Scorer[]);
       const timestamps = [
         ...((matchResult.data ?? []) as Match[]).map((row) => row.updated_at),
+        ...((tableResult.data ?? []) as Standing[]).map((row) => row.updated_at),
+        ...((scorerResult.data ?? []) as Scorer[]).map((row) => row.updated_at),
       ].filter(Boolean).sort();
       setUpdatedAt(timestamps.at(-1) ?? new Date().toISOString());
       setLoading(false);
