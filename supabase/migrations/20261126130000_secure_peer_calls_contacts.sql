@@ -615,6 +615,10 @@ create trigger call_invites_guard
 before update on public.call_invites
 for each row execute function private.call_invite_guard();
 
+-- Remove the legacy public SECURITY DEFINER trigger function if the old
+-- Drizzle migration was applied in another environment.
+drop function if exists public.call_invite_guard();
+
 revoke all on function private.call_invite_guard() from public, anon, authenticated;
 
 drop policy if exists calls_read on public.call_invites;
