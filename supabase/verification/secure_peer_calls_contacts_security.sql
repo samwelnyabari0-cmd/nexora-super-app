@@ -90,6 +90,22 @@ begin
     raise exception 'The contact identity and response guard trigger must exist';
   end if;
 
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.contacts'::regclass
+      and tgname = 'contacts_prepare_request' and not tgisinternal
+  ) then
+    raise exception 'Declined contact requests must be safely cleared before retry';
+  end if;
+
+  select pg_get_functiondef('private.prepare_contact_request()'::regprocedure)
+    into v_definition;
+  if position('auth.uid()' in lower(v_definition)) = 0
+     or position('status = ''declined''' in lower(v_definition)) = 0
+     or position('lock_contact_pair' in lower(v_definition)) = 0 then
+    raise exception 'Contact request retries must be authenticated, serialized and limited to declined rows';
+  end if;
+
   select pg_get_functiondef('private.contact_guard()'::regprocedure)
     into v_definition;
   if position('identity is immutable' in lower(v_definition)) = 0
