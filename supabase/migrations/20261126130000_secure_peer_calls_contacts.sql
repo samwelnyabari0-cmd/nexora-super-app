@@ -175,6 +175,38 @@ $start$;
 grant execute on function private.can_start_call(uuid, uuid) to authenticated;
 revoke all on function private.can_start_call(uuid, uuid) from anon, public;
 
+create or replace function private.contact_guard()
+returns trigger
+language plpgsql
+set search_path = ''
+as $contact$
+begin
+  if new.id is distinct from old.id
+    or new.requester is distinct from old.requester
+    or new.addressee is distinct from old.addressee
+    or new.created_at is distinct from old.created_at then
+    raise exception 'contact request identity is immutable';
+  end if;
+
+  if old.status <> 'pending' or auth.uid() is distinct from old.addressee then
+    raise exception 'only the recipient can respond to a pending contact request';
+  end if;
+
+  if new.status not in ('accepted', 'declined') or new.blocked_by is not null then
+    raise exception 'invalid contact request transition';
+  end if;
+
+  return new;
+end;
+$contact$;
+
+drop trigger if exists contacts_guard on public.contacts;
+create trigger contacts_guard
+before update on public.contacts
+for each row execute function private.contact_guard();
+
+revoke all on function private.contact_guard() from public, anon, authenticated;
+
 drop policy if exists contacts_read on public.contacts;
 create policy contacts_read on public.contacts
   for select to authenticated
@@ -323,7 +355,7 @@ begin
   values (owner_id, auth.uid(), 'accepted', null)
   on conflict (requester, addressee)
   do update set status = 'accepted', blocked_by = null
-  where existing_contact.status <> 'blocked';
+  where existing_contact.status in ('pending', 'declined');
 
   if not exists (
     select 1 from public.contacts c
@@ -522,10 +554,12 @@ security definer
 set search_path = ''
 as $$
 begin
-  if new.caller is distinct from old.caller
+  if new.id is distinct from old.id
+    or new.created_at is distinct from old.created_at
+    or new.caller is distinct from old.caller
     or new.callee is distinct from old.callee
     or new.kind is distinct from old.kind then
-    raise exception 'call participants and kind are immutable';
+    raise exception 'call identity, participants and kind are immutable';
   end if;
 
   if old.status not in ('ringing', 'accepted') then
