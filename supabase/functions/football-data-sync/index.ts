@@ -225,6 +225,8 @@ Deno.serve(async (request: Request) => {
     const dateTo = shiftDate(today, 45);
     const codes = COMPETITIONS.map((competition) => competition.code).join(",");
     const matches: FootballDataMatch[] = [];
+    const syncWarnings: string[] = [];
+    let matchWindowsSucceeded = 0;
     let windowStart = dateFrom;
 
     // The provider limits match date-range queries. Fetch the requested 59-day
@@ -236,9 +238,16 @@ Deno.serve(async (request: Request) => {
         dateTo: windowEnd,
         competitions: codes,
       });
-      const matchPayload = await providerRequest(`matches?${matchParams.toString()}`, apiToken);
-      if (Array.isArray(matchPayload?.matches)) {
-        matches.push(...matchPayload.matches as FootballDataMatch[]);
+      try {
+        const matchPayload = await providerRequest(`matches?${matchParams.toString()}`, apiToken);
+        if (Array.isArray(matchPayload?.matches)) {
+          matches.push(...matchPayload.matches as FootballDataMatch[]);
+        }
+        matchWindowsSucceeded += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Match window unavailable";
+        syncWarnings.push(`Fixtures ${windowStart} to ${windowEnd}: ${message}`);
+        console.warn("Football fixtures window skipped", windowStart, windowEnd, error);
       }
       windowStart = windowEnd;
     }
@@ -256,21 +265,29 @@ Deno.serve(async (request: Request) => {
     }
 
     let standingsUpdated = 0;
+    let standingsCompetitionsSucceeded = 0;
     for (let index = 0; index < COMPETITIONS.length; index += 1) {
       const competition = COMPETITIONS[index];
-      const payload = await providerRequest(`competitions/${competition.code}/standings`, apiToken) as FootballDataStandings;
-      const rows = normalizeStandings(payload, competition, updatedAt);
-      if (!rows.length) continue;
-      await restRequest(
-        "football_standings?on_conflict=provider,competition_code,season_id,standing_type,group_name,position",
-        serviceKey,
-        {
-          method: "POST",
-          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-          body: JSON.stringify(rows),
-        },
-      );
-      standingsUpdated += rows.length;
+      try {
+        const payload = await providerRequest(`competitions/${competition.code}/standings`, apiToken) as FootballDataStandings;
+        standingsCompetitionsSucceeded += 1;
+        const rows = normalizeStandings(payload, competition, updatedAt);
+        if (!rows.length) continue;
+        await restRequest(
+          "football_standings?on_conflict=provider,competition_code,season_id,standing_type,group_name,position",
+          serviceKey,
+          {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+            body: JSON.stringify(rows),
+          },
+        );
+        standingsUpdated += rows.length;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Standings unavailable";
+        syncWarnings.push(`${competition.name} table: ${message}`);
+        console.warn("Football standings refresh skipped for " + competition.code, error);
+      }
     }
 
     // Refresh scorer endpoints at most once per Nairobi calendar day per competition.
@@ -297,7 +314,22 @@ Deno.serve(async (request: Request) => {
         await restRequest("football_scorer_sync_runs?on_conflict=competition_code", serviceKey, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ competition_code: competition.code, attempted_at: updatedAt, last_error: String(scorerError).slice(0, 500) }) }).catch(() => undefined);
       }
     }
-    return json({ ok: true, provider: PROVIDER, fixturesAndResultsUpdated: matchRows.length, standingsRowsUpdated: standingsUpdated, scorerRowsUpdated, scorerCompetitionsRefreshed, competitions: COMPETITIONS.map((competition) => competition.code), updatedAt });
+    if (matchWindowsSucceeded === 0 && standingsCompetitionsSucceeded === 0 && scorerCompetitionsRefreshed === 0) {
+      return json({ ok: false, error: "All football data requests failed; previously cached data was left unchanged.", warnings: syncWarnings }, 502);
+    }
+    return json({
+      ok: true,
+      provider: PROVIDER,
+      fixturesAndResultsUpdated: matchRows.length,
+      matchWindowsSucceeded,
+      standingsRowsUpdated: standingsUpdated,
+      standingsCompetitionsSucceeded,
+      scorerRowsUpdated,
+      scorerCompetitionsRefreshed,
+      warnings: syncWarnings,
+      competitions: COMPETITIONS.map((competition) => competition.code),
+      updatedAt,
+    });
   } catch (error) {
     console.error("Arena football data sync failed", error);
     return json({ error: "Arena football data sync failed; previously cached data was left unchanged." }, 500);

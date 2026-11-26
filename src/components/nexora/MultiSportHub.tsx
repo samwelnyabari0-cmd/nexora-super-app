@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { FootballCentre } from "./FootballCentre";
+import { FootballCentre } from "./FootballCentre";
 
 type SportKey = "all" | "football" | "nba" | "nfl" | "mlb" | "nhl" | "f1" | "rugby" | "mma" | "cricket" | "tennis";
 type NewsRow = {
@@ -77,7 +79,7 @@ const SPORTS: { key: SportKey; label: string; icon: string; terms: RegExp }[] = 
   { key: "cricket", label: "Cricket", icon: "🏏", terms: /cricket|icc|ipl|t20|test match|ashes|odi|wicket|virat kohli|world cup/i },
   { key: "tennis", label: "Tennis", icon: "🎾", terms: /tennis|atp|wta|wimbledon|us open|french open|australian open|grand slam|djokovic|alcaraz|swiatek/i },
 ];
-const SCORE_PROVIDERS = ["sportscore", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1", "rugbyapi", "ufcalendar-mma", "espn-cricket", "livetennisapi"];
+const SCORE_PROVIDERS = ["football-data", "sportscore", "espn-nba", "espn-nfl", "espn-mlb", "espn-nhl", "jolpica-f1", "rugbyapi", "ufcalendar-mma", "espn-cricket", "livetennisapi"];
 const F1_API = "https://api.jolpi.ca/ergast/f1";
 function relativeTime(value: string) {
   const date = new Date(value);
@@ -125,8 +127,8 @@ export function MultiSportHub() {
           .eq("is_published", true)
           .in("provider", SCORE_PROVIDERS)
           .gte("kickoff_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-          .lte("kickoff_at", new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString())
-          .order("kickoff_at", { ascending: true }).limit(120),
+          .lte("kickoff_at", new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString())
+          .order("kickoff_at", { ascending: true }).limit(500),
       ]);
       if (!mounted) return;
       setNews(newsResult.error ? [] : (newsResult.data ?? []) as NewsRow[]);
@@ -190,7 +192,7 @@ export function MultiSportHub() {
     ? news
     : news.filter((item) => selected.terms.test(item.headline + " " + item.summary)), [activeSport, news, selected]);
   const filteredMatches = useMemo(() => {
-    const provider = activeSport === "all" ? null : activeSport === "football" ? "sportscore"
+    const provider = activeSport === "all" ? null : activeSport === "football" ? "football-data"
       : activeSport === "nba" ? "espn-nba"
       : activeSport === "nfl" ? "espn-nfl"
       : activeSport === "mlb" ? "espn-mlb"
@@ -230,6 +232,8 @@ export function MultiSportHub() {
         </article>)}
       </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading cached scores…" : activeSport === "tennis" ? "No tennis matches are live right now, or the tennis feed key has not been connected yet." : "No cached fixtures or live scores are available right now."}</p>}
     </div>
+    {activeSport === "football" && <FootballCentre />}
+    {activeSport === "football" && <FootballCentre />}
     {activeSport === "f1" && <section aria-label="Formula 1 championship centre" className="space-y-3 rounded-xl border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h3 className="font-black">Formula 1 Championship Centre</h3><p className="text-xs text-muted-foreground">{new Date().getUTCFullYear()} season · Qualifying, race classification and standings</p></div>
