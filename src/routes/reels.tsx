@@ -42,7 +42,7 @@ function Reels() {
   const [creatorProfiles, setCreatorProfiles] = useState<Record<string, { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }>>({});
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const [playBlockedId, setPlayBlockedId] = useState<string | null>(null);
-  const [mutedReels, setMutedReels] = useState<Record<string, boolean>>({});
+  const [isMuted, setIsMuted] = useState(true);
   const [requestedComedyPlaybackId, setRequestedComedyPlaybackId] = useState<string | null>(null);
   const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -151,12 +151,12 @@ function Reels() {
     const activeVideo = videoRefs.current.get(activeReelId);
     videoRefs.current.forEach((video, id) => { if (id !== activeReelId) video.pause(); });
     if (!activeVideo) return;
-    activeVideo.muted = mutedReels[activeReelId] ?? true;
+    activeVideo.muted = isMuted;
     void activeVideo.play().then(() => setPlayBlockedId(null)).catch(() => {
       // Do not silently mute when mobile autoplay with sound is blocked.
       setPlayBlockedId(activeReelId);
     });
-  }, [activeReelId, items, loadMediaUrl, mutedReels]);
+  }, [activeReelId, items, loadMediaUrl, isMuted]);
 
   async function toggleLike(postId: string) {
     if (!user) return toast.error("Sign in to like Reels.");
@@ -252,7 +252,7 @@ function Reels() {
                 controls
                 playsInline
                 loop
-                muted={mutedReels[item.id] ?? true}
+                muted={isMuted}
                 preload={activeReelId === item.id ? "auto" : "none"}
                 onPlay={(event) => {
                   if (activeReelId && activeReelId !== item.id) event.currentTarget.pause();
@@ -263,7 +263,8 @@ function Reels() {
                   const video = event.currentTarget;
                   if (video.paused) {
                     video.muted = false;
-                    setMutedReels((current) => ({ ...current, [item.id]: false }));
+                    setIsMuted(false);
+                    videoRefs.current.forEach((reelVideo) => { reelVideo.muted = false; });
                     void video.play().catch(() => setPlayBlockedId(item.id));
                   } else video.pause();
                 }}
@@ -282,7 +283,8 @@ function Reels() {
                 const video = videoRefs.current.get(item.id);
                 if (!video) return;
                 video.muted = false;
-                setMutedReels((current) => ({ ...current, [item.id]: false }));
+                setIsMuted(false);
+                videoRefs.current.forEach((reelVideo) => { reelVideo.muted = false; });
                 void video.play().then(() => setPlayBlockedId(null)).catch(() => setPlayBlockedId(item.id));
               }} className="absolute inset-0 z-20 grid place-items-center bg-black/25" aria-label="Play Reel with sound">
                 <span className="rounded-full bg-black/75 px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/30">Tap to play with sound</span>
@@ -295,13 +297,12 @@ function Reels() {
               <button type="button" onClick={() => void toggleRepost(item.id)} aria-label="Repost Reel" className={`flex flex-col items-center gap-1 ${reposted.includes(item.id) ? "text-emerald-400" : ""}`}><Repeat2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.repost_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleSave(item.id)} aria-label={saved.includes(item.id) ? "Unsave Reel" : "Save Reel"} className={`flex flex-col items-center gap-1 ${saved.includes(item.id) ? "text-amber-300" : ""}`}><Bookmark className={`h-7 w-7 ${saved.includes(item.id) ? "fill-current" : ""}`} /><span className="text-[11px]">{saved.includes(item.id) ? "Saved" : "Save"}</span></button>
               <button type="button" onClick={() => {
-                const nextMuted = !(mutedReels[item.id] ?? true);
-                setMutedReels((current) => ({ ...current, [item.id]: nextMuted }));
-                const video = videoRefs.current.get(item.id);
-                if (video) video.muted = nextMuted;
-              }} aria-label={(mutedReels[item.id] ?? true) ? "Unmute Reel" : "Mute Reel"} className="flex flex-col items-center gap-1">
-                {(mutedReels[item.id] ?? true) ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />}
-                <span className="text-[11px]">{(mutedReels[item.id] ?? true) ? "Muted" : "Sound"}</span>
+                const nextMuted = !isMuted;
+                setIsMuted(nextMuted);
+                videoRefs.current.forEach((reelVideo) => { reelVideo.muted = nextMuted; });
+              }} aria-label={isMuted ? "Unmute Reel" : "Mute Reel"} className="flex flex-col items-center gap-1">
+                {isMuted ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />}
+                <span className="text-[11px]">{isMuted ? "Muted" : "Sound"}</span>
               </button>
               <button type="button" onClick={() => void saveReelOffline(item)} disabled={savingOfflineId === item.id} aria-label="Save Reel for offline use" className="flex flex-col items-center gap-1 disabled:opacity-50"><Download className="h-7 w-7" /><span className="text-[11px]">{savingOfflineId === item.id ? "Saving" : "Offline"}</span></button>
               <MediaComments postId={item.id} open={commentsReelId === item.id} variant="sheet" onClose={() => setCommentsReelId(null)} onCountChange={(count) => setCommentCounts((current) => ({ ...current, [item.id]: count }))} />
