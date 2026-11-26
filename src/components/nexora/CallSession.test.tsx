@@ -77,4 +77,22 @@ describe("CallSession incoming media consent", () => {
       expect(mocks.getUserMedia).toHaveBeenCalledWith({ audio: true });
     });
   });
+
+  it("requests camera access only after accepting an incoming video call", async () => {
+    render(
+      <CallSession
+        invite={{ ...incomingCall, kind: "video" }}
+        userId="recipient-1"
+        other={{ id: "caller-1", display_name: "Caller", handle: "caller" }}
+      />,
+    );
+
+    expect(mocks.getUserMedia).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /accept/i }));
+
+    await waitFor(() => {
+      expect(mocks.getUserMedia).toHaveBeenCalledTimes(1);
+      expect(mocks.getUserMedia).toHaveBeenCalledWith({ audio: true, video: true });
+    });
+  });
 });
