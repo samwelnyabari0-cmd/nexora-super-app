@@ -1028,7 +1028,7 @@ if (recipient === user.id) {
         .from("call_invites")
         .insert({ caller: user.id, callee: recipient, kind });
       if (callError) {
-        setError("Calls are available only with accepted contacts. Add this person as a contact in Calls first.");
+        setError("Calls require an accepted contact, and neither person can already be in another call.");
         return;
       }
       toast.success("Calling… You can keep chatting while the call opens.");
