@@ -68,6 +68,19 @@ begin
     raise exception 'The call transition guard trigger must exist';
   end if;
 
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.profiles'::regclass
+      and tgname = 'profiles_invite_code_guard' and not tgisinternal
+  ) then
+    raise exception 'Direct profile updates must not be able to rotate invite codes';
+  end if;
+
+  if (select prosecdef from pg_proc
+      where oid = 'private.guard_profile_invite_code()'::regprocedure) is distinct from false then
+    raise exception 'Invite-code guard must inspect the actual invoking database role';
+  end if;
+
   if has_function_privilege('anon', 'public.block_contact(uuid)', 'EXECUTE')
      or has_function_privilege('anon', 'public.unblock_contact(uuid)', 'EXECUTE')
      or has_function_privilege('anon', 'public.rotate_contact_invite()', 'EXECUTE')
