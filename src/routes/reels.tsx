@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3, Bookmark, Repeat2, Eye, Volume2, Download } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Share2, Film, BarChart3, Bookmark, Repeat2, Eye, Volume2, VolumeX, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/reels")({
 
 function Reels() {
   const { user } = useSession();
-  const { items, loading, error } = useStrictMediaItems("reel");
+  const { items, loading, error, loadMediaUrl } = useStrictMediaItems("reel");
   const [comedyVideos, setComedyVideos] = useState<ComedyReelVideo[]>([]);
   const [comedyLoading, setComedyLoading] = useState(true);
   const [liked, setLiked] = useState<string[]>([]);
@@ -41,6 +41,9 @@ function Reels() {
   const [reposted, setReposted] = useState<string[]>([]);
   const [creatorProfiles, setCreatorProfiles] = useState<Record<string, { display_name: string | null; handle: string; avatar_url: string | null; private_profile: boolean }>>({});
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  const [playBlockedId, setPlayBlockedId] = useState<string | null>(null);
+  const [mutedReels, setMutedReels] = useState<Record<string, boolean>>({});
+  const [requestedComedyPlaybackId, setRequestedComedyPlaybackId] = useState<string | null>(null);
   const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [savingOfflineId, setSavingOfflineId] = useState<string | null>(null);
@@ -104,17 +107,22 @@ function Reels() {
       const visible = entries
         .filter((entry) => entry.isIntersecting)
         .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (!visible || visible.intersectionRatio < 0.5) return;
+      if (!visible || visible.intersectionRatio < 0.5) {
+        videoRefs.current.forEach((video) => video.pause());
+        setActiveReelId(null);
+        setRequestedComedyPlaybackId(null);
+        return;
+      }
 
       const nextId = (visible.target as HTMLElement).dataset.reelId;
       if (!nextId) return;
-
-      // Stop every other Reel immediately, before starting the newly visible one.
       videoRefs.current.forEach((video, id) => {
         if (id !== nextId) video.pause();
       });
+      if (nextId !== activeReelId) setPlayBlockedId(null);
+      if (!nextId.startsWith("comedy:")) setRequestedComedyPlaybackId(null);
       setActiveReelId(nextId);
-    }, { root: feed, threshold: [0.25, 0.5, 0.65, 0.8, 1] });
+    }, { root: feed, threshold: [0, 0.25, 0.5, 0.65, 0.8, 1] });
 
     feed.querySelectorAll<HTMLElement>("[data-reel-id]").forEach((article) => observer.observe(article));
     return () => {
@@ -124,24 +132,22 @@ function Reels() {
   }, [itemIdsKey]);
 
   useEffect(() => {
-    if (!activeReelId) return;
-    const activeVideo = videoRefs.current.get(activeReelId);
-    videoRefs.current.forEach((video, id) => {
-      if (id !== activeReelId) video.pause();
-    });
-    if (!activeVideo) return;
-
-    // Try audible autoplay first. Mobile browsers may block it until the
-    // viewer interacts; in that case start silently rather than staying stopped.
-    activeVideo.muted = false;
-    const playAttempt = activeVideo.play();
-    if (playAttempt) {
-      void playAttempt.catch(() => {
-        activeVideo.muted = true;
-        void activeVideo.play().catch(() => undefined);
-      });
+    if (!activeReelId || activeReelId.startsWith("comedy:")) return;
+    const item = items.find((entry) => entry.id === activeReelId);
+    if (!item) return;
+    if (!item.mediaSrc) {
+      void loadMediaUrl(item);
+      return;
     }
-  }, [activeReelId]);
+    const activeVideo = videoRefs.current.get(activeReelId);
+    videoRefs.current.forEach((video, id) => { if (id !== activeReelId) video.pause(); });
+    if (!activeVideo) return;
+    activeVideo.muted = mutedReels[activeReelId] ?? false;
+    void activeVideo.play().then(() => setPlayBlockedId(null)).catch(() => {
+      // Do not silently mute when mobile autoplay with sound is blocked.
+      setPlayBlockedId(activeReelId);
+    });
+  }, [activeReelId, items, loadMediaUrl, mutedReels]);
 
   async function toggleLike(postId: string) {
     if (!user) return toast.error("Sign in to like Reels.");
@@ -209,7 +215,7 @@ function Reels() {
     }
   }
 
-  if (loading || comedyLoading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
+  if (loading && !items.length && comedyLoading && !comedyVideos.length) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
   if (error && !items.length && !comedyVideos.length) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
   if (!items.length && !comedyVideos.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos and comedy Shorts will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
 
@@ -237,10 +243,20 @@ function Reels() {
                 controls
                 playsInline
                 loop
-                preload="metadata"
+                muted={mutedReels[item.id] ?? false}
+                preload={activeReelId === item.id ? "auto" : "none"}
                 onPlay={(event) => {
                   if (activeReelId && activeReelId !== item.id) event.currentTarget.pause();
+                  setPlayBlockedId(null);
                   if (user?.id) void recordUserMediaPostView(item.id);
+                }}
+                onClick={(event) => {
+                  const video = event.currentTarget;
+                  if (video.paused) {
+                    video.muted = false;
+                    setMutedReels((current) => ({ ...current, [item.id]: false }));
+                    void video.play().catch(() => setPlayBlockedId(item.id));
+                  } else video.pause();
                 }}
                 className="h-full w-full object-contain"
               />
@@ -252,12 +268,32 @@ function Reels() {
               <p className="text-[11px] text-white/70" title={formatExactDateTime(item.created_at)}>{formatRelativeTime(item.created_at)}</p>
               <p className="flex items-center gap-1 text-[11px] text-white/80"><Eye className="h-3.5 w-3.5" /> {Number(item.view_count ?? 0).toLocaleString()} views · {item.duration_seconds ?? "—"} sec</p>
             </div>
-            <div className="absolute bottom-24 right-3 z-20 flex flex-col items-center gap-5">
+            {playBlockedId === item.id && activeReelId === item.id && (
+              <button type="button" onClick={() => {
+                const video = videoRefs.current.get(item.id);
+                if (!video) return;
+                video.muted = false;
+                setMutedReels((current) => ({ ...current, [item.id]: false }));
+                void video.play().then(() => setPlayBlockedId(null)).catch(() => setPlayBlockedId(item.id));
+              }} className="absolute inset-0 z-20 grid place-items-center bg-black/25" aria-label="Play Reel with sound">
+                <span className="rounded-full bg-black/75 px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/30">Tap to play with sound</span>
+              </button>
+            )}
+            <div className="absolute bottom-24 right-3 z-30 flex flex-col items-center gap-5">
               <button type="button" onClick={() => void toggleLike(item.id)} aria-label={liked.includes(item.id) ? "Unlike Reel" : "Like Reel"} className="flex flex-col items-center gap-1"><Heart className={`h-7 w-7 ${liked.includes(item.id) ? "fill-pink-500 text-pink-500" : "text-white"}`} /><span className="text-[11px]">{Number(likeCounts[item.id] ?? item.like_count ?? 0)}</span></button>
               <button type="button" onClick={() => setCommentsReelId(item.id)} aria-label="Open comments" aria-haspopup="dialog" className="flex flex-col items-center gap-1"><MessageCircle className="h-7 w-7" /><span className="text-[11px]">{Number(commentCounts[item.id] ?? item.comment_count ?? 0)}</span></button>
               <button type="button" onClick={() => void shareReel(item.id, item.caption)} aria-label="Share Reel" className="flex flex-col items-center gap-1"><Share2 className="h-7 w-7" /><span className="text-[11px]">{Number(shareCounts[item.id] ?? item.share_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleRepost(item.id)} aria-label="Repost Reel" className={`flex flex-col items-center gap-1 ${reposted.includes(item.id) ? "text-emerald-400" : ""}`}><Repeat2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.repost_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleSave(item.id)} aria-label={saved.includes(item.id) ? "Unsave Reel" : "Save Reel"} className={`flex flex-col items-center gap-1 ${saved.includes(item.id) ? "text-amber-300" : ""}`}><Bookmark className={`h-7 w-7 ${saved.includes(item.id) ? "fill-current" : ""}`} /><span className="text-[11px]">{saved.includes(item.id) ? "Saved" : "Save"}</span></button>
+              <button type="button" onClick={() => {
+                const nextMuted = !(mutedReels[item.id] ?? false);
+                setMutedReels((current) => ({ ...current, [item.id]: nextMuted }));
+                const video = videoRefs.current.get(item.id);
+                if (video) video.muted = nextMuted;
+              }} aria-label={(mutedReels[item.id] ?? false) ? "Unmute Reel" : "Mute Reel"} className="flex flex-col items-center gap-1">
+                {(mutedReels[item.id] ?? false) ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />}
+                <span className="text-[11px]">{(mutedReels[item.id] ?? false) ? "Muted" : "Sound"}</span>
+              </button>
               <button type="button" onClick={() => void saveReelOffline(item)} disabled={savingOfflineId === item.id} aria-label="Save Reel for offline use" className="flex flex-col items-center gap-1 disabled:opacity-50"><Download className="h-7 w-7" /><span className="text-[11px]">{savingOfflineId === item.id ? "Saving" : "Offline"}</span></button>
               <MediaComments postId={item.id} open={commentsReelId === item.id} variant="sheet" onClose={() => setCommentsReelId(null)} onCountChange={(count) => setCommentCounts((current) => ({ ...current, [item.id]: count }))} />
             </div>
@@ -268,12 +304,12 @@ function Reels() {
           const id = getYoutubeId(video.video_url);
           return (
             <article key={reelId} data-reel-id={reelId} className="relative flex h-[100svh] min-h-[100svh] snap-start snap-always items-center justify-center bg-black">
-              {activeReelId === reelId ? (
-                <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&mute=1&playsinline=1&controls=1&rel=0"}
+              {activeReelId === reelId && requestedComedyPlaybackId === reelId ? (
+                <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&mute=0&playsinline=1&controls=1&rel=0&enablejsapi=1&origin=" + encodeURIComponent(window.location.origin)}
                   title={video.match_label} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
               ) : (
-                <button type="button" onClick={() => setActiveReelId(reelId)} className="absolute inset-0 grid place-items-center bg-black" aria-label={"Play " + video.match_label}>
+                <button type="button" onClick={() => { setActiveReelId(reelId); setRequestedComedyPlaybackId(reelId); }} className="absolute inset-0 grid place-items-center bg-black" aria-label={"Play " + video.match_label}>
                   <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-contain" />
                   <span className="absolute grid h-16 w-16 place-items-center rounded-full bg-black/70 text-white ring-1 ring-white/50"><Film className="h-7 w-7" /></span>
                 </button>
