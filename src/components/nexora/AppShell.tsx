@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (element instanceof HTMLVideoElement) {
         element.pause();
         element.preload = "none";
-      } else if (element instanceof HTMLIFrameElement && /youtube(?:-nocookie)?\\.com\\/embed\\//i.test(element.src)) {
+      } else if (element instanceof HTMLIFrameElement && (element.src.includes("youtube.com/embed/") || element.src.includes("youtube-nocookie.com/embed/"))) {
         try {
           element.contentWindow?.postMessage(JSON.stringify({
             event: "command", func: "pauseVideo", args: [],
