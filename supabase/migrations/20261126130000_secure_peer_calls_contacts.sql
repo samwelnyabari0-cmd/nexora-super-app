@@ -11,7 +11,7 @@ alter table public.profiles
   add column if not exists invite_code text;
 
 alter table public.profiles
-  alter column invite_code set default encode(gen_random_bytes(24), 'hex');
+  alter column invite_code set default encode(public.gen_random_bytes(24), 'hex');
 
 update public.profiles
 set invite_code = encode(gen_random_bytes(24), 'hex')
