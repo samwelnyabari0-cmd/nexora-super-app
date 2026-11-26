@@ -13,9 +13,10 @@ alter table public.profiles
 alter table public.profiles
   alter column invite_code set default encode(extensions.gen_random_bytes(24), 'hex');
 
+-- Replace legacy short invite codes with cryptographically random tokens.
+-- Existing accepted contacts are stored separately and remain untouched.
 update public.profiles
-set invite_code = encode(extensions.gen_random_bytes(24), 'hex')
-where invite_code is null;
+set invite_code = encode(extensions.gen_random_bytes(24), 'hex');
 
 create unique index if not exists profiles_invite_code_unique
   on public.profiles (invite_code);
@@ -533,6 +534,14 @@ language plpgsql
 set search_path = ''
 as $guard$
 begin
+  if tg_op = 'INSERT' then
+    -- Ignore any client-supplied value and always issue a fresh secure token.
+    if current_user not in ('postgres', 'service_role') then
+      new.invite_code := encode(extensions.gen_random_bytes(24), 'hex');
+    end if;
+    return new;
+  end if;
+
   if new.invite_code is distinct from old.invite_code
     and current_user not in ('postgres', 'service_role') then
     raise exception 'invite codes can only be changed through the secure rotation function';
@@ -543,7 +552,7 @@ $guard$;
 
 drop trigger if exists profiles_invite_code_guard on public.profiles;
 create trigger profiles_invite_code_guard
-before update of invite_code on public.profiles
+before insert or update of invite_code on public.profiles
 for each row execute function private.guard_profile_invite_code();
 
 revoke all on function private.guard_profile_invite_code() from public, anon, authenticated;
