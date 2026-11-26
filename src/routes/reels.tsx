@@ -59,7 +59,16 @@ function Reels() {
         .eq("provider", "youtube-comedy").eq("is_published", true)
         .order("published_at", { ascending: false }).limit(24);
       if (!active) return;
-      if (!feedError) setComedyVideos((data ?? []).filter((row: ComedyReelVideo) => Boolean(getYoutubeId(row.video_url))) as ComedyReelVideo[]);
+      if (!feedError) {
+        // Keep the newest row for each YouTube video. The same clip can be
+        // imported more than once under different provider IDs or titles.
+        const uniqueVideos = new Map<string, ComedyReelVideo>();
+        for (const row of (data ?? []) as ComedyReelVideo[]) {
+          const youtubeId = getYoutubeId(row.video_url);
+          if (youtubeId && !uniqueVideos.has(youtubeId)) uniqueVideos.set(youtubeId, row);
+        }
+        setComedyVideos(Array.from(uniqueVideos.values()));
+      }
       else console.warn("Could not load comedy Reels:", feedError.message);
       setComedyLoading(false);
     };
@@ -142,7 +151,7 @@ function Reels() {
     const activeVideo = videoRefs.current.get(activeReelId);
     videoRefs.current.forEach((video, id) => { if (id !== activeReelId) video.pause(); });
     if (!activeVideo) return;
-    activeVideo.muted = mutedReels[activeReelId] ?? false;
+    activeVideo.muted = mutedReels[activeReelId] ?? true;
     void activeVideo.play().then(() => setPlayBlockedId(null)).catch(() => {
       // Do not silently mute when mobile autoplay with sound is blocked.
       setPlayBlockedId(activeReelId);
@@ -243,7 +252,7 @@ function Reels() {
                 controls
                 playsInline
                 loop
-                muted={mutedReels[item.id] ?? false}
+                muted={mutedReels[item.id] ?? true}
                 preload={activeReelId === item.id ? "auto" : "none"}
                 onPlay={(event) => {
                   if (activeReelId && activeReelId !== item.id) event.currentTarget.pause();
@@ -286,13 +295,13 @@ function Reels() {
               <button type="button" onClick={() => void toggleRepost(item.id)} aria-label="Repost Reel" className={`flex flex-col items-center gap-1 ${reposted.includes(item.id) ? "text-emerald-400" : ""}`}><Repeat2 className="h-7 w-7" /><span className="text-[11px]">{Number(item.repost_count ?? 0)}</span></button>
               <button type="button" onClick={() => void toggleSave(item.id)} aria-label={saved.includes(item.id) ? "Unsave Reel" : "Save Reel"} className={`flex flex-col items-center gap-1 ${saved.includes(item.id) ? "text-amber-300" : ""}`}><Bookmark className={`h-7 w-7 ${saved.includes(item.id) ? "fill-current" : ""}`} /><span className="text-[11px]">{saved.includes(item.id) ? "Saved" : "Save"}</span></button>
               <button type="button" onClick={() => {
-                const nextMuted = !(mutedReels[item.id] ?? false);
+                const nextMuted = !(mutedReels[item.id] ?? true);
                 setMutedReels((current) => ({ ...current, [item.id]: nextMuted }));
                 const video = videoRefs.current.get(item.id);
                 if (video) video.muted = nextMuted;
-              }} aria-label={(mutedReels[item.id] ?? false) ? "Unmute Reel" : "Mute Reel"} className="flex flex-col items-center gap-1">
-                {(mutedReels[item.id] ?? false) ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />}
-                <span className="text-[11px]">{(mutedReels[item.id] ?? false) ? "Muted" : "Sound"}</span>
+              }} aria-label={(mutedReels[item.id] ?? true) ? "Unmute Reel" : "Mute Reel"} className="flex flex-col items-center gap-1">
+                {(mutedReels[item.id] ?? true) ? <VolumeX className="h-7 w-7" /> : <Volume2 className="h-7 w-7" />}
+                <span className="text-[11px]">{(mutedReels[item.id] ?? true) ? "Muted" : "Sound"}</span>
               </button>
               <button type="button" onClick={() => void saveReelOffline(item)} disabled={savingOfflineId === item.id} aria-label="Save Reel for offline use" className="flex flex-col items-center gap-1 disabled:opacity-50"><Download className="h-7 w-7" /><span className="text-[11px]">{savingOfflineId === item.id ? "Saving" : "Offline"}</span></button>
               <MediaComments postId={item.id} open={commentsReelId === item.id} variant="sheet" onClose={() => setCommentsReelId(null)} onCountChange={(count) => setCommentCounts((current) => ({ ...current, [item.id]: count }))} />
