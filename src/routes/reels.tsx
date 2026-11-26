@@ -119,7 +119,7 @@ function Reels() {
       videoRefs.current.forEach((video, id) => {
         if (id !== nextId) video.pause();
       });
-      if (nextId !== activeReelId) setPlayBlockedId(null);
+      setPlayBlockedId((current) => current === nextId ? current : null);
       setRequestedComedyPlaybackId((current) => current === nextId ? current : null);
       setActiveReelId(nextId);
     }, { root: feed, threshold: [0, 0.25, 0.5, 0.65, 0.8, 1] });
