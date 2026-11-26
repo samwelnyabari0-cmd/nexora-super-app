@@ -73,7 +73,7 @@ export function PostCard({ post }: { post: Post }) {
   const completionRecorded = useRef(false);
   const cardRef = useRef<HTMLElement>(null);
   const isDbPost = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id);
-  const [videoMuted, setVideoMuted] = useState(true);
+  const [videoMuted, setVideoMuted] = useState(false);
   const displayedMediaSource = refreshedMediaUrl ?? mediaSource;
   const mediaFrameRatio = post.frameRatio && post.frameRatio !== "original"
     ? getFrameAspectRatio(post.frameRatio as any, getMediaAspectRatioValue(post.aspectRatio))
@@ -92,14 +92,13 @@ export function PostCard({ post }: { post: Post }) {
       const entry = entries[0];
       if (!entry) return;
       if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
-        video.muted = true;
-        setVideoMuted(true);
+        video.muted = videoMuted;
         void video.play().catch(() => undefined);
       } else video.pause();
     }, { threshold: [0, 0.55, 1] });
     observer.observe(video);
     return () => { observer.disconnect(); video.pause(); };
-  }, [displayedMediaSource]);
+  }, [displayedMediaSource, videoMuted]);
 
 
   useEffect(() => {
@@ -285,7 +284,7 @@ export function PostCard({ post }: { post: Post }) {
   if (notInterested) return null;
 
   return (
-    <article ref={cardRef} className="w-full min-w-0 max-w-full overflow-hidden rounded-3xl border bg-card">
+    <article ref={cardRef} className="media-feed-item w-full min-w-0 max-w-full overflow-hidden rounded-3xl border bg-card">
       <div className="p-4 pb-3">{header}</div>
       {mediaSource && post.mediaType?.startsWith("video/") ? (
         <div className="relative w-full overflow-hidden bg-muted" style={{
