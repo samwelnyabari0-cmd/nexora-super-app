@@ -114,10 +114,10 @@ export function NewsStoryCard({ story }: { story: NewsStory }) {
     }
   };
   return (
-    <article className="group min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:shadow-md">
+    <article className="media-feed-item group min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:shadow-md">
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary/20 via-muted to-cyan-500/10">
         {videoPlaying && youtubeId ? (
-          <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + youtubeId + "?autoplay=1&rel=0"}
+          <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + youtubeId + "?autoplay=1&rel=0&enablejsapi=1&origin=" + encodeURIComponent(window.location.origin)}
             title={story.headline + " video"} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
         ) : videoPlaying && directVideo ? (
