@@ -33,6 +33,16 @@ const NEWS_FEEDS = [
   { name: "DW News", provider: "world-dw-rss", url: "https://rss.dw.com/xml/rss-en-all", hosts: ["dw.com"] },
   { name: "BBC Africa", provider: "kenya-bbc-africa-rss", url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
   { name: "Kenya Top News", provider: "kenya-google-news-rss", url: "https://news.google.com/rss?hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+  { name: "BBC Politics", provider: "politics-bbc-rss", url: "https://feeds.bbci.co.uk/news/politics/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "BBC Business", provider: "business-bbc-rss", url: "https://feeds.bbci.co.uk/news/business/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "BBC Entertainment", provider: "entertainment-bbc-rss", url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "BBC Science", provider: "science-bbc-rss", url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "BBC Health", provider: "health-bbc-rss", url: "https://feeds.bbci.co.uk/news/health/rss.xml", hosts: ["bbc.com", "bbc.co.uk"] },
+  { name: "Kenya Politics", provider: "kenya-politics-google-news-rss", url: "https://news.google.com/rss/search?q=Kenya+politics&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+  { name: "Kenya Sports", provider: "kenya-sports-google-news-rss", url: "https://news.google.com/rss/search?q=Kenya+sports&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+  { name: "Kenya Business", provider: "kenya-business-google-news-rss", url: "https://news.google.com/rss/search?q=Kenya+business+economy&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+  { name: "Kenya Entertainment", provider: "kenya-entertainment-google-news-rss", url: "https://news.google.com/rss/search?q=Kenya+entertainment&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+  { name: "Trending Kenya", provider: "trending-google-news-rss", url: "https://news.google.com/rss/search?q=trending+OR+viral+OR+popular&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
 ];
 const OFFICIAL_HIGHLIGHT_FEEDS = [
   { name: "Premier League", code: "PL", channelId: "UCG5qGWdu8nIRZqJ_GgDwQ-w" },
@@ -110,11 +120,11 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
   for (const item of items) {
     const rawTitle = cleanText(textTag(item, "title"), 320);
     const googlePublisher = cleanText(textTag(item, "source"), 100);
-    const fallbackPublisher = source.provider === "kenya-google-news-rss" && rawTitle.includes(" - ")
+    const fallbackPublisher = source.provider.includes("google-news-rss") && rawTitle.includes(" - ")
       ? rawTitle.split(" - ").at(-1) ?? ""
       : "";
     const publisher = googlePublisher || fallbackPublisher || source.name;
-    const hasPublisherSuffix = source.provider === "kenya-google-news-rss" && rawTitle.includes(" - ");
+    const hasPublisherSuffix = source.provider.includes("google-news-rss") && rawTitle.includes(" - ");
     const headline = cleanText(
       hasPublisherSuffix ? rawTitle.slice(0, Math.max(0, rawTitle.lastIndexOf(" - "))) : rawTitle,
       220,
