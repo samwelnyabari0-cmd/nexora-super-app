@@ -81,6 +81,13 @@ begin
     raise exception 'Invite-code guard must inspect the actual invoking database role';
   end if;
 
+  select pg_get_functiondef('private.guard_profile_invite_code()'::regprocedure)
+    into v_definition;
+  if position('current_user' in lower(v_definition)) = 0
+     or position('service_role' in lower(v_definition)) = 0 then
+    raise exception 'Invite-code guard must reject direct client changes and allow trusted server rotation';
+  end if;
+
   if has_function_privilege('anon', 'public.block_contact(uuid)', 'EXECUTE')
      or has_function_privilege('anon', 'public.unblock_contact(uuid)', 'EXECUTE')
      or has_function_privilege('anon', 'public.rotate_contact_invite()', 'EXECUTE')
