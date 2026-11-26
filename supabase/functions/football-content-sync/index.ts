@@ -6,6 +6,7 @@ type NewsItem = {
   headline: string;
   summary: string;
   thumbnail_url: string | null;
+  video_url: string | null;
   thumbnail_checked_at: string | null;
   source_url: string;
   published_at: string;
@@ -43,6 +44,12 @@ const NEWS_FEEDS = [
   { name: "Kenya Business", provider: "kenya-business-google-news-rss", url: "https://news.google.com/rss/search?q=Kenya+business+economy&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
   { name: "Kenya Entertainment", provider: "kenya-entertainment-google-news-rss", url: "https://news.google.com/rss/search?q=Kenya+entertainment&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
   { name: "Trending Kenya", provider: "trending-google-news-rss", url: "https://news.google.com/rss/search?q=trending+OR+viral+OR+popular&hl=en-KE&gl=KE&ceid=KE:en", hosts: ["news.google.com"] },
+  { name: "BBC News Videos", provider: "video-world-bbc", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA", hosts: ["youtube.com"], format: "youtube-atom" },
+  { name: "Al Jazeera Videos", provider: "video-world-aljazeera", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCNye-wNBqNL5ZzHSJj3l8Bg", hosts: ["youtube.com"], format: "youtube-atom" },
+  { name: "Citizen TV Kenya Videos", provider: "video-kenya-citizen", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UChBQgieUidXV1CmDxSdRm3g", hosts: ["youtube.com"], format: "youtube-atom" },
+  { name: "KTN News Kenya Videos", provider: "video-kenya-ktn", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCKVsdeoHExltrWMuK0hOWmg", hosts: ["youtube.com"], format: "youtube-atom" },
+  { name: "NTV Kenya Videos", provider: "video-kenya-ntv", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCqBJ47FjJcl61fmSbcadAVg", hosts: ["youtube.com"], format: "youtube-atom" },
+  { name: "Premier League Videos", provider: "video-sports-premier-league", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCG5qGWdu8nIRZqJ_GgDwQ-w", hosts: ["youtube.com"], format: "youtube-atom" },
 ];
 const OFFICIAL_HIGHLIGHT_FEEDS = [
   { name: "Premier League", code: "PL", channelId: "UCG5qGWdu8nIRZqJ_GgDwQ-w" },
@@ -81,7 +88,7 @@ function safeHttpsUrl(value: string, allowedHosts: string[]): string | null {
   } catch { return null; }
 }
 function imageUrlFromItem(item: string, allowedHosts: string[]): string | null {
-  const imageHosts = [...allowedHosts, "bbci.co.uk", "googleusercontent.com", "gstatic.com"];
+  const imageHosts = [...allowedHosts, "bbci.co.uk", "googleusercontent.com", "gstatic.com", "ytimg.com"];
   const candidates: string[] = [];
   const mediaTags = [...item.matchAll(/<(?:media:thumbnail|media:content|enclosure)\b([^>]*)\/?>(?:<\/(?:media:thumbnail|media:content|enclosure)>)?/gi)];
   for (const tag of mediaTags) {
@@ -96,6 +103,33 @@ function imageUrlFromItem(item: string, allowedHosts: string[]): string | null {
   for (const candidate of candidates) {
     const safe = safeHttpsUrl(candidate, imageHosts);
     if (safe) return safe;
+  }
+  return null;
+}
+function videoUrlFromItem(item: string, allowedHosts: string[]): string | null {
+  const youtubeId = textTag(item, "yt:videoId");
+  if (/^[A-Za-z0-9_-]{6,20}$/.test(youtubeId)) {
+    return "https://www.youtube.com/watch?v=" + youtubeId;
+  }
+  const mediaTags = [...item.matchAll(/<(?:media:content|enclosure)\b([^>]*)\/?>(?:<\/(?:media:content|enclosure)>)?/gi)];
+  for (const tag of mediaTags) {
+    const attrs = tag[1];
+    const type = (attrs.match(/\btype\s*=\s*["']([^"']+)["']/i)?.[1] ?? "").toLowerCase();
+    const candidate = attrs.match(/\b(?:url|href)\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (!candidate) continue;
+    const decoded = decodeXml(candidate);
+    if (/youtube\.com\/(?:watch|embed)|youtu\.be\//i.test(decoded)) {
+      try {
+        const url = new URL(decoded);
+        if (url.hostname === "youtu.be" || url.hostname === "www.youtube.com" || url.hostname === "youtube.com") {
+          return url.toString();
+        }
+      } catch { /* Ignore malformed publisher video links. */ }
+    }
+    if (type.startsWith("video/") || /\.(?:mp4|webm)(?:$|[?#])/i.test(decoded)) {
+      const safe = safeHttpsUrl(decoded, allowedHosts);
+      if (safe) return safe;
+    }
   }
   return null;
 }
@@ -115,6 +149,28 @@ async function fetchFeed(url: string): Promise<string> {
   return await response.text();
 }
 function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem[] {
+  if (source.format === "youtube-atom") {
+    const entries = [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map((match) => match[1]);
+    return entries.flatMap((entry) => {
+      const videoId = textTag(entry, "yt:videoId");
+      const headline = cleanText(textTag(entry, "title"), 220);
+      const publishedAt = safePublishedAt(textTag(entry, "published"));
+      if (!/^[A-Za-z0-9_-]{6,20}$/.test(videoId) || !headline || !publishedAt) return [];
+      return [{
+        provider: source.provider,
+        provider_id: videoId,
+        source_name: source.name,
+        headline,
+        summary: cleanText(textTag(entry, "media:description") || textTag(entry, "summary"), 500),
+        thumbnail_url: imageUrlFromItem(entry, source.hosts),
+        video_url: "https://www.youtube.com/watch?v=" + videoId,
+        thumbnail_checked_at: null,
+        source_url: "https://www.youtube.com/watch?v=" + videoId,
+        published_at: publishedAt,
+        is_published: true,
+      }];
+    }).sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at)).slice(0, 20);
+  }
   const items = [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map((match) => match[1]);
   const output: NewsItem[] = [];
   for (const item of items) {
@@ -139,6 +195,7 @@ function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem
       headline,
       summary: cleanText(textTag(item, "description"), 500),
       thumbnail_url: imageUrlFromItem(item, source.hosts),
+      video_url: videoUrlFromItem(item, source.hosts),
       thumbnail_checked_at: null,
       source_url: link,
       published_at: publishedAt,

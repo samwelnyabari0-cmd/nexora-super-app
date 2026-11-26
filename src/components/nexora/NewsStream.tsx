@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Newspaper, Share2 } from "lucide-react";
+import { ExternalLink, Newspaper, Play, Share2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
@@ -11,6 +11,7 @@ export type NewsStory = {
   headline: string;
   summary: string | null;
   thumbnail_url: string | null;
+  video_url: string | null;
   source_url: string;
   published_at: string;
   category: string;
@@ -23,19 +24,21 @@ const NEWS_PROVIDERS = [
   "entertainment-bbc-rss", "science-bbc-rss", "health-bbc-rss",
   "kenya-politics-google-news-rss", "kenya-sports-google-news-rss",
   "kenya-business-google-news-rss", "kenya-entertainment-google-news-rss",
-  "trending-google-news-rss", "tech-rss",
+  "trending-google-news-rss", "tech-rss", "video-world-bbc", "video-world-aljazeera",
+  "video-kenya-citizen", "video-kenya-ktn", "video-kenya-ntv", "video-sports-premier-league",
 ];
 
-function categoryForProvider(provider: string) {
-  if (provider.includes("sport")) return "Sports";
-  if (provider.includes("politics")) return "Politics";
-  if (provider.includes("business")) return "Business";
-  if (provider.includes("entertainment")) return "Entertainment";
-  if (provider.includes("science")) return "Science";
-  if (provider.includes("health")) return "Health";
+function categoryForProvider(provider: string, headline = "", summary = "") {
+  const text = (headline + " " + summary).toLowerCase();
+  if (provider.includes("sport") || /\b(match|football|premier league|champions league|athletics|rugby|cricket|tennis|basketball|goal|coach|tournament)\b/.test(text)) return "Sports";
+  if (provider.includes("politics") || /\b(election|parliament|president|prime minister|governor|senator|mp |political|politics|government|cabinet|campaign)\b/.test(text)) return "Politics";
+  if (provider.includes("business") || /\b(business|economy|economic|market|stocks|bank|trade|company|companies|inflation|jobs)\b/.test(text)) return "Business";
+  if (provider.includes("entertainment") || /\b(entertainment|celebrity|film|movie|music|artist|actor|actress|concert|tv show)\b/.test(text)) return "Entertainment";
+  if (provider.includes("science") || /\b(science|research|space|nasa|climate|environment|discovery)\b/.test(text)) return "Science";
+  if (provider.includes("health") || /\b(health|hospital|medical|medicine|disease|doctor|vaccine)\b/.test(text)) return "Health";
   if (provider.includes("trending")) return "Trending";
-  if (provider === "tech-rss") return "Technology";
-  if (provider.startsWith("kenya-")) return "Kenya";
+  if (provider.includes("tech") || /\b(technology|tech|artificial intelligence| AI |software|cybersecurity|gadget)\b/.test(text)) return "Technology";
+  if (provider.includes("video-kenya") || provider.startsWith("kenya-")) return "Kenya";
   return "World";
 }
 
@@ -51,7 +54,7 @@ export function useNewsStories(limit = 80) {
     const load = async () => {
       const { data, error } = await (supabase as any)
         .from("football_announcements")
-        .select("id,provider,provider_id,source_name,headline,summary,thumbnail_url,source_url,published_at")
+        .select("id,provider,provider_id,source_name,headline,summary,thumbnail_url,video_url,source_url,published_at")
         .in("provider", NEWS_PROVIDERS)
         .eq("is_published", true)
         .order("published_at", { ascending: false })
@@ -62,7 +65,7 @@ export function useNewsStories(limit = 80) {
         return;
       }
       setStories((data ?? []).map((row: Omit<NewsStory, "category">) => ({
-        ...row, category: categoryForProvider(row.provider),
+        ...row, category: categoryForProvider(row.provider, row.headline, row.summary ?? ""),
       })));
     };
     void load();
@@ -80,7 +83,20 @@ export function useNewsStories(limit = 80) {
 
 export function NewsStoryCard({ story }: { story: NewsStory }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const [copied, setCopied] = useState(false);
+  const youtubeId = (() => {
+    if (!validHttps(story.video_url)) return null;
+    try {
+      const url = new URL(story.video_url!);
+      if (url.hostname === "youtu.be") return url.pathname.slice(1);
+      if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) {
+        return url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1] || null;
+      }
+    } catch { /* Ignore invalid URLs. */ }
+    return null;
+  })();
+  const directVideo = validHttps(story.video_url) && /\.(?:mp4|webm)(?:$|[?#])/i.test(story.video_url!);
   const share = async () => {
     const text = story.headline + " — " + story.source_name + "\n" + story.source_url;
     try {
@@ -95,16 +111,37 @@ export function NewsStoryCard({ story }: { story: NewsStory }) {
   return (
     <article className="group min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:shadow-md">
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary/20 via-muted to-cyan-500/10">
-        {validHttps(story.thumbnail_url) && !imageFailed ? (
-          <img src={story.thumbnail_url!} alt={story.headline} loading="lazy" decoding="async"
-            referrerPolicy="no-referrer" onError={() => setImageFailed(true)}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+        {videoPlaying && youtubeId ? (
+          <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + youtubeId + "?autoplay=1&rel=0"}
+            title={story.headline + " video"} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
+        ) : videoPlaying && directVideo ? (
+          <video className="h-full w-full bg-black object-contain" src={story.video_url!} controls autoPlay playsInline preload="metadata" />
         ) : (
-          <div className="flex h-full items-center justify-center"><Newspaper className="h-10 w-10 text-primary/60" /></div>
+          <>
+            {validHttps(story.thumbnail_url) && !imageFailed ? (
+              <img src={story.thumbnail_url!} alt={story.headline} loading="lazy" decoding="async"
+                referrerPolicy="no-referrer" onError={() => setImageFailed(true)}
+                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+            ) : (
+              <div className="flex h-full items-center justify-center"><Newspaper className="h-10 w-10 text-primary/60" /></div>
+            )}
+            {story.video_url && (youtubeId || directVideo) && (
+              <button type="button" onClick={() => setVideoPlaying(true)} aria-label={"Play video: " + story.headline}
+                className="absolute inset-0 grid place-items-center bg-black/10 transition hover:bg-black/25">
+                <span className="grid h-14 w-14 place-items-center rounded-full bg-black/75 text-white shadow-xl ring-1 ring-white/50">
+                  <Play className="ml-1 h-6 w-6 fill-current" />
+                </span>
+                <span className="absolute bottom-3 left-3 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-white">Play video</span>
+              </button>
+            )}
+          </>
         )}
         <span className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/65 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
           {story.category}
         </span>
+        {videoPlaying && <button type="button" onClick={() => setVideoPlaying(false)} aria-label="Close video"
+          className="absolute right-3 top-3 rounded-full bg-black/70 p-2 text-white"><X className="h-4 w-4" /></button>}
       </div>
       <div className="space-y-2 p-3.5">
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
