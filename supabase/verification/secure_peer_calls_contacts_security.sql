@@ -102,6 +102,25 @@ begin
     raise exception 'Authenticated clients must be able to use the intended contact RPCs';
   end if;
 
+  if (select prosecdef from pg_proc
+      where oid = 'public.block_contact(uuid)'::regprocedure) is distinct from false
+     or (select prosecdef from pg_proc
+      where oid = 'public.rotate_contact_invite()'::regprocedure) is distinct from false then
+    raise exception 'PostgREST-facing contact RPCs must be SECURITY INVOKER wrappers';
+  end if;
+
+  if (select prosecdef from pg_proc
+      where oid = 'private.block_contact(uuid)'::regprocedure) is distinct from true
+     or (select prosecdef from pg_proc
+      where oid = 'private.rotate_contact_invite()'::regprocedure) is distinct from true then
+    raise exception 'Privileged contact implementations must remain in the private schema';
+  end if;
+
+  if has_function_privilege('anon', 'private.block_contact(uuid)', 'EXECUTE')
+     or has_function_privilege('anon', 'private.rotate_contact_invite()', 'EXECUTE') then
+    raise exception 'Anonymous clients must not execute private contact implementations';
+  end if;
+
   select pg_get_functiondef('private.call_invite_guard()'::regprocedure)
     into v_definition;
   if position('immutable' in lower(v_definition)) = 0
