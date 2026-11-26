@@ -25,6 +25,20 @@ begin
     raise exception 'RLS must be enabled on call_invites';
   end if;
 
+  if has_table_privilege('anon', 'public.contacts', 'SELECT')
+     or has_table_privilege('anon', 'public.contacts', 'INSERT')
+     or has_table_privilege('anon', 'public.call_invites', 'SELECT')
+     or has_table_privilege('anon', 'public.call_invites', 'INSERT') then
+    raise exception 'Anonymous clients must have no privileges on contact or call tables';
+  end if;
+
+  if not has_table_privilege('authenticated', 'public.contacts', 'SELECT')
+     or not has_table_privilege('authenticated', 'public.contacts', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.call_invites', 'SELECT')
+     or not has_table_privilege('authenticated', 'public.call_invites', 'INSERT') then
+    raise exception 'Authenticated clients must have the intended table privileges';
+  end if;
+
   if not exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'contacts'
