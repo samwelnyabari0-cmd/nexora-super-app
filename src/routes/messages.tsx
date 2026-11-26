@@ -1031,7 +1031,7 @@ if (recipient === user.id) {
         setError("Calls require an accepted contact, and neither person can already be in another call.");
         return;
       }
-      toast.success("Calling… You can keep chatting while the call opens.");
+      toast.success("Calling… The call screen will open over your current chat.");
     } finally {
       setStartingCall(false);
     }
