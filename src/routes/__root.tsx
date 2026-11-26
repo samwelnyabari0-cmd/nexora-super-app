@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { WorkspaceProvider } from "@/features/core/workspace";
 import { AppProvider } from "@/features/core/store";
 import { AppShell } from "@/components/nexora/AppShell";
+import { CallProvider } from "@/components/nexora/CallProvider";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -144,7 +145,9 @@ function RootComponent() {
       <WorkspaceProvider>
         <AppProvider>
           <AppShell>
-            <Outlet />
+            <CallProvider>
+              <Outlet />
+            </CallProvider>
           </AppShell>
           <Toaster position="top-center" theme="dark" />
         </AppProvider>
