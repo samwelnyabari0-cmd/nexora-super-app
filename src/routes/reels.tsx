@@ -11,6 +11,19 @@ import { MediaComments } from "@/components/nexora/MediaComments";
 import { formatRelativeTime, formatExactDateTime } from "@/lib/format-relative-time";
 import { saveCommuteMedia } from "@/lib/offline-storage";
 
+type ComedyReelVideo = { provider_id: string; match_label: string; source_name: string; thumbnail_url: string | null; video_url: string; published_at: string };
+
+function getYoutubeId(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.hostname === "youtu.be") return url.pathname.slice(1);
+    if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) {
+      return url.searchParams.get("v") || url.pathname.match(/^\\/(?:embed|shorts)\\/([^/]+)/)?.[1] || "";
+    }
+  } catch { /* Invalid YouTube URL. */ }
+  return "";
+}
+
 export const Route = createFileRoute("/reels")({
   head: () => ({ meta: [{ title: "Reels — NEXORA" }, { name: "description", content: "Vertical short-form videos on NEXORA." }] }),
   component: Reels,
@@ -19,6 +32,8 @@ export const Route = createFileRoute("/reels")({
 function Reels() {
   const { user } = useSession();
   const { items, loading, error } = useStrictMediaItems("reel");
+  const [comedyVideos, setComedyVideos] = useState<ComedyReelVideo[]>([]);
+  const [comedyLoading, setComedyLoading] = useState(true);
   const [liked, setLiked] = useState<string[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
@@ -31,7 +46,26 @@ function Reels() {
   const [savingOfflineId, setSavingOfflineId] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
-  const itemIdsKey = items.map((item) => item.id).join("|");
+  const itemIdsKey = items.map((item) => item.id).join("|") + "::" + comedyVideos.map((item) => item.provider_id).join("|");
+
+  useEffect(() => {
+    let active = true;
+    const loadComedyVideos = async () => {
+      const { data, error: feedError } = await (supabase as any).from("football_highlights")
+        .select("provider_id,match_label,source_name,thumbnail_url,video_url,published_at")
+        .eq("provider", "youtube-comedy").eq("is_published", true)
+        .order("published_at", { ascending: false }).limit(24);
+      if (!active) return;
+      if (!feedError) setComedyVideos((data ?? []).filter((row: ComedyReelVideo) => Boolean(getYoutubeId(row.video_url))) as ComedyReelVideo[]);
+      else console.warn("Could not load comedy Reels:", feedError.message);
+      setComedyLoading(false);
+    };
+    void loadComedyVideos();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadComedyVideos();
+    }, 15 * 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -175,9 +209,9 @@ function Reels() {
     }
   }
 
-  if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
-  if (error) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!items.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos up to 90 seconds will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
+  if (loading || comedyLoading) return <div className="py-16 text-center text-sm text-muted-foreground">Loading Reels…</div>;
+  if (error && !items.length && !comedyVideos.length) return <div role="alert" className="py-16 text-center text-sm text-muted-foreground">{error}</div>;
+  if (!items.length && !comedyVideos.length) return <div className="mx-auto max-w-md py-16 text-center"><Film className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><h1 className="font-semibold">No Reels yet</h1><p className="mt-1 text-sm text-muted-foreground">Vertical videos and comedy Shorts will appear here.</p><Link to="/create" className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Create a Reel</Link></div>;
 
   const requestedId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("post") : null;
   const ordered = requestedId ? [...items].sort((a, b) => Number(b.id === requestedId) - Number(a.id === requestedId)) : items;
@@ -229,6 +263,30 @@ function Reels() {
             </div>
           </article>
         ))}
+        {comedyVideos.map((video) => {
+          const reelId = "comedy:" + video.provider_id;
+          const id = getYoutubeId(video.video_url);
+          return (
+            <article key={reelId} data-reel-id={reelId} className="relative flex h-[100svh] min-h-[100svh] snap-start snap-always items-center justify-center bg-black">
+              {activeReelId === reelId ? (
+                <iframe className="h-full w-full" src={"https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&mute=1&playsinline=1&controls=1&rel=0"}
+                  title={video.match_label} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
+              ) : (
+                <button type="button" onClick={() => setActiveReelId(reelId)} className="absolute inset-0 grid place-items-center bg-black" aria-label={"Play " + video.match_label}>
+                  <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-contain" />
+                  <span className="absolute grid h-16 w-16 place-items-center rounded-full bg-black/70 text-white ring-1 ring-white/50"><Film className="h-7 w-7" /></span>
+                </button>
+              )}
+              <div className="pointer-events-none absolute bottom-8 left-4 right-20 z-20 space-y-2 bg-gradient-to-t from-black/75 to-transparent pb-3 pt-10">
+                <p className="text-xs font-bold text-fuchsia-200">COMEDY · {video.source_name}</p>
+                <p className="text-sm font-semibold">{video.match_label}</p>
+                <p className="text-[11px] text-white/70">{formatRelativeTime(video.published_at)}</p>
+              </div>
+              <a href={video.video_url} target="_blank" rel="noopener noreferrer" className="absolute bottom-8 right-4 z-30 rounded-full bg-black/70 px-3 py-2 text-[11px] font-semibold">YouTube</a>
+            </article>
+          );
+        })}
       </div>
     </main>
   );
