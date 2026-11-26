@@ -23,6 +23,15 @@ type ComedyVideo = {
   video_url: string;
   published_at: string;
 };
+type CommunityComedyPost = {
+  id: string;
+  author_id: string;
+  caption: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  tags: string[] | null;
+  created_at: string;
+};
 
 function youtubeId(value: string) {
   try {
@@ -89,16 +98,37 @@ function JokeCard({ joke }: { joke: ComedyJoke }) {
   );
 }
 
+function CommunityComedyCard({ post }: { post: CommunityComedyPost }) {
+  const message = [post.caption || "A Nexora community joke", "Shared from Nexora Comedy"].join("\\n\\n");
+  const whatsappUrl = "https://wa.me/?text=" + encodeURIComponent(message);
+  const isVideo = Boolean(post.media_url && post.media_type?.toLowerCase().startsWith("video"));
+  const isImage = Boolean(post.media_url && post.media_type?.toLowerCase().startsWith("image"));
+  return (
+    <article className="min-w-0 overflow-hidden rounded-2xl border bg-card">
+      {isVideo && <video src={post.media_url!} controls playsInline preload="metadata" className="max-h-72 w-full bg-black object-contain" />}
+      {isImage && <img src={post.media_url!} alt={post.caption || "Nexora community meme"} loading="lazy" className="max-h-72 w-full object-cover" />}
+      <div className="space-y-2 p-4">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{post.caption || "Community comedy post"}</p>
+        <div className="flex flex-wrap gap-1.5">{(post.tags ?? []).filter((tag) => ["comedy", "meme", "skit", "joke"].includes(tag.toLowerCase())).map((tag) => <span key={tag} className="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold">#{tag}</span>)}</div>
+        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366]/10 px-3 py-2 text-xs font-semibold text-[#168b45]">
+          <Share2 className="h-3.5 w-3.5" /> Share on WhatsApp
+        </a>
+      </div>
+    </article>
+  );
+}
+
 export function ComedyHub() {
   const [jokes, setJokes] = useState<ComedyJoke[]>([]);
   const [videos, setVideos] = useState<ComedyVideo[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityComedyPost[]>([]);
   const [section, setSection] = useState<"videos" | "lite">("videos");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [jokeResult, videoResult] = await Promise.all([
+      const [jokeResult, videoResult, communityResult] = await Promise.all([
         (supabase as any).from("football_announcements")
           .select("id,provider,source_name,headline,summary,thumbnail_url,source_url,published_at")
           .in("provider", ["comedy-jokeapi", "comedy-dadjokes", "comedy-reddit"])
@@ -107,12 +137,18 @@ export function ComedyHub() {
           .select("id,provider_id,match_label,source_name,thumbnail_url,video_url,published_at")
           .eq("provider", "youtube-comedy").eq("is_published", true)
           .order("published_at", { ascending: false }).limit(36),
+        (supabase as any).from("posts")
+          .select("id,author_id,caption,media_url,media_type,tags,created_at")
+          .eq("audience", "public").overlaps("tags", ["comedy", "meme", "skit", "joke"])
+          .order("created_at", { ascending: false }).limit(40),
       ]);
       if (!active) return;
       if (!jokeResult.error) setJokes((jokeResult.data ?? []) as ComedyJoke[]);
       else console.warn("Comedy text feed unavailable:", jokeResult.error.message);
       if (!videoResult.error) setVideos((videoResult.data ?? []) as ComedyVideo[]);
       else console.warn("Comedy video feed unavailable:", videoResult.error.message);
+      if (!communityResult.error) setCommunityPosts((communityResult.data ?? []) as CommunityComedyPost[]);
+      else console.warn("Nexora community comedy posts unavailable:", communityResult.error.message);
       setLoading(false);
     };
     void load();
@@ -126,7 +162,7 @@ export function ComedyHub() {
     };
   }, []);
 
-  const contentCount = useMemo(() => section === "videos" ? videos.length : jokes.length, [section, videos.length, jokes.length]);
+  const contentCount = useMemo(() => section === "videos" ? videos.length : jokes.length + communityPosts.length, [section, videos.length, jokes.length, communityPosts.length]);
 
   return (
     <section aria-label="Comedy, memes and skits" className="min-w-0 space-y-4">
@@ -164,8 +200,15 @@ export function ComedyHub() {
       {loading ? <p className="rounded-xl border p-4 text-sm text-muted-foreground">Loading Comedy…</p> : section === "videos" ? (
         videos.length ? <div className="grid min-w-0 gap-4 sm:grid-cols-2">{videos.map((video) => <ComedyVideoCard key={video.provider_id} video={video} />)}</div>
           : <div className="rounded-xl border p-6 text-center"><Sparkles className="mx-auto mb-2 h-7 w-7 text-primary" /><p className="text-sm font-semibold">Comedy videos are on the way</p><p className="mt-1 text-xs text-muted-foreground">New channel videos appear here after the scheduled feed sync.</p></div>
-      ) : jokes.length ? (
-        <div className="grid min-w-0 gap-3 sm:grid-cols-2">{jokes.map((joke) => <JokeCard key={joke.provider + ":" + joke.id} joke={joke} />)}</div>
+      ) : jokes.length || communityPosts.length ? (
+        <div className="space-y-5">
+          {jokes.length > 0 && <div className="grid min-w-0 gap-3 sm:grid-cols-2">{jokes.map((joke) => <JokeCard key={joke.provider + ":" + joke.id} joke={joke} />)}</div>}
+          {communityPosts.length > 0 && <div className="space-y-3">
+            <div><h3 className="text-sm font-bold">Nexora community jokes & memes</h3><p className="text-xs text-muted-foreground">Public posts tagged #comedy, #meme, #skit or #joke</p></div>
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">{communityPosts.map((post) => <CommunityComedyCard key={post.id} post={post} />)}</div>
+          </div>}
+          <p className="text-xs text-muted-foreground">Share your own post with #comedy, #meme, #skit or #joke to add it to this community stream.</p>
+        </div>
       ) : <p className="rounded-xl border p-4 text-sm text-muted-foreground">No jokes are available right now. Check back after the next sync.</p>}
     </section>
   );
