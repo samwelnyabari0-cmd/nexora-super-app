@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { normalizeMediaFraming } from "@/lib/media-framing";
 import { TechnologyVideoShelf } from "@/components/nexora/TechnologyVideoFeed";
 import { NewsStream } from "@/components/nexora/NewsStream";
+import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
 export const Route = createFileRoute("/explore")({
   validateSearch: (search: Record<string, unknown>) => ({
     post: typeof search.post === "string" ? search.post : "",
@@ -81,7 +82,8 @@ function Explore() {
     (show("Places") ? locations.length : 0) +
     (show("Watch") ? titles.length : 0) +
     (show("News") ? 1 : 0) +
-    (strictMediaTab ? 1 : 0);
+    (strictMediaTab ? 1 : 0) +
+    (show("Education") ? 1 : 0);
   return (
     <div>
       <PageHeader title="Explore" />
@@ -97,7 +99,7 @@ function Explore() {
         />
       </label>
       <div className="mb-6 flex flex-wrap gap-2">
-        {["All", "News", "Posts", "Reels", "Videos", "Collabs", "Creators", "Places", "Watch"].map((t) => (
+        {["All", "Education", "News", "Posts", "Reels", "Videos", "Collabs", "Creators", "Places", "Watch"].map((t) => (
           <Button
             key={t}
             variant={tab === t ? "default" : "outline"}
@@ -109,6 +111,7 @@ function Explore() {
         ))}
       </div>
       <div className="space-y-7" aria-live="polite">
+        {show("Education") && <EducationDiscovery />}
         {show("News") && <NewsStream limit={36} showFilters />}
         {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
         {show("Videos") && <><section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section><TechnologyVideoShelf limit={4} /></>}
