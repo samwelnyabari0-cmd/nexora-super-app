@@ -326,6 +326,7 @@ function TechnologyHub() {
   const [stories, setStories] = useState<TechStory[]>([]);
   const [videos, setVideos] = useState<TechVideo[]>([]);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [activeTechSection, setActiveTechSection] = useState<"updates" | "videos">("updates");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -366,37 +367,96 @@ function TechnologyHub() {
   }, []);
 
   return (
-    <section aria-label="Technology updates and videos" className="space-y-6 rounded-2xl border bg-card p-3 sm:p-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">NEXORA TECH</p><h2 className="text-xl font-black">Technology Updates</h2><p className="text-xs text-muted-foreground">AI, startups, engineering and new products</p></div>
-        <span className="rounded-full bg-muted px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">Free RSS feeds · refreshes every 30 min</span>
+    <section aria-label="Technology" className="min-w-0 space-y-5">
+      <header className="overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-4 text-white shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-300">NEXORA · TECHNOLOGY</p>
+            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">Ideas shaping tomorrow.</h2>
+            <p className="max-w-xl text-sm text-slate-300">Discover breakthroughs, creator insights, AI research and the tools building what comes next.</p>
+          </div>
+          <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-slate-200">Free feeds · refreshed every 30 min</span>
+        </div>
       </header>
-      {loadError && <p role="status" className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">{loadError}</p>}
-      {loading && <p className="text-sm text-muted-foreground">Loading technology updates…</p>}
-      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-        {stories.slice(0, 12).map((story) => (
-          <a key={story.id} href={story.source_url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 gap-3 rounded-xl border p-3 transition hover:bg-muted/50">
-            {story.thumbnail_url ? <img src={story.thumbnail_url} alt="" loading="lazy" className="h-20 w-24 shrink-0 rounded-lg object-cover" /> : <span className="grid h-20 w-24 shrink-0 place-items-center rounded-lg bg-muted"><Cpu className="h-7 w-7 text-muted-foreground" /></span>}
-            <span className="min-w-0 flex-1"><span className="line-clamp-2 block text-sm font-bold">{story.headline}</span><span className="mt-1 block text-xs text-muted-foreground">{story.source_name} · {formatRelativeTime(story.published_at)}</span><span className="mt-1 line-clamp-2 block text-xs text-muted-foreground">{story.summary}</span></span>
-          </a>
-        ))}
+
+      <div className="grid grid-cols-2 gap-3" aria-label="Technology sections">
+        <button type="button" onClick={() => setActiveTechSection("videos")} aria-pressed={activeTechSection === "videos"}
+          className={`group flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition sm:p-4 ${activeTechSection === "videos" ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "bg-card hover:bg-muted/60"}`}>
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${activeTechSection === "videos" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}><Clapperboard className="h-5 w-5" /></span>
+          <span className="min-w-0"><span className="block text-xs font-bold leading-tight sm:text-sm">Tech & Creator Videos</span><span className="mt-1 block text-[11px] text-muted-foreground">{videos.length ? `${videos.length} videos` : "Creator watchlist"}</span></span>
+        </button>
+        <button type="button" onClick={() => setActiveTechSection("updates")} aria-pressed={activeTechSection === "updates"}
+          className={`group flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition sm:p-4 ${activeTechSection === "updates" ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "bg-card hover:bg-muted/60"}`}>
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${activeTechSection === "updates" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}><Cpu className="h-5 w-5" /></span>
+          <span className="min-w-0"><span className="block text-xs font-bold leading-tight sm:text-sm">Technology</span><span className="mt-1 block text-[11px] text-muted-foreground">{stories.length ? `${stories.length} updates` : "AI · Startups · Engineering"}</span></span>
+        </button>
       </div>
-      {!loading && !stories.length && <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">New technology stories will appear here after the next feed sync.</p>}
-      <div className="space-y-3">
-        <div><h3 className="text-lg font-black">Tech & Creator Videos</h3><p className="text-xs text-muted-foreground">Latest public uploads from Fireship, Marques Brownlee and Two Minute Papers</p></div>
-        {videos.length ? <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {videos.map((video) => <article key={video.id} className="min-w-0 overflow-hidden rounded-xl border bg-background">
-            <div className="relative aspect-video bg-black">
-              {playingVideoId === video.provider_id ? <iframe title={video.match_label} src={"https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0"} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen className="h-full w-full" /> : <button type="button" onClick={() => setPlayingVideoId(video.provider_id)} aria-label={"Play " + video.match_label} className="group relative h-full w-full">
-                <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + encodeURIComponent(video.provider_id) + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-cover" />
-                <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/35"><span className="grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg"><Play className="h-6 w-6 fill-current" /></span></span>
-              </button>}
-            </div>
-            <div className="p-3"><h4 className="line-clamp-2 text-sm font-bold">{video.match_label}</h4><p className="mt-1 text-xs text-muted-foreground">{video.source_name} · {formatRelativeTime(video.published_at)}</p><a href={"https://www.youtube.com/watch?v=" + encodeURIComponent(video.provider_id)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-xs font-semibold text-primary">Watch on YouTube</a></div>
-          </article>)}
-        </div> : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? "Loading creator videos…" : "Creator videos will appear here after the next feed sync."}</p>}
-      </div>
-      <p className="text-[10px] text-muted-foreground">Articles remain on their publishers’ websites. YouTube videos are embedded only after Play is tapped; Nexora does not download or re-host them.</p>
+
+      {loadError && <p role="status" className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-muted-foreground">{loadError}</p>}
+
+      {activeTechSection === "updates" ? (
+        <section className="min-w-0 space-y-4" aria-label="Technology updates">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">The latest</p><h3 className="text-xl font-black tracking-tight">Technology Updates</h3><p className="text-xs text-muted-foreground">AI, startups, deep tech, engineering and product launches</p></div>
+            <span className="text-[11px] text-muted-foreground">{stories.length} stories</span>
+          </div>
+          {loading && !stories.length && <p className="rounded-xl border p-4 text-sm text-muted-foreground">Loading technology updates…</p>}
+          {stories.length ? <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {stories.slice(0, 18).map((story) => <TechnologyStoryCard key={story.id} story={story} />)}
+          </div> : !loading && <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">New technology stories will appear here after the next feed sync.</p>}
+        </section>
+      ) : (
+        <section className="min-w-0 space-y-4" aria-label="Tech and creator videos">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Watch & learn</p><h3 className="text-xl font-black tracking-tight">Tech & Creator Videos</h3><p className="text-xs text-muted-foreground">Latest public uploads from Fireship, Marques Brownlee and Two Minute Papers</p></div>
+            <span className="text-[11px] text-muted-foreground">{videos.length} videos</span>
+          </div>
+          {videos.length ? <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {videos.map((video) => <article key={video.id} className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
+              <div className="relative aspect-video bg-black">
+                {playingVideoId === video.provider_id ? <iframe title={video.match_label} src={"https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video.provider_id) + "?autoplay=1&rel=0"} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen className="h-full w-full" /> : <button type="button" onClick={() => setPlayingVideoId(video.provider_id)} aria-label={"Play " + video.match_label} className="group relative h-full w-full">
+                  <img src={video.thumbnail_url || "https://i.ytimg.com/vi/" + encodeURIComponent(video.provider_id) + "/hqdefault.jpg"} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                  <span className="absolute inset-0 grid place-items-center bg-black/20 transition group-hover:bg-black/35"><span className="grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg"><Play className="h-6 w-6 fill-current" /></span></span>
+                </button>}
+              </div>
+              <div className="p-3"><h4 className="line-clamp-2 text-sm font-bold">{video.match_label}</h4><p className="mt-1 text-xs text-muted-foreground">{video.source_name} · {formatRelativeTime(video.published_at)}</p><a href={"https://www.youtube.com/watch?v=" + encodeURIComponent(video.provider_id)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-xs font-semibold text-primary">Watch on YouTube</a></div>
+            </article>)}
+          </div> : <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">{loading ? "Loading creator videos…" : "Creator videos will appear here after the next feed sync."}</p>}
+        </section>
+      )}
+      <p className="text-[10px] text-muted-foreground">Articles remain on their publishers’ websites. YouTube videos load only after Play is tapped; Nexora does not download or re-host them.</p>
     </section>
+  );
+}
+
+function TechnologyStoryCard({ story }: { story: TechStory }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const source = story.source_name.toLowerCase();
+  const VisualIcon = source.includes("startup") || source.includes("product") ? BarChart3
+    : source.includes("cloudflare") || source.includes("ars") ? Cpu
+    : source.includes("openai") || source.includes("verge") ? Newspaper : GraduationCap;
+  const accent = source.includes("startup") || source.includes("product") ? "from-orange-500/25 via-amber-500/10 to-transparent"
+    : source.includes("cloudflare") ? "from-orange-500/25 via-rose-500/10 to-transparent"
+    : source.includes("openai") || source.includes("verge") ? "from-violet-500/25 via-indigo-500/10 to-transparent"
+    : "from-cyan-500/25 via-blue-500/10 to-transparent";
+
+  return (
+    <a href={story.source_url} target="_blank" rel="noopener noreferrer" className="group min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className={`relative aspect-[16/9] overflow-hidden bg-gradient-to-br ${accent}`}>
+        {story.thumbnail_url && !imageFailed ? <img src={story.thumbnail_url} alt="" loading="lazy" onError={() => setImageFailed(true)} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" /> : (
+          <div className="absolute inset-0 flex flex-col justify-between overflow-hidden p-4">
+            <div className="flex items-center justify-between"><span className="rounded-full border border-white/20 bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-foreground/80">{story.source_name}</span><VisualIcon className="h-5 w-5 text-foreground/60" /></div>
+            <div className="relative z-10 max-w-[90%]"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">NEXORA TECH BRIEF</p><p className="mt-1 line-clamp-2 text-base font-black leading-tight text-foreground sm:text-lg">{story.headline}</p></div>
+            <VisualIcon className="absolute -bottom-7 -right-3 h-36 w-36 rotate-[-12deg] text-foreground/[0.07]" />
+          </div>
+        )}
+        <span className="absolute bottom-3 left-3 rounded-full border border-white/20 bg-black/65 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">{story.source_name}</span>
+      </div>
+      <div className="space-y-2 p-3.5">
+        <h4 className="line-clamp-2 text-sm font-bold leading-snug transition group-hover:text-primary">{story.headline}</h4>
+        {story.summary && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{story.summary}</p>}
+        <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-muted-foreground"><span>{formatRelativeTime(story.published_at)}</span><span className="inline-flex items-center gap-1 font-semibold text-primary">Read story <ArrowLeft className="h-3 w-3 rotate-180" /></span></div>
+      </div>
+    </a>
   );
 }
