@@ -385,6 +385,17 @@ begin
     raise exception 'this contact is blocked';
   end if;
 
+  -- An already accepted reverse-direction relationship is sufficient.
+  -- Do not create a duplicate row when the same invite is redeemed again.
+  if exists (
+    select 1 from public.contacts c
+    where c.status = 'accepted'
+      and ((c.requester = owner_id and c.addressee = auth.uid())
+        or (c.requester = auth.uid() and c.addressee = owner_id))
+  ) then
+    return owner_id;
+  end if;
+
   delete from public.contacts
   where requester = auth.uid()
     and addressee = owner_id
@@ -632,8 +643,9 @@ begin
   end if;
 
   if new.status = 'accepted' then
-    if private.is_blocked_pair(old.caller, old.callee) then
-      raise exception 'blocked contacts cannot call';
+    if private.is_blocked_pair(old.caller, old.callee)
+      or not private.are_contacts(old.caller, old.callee) then
+      raise exception 'only accepted, unblocked contacts can accept calls';
     end if;
     if new.callee_peer_id is null or length(trim(new.callee_peer_id)) = 0
       or length(new.callee_peer_id) > 255 then
