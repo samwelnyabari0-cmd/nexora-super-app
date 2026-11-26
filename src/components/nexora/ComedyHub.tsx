@@ -44,6 +44,16 @@ function youtubeId(value: string) {
   return "";
 }
 
+function uniqueComedyVideos(rows: ComedyVideo[]): ComedyVideo[] {
+  const seen = new Set<string>();
+  return rows.filter((video) => {
+    const key = youtubeId(video.video_url) || video.provider_id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function ComedyVideoCard({ video }: { video: ComedyVideo }) {
   const [playing, setPlaying] = useState(false);
   const id = youtubeId(video.video_url);
@@ -136,7 +146,7 @@ export function ComedyHub() {
         (supabase as any).from("football_highlights")
           .select("id,provider_id,match_label,source_name,thumbnail_url,video_url,published_at")
           .eq("provider", "youtube-comedy").eq("is_published", true)
-          .order("published_at", { ascending: false }).limit(36),
+          .order("published_at", { ascending: false }).limit(72),
         (supabase as any).from("posts")
           .select("id,author_id,caption,media_url,media_type,tags,created_at")
           .eq("audience", "public").overlaps("tags", ["comedy", "meme", "skit", "joke"])
@@ -145,7 +155,7 @@ export function ComedyHub() {
       if (!active) return;
       if (!jokeResult.error) setJokes((jokeResult.data ?? []) as ComedyJoke[]);
       else console.warn("Comedy text feed unavailable:", jokeResult.error.message);
-      if (!videoResult.error) setVideos((videoResult.data ?? []) as ComedyVideo[]);
+      if (!videoResult.error) setVideos(uniqueComedyVideos((videoResult.data ?? []) as ComedyVideo[]));
       else console.warn("Comedy video feed unavailable:", videoResult.error.message);
       if (!communityResult.error) setCommunityPosts((communityResult.data ?? []) as CommunityComedyPost[]);
       else console.warn("Nexora community comedy posts unavailable:", communityResult.error.message);
