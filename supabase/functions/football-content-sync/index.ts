@@ -105,14 +105,14 @@ function videoUrlFromItem(item: string, allowedHosts: string[]): string | null {
   if (/^[A-Za-z0-9_-]{6,20}$/.test(youtubeId)) {
     return "https://www.youtube.com/watch?v=" + youtubeId;
   }
-  const mediaTags = [...item.matchAll(/<(?:media:content|enclosure)\\b([^>]*)\\/?>(?:<\\/(?:media:content|enclosure)>)?/gi)];
+  const mediaTags = [...item.matchAll(/<(?:media:content|enclosure)\b([^>]*)\/?>(?:<\/(?:media:content|enclosure)>)?/gi)];
   for (const tag of mediaTags) {
     const attrs = tag[1];
-    const type = (attrs.match(/\\btype\\s*=\\s*["']([^"']+)["']/i)?.[1] ?? "").toLowerCase();
-    const candidate = attrs.match(/\\b(?:url|href)\\s*=\\s*["']([^"']+)["']/i)?.[1];
+    const type = (attrs.match(/\btype\s*=\s*["']([^"']+)["']/i)?.[1] ?? "").toLowerCase();
+    const candidate = attrs.match(/\b(?:url|href)\s*=\s*["']([^"']+)["']/i)?.[1];
     if (!candidate) continue;
     const decoded = decodeXml(candidate);
-    if (/youtube\\.com\\/(?:watch|embed)|youtu\\.be\\//i.test(decoded)) {
+    if (/youtube\.com\/(?:watch|embed)|youtu\.be\//i.test(decoded)) {
       try {
         const url = new URL(decoded);
         if (url.hostname === "youtu.be" || url.hostname === "www.youtube.com" || url.hostname === "youtube.com") {
@@ -120,7 +120,7 @@ function videoUrlFromItem(item: string, allowedHosts: string[]): string | null {
         }
       } catch { /* Ignore malformed publisher video links. */ }
     }
-    if (type.startsWith("video/") || /\\.(?:mp4|webm)(?:$|[?#])/i.test(decoded)) {
+    if (type.startsWith("video/") || /\.(?:mp4|webm)(?:$|[?#])/i.test(decoded)) {
       const safe = safeHttpsUrl(decoded, allowedHosts);
       if (safe) return safe;
     }
