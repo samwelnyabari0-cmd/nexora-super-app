@@ -29,14 +29,14 @@ const NEWS_PROVIDERS = [
 
 function categoryForProvider(provider: string, headline = "", summary = "") {
   const text = (headline + " " + summary).toLowerCase();
-  if (provider.includes("sport") || /\\b(match|football|premier league|champions league|athletics|rugby|cricket|tennis|basketball|goal|coach|tournament)\\b/.test(text)) return "Sports";
-  if (provider.includes("politics") || /\\b(election|parliament|president|prime minister|governor|senator|mp |political|politics|government|cabinet|campaign)\\b/.test(text)) return "Politics";
-  if (provider.includes("business") || /\\b(business|economy|economic|market|stocks|bank|trade|company|companies|inflation|jobs)\\b/.test(text)) return "Business";
-  if (provider.includes("entertainment") || /\\b(entertainment|celebrity|film|movie|music|artist|actor|actress|concert|tv show)\\b/.test(text)) return "Entertainment";
-  if (provider.includes("science") || /\\b(science|research|space|nasa|climate|environment|discovery)\\b/.test(text)) return "Science";
-  if (provider.includes("health") || /\\b(health|hospital|medical|medicine|disease|doctor|vaccine)\\b/.test(text)) return "Health";
+  if (provider.includes("sport") || /\b(match|football|premier league|champions league|athletics|rugby|cricket|tennis|basketball|goal|coach|tournament)\b/.test(text)) return "Sports";
+  if (provider.includes("politics") || /\b(election|parliament|president|prime minister|governor|senator|mp |political|politics|government|cabinet|campaign)\b/.test(text)) return "Politics";
+  if (provider.includes("business") || /\b(business|economy|economic|market|stocks|bank|trade|company|companies|inflation|jobs)\b/.test(text)) return "Business";
+  if (provider.includes("entertainment") || /\b(entertainment|celebrity|film|movie|music|artist|actor|actress|concert|tv show)\b/.test(text)) return "Entertainment";
+  if (provider.includes("science") || /\b(science|research|space|nasa|climate|environment|discovery)\b/.test(text)) return "Science";
+  if (provider.includes("health") || /\b(health|hospital|medical|medicine|disease|doctor|vaccine)\b/.test(text)) return "Health";
   if (provider.includes("trending")) return "Trending";
-  if (provider.includes("tech") || /\\b(technology|tech|artificial intelligence| AI |software|cybersecurity|gadget)\\b/.test(text)) return "Technology";
+  if (provider.includes("tech") || /\b(technology|tech|artificial intelligence| AI |software|cybersecurity|gadget)\b/.test(text)) return "Technology";
   if (provider.includes("video-kenya") || provider.startsWith("kenya-")) return "Kenya";
   return "World";
 }
