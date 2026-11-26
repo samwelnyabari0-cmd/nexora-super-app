@@ -35,7 +35,7 @@ export const Route = createFileRoute("/calls")({
 });
 
 type Person = { id: string; display_name: string | null; handle: string | null };
-type Contact = { id: string; requester: string; addressee: string; status: string };
+type Contact = { id: string; requester: string; addressee: string; status: string; blocked_by?: string | null };
 type Invite = CallInvite;
 
 const label = (p?: Person) => p?.display_name || (p?.handle ? `@${p.handle}` : "NEXORA user");
@@ -214,7 +214,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   const load = useCallback(async () => {
     const [{ data: p }, { data: c }, { data: i }] = await Promise.all([
       supabase.from("profiles").select("invite_code, discoverable").eq("id", userId).maybeSingle(),
-      supabase.from("contacts").select("id, requester, addressee, status"),
+      supabase.from("contacts").select("id, requester, addressee, status, blocked_by"),
       supabase
         .from("call_invites")
         .select("id, caller, callee, kind, status, callee_peer_id")
@@ -287,6 +287,33 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
     await supabase.from("contacts").update({ status }).eq("id", id);
     void load();
   };
+  const blockContact = async (id: string) => {
+    const { error } = await supabase.rpc("block_contact", { p_other_user_id: id });
+    if (error) {
+      toast.error("Could not block this contact.");
+      return;
+    }
+    toast.success("Contact blocked. Any active call has been ended.");
+    void load();
+  };
+  const unblockContact = async (id: string) => {
+    const { data, error } = await supabase.rpc("unblock_contact", { p_other_user_id: id });
+    if (error || !data) {
+      toast.error("Could not unblock this contact.");
+      return;
+    }
+    toast.success("Contact unblocked. Send a new request or invite to reconnect.");
+    void load();
+  };
+  const rotateInvite = async () => {
+    const { data, error } = await supabase.rpc("rotate_contact_invite");
+    if (error || typeof data !== "string") {
+      toast.error("Could not reset your invite link.");
+      return;
+    }
+    setMe((current) => current ? { ...current, invite_code: data } : current);
+    toast.success("Invite link reset. The previous link is no longer valid.");
+  };
   const toggleDiscoverable = async () => {
   const { error } = await supabase
     .from("profiles")
@@ -309,6 +336,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
 
   const accepted = contacts.filter((c) => c.status === "accepted");
   const incomingReq = contacts.filter((c) => c.status === "pending" && c.addressee === userId);
+  const blockedByMe = contacts.filter((c) => c.status === "blocked" && c.blocked_by === userId);
   const active = invites[0];
   const link =
     me?.invite_code && typeof window !== "undefined"
@@ -318,7 +346,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   return (
     <div className="space-y-4">
       <Panel>
-        <h2 className="mb-2 font-display font-semibold">Your invite link</h2>
+        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-display font-semibold">Your invite link</h2><Button size="sm" variant="outline" onClick={() => void rotateInvite()}>Reset link</Button></div>
         <p className="text-sm text-muted-foreground">
           Anyone who opens this link while signed in becomes your contact and can call you.
         </p>
@@ -414,6 +442,13 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
                 >
                   <X className="h-4 w-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => void blockContact(c.requester)}
+                >
+                  Block
+                </Button>
               </span>
             </div>
           ))}
@@ -452,11 +487,38 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
                 >
                   <Video className="h-4 w-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => void blockContact(other)}
+                >
+                  Block
+                </Button>
               </span>
             </div>
           );
         })}
       </Panel>
+
+      {blockedByMe.length > 0 && (
+        <Panel>
+          <h2 className="mb-2 font-display font-semibold">Blocked contacts</h2>
+          {blockedByMe.map((contact) => {
+            const other = contact.requester === userId ? contact.addressee : contact.requester;
+            return (
+              <div key={contact.id} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                <span className="flex items-center gap-2">
+                  <Avatar name={label(names[other])} size={28} />
+                  {label(names[other])}
+                </span>
+                <Button size="sm" variant="outline" onClick={() => void unblockContact(other)}>
+                  Unblock
+                </Button>
+              </div>
+            );
+          })}
+        </Panel>
+      )}
     </div>
   );
 }
