@@ -55,9 +55,9 @@ begin
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'call_invites'
       and policyname = 'calls_create' and cmd = 'INSERT'
-      and with_check like '%are_contacts%'
+      and with_check like '%can_start_call%'
   ) then
-    raise exception 'Call creation must require an accepted contact relationship';
+    raise exception 'Call creation must use the serialized accepted-contact call predicate';
   end if;
 
   if not exists (
@@ -108,6 +108,14 @@ begin
      or position('recipient' in lower(v_definition)) = 0
      or position('blocked' in lower(v_definition)) = 0 then
     raise exception 'Call guard must enforce immutable participants, recipient-only acceptance and block checks';
+  end if;
+
+  select pg_get_functiondef('private.can_start_call(uuid, uuid)'::regprocedure)
+    into v_definition;
+  if position('advisory_xact_lock' in lower(v_definition)) = 0
+     or position('accepted' in lower(v_definition)) = 0
+     or position('ringing' in lower(v_definition)) = 0 then
+    raise exception 'Call creation must serialize participants and require accepted contacts with no active call';
   end if;
 
   if not exists (
