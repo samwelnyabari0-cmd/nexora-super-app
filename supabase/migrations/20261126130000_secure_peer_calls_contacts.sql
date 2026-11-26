@@ -329,7 +329,8 @@ begin
 
   select p.id into owner_id
   from public.profiles p
-  where p.invite_code = trim(code);
+  where p.invite_code = trim(code)
+  for update;
 
   if owner_id is null or owner_id = auth.uid() then
     raise exception 'invalid invite';
