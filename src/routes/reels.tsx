@@ -120,7 +120,7 @@ function Reels() {
         if (id !== nextId) video.pause();
       });
       if (nextId !== activeReelId) setPlayBlockedId(null);
-      if (!nextId.startsWith("comedy:")) setRequestedComedyPlaybackId(null);
+      setRequestedComedyPlaybackId((current) => current === nextId ? current : null);
       setActiveReelId(nextId);
     }, { root: feed, threshold: [0, 0.25, 0.5, 0.65, 0.8, 1] });
 
