@@ -83,8 +83,18 @@ export function NewsStoryCard({ story }: { story: NewsStory }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [copied, setCopied] = useState(false);
-  const youtubeId = (() => {\n    if (!validHttps(story.video_url)) return null;\n    try { const url = new URL(story.video_url!); if (url.hostname === "youtu.be") return url.pathname.slice(1); if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) return url.searchParams.get("v") || url.pathname.match(/^\\/(?:embed|shorts)\\/([^/]+)/)?.[1] || null; } catch { /* Ignore invalid URLs. */ }\n    return null;\n  })();
-  const directVideo = validHttps(story.video_url) && /\\.(?:mp4|webm)(?:$|[?#])/i.test(story.video_url!);
+  const youtubeId = (() => {
+    if (!validHttps(story.video_url)) return null;
+    try {
+      const url = new URL(story.video_url!);
+      if (url.hostname === "youtu.be") return url.pathname.slice(1);
+      if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(url.hostname)) {
+        return url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1] || null;
+      }
+    } catch { /* Ignore invalid URLs. */ }
+    return null;
+  })();
+  const directVideo = validHttps(story.video_url) && /\.(?:mp4|webm)(?:$|[?#])/i.test(story.video_url!);
   const share = async () => {
     const text = story.headline + " — " + story.source_name + "\n" + story.source_url;
     try {
