@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { SearchX, Users } from "lucide-react";
 import { feedFilters } from "@/features/core/data";
 import { useWorkspace } from "@/features/core/workspace";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/features/core/store";
 import { PostCard } from "@/components/nexora/PostCard";
+import { TechnologyVideoCard, useTechnologyCreatorVideos } from "@/components/nexora/TechnologyVideoFeed";
 import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { Avatar, Chip, EmptyState } from "@/components/nexora/ui";
@@ -43,6 +44,7 @@ function Home() {
   const { user } = useSession();
   const { passport } = app;
   const posts = useMemo(() => app.posts.filter((post) => !muted.includes(post.creatorId)), [app.posts, muted]);
+  const technologyVideos = useTechnologyCreatorVideos(8);
   const [filter, setFilter] = useState("For you");
   const [loading, setLoading] = useState(true);
   const feedLoading = loading || app.postsLoading;
@@ -157,7 +159,13 @@ function Home() {
               title={filter === "Following" ? "Your Following feed is empty" : "No posts yet"}
               body={filter === "Following" ? "Follow real NEXORA accounts to see their posts here." : "When people publish public posts, they will appear here."}
               action={<Link to="/explore" className="rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted">Explore accounts</Link>} />
-          ) : shown.map((post) => <PostCard key={post.id} post={post} />)}
+          ) : shown.map((post, index) => (
+            <Fragment key={post.id}>
+              <PostCard post={post} />
+              {index === 3 && technologyVideos[0] && <TechnologyVideoCard video={technologyVideos[0]} />}
+              {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
+            </Fragment>
+          ))}
         </div>
       </div>
 
