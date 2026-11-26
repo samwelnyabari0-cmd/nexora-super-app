@@ -399,20 +399,32 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
           />
         </div>
         <ul className="mt-2 space-y-1">
-          {results.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center justify-between rounded-xl border p-2 text-sm"
-            >
-              <span className="flex items-center gap-2">
-                <Avatar name={label(p)} size={28} />
-                {label(p)}
-              </span>
-              <Button size="sm" variant="outline" onClick={() => void request(p.id)}>
-                <UserPlus className="h-4 w-4" /> Add
-              </Button>
-            </li>
-          ))}
+          {results.map((p) => {
+            const relationship = contacts.find((contact) =>
+              (contact.requester === userId && contact.addressee === p.id)
+              || (contact.requester === p.id && contact.addressee === userId)
+            );
+            const requestUnavailable = Boolean(relationship);
+            return (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-xl border p-2 text-sm"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <Avatar name={label(p)} size={28} />
+                  <span className="truncate">{label(p)}</span>
+                </span>
+                <span className="flex shrink-0 gap-1">
+                  <Button size="sm" variant="outline" disabled={requestUnavailable} onClick={() => void request(p.id)}>
+                    <UserPlus className="h-4 w-4" /> {relationship?.status === "pending" ? "Pending" : "Add"}
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => void blockContact(p.id)}>
+                    Block
+                  </Button>
+                </span>
+              </li>
+            );
+          })}
           {q.trim().length >= 2 && !results.length && (
             <li className="text-sm text-muted-foreground">No members found.</li>
           )}
