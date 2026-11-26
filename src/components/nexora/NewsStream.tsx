@@ -27,7 +27,7 @@ const NEWS_PROVIDERS = [
 ];
 
 function categoryForProvider(provider: string) {
-  if (provider.includes("sports")) return "Sports";
+  if (provider.includes("sport")) return "Sports";
   if (provider.includes("politics")) return "Politics";
   if (provider.includes("business")) return "Business";
   if (provider.includes("entertainment")) return "Entertainment";
