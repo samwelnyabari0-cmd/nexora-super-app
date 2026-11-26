@@ -70,6 +70,21 @@ begin
 
   if not exists (
     select 1 from pg_trigger
+    where tgrelid = 'public.contacts'::regclass
+      and tgname = 'contacts_guard' and not tgisinternal
+  ) then
+    raise exception 'The contact identity and response guard trigger must exist';
+  end if;
+
+  select pg_get_functiondef('private.contact_guard()'::regprocedure)
+    into v_definition;
+  if position('identity is immutable' in lower(v_definition)) = 0
+     or position('only the recipient' in lower(v_definition)) = 0 then
+    raise exception 'Contact response must preserve row identity and be recipient-only';
+  end if;
+
+  if not exists (
+    select 1 from pg_trigger
     where tgrelid = 'public.profiles'::regclass
       and tgname = 'profiles_invite_code_guard' and not tgisinternal
   ) then
