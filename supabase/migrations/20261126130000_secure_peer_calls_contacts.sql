@@ -87,25 +87,49 @@ as $$
     );
 $$;
 
-create or replace function private.can_request_contact(a uuid, b uuid)
-returns boolean
-language sql
-stable
+create or replace function private.lock_contact_pair(a uuid, b uuid)
+returns void
+language plpgsql
+volatile
 security definer
 set search_path = ''
-as $$
-  select auth.uid() = a
-    and a is not null
-    and b is not null
-    and a <> b
-    and not private.is_blocked_pair(a, b)
+as $
+begin
+  if auth.uid() is null or a is null or b is null or a = b
+    or auth.uid() not in (a, b) then
+    raise exception 'not authorized to lock this contact pair';
+  end if;
+
+  perform private.lock_contact_pair(a, b);
+end;
+$;
+
+grant execute on function private.lock_contact_pair(uuid, uuid) to authenticated;
+revoke all on function private.lock_contact_pair(uuid, uuid) from anon, public;
+
+create or replace function private.can_request_contact(a uuid, b uuid)
+returns boolean
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $
+begin
+  if auth.uid() is distinct from a or a is null or b is null or a = b then
+    return false;
+  end if;
+
+  perform private.lock_contact_pair(a, b);
+
+  return not private.is_blocked_pair(a, b)
     and not exists (
       select 1 from public.contacts c
       where ((c.requester = a and c.addressee = b)
           or (c.requester = b and c.addressee = a))
         and c.status in ('pending', 'accepted', 'blocked')
     );
-$$;
+end;
+$;
 
 grant execute on function private.is_blocked_pair(uuid, uuid) to authenticated;
 grant execute on function private.can_request_contact(uuid, uuid) to authenticated;
@@ -280,6 +304,8 @@ begin
     raise exception 'invalid invite';
   end if;
 
+  perform private.lock_contact_pair(owner_id, auth.uid());
+
   if exists (
     select 1 from public.contacts c
     where c.status = 'blocked'
@@ -327,6 +353,8 @@ begin
     raise exception 'invalid contact';
   end if;
 
+  perform private.lock_contact_pair(auth.uid(), p_other_user_id);
+
   if exists (
     select 1 from public.contacts c
     where c.status = 'blocked'
@@ -366,6 +394,11 @@ begin
   if auth.uid() is null then
     raise exception 'sign in required';
   end if;
+  if p_other_user_id is null or p_other_user_id = auth.uid() then
+    raise exception 'invalid contact';
+  end if;
+
+  perform private.lock_contact_pair(auth.uid(), p_other_user_id);
 
   delete from public.contacts
   where status = 'blocked'
