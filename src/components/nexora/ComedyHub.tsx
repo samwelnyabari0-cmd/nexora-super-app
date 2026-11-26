@@ -99,7 +99,7 @@ function JokeCard({ joke }: { joke: ComedyJoke }) {
 }
 
 function CommunityComedyCard({ post }: { post: CommunityComedyPost }) {
-  const message = [post.caption || "A Nexora community joke", "Shared from Nexora Comedy"].join("\\n\\n");
+  const message = [post.caption || "A Nexora community joke", "Shared from Nexora Comedy"].join("\n\n");
   const whatsappUrl = "https://wa.me/?text=" + encodeURIComponent(message);
   const isVideo = Boolean(post.media_url && post.media_type?.toLowerCase().startsWith("video"));
   const isImage = Boolean(post.media_url && post.media_type?.toLowerCase().startsWith("image"));
