@@ -188,8 +188,8 @@ begin
     raise exception 'contact request identity is immutable';
   end if;
 
-  if old.status <> 'pending' or auth.uid() is distinct from old.addressee then
-    raise exception 'only the recipient can respond to a pending contact request';
+  if old.status not in ('pending', 'declined') or auth.uid() is distinct from old.addressee then
+    raise exception 'only the recipient can respond to a pending or declined contact request';
   end if;
 
   if new.status not in ('accepted', 'declined') or new.blocked_by is not null then
