@@ -1031,7 +1031,7 @@ if (recipient === user.id) {
         setError("Calls are available only with accepted contacts. Add this person as a contact in Calls first.");
         return;
       }
-      await navigate({ to: "/calls" });
+      toast.success("Calling… You can keep chatting while the call opens.");
     } finally {
       setStartingCall(false);
     }
