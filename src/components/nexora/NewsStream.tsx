@@ -24,7 +24,8 @@ const NEWS_PROVIDERS = [
   "entertainment-bbc-rss", "science-bbc-rss", "health-bbc-rss",
   "kenya-politics-google-news-rss", "kenya-sports-google-news-rss",
   "kenya-business-google-news-rss", "kenya-entertainment-google-news-rss",
-  "trending-google-news-rss", "tech-rss", "video-world-bbc", "video-world-aljazeera",\n  "video-kenya-citizen", "video-kenya-ktn", "video-kenya-ntv", "video-sports-premier-league",
+  "trending-google-news-rss", "tech-rss", "video-world-bbc", "video-world-aljazeera",
+  "video-kenya-citizen", "video-kenya-ktn", "video-kenya-ntv", "video-sports-premier-league",
 ];
 
 function categoryForProvider(provider: string, headline = "", summary = "") {
