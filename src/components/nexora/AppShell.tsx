@@ -100,7 +100,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     const observer = typeof IntersectionObserver !== "undefined"
       ? new IntersectionObserver((entries) => {
           entries.forEach((entry) => {
-            if (!entry.isIntersecting || entry.intersectionRatio < 0.25) pauseElement(entry.target);
+            if (!entry.isIntersecting || entry.intersectionRatio < 0.25) {
+              pauseElement(entry.target);
+            } else if (entry.target instanceof HTMLVideoElement && entry.target.preload === "none") {
+              entry.target.preload = "metadata";
+            }
           });
         }, { threshold: [0, 0.25, 0.5] })
       : null;
