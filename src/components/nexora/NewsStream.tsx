@@ -199,7 +199,7 @@ export function NewsStream({ limit = 24, showFilters = true }: { limit?: number;
   const [category, setCategory] = useState("All");
   const visible = useMemo(() => {
     if (category === "Videos") return stories.filter((story) => Boolean(story.video_url)).slice(0, limit);
-    if (category === "All") return stories.filter((story) => !story.video_url).slice(0, limit);
+    if (category === "All") return stories.slice(0, limit);
     return stories.filter((story) => story.category === category).slice(0, limit);
   }, [stories, category, limit]);
   if (!stories.length) return <p className="rounded-xl border p-4 text-sm text-muted-foreground">News updates are temporarily unavailable. Please check again shortly.</p>;
@@ -210,7 +210,6 @@ export function NewsStream({ limit = 24, showFilters = true }: { limit?: number;
         <h2 className="text-lg font-bold">What's happening</h2>
         <p className="text-xs text-muted-foreground">Sports, politics, business, entertainment, technology and more</p>
       </div>
-      {category === "All" && <NewsVideoShelf stories={stories} limit={4} />}
       {showFilters && <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter news by category">
         {CATEGORIES.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} aria-pressed={category === item}
           className={category === item ? "shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground" : "shrink-0 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold"}>
