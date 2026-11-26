@@ -744,7 +744,7 @@ function parseComedyRedditFeed(xml: string, subreddit: string): NewsItem[] {
   return rows.slice(0, 12);
 }
 
-function parseComedyYouTubeFeed(xml: string, channelName: string): HighlightItem[] {
+function parseComedyYouTubeFeed(xml: string, channelName: string, channelId: string): HighlightItem[] {
   const entries = [...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map((match) => match[1]);
   return entries.flatMap((entry) => {
     const videoId = textTag(entry, "yt:videoId");
@@ -753,7 +753,9 @@ function parseComedyYouTubeFeed(xml: string, channelName: string): HighlightItem
     if (!/^[A-Za-z0-9_-]{6,20}$/.test(videoId) || !headline || !publishedAt) return [];
     return [{
       provider: "youtube-comedy",
-      provider_id: videoId,
+      // Include the channel ID in the cache key so videos from separate channels
+      // cannot overwrite each other when their provider IDs collide.
+      provider_id: channelId + ":" + videoId,
       competition_code: "COMEDY",
       match_label: headline,
       score_label: null,
@@ -837,7 +839,7 @@ async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: H
   extraChannelIds.forEach((channelId, index) => channelSpecs.push({ name: "Community Comedy Channel " + (index + 1), channelId }));
   const videoResults = await Promise.allSettled(channelSpecs.map(async (channel) => {
     const xml = await fetchFeed("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId);
-    return { channel, rows: parseComedyYouTubeFeed(xml, channel.name) };
+    return { channel, rows: parseComedyYouTubeFeed(xml, channel.name, channel.channelId) };
   }));
   for (let index = 0; index < videoResults.length; index += 1) {
     const result = videoResults[index];
