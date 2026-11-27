@@ -144,7 +144,7 @@ revoke all on function private.can_request_contact(uuid, uuid) from anon, public
 create or replace function private.prepare_contact_request()
 returns trigger
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $prepare$
 begin
