@@ -15,7 +15,7 @@ import { normalizeMediaFraming } from "@/lib/media-framing";
 import { TechnologyVideoShelf } from "@/components/nexora/TechnologyVideoFeed";
 import { NewsStream } from "@/components/nexora/NewsStream";
 import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
-import { ComedyVideoShelf } from "@/components/nexora/ComedyVideoShelf";
+import { ComedyVideoStream } from "@/components/nexora/ComedyVideoStream";
 export const Route = createFileRoute("/explore")({
   validateSearch: (search: Record<string, unknown>) => ({
     post: typeof search.post === "string" ? search.post : "",
@@ -114,8 +114,8 @@ function Explore() {
       <div className="space-y-7" aria-live="polite">
         {show("Education") && <EducationDiscovery />}
         {show("News") && <NewsStream limit={36} showFilters />}
-        {show("Reels") && <section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section>}
-        {show("Videos") && <><section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section><TechnologyVideoShelf limit={4} /></>}
+        {show("Reels") && <><section><h2 className="mb-3 text-lg font-semibold">Reels · vertical videos</h2><StrictMediaGrid contentType="reel" /></section><ComedyVideoStream limit={8} title="Comedian reels and shorts" /></>}
+        {show("Videos") && <><section><h2 className="mb-3 text-lg font-semibold">Videos · widescreen</h2><StrictMediaGrid contentType="video" /></section><TechnologyVideoShelf limit={4} /><ComedyVideoStream limit={8} title="Latest comedian videos" /></>}
         {show("Collabs") && <section><h2 className="mb-3 text-lg font-semibold">Collabs</h2><StrictMediaGrid contentType="collab" /></section>}
         {show("Creators") && (
           <section>
