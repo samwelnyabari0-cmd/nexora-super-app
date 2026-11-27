@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CallInvite } from "@/components/nexora/CallSession";
-import { Phone, PhoneOff, Video, Copy, Search, UserPlus, Check, X, Crown, Sparkles, ShieldCheck } from "lucide-react";
+import { Phone, PhoneOff, Video, Copy, Search, UserPlus, Check, X, Crown, Sparkles, ShieldCheck, BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { PageHeader, Panel, Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
+import { disablePushNotifications, enablePushNotifications, hasPushSubscription } from "@/lib/push";
 
 
 export const Route = createFileRoute("/calls")({
@@ -202,6 +203,62 @@ function CallsPage() {
     </div>
   );
           }
+
+function CallNotificationSettings({ userId }: { userId: string }) {
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [supported, setSupported] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    const supportedHere = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    setSupported(supportedHere);
+    if (!supportedHere) return;
+    void hasPushSubscription().then((value) => { if (alive) setEnabled(value); });
+    return () => { alive = false; };
+  }, []);
+
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      if (enabled) {
+        await disablePushNotifications(userId);
+        setEnabled(false);
+        toast.success("Call notifications turned off.");
+      } else {
+        await enablePushNotifications(userId);
+        setEnabled(true);
+        toast.success("Call notifications enabled on this device.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update call notifications.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Panel className="border-primary/20">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="rounded-xl bg-primary/10 p-2 text-primary"><BellRing className="h-5 w-5" /></span>
+          <div>
+            <h2 className="font-display font-semibold">Incoming call alerts</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Get a notification when someone calls, even when NEXORA is in the background. Allow notifications and keep this app installed on your phone.
+            </p>
+            {!supported && <p className="mt-1 text-xs text-destructive">This browser does not support background push notifications.</p>}
+          </div>
+        </div>
+        <Button className="shrink-0" variant={enabled ? "outline" : "default"} disabled={busy || !supported} onClick={() => void toggle()}>
+          <BellRing className="mr-2 h-4 w-4" />
+          {busy ? "Updating…" : enabled ? "Turn alerts off" : "Enable call alerts"}
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
 function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: string }) {
   const [me, setMe] = useState<{ invite_code: string | null; discoverable: boolean } | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -345,6 +402,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
 
   return (
     <div className="space-y-4">
+      <CallNotificationSettings userId={userId} />
       <Panel>
         <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-display font-semibold">Your invite link</h2><Button size="sm" variant="outline" onClick={() => void rotateInvite()}>Reset link</Button></div>
         <p className="text-sm text-muted-foreground">
