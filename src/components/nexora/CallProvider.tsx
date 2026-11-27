@@ -15,6 +15,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [other, setOther] = useState<CallPerson | undefined>();
   const [dismissedInviteId, setDismissedInviteId] = useState<string | null>(null);
   const requestId = useRef(0);
+  const visibleInviteId = useRef<string | null>(null);
 
   const loadActiveCall = useCallback(async () => {
     const currentRequest = ++requestId.current;
@@ -26,7 +27,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from("call_invites")
-      .select("id, caller, callee, kind, status, callee_peer_id")
+      .select("id, caller, callee, kind, status, callee_peer_id, created_at")
       .or(`caller.eq.${user.id},callee.eq.${user.id}`)
       .in("status", ["ringing", "accepted"])
       .order("created_at", { ascending: false })
@@ -39,17 +40,37 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
 
     const active = (data?.[0] as CallInvite | undefined) ?? null;
-    if (active?.id === dismissedInviteId) {
-      setInvite(null);
-      return;
-    }
-    if (!active) setDismissedInviteId(null);
-    setInvite(active);
-
     if (!active) {
+      visibleInviteId.current = null;
+      setDismissedInviteId(null);
+      setInvite(null);
       setOther(undefined);
       return;
     }
+
+    // Never resurrect an accepted call after a reload; keep it only if this
+    // app instance already displayed its ringing invitation.
+    if (active.status === "accepted" && visibleInviteId.current !== active.id) {
+      setInvite(null);
+      setOther(undefined);
+      return;
+    }
+
+    // Expire unanswered invitations so stale rows cannot interrupt startup.
+    const createdAt = Date.parse((active as CallInvite & { created_at?: string }).created_at ?? "");
+    if (active.status === "ringing" && (!Number.isFinite(createdAt) || Date.now() - createdAt > 75_000)) {
+      if (visibleInviteId.current === active.id) visibleInviteId.current = null;
+      setInvite(null);
+      setOther(undefined);
+      return;
+    }
+
+    if (active.id === dismissedInviteId) {
+      setInvite(null);
+      return;
+    }
+    visibleInviteId.current = active.id;
+    setInvite(active);
 
     const otherId = active.caller === user.id ? active.callee : active.caller;
     const { data: people, error: namesError } = await supabase.rpc("contact_names", {
