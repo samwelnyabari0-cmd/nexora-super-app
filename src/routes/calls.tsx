@@ -306,9 +306,13 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
     if (startingCall || activeCallBusy) return;
     setStartingCall(true);
     const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
-    if (error) toast.error(`Could not start call: ${error.message}`);
-    else toast.success(kind === "video" ? "Video call is ringing…" : "Voice call is ringing…");
-    await load();
+    if (error) {
+      toast.error(`Could not start call: ${error.message}`);
+    } else {
+      window.dispatchEvent(new CustomEvent("nexora:call-invite-created"));
+      toast.success(kind === "video" ? "Video call is ringing…" : "Voice call is ringing…");
+      await load();
+    }
     setStartingCall(false);
   };
 
@@ -462,20 +466,24 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
                 <Button
                   size="icon"
                   variant="outline"
-                  aria-label="Voice call"
+                  className="h-11 w-11 rounded-full border-emerald-500/30 bg-emerald-500/10 text-emerald-600 shadow-sm transition-all hover:scale-105 hover:border-emerald-500 hover:bg-emerald-500 hover:text-white active:scale-95 disabled:opacity-40"
+                  aria-label={startingCall ? "Starting call" : "Voice call"}
+                  title="Start voice call"
                   disabled={!!active || startingCall}
                   onClick={() => void startCall(other, "audio")}
                 >
-                  <Phone className="h-4 w-4" />
+                  <Phone className="h-5 w-5" />
                 </Button>
                 <Button
                   size="icon"
                   variant="outline"
-                  aria-label="Video call"
+                  className="h-11 w-11 rounded-full border-sky-500/30 bg-sky-500/10 text-sky-600 shadow-sm transition-all hover:scale-105 hover:border-sky-500 hover:bg-sky-500 hover:text-white active:scale-95 disabled:opacity-40"
+                  aria-label={startingCall ? "Starting call" : "Video call"}
+                  title="Start video call"
                   disabled={!!active || startingCall}
                   onClick={() => void startCall(other, "video")}
                 >
-                  <Video className="h-4 w-4" />
+                  <Video className="h-5 w-5" />
                 </Button>
                 <Button
                   size="sm"
