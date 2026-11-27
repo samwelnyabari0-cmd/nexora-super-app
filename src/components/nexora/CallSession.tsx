@@ -98,19 +98,9 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
       mounted.current = false;
       cleanup();
       if (!endingRef.current) {
-        void (async () => {
-          const { data } = await supabase
-            .from("call_invites")
-            .select("status")
-            .eq("id", invite.id)
-            .maybeSingle();
-          if (data?.status === "ringing" || data?.status === "accepted") {
-            await supabase
-              .from("call_invites")
-              .update({ status: isCaller && data.status === "ringing" ? "cancelled" : "ended" })
-              .eq("id", invite.id);
-          }
-        })();
+        // If the call UI is genuinely removed while active, close the server
+        // session as well so the other participant cannot remain in a ghost call.
+        void (supabase as any).rpc("end_call", { p_call_id: invite.id });
       }
     };
   }, [cleanup, invite.id, isCaller]);
