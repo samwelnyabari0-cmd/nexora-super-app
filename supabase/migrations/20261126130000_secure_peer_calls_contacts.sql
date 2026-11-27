@@ -18,8 +18,6 @@ alter table public.profiles
 update public.profiles
 set invite_code = encode(extensions.gen_random_bytes(24), 'hex');
 
-create unique index if not exists profiles_invite_code_unique
-  on public.profiles (invite_code);
 
 create table if not exists public.contacts (
   id uuid primary key default gen_random_uuid(),
