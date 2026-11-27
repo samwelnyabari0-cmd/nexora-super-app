@@ -8,6 +8,7 @@ import { useApp } from "@/features/core/store";
 import { PostCard } from "@/components/nexora/PostCard";
 import { TechnologyVideoCard, useTechnologyCreatorVideos } from "@/components/nexora/TechnologyVideoFeed";
 import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
+import { ComedyVideoStream } from "@/components/nexora/ComedyVideoStream";
 import { NewsStoryCard, NewsVideoShelf, useNewsStories } from "@/components/nexora/NewsStream";
 import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
@@ -178,6 +179,7 @@ function Home() {
               {index === 7 && regularNewsStories[1] && <NewsStoryCard story={regularNewsStories[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
               {index === 9 && newsVideoStories[1] && <NewsStoryCard story={newsVideoStories[1]} />}
+              {index === 10 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}
               {index === 14 && newsVideoStories[2] && <NewsStoryCard story={newsVideoStories[2]} />}
             </Fragment>
           ))}
