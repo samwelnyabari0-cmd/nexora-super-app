@@ -138,15 +138,25 @@ function safePublishedAt(value: string): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 async function fetchFeed(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
-      "user-agent": "NexoraArena/1.0 (+https://nexora.app)",
-    },
-    signal: AbortSignal.timeout(12_000),
-  });
-  if (!response.ok) throw new Error("Feed returned HTTP " + response.status);
-  return await response.text();
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
+          "user-agent": "Mozilla/5.0 (compatible; NexoraArena/1.0; +https://nexora.app)",
+        },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (response.ok) return await response.text();
+      lastError = new Error("Feed returned HTTP " + response.status);
+      if (response.status !== 429 && response.status !== 503 && response.status < 500) throw lastError;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Feed unavailable");
+    }
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+  }
+  throw lastError ?? new Error("Feed unavailable");
 }
 function parseNewsFeed(xml: string, source: typeof NEWS_FEEDS[number]): NewsItem[] {
   if (source.format === "youtube-atom") {
@@ -843,19 +853,32 @@ async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: H
   const extraChannelIds = (Deno.env.get("NEXORA_COMEDY_CHANNEL_IDS") ?? "").split(",").map((value) => value.trim())
     .filter((value) => /^UC[A-Za-z0-9_-]{20,30}$/.test(value));
   extraChannelIds.forEach((channelId, index) => channelSpecs.push({ name: "Community Comedy Channel " + (index + 1), channelId }));
-  const videoResults = await Promise.allSettled(channelSpecs.map(async (channel) => {
-    const xml = await fetchFeed("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId);
-    return { channel, rows: parseComedyYouTubeFeed(xml, channel.name, channel.channelId) };
-  }));
-  for (let index = 0; index < videoResults.length; index += 1) {
-    const result = videoResults[index];
-    if (result.status === "fulfilled") {
-      videoRows.push(...result.value.rows);
-      sources[result.value.channel.name + " YouTube"] = { ok: true, items: result.value.rows.length };
+  // YouTube applies temporary 503 throttles when many channel RSS feeds are
+  // requested together. Fetch two channels at a time and retain each channel's
+  // own status in the sync report so failures are diagnosable.
+  const videoResults: Array<{ channel: typeof channelSpecs[number]; rows: HighlightItem[] } | { channel: typeof channelSpecs[number]; error: string }> = [];
+  for (let index = 0; index < channelSpecs.length; index += 2) {
+    const batch = channelSpecs.slice(index, index + 2);
+    const settled = await Promise.allSettled(batch.map(async (channel) => {
+      const xml = await fetchFeed("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId);
+      return { channel, rows: parseComedyYouTubeFeed(xml, channel.name, channel.channelId) };
+    }));
+    for (let offset = 0; offset < settled.length; offset += 1) {
+      const result = settled[offset];
+      if (result.status === "fulfilled") videoResults.push(result.value);
+      else videoResults.push({
+        channel: batch[offset],
+        error: result.reason instanceof Error ? result.reason.message : "YouTube channel feed unavailable",
+      });
+    }
+    if (index + 2 < channelSpecs.length) await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  for (const result of videoResults) {
+    if ("rows" in result) {
+      videoRows.push(...result.rows);
+      sources[result.channel.name + " YouTube"] = { ok: true, items: result.rows.length };
     } else {
-      sources["Comedy YouTube channel " + (index + 1)] = {
-        ok: false, error: result.reason instanceof Error ? result.reason.message : "YouTube channel feed unavailable",
-      };
+      sources[result.channel.name + " YouTube"] = { ok: false, error: result.error };
     }
   }
   return { jokeRows, videoRows, sources };
