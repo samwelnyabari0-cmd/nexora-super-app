@@ -179,12 +179,14 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   const [code, setCode] = useState(inviteCode ?? "");
 
   const load = useCallback(async () => {
+    const { error: expiryError } = await (supabase as any).rpc("expire_call_invites");
+    if (expiryError) console.warn("NEXORA call expiry check failed:", expiryError);
     const [{ data: p }, { data: c }, { data: i }] = await Promise.all([
       supabase.from("profiles").select("invite_code, discoverable").eq("id", userId).maybeSingle(),
       supabase.from("contacts").select("id, requester, addressee, status, blocked_by"),
       supabase
         .from("call_invites")
-        .select("id, caller, callee, kind, status, callee_peer_id, created_at")
+        .select("id, caller, callee, kind, status, callee_peer_id, created_at, ring_expires_at")
         .or(`caller.eq.${userId},callee.eq.${userId}`)
         .in("status", ["ringing", "accepted"])
         .order("created_at", { ascending: false })
@@ -192,12 +194,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
     ]);
     setMe(p ?? null);
     setContacts(c ?? []);
-    setInvites((i ?? []).filter((x) => {
-      const age = Date.now() - Date.parse(x.created_at);
-      if (x.status === "ringing") return Number.isFinite(age) && age <= 75_000;
-      if (x.status === "accepted") return Number.isFinite(age) && age <= 24 * 60 * 60 * 1000;
-      return false;
-    }) as Invite[]);
+    setInvites((i ?? []) as Invite[]);
     const ids = new Set<string>();
     (c ?? []).forEach((x) => ids.add(x.requester === userId ? x.addressee : x.requester));
     (i ?? []).forEach((x) => ids.add(x.caller === userId ? x.callee : x.caller));
@@ -319,13 +316,16 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
     setStartingCallFor({ callee, kind });
     const toastId = toast.loading(kind === "video" ? "Starting video call…" : "Starting voice call…");
     try {
-      const { data, error } = await supabase
-        .from("call_invites")
-        .insert({ caller: userId, callee, kind })
-        .select("id, caller, callee, kind, status, callee_peer_id")
-        .single();
+      const { data, error } = await (supabase as any).rpc("start_call", {
+        p_callee_id: callee,
+        p_kind: kind,
+      });
       if (error || !data) {
         toast.error(`Could not start call: ${error?.message ?? "No call invitation was created."}`, { id: toastId });
+        return;
+      }
+      if (data.status === "busy") {
+        toast.error("This person or you are already on another call.", { id: toastId });
         return;
       }
       window.dispatchEvent(new CustomEvent("nexora:call-invite-created", { detail: { invite: data } }));
