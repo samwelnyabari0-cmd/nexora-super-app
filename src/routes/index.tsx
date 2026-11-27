@@ -10,7 +10,6 @@ import { TechnologyVideoCard, useTechnologyCreatorVideos } from "@/components/ne
 import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
 import { NewsStoryCard, NewsVideoShelf, useNewsStories } from "@/components/nexora/NewsStream";
 import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
-import { ComedyVideoShelf } from "@/components/nexora/ComedyVideoShelf";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { Avatar, Chip, EmptyState } from "@/components/nexora/ui";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -141,8 +140,6 @@ function Home() {
             )}
           </div>
         </section>
-
-        <ComedyVideoShelf title="Comedy creators" compact />
 
         <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4" role="toolbar" aria-label="Feed filters">
           {feedFilters.map((item) => (
