@@ -192,7 +192,12 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
     ]);
     setMe(p ?? null);
     setContacts(c ?? []);
-    setInvites((i ?? []).filter((x) => x.status !== "ringing" || Date.now() - Date.parse(x.created_at) <= 75_000) as Invite[]);
+    setInvites((i ?? []).filter((x) => {
+      const age = Date.now() - Date.parse(x.created_at);
+      if (x.status === "ringing") return Number.isFinite(age) && age <= 75_000;
+      if (x.status === "accepted") return Number.isFinite(age) && age <= 24 * 60 * 60 * 1000;
+      return false;
+    }) as Invite[]);
     const ids = new Set<string>();
     (c ?? []).forEach((x) => ids.add(x.requester === userId ? x.addressee : x.requester));
     (i ?? []).forEach((x) => ids.add(x.caller === userId ? x.callee : x.caller));
