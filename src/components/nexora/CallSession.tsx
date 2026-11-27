@@ -223,6 +223,17 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
   }, [cleanup, invite.callee_peer_id, invite.kind, invite.status, isCaller]);
 
   useEffect(() => {
+    if (invite.status !== "accepted" || connected) return;
+    // Release the active-call lock if signalling/ICE never establishes media.
+    const timeout = window.setTimeout(() => {
+      if (mounted.current && !connected) {
+        fail("The call could not connect. Check both phones’ internet connections and try again.");
+      }
+    }, 35000);
+    return () => window.clearTimeout(timeout);
+  }, [invite.status, connected]);
+
+  useEffect(() => {
     if (!connected) return;
     setElapsed(0);
     const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
