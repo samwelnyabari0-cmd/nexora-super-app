@@ -169,7 +169,7 @@ function Home() {
               title={filter === "Following" ? "Your Following feed is empty" : "No posts yet"}
               body={filter === "Following" ? "Follow real NEXORA accounts to see their posts here." : "When people publish public posts, they will appear here."}
               action={<Link to="/explore" className="rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted">Explore accounts</Link>} />
-          ) : shown.map((post, index) => (
+          ) : <>{shown.map((post, index) => (
             <Fragment key={post.id}>
               <PostCard post={post} />
               {index === 2 && regularNewsStories[0] && <NewsStoryCard story={regularNewsStories[0]} />}
@@ -180,10 +180,9 @@ function Home() {
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
               {index === 9 && newsVideoStories[1] && <NewsStoryCard story={newsVideoStories[1]} />}
               {index === 3 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}
-              {index === 4 && shown.length < 5 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}
               {index === 14 && newsVideoStories[2] && <NewsStoryCard story={newsVideoStories[2]} />}
             </Fragment>
-          ))}
+          ))}{shown.length > 0 && shown.length < 4 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}</>}
         </div>
       </div>
 
