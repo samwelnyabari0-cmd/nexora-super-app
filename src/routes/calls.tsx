@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CallInvite } from "@/components/nexora/CallSession";
-import { Phone, PhoneOff, Video, Copy, Search, UserPlus, Check, X, Crown, Sparkles, ShieldCheck, BellRing } from "lucide-react";
+import { Phone, PhoneOff, Video, Copy, Search, UserPlus, Check, X, ShieldCheck, BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -47,19 +47,6 @@ function CallsPage() {
   const { user, ready } = useSession();
   const { invite, arenaAudio } = Route.useSearch();
 
-  const appMetadata = user?.app_metadata ?? {};
-  const rawTier = appMetadata.subscription_tier ?? appMetadata.plan;
-  const expiresAt = Date.parse(String(appMetadata.subscription_expires_at ?? ""));
-  const hasActivePaidPlan =
-    (rawTier === "pro" || rawTier === "studio") &&
-    Number.isFinite(expiresAt) &&
-    expiresAt > Date.now();
-
-  const userPlan = hasActivePaidPlan ? rawTier : "free";
-  const planLabel =
-    userPlan === "studio" ? "Studio" :
-    userPlan === "pro" ? "Pro" : "Free";
-
   if (!ready) {
     return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
   }
@@ -91,95 +78,7 @@ function CallsPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200">
-              Account plan
-            </p>
 
-            <div className="mt-2 flex items-center gap-2 text-xl font-bold">
-              {userPlan === "studio"
-                ? <Sparkles className="h-5 w-5 text-cyan-300" />
-                : <Crown className="h-5 w-5 text-amber-300" />}
-
-              {user ? planLabel : "Sign in"}
-            </div>
-
-            <p className="mt-1 text-xs text-indigo-100/70">
-              Calling is included on every plan.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Subscription plan indicators */}
-      <section className="grid gap-3 sm:grid-cols-3">
-        <div className={`rounded-2xl border p-4 ${
-          user && userPlan === "free"
-            ? "border-cyan-400/50 bg-cyan-400/[0.07]"
-            : "border-border bg-card"
-        }`}>
-          <p className="font-semibold">Free</p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Direct audio calls, video calls, contacts and group rooms.
-          </p>
-          <p className="mt-3 text-[11px] font-semibold text-emerald-500">
-            Calling included
-          </p>
-          {user && userPlan === "free" && (
-            <span className="mt-2 inline-block text-[10px] font-bold text-cyan-500">
-              CURRENT PLAN
-            </span>
-          )}
-        </div>
-
-        <div className={`rounded-2xl border p-4 ${
-          userPlan === "pro"
-            ? "border-indigo-400/50 bg-indigo-400/[0.07]"
-            : "border-border bg-card"
-        }`}>
-          <div className="flex items-center justify-between">
-            <p className="font-semibold">Pro</p>
-            <Crown className="h-4 w-4 text-indigo-500" />
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Ad-free viewing, background play, expanded uploads
-            and Pro creator tools.
-          </p>
-          {user && userPlan === "pro" ? (
-            <p className="mt-3 text-[10px] font-bold text-indigo-500">
-              CURRENT PLAN
-            </p>
-          ) : (
-            <Link to="/subscriptions"
-              className="mt-3 inline-block text-[11px] font-semibold text-indigo-500 hover:underline">
-              Explore Pro →
-            </Link>
-          )}
-        </div>
-
-        <div className={`rounded-2xl border p-4 ${
-          userPlan === "studio"
-            ? "border-cyan-400/50 bg-cyan-400/[0.07]"
-            : "border-border bg-card"
-        }`}>
-          <div className="flex items-center justify-between">
-            <p className="font-semibold">Studio</p>
-            <Sparkles className="h-4 w-4 text-cyan-500" />
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Advanced creator tools, deeper analytics and
-            professional publishing features.
-          </p>
-          {user && userPlan === "studio" ? (
-            <p className="mt-3 text-[10px] font-bold text-cyan-500">
-              CURRENT PLAN
-            </p>
-          ) : (
-            <Link to="/subscriptions"
-              className="mt-3 inline-block text-[11px] font-semibold text-cyan-600 hover:underline">
-              Explore Studio →
-            </Link>
-          )}
         </div>
       </section>
 
@@ -200,6 +99,17 @@ function CallsPage() {
 
       <CameraCheck />
       <JitsiRoom audioOnly={arenaAudio} />
+
+      {/* Free plan information — kept at the bottom of Calls Hub */}
+      <section className="rounded-2xl border border-cyan-400/30 bg-card p-4">
+        <p className="font-semibold">Free</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Direct audio calls, video calls, contacts and group rooms.
+        </p>
+        <p className="mt-3 text-[11px] font-semibold text-emerald-500">
+          Calling included
+        </p>
+      </section>
     </div>
   );
           }
