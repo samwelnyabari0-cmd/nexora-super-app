@@ -13,6 +13,8 @@ export type CallInvite = {
   kind: "audio" | "video";
   status: string;
   callee_peer_id: string | null;
+  ring_expires_at?: string | null;
+  created_at?: string;
 };
 
 async function getPeerConfig() {
@@ -66,6 +68,7 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
   const [cameraOn, setCameraOn] = useState(true);
   const [speakerOn, setSpeakerOn] = useState(true);
   const [elapsed, setElapsed] = useState(0);
+  const [ringSeconds, setRingSeconds] = useState(40);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const mutedRef = useRef(false);
   const cameraOnRef = useRef(true);
@@ -256,6 +259,20 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
   }, [invite.status, connected]);
 
   useEffect(() => {
+    if (invite.status !== "ringing") return;
+    const fallback = invite.created_at ? Date.parse(invite.created_at) + 40_000 : Date.now() + 40_000;
+    const deadline = invite.ring_expires_at ? Date.parse(invite.ring_expires_at) : fallback;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setRingSeconds(remaining);
+      if (remaining === 0) void (supabase as any).rpc("expire_call_invites");
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [invite.created_at, invite.ring_expires_at, invite.status]);
+
+  useEffect(() => {
     if (!connected) return;
     setElapsed(0);
     const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
@@ -336,8 +353,8 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
           {invite.kind === "video" ? "Video" : "Voice"} call ·{" "}
           {invite.status === "ringing"
             ? isCaller
-              ? "Ringing… waiting for them to accept"
-              : "Incoming call"
+              ? `Ringing… ${String(Math.floor(ringSeconds / 60)).padStart(2, "0")}:${String(ringSeconds % 60).padStart(2, "0")}`
+              : `Incoming call · ${String(Math.floor(ringSeconds / 60)).padStart(2, "0")}:${String(ringSeconds % 60).padStart(2, "0")}`
             : connected
               ? "Connected"
               : "Connecting…"}
