@@ -25,9 +25,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Expire missed rings and abandoned accepted sessions before deciding
+    // whether an overlay should be restored on app launch or refresh.
+    const { error: expiryError } = await (supabase as any).rpc("expire_call_invites");
+    if (expiryError) console.warn("NEXORA could not expire stale calls:", expiryError);
+
     const { data, error } = await supabase
       .from("call_invites")
-      .select("id, caller, callee, kind, status, callee_peer_id, created_at")
+      .select("id, caller, callee, kind, status, callee_peer_id, created_at, ring_expires_at")
       .or(`caller.eq.${user.id},callee.eq.${user.id}`)
       .in("status", ["ringing", "accepted"])
       .order("created_at", { ascending: false })
@@ -48,23 +53,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // The caller may receive the accepted update before seeing the original
-    // ringing row. Always surface an accepted call so signalling can complete.
-
-    // Automatically close abandoned call records. Ringing invitations expire
-    // quickly; accepted calls older than 24 hours cannot be live sessions and
-    // must never trap the user in an old call screen after a later app launch.
-    const createdAt = Date.parse((active as CallInvite & { created_at?: string }).created_at ?? "");
-    const age = Number.isFinite(createdAt) ? Date.now() - createdAt : Number.POSITIVE_INFINITY;
-    const abandonedRinging = active.status === "ringing" && age > 75_000;
-    const abandonedAccepted = active.status === "accepted" && age > 24 * 60 * 60 * 1000;
-    if (abandonedRinging || abandonedAccepted) {
-      void supabase.from("call_invites").update({ status: "ended" }).eq("id", active.id);
-      if (visibleInviteId.current === active.id) visibleInviteId.current = null;
-      setInvite(null);
-      setOther(undefined);
-      return;
-    }
+    // Only database-active ringing/accepted rows can be restored.
+    // The expiry RPC above has already closed timed-out or abandoned sessions.
 
     if (active.id === dismissedInviteId) {
       setInvite(null);
@@ -87,7 +77,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onCallInviteCreated = (event: Event) => {
       const supplied = (event as CustomEvent<{ invite?: CallInvite }>).detail?.invite;
-      if (supplied && user?.id) {
+      if (supplied && user?.id && (supplied.status === "ringing" || supplied.status === "accepted")) {
         // Open the call UI from the inserted row immediately; do not wait for polling/realtime.
         visibleInviteId.current = supplied.id;
         setDismissedInviteId(null);
