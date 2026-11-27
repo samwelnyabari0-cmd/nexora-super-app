@@ -44,6 +44,7 @@ describe("CallProvider", () => {
           kind: "audio",
           status: "ringing",
           callee_peer_id: null,
+          created_at: new Date().toISOString(),
         }],
         error: null,
       }),
@@ -61,7 +62,7 @@ describe("CallProvider", () => {
     mocks.removeChannel.mockResolvedValue(undefined);
   });
 
-  it("shows incoming calls over the current route without navigating away", async () => {
+  it("shows fresh incoming calls over the current route without navigating away", async () => {
     render(
       <CallProvider>
         <main>Home feed remains open</main>
@@ -74,4 +75,34 @@ describe("CallProvider", () => {
       expect(screen.getByTestId("global-call-session")).toHaveTextContent("Call status: ringing");
     });
   });
+  it("does not reopen an already accepted call after an app reload", async () => {
+    mocks.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(), or: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [{
+        id: "call-accepted", caller: "caller-1", callee: "recipient-1",
+        kind: "audio", status: "accepted", callee_peer_id: "peer-1",
+        created_at: new Date().toISOString(),
+      }], error: null }),
+    });
+    render(<CallProvider><main>Home feed remains open</main></CallProvider>);
+    await waitFor(() => expect(mocks.from).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not interrupt the app with an expired ringing invitation", async () => {
+    mocks.from.mockReturnValue({
+      select: vi.fn().mockReturnThis(), or: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [{
+        id: "call-expired", caller: "caller-1", callee: "recipient-1",
+        kind: "audio", status: "ringing", callee_peer_id: null,
+        created_at: new Date(Date.now() - 120_000).toISOString(),
+      }], error: null }),
+    });
+    render(<CallProvider><main>Home feed remains open</main></CallProvider>);
+    await waitFor(() => expect(mocks.from).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
 });
