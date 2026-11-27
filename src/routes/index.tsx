@@ -142,6 +142,8 @@ function Home() {
           </div>
         </section>
 
+        <ComedyVideoShelf title="Comedy creators" compact />
+
         <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4" role="toolbar" aria-label="Feed filters">
           {feedFilters.map((item) => (
             <Chip key={item} active={filter === item} onClick={() => setFilter(item)}>{item}</Chip>
@@ -183,7 +185,6 @@ function Home() {
             </Fragment>
           ))}
         </div>
-        <ComedyVideoShelf title="Comedy creators" compact />
       </div>
 
       <aside className="hidden space-y-4 lg:block">
