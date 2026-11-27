@@ -301,19 +301,26 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
 };
   const active = invites.find((call) => call.status === "accepted" || (call.status === "ringing" && Date.now() - Date.parse((call as Invite & { created_at?: string }).created_at ?? "") <= 75_000));
   const activeCallBusy = Boolean(active);
-  const [startingCall, setStartingCall] = useState(false);
+  const [startingCallFor, setStartingCallFor] = useState<{ callee: string; kind: "audio" | "video" } | null>(null);
   const startCall = async (callee: string, kind: "audio" | "video") => {
-    if (startingCall || activeCallBusy) return;
-    setStartingCall(true);
-    const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
-    if (error) {
-      toast.error(`Could not start call: ${error.message}`);
-    } else {
+    if (startingCallFor || activeCallBusy) return;
+    // Show immediate feedback while the call invitation is being saved.
+    setStartingCallFor({ callee, kind });
+    const toastId = toast.loading(kind === "video" ? "Starting video call…" : "Starting voice call…");
+    try {
+      const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
+      if (error) {
+        toast.error(`Could not start call: ${error.message}`, { id: toastId });
+        return;
+      }
       window.dispatchEvent(new CustomEvent("nexora:call-invite-created"));
-      toast.success(kind === "video" ? "Video call is ringing…" : "Voice call is ringing…");
+      toast.success(kind === "video" ? "Video call is ringing…" : "Voice call is ringing…", { id: toastId });
       await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not start the call.", { id: toastId });
+    } finally {
+      setStartingCallFor(null);
     }
-    setStartingCall(false);
   };
 
   const accepted = contacts.filter((c) => c.status === "accepted");
@@ -466,24 +473,26 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
                 <Button
                   size="icon"
                   variant="outline"
-                  className="h-11 w-11 rounded-full border-emerald-500/30 bg-emerald-500/10 text-emerald-600 shadow-sm transition-all hover:scale-105 hover:border-emerald-500 hover:bg-emerald-500 hover:text-white active:scale-95 disabled:opacity-40"
-                  aria-label={startingCall ? "Starting call" : "Voice call"}
-                  title="Start voice call"
-                  disabled={!!active || startingCall}
+                  className={`h-11 w-11 rounded-full border-2 shadow-sm transition-all duration-150 active:scale-90 disabled:opacity-50 ${startingCallFor?.callee === other && startingCallFor.kind === "audio" ? "border-emerald-500 bg-emerald-500 text-white ring-4 ring-emerald-500/25 scale-105" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:scale-105 hover:border-emerald-500 hover:bg-emerald-500 hover:text-white"}`}
+                  aria-label={startingCallFor?.callee === other && startingCallFor.kind === "audio" ? "Starting voice call" : "Voice call"}
+                  aria-busy={startingCallFor?.callee === other && startingCallFor.kind === "audio"}
+                  title={startingCallFor?.callee === other && startingCallFor.kind === "audio" ? "Starting voice call…" : "Start voice call"}
+                  disabled={!!active || !!startingCallFor}
                   onClick={() => void startCall(other, "audio")}
                 >
-                  <Phone className="h-5 w-5" />
+                  <Phone className={`h-5 w-5 ${startingCallFor?.callee === other && startingCallFor.kind === "audio" ? "animate-pulse" : ""}`} />
                 </Button>
                 <Button
                   size="icon"
                   variant="outline"
-                  className="h-11 w-11 rounded-full border-sky-500/30 bg-sky-500/10 text-sky-600 shadow-sm transition-all hover:scale-105 hover:border-sky-500 hover:bg-sky-500 hover:text-white active:scale-95 disabled:opacity-40"
-                  aria-label={startingCall ? "Starting call" : "Video call"}
-                  title="Start video call"
-                  disabled={!!active || startingCall}
+                  className={`h-11 w-11 rounded-full border-2 shadow-sm transition-all duration-150 active:scale-90 disabled:opacity-50 ${startingCallFor?.callee === other && startingCallFor.kind === "video" ? "border-sky-500 bg-sky-500 text-white ring-4 ring-sky-500/25 scale-105" : "border-sky-500/40 bg-sky-500/10 text-sky-600 hover:scale-105 hover:border-sky-500 hover:bg-sky-500 hover:text-white"}`}
+                  aria-label={startingCallFor?.callee === other && startingCallFor.kind === "video" ? "Starting video call" : "Video call"}
+                  aria-busy={startingCallFor?.callee === other && startingCallFor.kind === "video"}
+                  title={startingCallFor?.callee === other && startingCallFor.kind === "video" ? "Starting video call…" : "Start video call"}
+                  disabled={!!active || !!startingCallFor}
                   onClick={() => void startCall(other, "video")}
                 >
-                  <Video className="h-5 w-5" />
+                  <Video className={`h-5 w-5 ${startingCallFor?.callee === other && startingCallFor.kind === "video" ? "animate-pulse" : ""}`} />
                 </Button>
                 <Button
                   size="sm"
