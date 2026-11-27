@@ -13,6 +13,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const { user, ready } = useSession();
   const [invite, setInvite] = useState<CallInvite | null>(null);
   const [other, setOther] = useState<CallPerson | undefined>();
+  const [dismissedInviteId, setDismissedInviteId] = useState<string | null>(null);
   const requestId = useRef(0);
 
   const loadActiveCall = useCallback(async () => {
@@ -38,6 +39,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
 
     const active = (data?.[0] as CallInvite | undefined) ?? null;
+    if (active?.id === dismissedInviteId) {
+      setInvite(null);
+      return;
+    }
+    if (!active) setDismissedInviteId(null);
     setInvite(active);
 
     if (!active) {
@@ -54,7 +60,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (!namesError) {
       setOther((people?.[0] as CallPerson | undefined) ?? undefined);
     }
-  }, [ready, user?.id]);
+  }, [ready, user?.id, dismissedInviteId]);
 
   useEffect(() => {
     if (!ready || !user?.id) {
@@ -105,6 +111,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
               invite={invite}
               userId={user.id}
               other={other}
+              onEnd={() => {
+                setDismissedInviteId(invite.id);
+                setInvite(null);
+              }}
             />
           </div>
         </div>
