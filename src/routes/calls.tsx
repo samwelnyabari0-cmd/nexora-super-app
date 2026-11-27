@@ -185,6 +185,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
       supabase
         .from("call_invites")
         .select("id, caller, callee, kind, status, callee_peer_id, created_at")
+        .or(`caller.eq.${userId},callee.eq.${userId}`)
         .in("status", ["ringing", "accepted"])
         .order("created_at", { ascending: false })
         .limit(10),
@@ -303,17 +304,26 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   const activeCallBusy = Boolean(active);
   const [startingCallFor, setStartingCallFor] = useState<{ callee: string; kind: "audio" | "video" } | null>(null);
   const startCall = async (callee: string, kind: "audio" | "video") => {
-    if (startingCallFor || activeCallBusy) return;
-    // Show immediate feedback while the call invitation is being saved.
+    if (startingCallFor) return;
+    if (active) {
+      // Never leave a tap looking dead: reopen the active call screen.
+      window.dispatchEvent(new CustomEvent("nexora:call-invite-created", { detail: { invite: active } }));
+      toast.info("Opening your active call…");
+      return;
+    }
     setStartingCallFor({ callee, kind });
     const toastId = toast.loading(kind === "video" ? "Starting video call…" : "Starting voice call…");
     try {
-      const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
-      if (error) {
-        toast.error(`Could not start call: ${error.message}`, { id: toastId });
+      const { data, error } = await supabase
+        .from("call_invites")
+        .insert({ caller: userId, callee, kind })
+        .select("id, caller, callee, kind, status, callee_peer_id")
+        .single();
+      if (error || !data) {
+        toast.error(`Could not start call: ${error?.message ?? "No call invitation was created."}`, { id: toastId });
         return;
       }
-      window.dispatchEvent(new CustomEvent("nexora:call-invite-created"));
+      window.dispatchEvent(new CustomEvent("nexora:call-invite-created", { detail: { invite: data } }));
       toast.success(kind === "video" ? "Video call is ringing…" : "Voice call is ringing…", { id: toastId });
       await load();
     } catch (error) {
