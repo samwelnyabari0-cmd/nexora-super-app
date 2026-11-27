@@ -203,6 +203,9 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
 
   useEffect(() => {
     void load();
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 3000);
     const ch = supabase
       .channel(`calls-${Math.random().toString(36).slice(2)}`)
       .on(
@@ -217,6 +220,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
       )
       .subscribe();
     return () => {
+      window.clearInterval(poll);
       void supabase.removeChannel(ch);
     };
   }, [load]);
@@ -295,16 +299,22 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   toast.success("Discovery setting updated");
   void load();
 };
+  const active = invites.find((call) => call.status === "accepted" || (call.status === "ringing" && Date.now() - Date.parse((call as Invite & { created_at?: string }).created_at ?? "") <= 75_000));
+  const activeCallBusy = Boolean(active);
+  const [startingCall, setStartingCall] = useState(false);
   const startCall = async (callee: string, kind: "audio" | "video") => {
+    if (startingCall || activeCallBusy) return;
+    setStartingCall(true);
     const { error } = await supabase.from("call_invites").insert({ caller: userId, callee, kind });
-    if (error) toast.error("Calls require an accepted contact, and neither person can already be in another call.");
-    void load();
+    if (error) toast.error(`Could not start call: ${error.message}`);
+    else toast.success(kind === "video" ? "Video call is ringing…" : "Voice call is ringing…");
+    await load();
+    setStartingCall(false);
   };
 
   const accepted = contacts.filter((c) => c.status === "accepted");
   const incomingReq = contacts.filter((c) => c.status === "pending" && c.addressee === userId);
   const blockedByMe = contacts.filter((c) => c.status === "blocked" && c.blocked_by === userId);
-  const active = invites[0];
   const link =
     me?.invite_code && typeof window !== "undefined"
       ? `${window.location.origin}/calls?invite=${me.invite_code}`
@@ -453,7 +463,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
                   size="icon"
                   variant="outline"
                   aria-label="Voice call"
-                  disabled={!!active}
+                  disabled={!!active || startingCall}
                   onClick={() => void startCall(other, "audio")}
                 >
                   <Phone className="h-4 w-4" />
@@ -462,7 +472,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
                   size="icon"
                   variant="outline"
                   aria-label="Video call"
-                  disabled={!!active}
+                  disabled={!!active || startingCall}
                   onClick={() => void startCall(other, "video")}
                 >
                   <Video className="h-4 w-4" />
