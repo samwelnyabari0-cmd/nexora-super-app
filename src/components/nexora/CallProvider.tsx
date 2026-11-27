@@ -79,6 +79,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, [ready, user?.id, dismissedInviteId]);
 
   useEffect(() => {
+    const onCallInviteCreated = () => { void loadActiveCall(); };
+    window.addEventListener("nexora:call-invite-created", onCallInviteCreated);
+    return () => window.removeEventListener("nexora:call-invite-created", onCallInviteCreated);
+  }, [loadActiveCall]);
+
+  useEffect(() => {
     if (!ready || !user?.id) {
       setInvite(null);
       setOther(undefined);
