@@ -154,7 +154,7 @@ async function fetchFeed(url: string): Promise<string> {
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("Feed unavailable");
     }
-    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
   }
   throw lastError ?? new Error("Feed unavailable");
 }
@@ -853,33 +853,21 @@ async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: H
   const extraChannelIds = (Deno.env.get("NEXORA_COMEDY_CHANNEL_IDS") ?? "").split(",").map((value) => value.trim())
     .filter((value) => /^UC[A-Za-z0-9_-]{20,30}$/.test(value));
   extraChannelIds.forEach((channelId, index) => channelSpecs.push({ name: "Community Comedy Channel " + (index + 1), channelId }));
-  // YouTube applies temporary 503 throttles when many channel RSS feeds are
-  // requested together. Fetch two channels at a time and retain each channel's
-  // own status in the sync report so failures are diagnosable.
-  const videoResults: Array<{ channel: typeof channelSpecs[number]; rows: HighlightItem[] } | { channel: typeof channelSpecs[number]; error: string }> = [];
-  for (let index = 0; index < channelSpecs.length; index += 2) {
-    const batch = channelSpecs.slice(index, index + 2);
-    const settled = await Promise.allSettled(batch.map(async (channel) => {
+  // YouTube applies temporary 503 throttles to concurrent RSS requests.
+  // Serialize channel fetches to reduce upstream rate limiting.
+  for (const channel of channelSpecs) {
+    try {
       const xml = await fetchFeed("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.channelId);
-      return { channel, rows: parseComedyYouTubeFeed(xml, channel.name, channel.channelId) };
-    }));
-    for (let offset = 0; offset < settled.length; offset += 1) {
-      const result = settled[offset];
-      if (result.status === "fulfilled") videoResults.push(result.value);
-      else videoResults.push({
-        channel: batch[offset],
-        error: result.reason instanceof Error ? result.reason.message : "YouTube channel feed unavailable",
-      });
+      const rows = parseComedyYouTubeFeed(xml, channel.name, channel.channelId);
+      videoRows.push(...rows);
+      sources[channel.name + " YouTube"] = { ok: true, items: rows.length };
+    } catch (error) {
+      sources[channel.name + " YouTube"] = {
+        ok: false,
+        error: error instanceof Error ? error.message : "YouTube channel feed unavailable",
+      };
     }
-    if (index + 2 < channelSpecs.length) await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  for (const result of videoResults) {
-    if ("rows" in result) {
-      videoRows.push(...result.rows);
-      sources[result.channel.name + " YouTube"] = { ok: true, items: result.rows.length };
-    } else {
-      sources[result.channel.name + " YouTube"] = { ok: false, error: result.error };
-    }
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
   }
   return { jokeRows, videoRows, sources };
 }
