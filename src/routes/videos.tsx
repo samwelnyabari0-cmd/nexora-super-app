@@ -268,7 +268,6 @@ function Videos() {
       {category === "Comedy" ? <ComedyHub /> : category === "Education" ? <EducationDiscovery variant="full" /> : category === "News" ? <WorldNewsPanel variant="full" /> : <>
       {category === "Sports" && <MultiSportHub />}
       {category === "Technology" && <TechnologyHub />}
-      {category !== "Comedy" && <ComedyVideoShelf title="Comedy creators" compact />}
       <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{submittedSearch ? `Search results for “${submittedSearch}”` : category === "Home" ? "Recommended videos" : category}</h2><span className="text-xs text-muted-foreground">{filteredItems.length} videos</span></div>
       {filteredItems.length ? <div className="grid gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
         {filteredItems.map((item) => <button key={item.id} type="button" onClick={() => void openVideo(item.id)} className="group min-w-0 text-left">
@@ -283,6 +282,7 @@ function Videos() {
           </div>
         </button>)}
       </div> : <div className="rounded-2xl border py-16 text-center"><Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><h3 className="font-semibold">No videos found</h3><p className="mt-1 text-sm text-muted-foreground">Try another search or choose Home to browse all videos.</p><button onClick={() => { setSearchText(""); setSubmittedSearch(""); setCategory("Home"); }} className="mt-4 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Show all videos</button></div>}
+      {category !== "Comedy" && <ComedyVideoShelf title="Comedy creators" compact />}
       </>}
     </main>
   );
