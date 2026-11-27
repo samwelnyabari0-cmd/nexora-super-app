@@ -245,7 +245,7 @@ function CallNotificationSettings({ userId }: { userId: string }) {
           <div>
             <h2 className="font-display font-semibold">Incoming call alerts</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Get a notification when someone calls, even when NEXORA is in the background. Allow notifications and keep this app installed on your phone.
+              Get call alerts when NEXORA is in the background or closed. Allow notifications for this browser on your phone.
             </p>
             {!supported && <p className="mt-1 text-xs text-destructive">This browser does not support background push notifications.</p>}
           </div>
