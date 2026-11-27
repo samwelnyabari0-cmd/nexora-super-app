@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PhoneCall, PhoneOff, Video, VideoOff, Mic, MicOff, SwitchCamera, Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Panel, Avatar } from "@/components/nexora/ui";
+import { Avatar } from "@/components/nexora/ui";
 import { Button } from "@/components/ui/button";
 import { nextCameraFacingMode, setMediaTracksEnabled, supportsCameraFacingMode } from "@/components/nexora/call-media";
 
@@ -301,7 +301,7 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
 
       {invite.kind === "video" && invite.status === "accepted" && (
         <div className="relative mt-4 grid flex-1 gap-2 sm:grid-cols-2">
-          <video ref={remote} autoPlay playsInline className="aspect-video max-h-[34vh] w-full rounded-2xl bg-black object-cover" />
+          <video ref={remote} autoPlay muted playsInline className="aspect-video max-h-[34vh] w-full rounded-2xl bg-black object-cover" />
           <video ref={local} autoPlay muted playsInline className="absolute bottom-3 right-3 aspect-[3/4] w-24 rounded-xl border border-white/30 bg-black object-cover shadow-lg sm:static sm:aspect-video sm:w-full" />
         </div>
       )}
@@ -336,7 +336,7 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
                 <Button className="h-14 w-14 rounded-full border-white/15 bg-white/10 text-white hover:bg-white/20" variant="outline" size="icon" aria-label={muted ? "Unmute microphone" : "Mute microphone"} onClick={() => setMuted((value) => !value)}>
                   {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </Button>
-                <Button className="h-14 w-14 rounded-full border-white/15 bg-white/10 text-white hover:bg-white/20" variant="outline" size="icon" aria-label={speakerOn ? "Lower call audio" : "Raise call audio"} onClick={() => setSpeakerOn((value) => !value)}>
+                <Button className="h-14 w-14 rounded-full border-white/15 bg-white/10 text-white hover:bg-white/20" variant="outline" size="icon" aria-label={speakerOn ? "Turn speaker audio down" : "Turn speaker audio up"} onClick={() => setSpeakerOn((value) => !value)}>
                   {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                 </Button>
                 {invite.kind === "video" && (
