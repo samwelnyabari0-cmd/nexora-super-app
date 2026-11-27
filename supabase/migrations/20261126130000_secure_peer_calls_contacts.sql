@@ -144,13 +144,24 @@ revoke all on function private.can_request_contact(uuid, uuid) from anon, public
 create or replace function private.prepare_contact_request()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $prepare$
 begin
-  if auth.uid() is null or auth.uid() is distinct from new.requester
+  if auth.uid() is null
     or new.addressee is null or new.addressee = new.requester
-    or new.status <> 'pending' or new.blocked_by is not null then
+    or new.blocked_by is not null then
+    raise exception 'invalid contact request';
+  end if;
+
+  -- Only the trusted invite-redemption SECURITY DEFINER function may create
+  -- an accepted relationship on behalf of the invite owner.
+  if new.status = 'accepted' then
+    if current_user not in ('postgres', 'service_role')
+      or auth.uid() is distinct from new.addressee then
+      raise exception 'only a redeemed invite may create an accepted contact';
+    end if;
+  elsif new.status <> 'pending' or auth.uid() is distinct from new.requester then
     raise exception 'invalid contact request';
   end if;
 
