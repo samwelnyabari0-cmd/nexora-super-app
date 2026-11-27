@@ -29,6 +29,7 @@ self.addEventListener("push", (event) => {
     tag: isCall && payload.callId ? "nexora-call-" + payload.callId : (payload.tag || "nexora-notification"),
     renotify: isCall,
     requireInteraction: isCall,
+    vibrate: isCall ? [450, 250, 450, 250, 700] : undefined,
     data: { url: isCall ? "/calls" : (payload.url || "/notifications"), callId: payload.callId || null },
     actions: isCall ? [{ action: "open-call", title: "Open call" }] : [{ action: "open", title: "Open" }]
   };
