@@ -179,7 +179,8 @@ function Home() {
               {index === 7 && regularNewsStories[1] && <NewsStoryCard story={regularNewsStories[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
               {index === 9 && newsVideoStories[1] && <NewsStoryCard story={newsVideoStories[1]} />}
-              {index === 10 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}
+              {index === 3 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}
+              {index === 4 && shown.length < 5 && <ComedyVideoStream limit={8} title="Latest comedian videos" />}
               {index === 14 && newsVideoStories[2] && <NewsStoryCard story={newsVideoStories[2]} />}
             </Fragment>
           ))}
