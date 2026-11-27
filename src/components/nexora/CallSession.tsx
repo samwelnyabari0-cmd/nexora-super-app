@@ -297,17 +297,30 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
     }
   };
 
-  const hangUp = () => {
+  const hangUp = async () => {
+    if (endingRef.current) return;
     endingRef.current = true;
     cleanup();
     setConnected(false);
-    void setStatus(isCaller && invite.status === "ringing" ? "cancelled" : "ended");
+    const nextStatus = isCaller && invite.status === "ringing" ? "cancelled" : "ended";
+    const { error } = await setStatus(nextStatus);
+    if (error) {
+      endingRef.current = false;
+      setErr("Could not save the hang-up. Check your connection and tap Hang up again. " + error.message);
+      return;
+    }
     onEnd?.();
   };
-  const decline = () => {
+  const decline = async () => {
+    if (endingRef.current) return;
     endingRef.current = true;
     cleanup();
-    void setStatus("declined");
+    const { error } = await setStatus("declined");
+    if (error) {
+      endingRef.current = false;
+      setErr("Could not decline this call. Check your connection and try again. " + error.message);
+      return;
+    }
     onEnd?.();
   };
 
