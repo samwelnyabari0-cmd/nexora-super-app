@@ -131,8 +131,18 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
     }
   };
 
-  const setStatus = (status: string, extra: Record<string, string> = {}) =>
-    supabase.from("call_invites").update({ status, ...extra }).eq("id", invite.id);
+  // All call-state changes go through row-locked database RPCs so
+  // accept/decline/timeout/hang-up cannot overwrite one another.
+  const setStatus = (status: string, extra: Record<string, string> = {}) => {
+    if (status === "accepted") {
+      return (supabase as any).rpc("respond_to_call", {
+        p_call_id: invite.id,
+        p_action: "accept",
+        p_peer_id: extra.callee_peer_id,
+      });
+    }
+    return (supabase as any).rpc("end_call", { p_call_id: invite.id });
+  };
 
   const fail = (message: string) => {
     endingRef.current = true;
