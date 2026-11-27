@@ -15,18 +15,38 @@ export type CallInvite = {
   callee_peer_id: string | null;
 };
 
+const turnUrls = String(import.meta.env.VITE_TURN_URL ?? "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
 const peerConfig = {
   iceServers: [
-    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-    ...(import.meta.env.VITE_TURN_URL
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] },
+    ...(turnUrls.length
       ? [{
-          urls: import.meta.env.VITE_TURN_URL,
+          urls: turnUrls,
           username: import.meta.env.VITE_TURN_USERNAME,
           credential: import.meta.env.VITE_TURN_CREDENTIAL,
         }]
       : []),
   ],
 };
+
+function peerErrorMessage(error: unknown, stage: "signalling" | "media" = "signalling") {
+  const detail = error && typeof error === "object"
+    ? String((error as { type?: string; message?: string }).type || (error as { message?: string }).message || "")
+    : "";
+  const type = detail.toLowerCase();
+  if (type.includes("peer-unavailable")) return "The other phone is not reachable yet. Ask them to keep NEXORA open and try again.";
+  if (type.includes("network") || type.includes("socket") || type.includes("server")) {
+    return "NEXORA could not reach the call signalling server. Check mobile data/Wi-Fi, disable VPN or data restrictions, and try again.";
+  }
+  if (type.includes("webrtc") || stage === "media") {
+    return "The phones could not establish a direct media connection. A TURN relay is needed on some mobile networks.";
+  }
+  return "Call signalling failed. Check both phones' internet connections. If they are on different mobile networks, configure TURN relay credentials.";
+}
 
 const label = (p?: Person) => p?.display_name || (p?.handle ? `@${p.handle}` : "NEXORA user");
 
@@ -135,7 +155,7 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
       if (mounted.current) setConnected(false);
       void setStatus("ended");
     });
-    activeCall.on("error", () => fail("The call connection failed. Check your network or try again."));
+    activeCall.on("error", (error: unknown) => fail(peerErrorMessage(error, "media")));
   };
 
   const accept = async () => {
@@ -170,7 +190,7 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
           if (updateError) fail("Your call could not be accepted. Please try again.");
         });
       });
-      activePeer.on("error", () => fail("Call signalling failed. Check your network or try again."));
+      activePeer.on("error", (error: unknown) => fail(peerErrorMessage(error)));
     } catch {
       cleanup();
       if (mounted.current) {
@@ -209,7 +229,7 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
           const outgoingCall = activePeer.call(invite.callee_peer_id!, localStream);
           watchCall(outgoingCall, localStream);
         });
-        activePeer.on("error", () => fail("Call signalling failed. Check your network or configure TURN."));
+        activePeer.on("error", (error: unknown) => fail(peerErrorMessage(error)));
       } catch {
         if (!cancelled && mounted.current) {
           endingRef.current = true;
