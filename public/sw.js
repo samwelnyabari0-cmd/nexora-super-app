@@ -29,7 +29,7 @@ self.addEventListener("push", (event) => {
     tag: isCall && payload.callId ? "nexora-call-" + payload.callId : (payload.tag || "nexora-notification"),
     renotify: isCall,
     requireInteraction: isCall,
-    data: { url: isCall ? "/calls?invite=" + encodeURIComponent(payload.callId || "") : (payload.url || "/notifications"), callId: payload.callId || null },
+    data: { url: isCall ? "/calls" : (payload.url || "/notifications"), callId: payload.callId || null },
     actions: isCall ? [{ action: "open-call", title: "Open call" }] : [{ action: "open", title: "Open" }]
   };
   event.waitUntil(self.registration.showNotification(title, options));
