@@ -176,7 +176,6 @@ function Home() {
               {index === 3 && technologyVideos[0] && <TechnologyVideoCard video={technologyVideos[0]} />}
               {index === 4 && newsVideoStories[0] && <NewsStoryCard story={newsVideoStories[0]} />}
               {index === 5 && <EducationDiscovery variant="compact" />}
-              {index === 6 && <ComedyVideoShelf title="Comedy creators" compact />}
               {index === 7 && regularNewsStories[1] && <NewsStoryCard story={regularNewsStories[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
               {index === 9 && newsVideoStories[1] && <NewsStoryCard story={newsVideoStories[1]} />}
@@ -184,6 +183,7 @@ function Home() {
             </Fragment>
           ))}
         </div>
+        <ComedyVideoShelf title="Comedy creators" compact />
       </div>
 
       <aside className="hidden space-y-4 lg:block">
