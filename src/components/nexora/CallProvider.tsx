@@ -79,10 +79,23 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, [ready, user?.id, dismissedInviteId]);
 
   useEffect(() => {
-    const onCallInviteCreated = () => { void loadActiveCall(); };
+    const onCallInviteCreated = (event: Event) => {
+      const supplied = (event as CustomEvent<{ invite?: CallInvite }>).detail?.invite;
+      if (supplied && user?.id) {
+        // Open the call UI from the inserted row immediately; do not wait for polling/realtime.
+        visibleInviteId.current = supplied.id;
+        setDismissedInviteId(null);
+        setInvite(supplied);
+        const otherId = supplied.caller === user.id ? supplied.callee : supplied.caller;
+        void supabase.rpc("contact_names", { ids: [otherId] }).then(({ data, error }) => {
+          if (!error) setOther((data?.[0] as CallPerson | undefined) ?? undefined);
+        });
+      }
+      void loadActiveCall();
+    };
     window.addEventListener("nexora:call-invite-created", onCallInviteCreated);
     return () => window.removeEventListener("nexora:call-invite-created", onCallInviteCreated);
-  }, [loadActiveCall]);
+  }, [loadActiveCall, user?.id]);
 
   useEffect(() => {
     if (!ready || !user?.id) {
