@@ -190,8 +190,14 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
         watchCall(incomingCall, localStream);
       });
       activePeer.on("open", (id: string) => {
-        void setStatus("accepted", { callee_peer_id: id }).then(({ error: updateError }) => {
-          if (updateError) fail("Your call could not be accepted. Please try again.");
+        void setStatus("accepted", { callee_peer_id: id }).then(({ data, error: updateError }: any) => {
+          if (updateError) {
+            fail("Your call could not be accepted. Please try again.");
+          } else if (data?.status !== "accepted") {
+            endingRef.current = true;
+            cleanup();
+            if (mounted.current) setErr("This call has expired or has already ended. Start a new call.");
+          }
         });
       });
       activePeer.on("error", (error: unknown) => fail(peerErrorMessage(error)));
