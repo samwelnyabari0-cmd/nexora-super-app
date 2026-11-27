@@ -827,6 +827,12 @@ async function syncComedyContent(): Promise<{ jokeRows: NewsItem[]; videoRows: H
   const channelSpecs: Array<{ name: string; channelId: string }> = [
     { name: "Crazy Kennar", channelId: "UCiXj0BfxM0WQGFr9mxdR0qg" },
     { name: "Just For Laughs Gags", channelId: "UCpsSadsgX_Qk9i6i_bJoUwQ" },
+    { name: "Khaby Lame", channelId: "UC86suRFnqiw8zN6LIYxddYQ" },
+    { name: "HowToBasic", channelId: "UCR4s1DE9J4DHzZYXMltSMAg" },
+    { name: "Mr Bean Official", channelId: "UCkAGrHCLFmlK3H2kd6isipg" },
+    { name: "ToRung", channelId: "UCXbYlU08sOTBktOtjVsvR6w" },
+    { name: "Daniel LaBelle", channelId: "UCb8vrqP8Z7Oz9ZTYvUtjUHQ" },
+    { name: "Churchill Television", channelId: "UC0YG5UA1s2gLb5tDfUCIWtg" },
   ];
   const exitmodeChannelId = Deno.env.get("EXITMODE_YOUTUBE_CHANNEL_ID") ?? "";
   if (/^UC[A-Za-z0-9_-]{20,30}$/.test(exitmodeChannelId)) {
