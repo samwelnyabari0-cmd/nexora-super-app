@@ -16,6 +16,41 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; } catch { payload = { body: event.data?.text() ?? "" }; }
+  const isCall = payload.type === "incoming-call";
+  const title = payload.title || (isCall ? "Incoming NEXORA call" : "NEXORA");
+  const options = {
+    body: payload.body || (isCall ? "Someone is calling you." : "You have a new notification."),
+    icon: "/nexora-icon.svg",
+    badge: "/nexora-icon.svg",
+    tag: isCall && payload.callId ? "nexora-call-" + payload.callId : (payload.tag || "nexora-notification"),
+    renotify: isCall,
+    requireInteraction: isCall,
+    data: { url: isCall ? "/calls?call=" + encodeURIComponent(payload.callId || "") : (payload.url || "/notifications"), callId: payload.callId || null },
+    actions: isCall ? [{ action: "open-call", title: "Open call" }] : [{ action: "open", title: "Open" }]
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = event.notification.data?.url || "/calls";
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if ("focus" in client) {
+        await client.focus();
+        client.postMessage({ type: "NEXORA_OPEN_CALL", callId: event.notification.data?.callId || null });
+        return;
+      }
+    }
+    await self.clients.openWindow(target);
+  })());
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
