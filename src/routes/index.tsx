@@ -10,6 +10,7 @@ import { TechnologyVideoCard, useTechnologyCreatorVideos } from "@/components/ne
 import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
 import { NewsStoryCard, NewsVideoShelf, useNewsStories } from "@/components/nexora/NewsStream";
 import { FootballMatchPreview } from "@/components/nexora/FootballMatchPreview";
+import { ComedyVideoShelf } from "@/components/nexora/ComedyVideoShelf";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { Avatar, Chip, EmptyState } from "@/components/nexora/ui";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -175,6 +176,7 @@ function Home() {
               {index === 3 && technologyVideos[0] && <TechnologyVideoCard video={technologyVideos[0]} />}
               {index === 4 && newsVideoStories[0] && <NewsStoryCard story={newsVideoStories[0]} />}
               {index === 5 && <EducationDiscovery variant="compact" />}
+              {index === 6 && <ComedyVideoShelf title="Comedy creators" compact />}
               {index === 7 && regularNewsStories[1] && <NewsStoryCard story={regularNewsStories[1]} />}
               {index === 8 && technologyVideos[1] && <TechnologyVideoCard video={technologyVideos[1]} />}
               {index === 9 && newsVideoStories[1] && <NewsStoryCard story={newsVideoStories[1]} />}
