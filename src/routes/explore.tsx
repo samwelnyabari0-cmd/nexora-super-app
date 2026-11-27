@@ -15,6 +15,7 @@ import { normalizeMediaFraming } from "@/lib/media-framing";
 import { TechnologyVideoShelf } from "@/components/nexora/TechnologyVideoFeed";
 import { NewsStream } from "@/components/nexora/NewsStream";
 import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
+import { ComedyVideoShelf } from "@/components/nexora/ComedyVideoShelf";
 export const Route = createFileRoute("/explore")({
   validateSearch: (search: Record<string, unknown>) => ({
     post: typeof search.post === "string" ? search.post : "",
@@ -218,6 +219,7 @@ function Explore() {
             </div>
           </section>
         )}
+        {(tab === "All" || tab === "Videos" || tab === "Reels") && <ComedyVideoShelf title="Comedy creators to discover" compact />}
         <Dialog open={Boolean(selectedPost)} onOpenChange={(open) => { if (!open) setSelectedPost(null); }}>
           <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
             <DialogTitle className="sr-only">Post details</DialogTitle>
