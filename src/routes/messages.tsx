@@ -31,6 +31,7 @@ import { useChatLock } from "@/hooks/useChatLock";
 import { flushOfflineMessages, isLikelyNetworkFailure, queueTextMessage } from "@/lib/offline-messages";
 import { toast } from "sonner";
 import { isSafeProfileReturnPath } from "@/lib/profile-navigation";
+import type { CallInvite } from "@/components/nexora/CallSession";
 
 type DirectMessage = {
   id: string;
@@ -1023,15 +1024,26 @@ if (recipient === user.id) {
     if (!user?.id || !recipient || group || startingCall) return;
     setStartingCall(true);
     setError("");
+    const toastId = toast.loading(kind === "video" ? "Starting video call…" : "Starting voice call…");
     try {
-      const { error: callError } = await supabase
-        .from("call_invites")
-        .insert({ caller: user.id, callee: recipient, kind });
-      if (callError) {
-        setError("Calls require an accepted contact, and neither person can already be in another call.");
+      const { data, error: callError } = await (supabase as any).rpc("start_call", {
+        p_callee_id: recipient,
+        p_kind: kind,
+      });
+      if (callError || !data) {
+        const message = callError?.message || "The call could not be started.";
+        setError(message);
+        toast.error(message, { id: toastId });
         return;
       }
-      toast.success("Calling… The call screen will open over your current chat.");
+      if (data.status === "busy") {
+        toast.error("This person or you are already on another call.", { id: toastId });
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("nexora:call-invite-created", {
+        detail: { invite: data as CallInvite },
+      }));
+      toast.success("Calling…", { id: toastId });
     } finally {
       setStartingCall(false);
     }
