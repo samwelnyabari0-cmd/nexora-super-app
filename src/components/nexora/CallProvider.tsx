@@ -48,13 +48,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Never resurrect an accepted call after a reload; keep it only if this
-    // app instance already displayed its ringing invitation.
-    if (active.status === "accepted" && visibleInviteId.current !== active.id) {
-      setInvite(null);
-      setOther(undefined);
-      return;
-    }
+    // The caller may receive the accepted update before seeing the original
+    // ringing row. Always surface an accepted call so signalling can complete.
 
     // Expire unanswered invitations so stale rows cannot interrupt startup.
     const createdAt = Date.parse((active as CallInvite & { created_at?: string }).created_at ?? "");
@@ -91,6 +86,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
 
     void loadActiveCall();
+    // Realtime is the fast path; polling recovers missed events on mobile.
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadActiveCall();
+    }, 1800);
     const channel = supabase
       .channel(`nexora-global-call:${user.id}`)
       .on(
@@ -110,6 +109,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     return () => {
       requestId.current += 1;
+      window.clearInterval(poll);
       void supabase.removeChannel(channel);
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
