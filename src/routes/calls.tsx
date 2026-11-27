@@ -38,6 +38,7 @@ export const Route = createFileRoute("/calls")({
 type Person = { id: string; display_name: string | null; handle: string | null };
 type Contact = { id: string; requester: string; addressee: string; status: string; blocked_by?: string | null };
 type Invite = CallInvite;
+type HistoryCall = { id: string; caller: string; callee: string; kind: "audio" | "video"; status: string; created_at: string; end_reason?: string | null };
 
 const label = (p?: Person) => p?.display_name || (p?.handle ? `@${p.handle}` : "NEXORA user");
 const input = "w-full rounded-xl border bg-background px-3 py-2 text-sm";
@@ -174,6 +175,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [names, setNames] = useState<Record<string, Person>>({});
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [recentCalls, setRecentCalls] = useState<HistoryCall[]>([]);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Person[]>([]);
   const [code, setCode] = useState(inviteCode ?? "");
@@ -181,7 +183,7 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
   const load = useCallback(async () => {
     const { error: expiryError } = await (supabase as any).rpc("expire_call_invites");
     if (expiryError) console.warn("NEXORA call expiry check failed:", expiryError);
-    const [{ data: p }, { data: c }, { data: i }] = await Promise.all([
+    const [{ data: p }, { data: c }, { data: i }, { data: h }] = await Promise.all([
       supabase.from("profiles").select("invite_code, discoverable").eq("id", userId).maybeSingle(),
       supabase.from("contacts").select("id, requester, addressee, status, blocked_by"),
       supabase
@@ -191,13 +193,21 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
         .in("status", ["ringing", "accepted"])
         .order("created_at", { ascending: false })
         .limit(10),
+      supabase
+        .from("call_invites")
+        .select("id, caller, callee, kind, status, created_at, end_reason")
+        .or(`caller.eq.${userId},callee.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
     setMe(p ?? null);
     setContacts(c ?? []);
     setInvites((i ?? []) as Invite[]);
+    setRecentCalls((h ?? []) as HistoryCall[]);
     const ids = new Set<string>();
     (c ?? []).forEach((x) => ids.add(x.requester === userId ? x.addressee : x.requester));
     (i ?? []).forEach((x) => ids.add(x.caller === userId ? x.callee : x.caller));
+    (h ?? []).forEach((x) => ids.add(x.caller === userId ? x.callee : x.caller));
     if (ids.size) {
       const { data: n } = await supabase.rpc("contact_names", { ids: [...ids] });
       setNames(Object.fromEntries((n ?? []).map((x: Person) => [x.id, x])));
@@ -520,6 +530,41 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
             </div>
           );
         })}
+      </Panel>
+
+      <Panel>
+        <h2 className="mb-2 font-display font-semibold">Recent calls</h2>
+        {!recentCalls.length ? (
+          <p className="text-sm text-muted-foreground">Your incoming and outgoing calls will appear here.</p>
+        ) : (
+          <div className="divide-y">
+            {recentCalls.map((call) => {
+              const otherId = call.caller === userId ? call.callee : call.caller;
+              const missed = call.status === "missed";
+              const direction = call.caller === userId ? "Outgoing" : "Incoming";
+              const state = call.status === "missed" ? "Missed" :
+                call.status === "busy" ? "Busy" :
+                call.status === "declined" ? "Declined" :
+                call.status === "cancelled" ? "Cancelled" :
+                call.status === "ended" ? "Ended" :
+                call.status === "failed" ? "Failed" :
+                call.status === "accepted" ? "Connected" : "Ringing";
+              return (
+                <div key={call.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{label(names[otherId])}</p>
+                    <p className={missed ? "text-xs font-medium text-red-600" : "text-xs text-muted-foreground"}>
+                      {direction} · {call.kind === "video" ? "Video" : "Voice"} · {state}
+                    </p>
+                  </div>
+                  <time className="shrink-0 text-xs text-muted-foreground">
+                    {new Date(call.created_at).toLocaleString()}
+                  </time>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
 
       {blockedByMe.length > 0 && (
