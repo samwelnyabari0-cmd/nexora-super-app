@@ -274,14 +274,14 @@ function SignedInCalls({ userId, inviteCode }: { userId: string; inviteCode?: st
       supabase.from("contacts").select("id, requester, addressee, status, blocked_by"),
       supabase
         .from("call_invites")
-        .select("id, caller, callee, kind, status, callee_peer_id")
+        .select("id, caller, callee, kind, status, callee_peer_id, created_at")
         .in("status", ["ringing", "accepted"])
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
     setMe(p ?? null);
     setContacts(c ?? []);
-    setInvites((i ?? []) as Invite[]);
+    setInvites((i ?? []).filter((x) => x.status !== "ringing" || Date.now() - Date.parse(x.created_at) <= 75_000) as Invite[]);
     const ids = new Set<string>();
     (c ?? []).forEach((x) => ids.add(x.requester === userId ? x.addressee : x.requester));
     (i ?? []).forEach((x) => ids.add(x.caller === userId ? x.callee : x.caller));
