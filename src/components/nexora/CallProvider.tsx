@@ -121,12 +121,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
       {children}
       {invite && user?.id && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-stretch justify-center overflow-y-auto bg-black/95 p-0 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-label={invite.status === "ringing" && invite.callee === user.id ? "Incoming call" : "Call"}
         >
-          <div className="w-full max-w-xl">
+          <div className="min-h-[100dvh] w-full max-w-2xl">
             <CallSession
               key={invite.id}
               invite={invite}
