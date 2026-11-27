@@ -1,0 +1,776 @@
+-- Establish the PeerJS contact/call schema in Supabase and enforce contact consent.
+-- The original call schema existed only in drizzle/migrations/0001_calls_contacts.sql
+-- and was not present in the connected Supabase project when this migration was prepared.
+
+create schema if not exists private;
+-- Preserve existing private-schema grants for Nexora's other internal functions.
+grant usage on schema private to authenticated;
+
+alter table public.profiles
+  add column if not exists discoverable boolean not null default false,
+  add column if not exists invite_code text;
+
+alter table public.profiles
+  alter column invite_code set default encode(extensions.gen_random_bytes(24), 'hex');
+
+-- Replace legacy short invite codes with cryptographically random tokens.
+-- Existing accepted contacts are stored separately and remain untouched.
+update public.profiles
+set invite_code = encode(extensions.gen_random_bytes(24), 'hex');
+
+
+create table if not exists public.contacts (
+  id uuid primary key default gen_random_uuid(),
+  requester uuid not null references auth.users(id) on delete cascade,
+  addressee uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending',
+  blocked_by uuid references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (requester, addressee),
+  check (requester <> addressee)
+);
+
+alter table public.contacts
+  add column if not exists blocked_by uuid references auth.users(id) on delete cascade;
+
+alter table public.contacts drop constraint if exists contacts_status_check;
+alter table public.contacts
+  add constraint contacts_status_check
+  check (status in ('pending', 'accepted', 'declined', 'blocked'));
+
+alter table public.contacts drop constraint if exists contacts_block_metadata_check;
+alter table public.contacts
+  add constraint contacts_block_metadata_check
+  check ((status = 'blocked' and blocked_by is not null) or (status <> 'blocked' and blocked_by is null));
+
+create index if not exists contacts_requester_status_idx
+  on public.contacts (requester, status, created_at desc);
+create index if not exists contacts_addressee_status_idx
+  on public.contacts (addressee, status, created_at desc);
+
+create table if not exists public.call_invites (
+  id uuid primary key default gen_random_uuid(),
+  caller uuid not null references auth.users(id) on delete cascade,
+  callee uuid not null references auth.users(id) on delete cascade,
+  kind text not null check (kind in ('audio', 'video')),
+  status text not null default 'ringing'
+    check (status in ('ringing', 'accepted', 'declined', 'cancelled', 'ended')),
+  callee_peer_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (caller <> callee)
+);
+
+create index if not exists call_invites_caller_status_idx
+  on public.call_invites (caller, status, created_at desc);
+create index if not exists call_invites_callee_status_idx
+  on public.call_invites (callee, status, created_at desc);
+
+alter table public.contacts enable row level security;
+alter table public.call_invites enable row level security;
+
+create or replace function private.is_blocked_pair(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select auth.uid() is not null
+    and auth.uid() in (a, b)
+    and exists (
+      select 1 from public.contacts c
+      where c.status = 'blocked'
+        and ((c.requester = a and c.addressee = b)
+          or (c.requester = b and c.addressee = a))
+    );
+$$;
+
+create or replace function private.lock_contact_pair(a uuid, b uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $lock$
+begin
+  if auth.uid() is null or a is null or b is null or a = b
+    or auth.uid() not in (a, b) then
+    raise exception 'not authorized to lock this contact pair';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(least(a::text, b::text), 0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(greatest(a::text, b::text), 0)
+  );
+end;
+$lock$;
+
+revoke all on function private.lock_contact_pair(uuid, uuid) from public, anon, authenticated;
+
+create or replace function private.can_request_contact(a uuid, b uuid)
+returns boolean
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $request$
+begin
+  if auth.uid() is distinct from a or a is null or b is null or a = b then
+    return false;
+  end if;
+
+  perform private.lock_contact_pair(a, b);
+
+  return not private.is_blocked_pair(a, b)
+    and not exists (
+      select 1 from public.contacts c
+      where ((c.requester = a and c.addressee = b)
+          or (c.requester = b and c.addressee = a))
+        and c.status in ('pending', 'accepted', 'blocked')
+    );
+end;
+$request$;
+
+grant execute on function private.is_blocked_pair(uuid, uuid) to authenticated;
+grant execute on function private.can_request_contact(uuid, uuid) to authenticated;
+revoke all on function private.is_blocked_pair(uuid, uuid) from anon, public;
+revoke all on function private.can_request_contact(uuid, uuid) from anon, public;
+
+create or replace function private.prepare_contact_request()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $prepare$
+begin
+  if auth.uid() is null
+    or new.addressee is null or new.addressee = new.requester
+    or new.blocked_by is not null then
+    raise exception 'invalid contact request';
+  end if;
+
+  -- Only the trusted invite-redemption SECURITY DEFINER function may create
+  -- an accepted relationship on behalf of the invite owner.
+  if new.status = 'accepted' then
+    if current_user not in ('postgres', 'service_role')
+      or auth.uid() is distinct from new.addressee then
+      raise exception 'only a redeemed invite may create an accepted contact';
+    end if;
+  elsif new.status <> 'pending' or auth.uid() is distinct from new.requester then
+    raise exception 'invalid contact request';
+  end if;
+
+  perform private.lock_contact_pair(new.requester, new.addressee);
+
+  if private.is_blocked_pair(new.requester, new.addressee) then
+    raise exception 'this contact is blocked';
+  end if;
+
+  -- Allow a fresh request after a previous request was declined, regardless
+  -- of which participant initiated the earlier request.
+  delete from public.contacts c
+  where c.status = 'declined'
+    and ((c.requester = new.requester and c.addressee = new.addressee)
+      or (c.requester = new.addressee and c.addressee = new.requester));
+
+  return new;
+end;
+$prepare$;
+
+drop trigger if exists contacts_prepare_request on public.contacts;
+create trigger contacts_prepare_request
+before insert on public.contacts
+for each row execute function private.prepare_contact_request();
+
+revoke all on function private.prepare_contact_request() from public, anon, authenticated;
+
+create or replace function private.can_start_call(a uuid, b uuid)
+returns boolean
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $start$
+begin
+  if auth.uid() is null or auth.uid() is distinct from a
+    or a is null or b is null or a = b then
+    return false;
+  end if;
+
+  -- Lock both participants in a stable order so simultaneous calls cannot
+  -- create overlapping active sessions for either person.
+  perform private.lock_contact_pair(a, b);
+
+  return not private.is_blocked_pair(a, b)
+    and exists (
+      select 1 from public.contacts c
+      where c.status = 'accepted'
+        and ((c.requester = a and c.addressee = b)
+          or (c.requester = b and c.addressee = a))
+    )
+    and not exists (
+      select 1 from public.call_invites ci
+      where ci.status in ('ringing', 'accepted')
+        and (ci.caller in (a, b) or ci.callee in (a, b))
+    );
+end;
+$start$;
+
+grant execute on function private.can_start_call(uuid, uuid) to authenticated;
+revoke all on function private.can_start_call(uuid, uuid) from anon, public;
+
+create or replace function private.contact_guard()
+returns trigger
+language plpgsql
+set search_path = ''
+as $contact$
+begin
+  if new.id is distinct from old.id
+    or new.requester is distinct from old.requester
+    or new.addressee is distinct from old.addressee
+    or new.created_at is distinct from old.created_at then
+    raise exception 'contact request identity is immutable';
+  end if;
+
+  if old.status not in ('pending', 'declined') or auth.uid() is distinct from old.addressee then
+    raise exception 'only the recipient can respond to a pending or declined contact request';
+  end if;
+
+  if new.status not in ('accepted', 'declined') or new.blocked_by is not null then
+    raise exception 'invalid contact request transition';
+  end if;
+
+  return new;
+end;
+$contact$;
+
+drop trigger if exists contacts_guard on public.contacts;
+create trigger contacts_guard
+before update on public.contacts
+for each row execute function private.contact_guard();
+
+revoke all on function private.contact_guard() from public, anon, authenticated;
+
+drop policy if exists contacts_read on public.contacts;
+create policy contacts_read on public.contacts
+  for select to authenticated
+  using (auth.uid() in (requester, addressee));
+
+drop policy if exists contacts_request on public.contacts;
+create policy contacts_request on public.contacts
+  for insert to authenticated
+  with check (
+    status = 'pending'
+    and blocked_by is null
+    and private.can_request_contact(requester, addressee)
+  );
+
+drop policy if exists contacts_respond on public.contacts;
+create policy contacts_respond on public.contacts
+  for update to authenticated
+  using (
+    auth.uid() = addressee
+    and status = 'pending'
+    and not private.is_blocked_pair(requester, addressee)
+  )
+  with check (
+    auth.uid() = addressee
+    and status in ('accepted', 'declined')
+    and blocked_by is null
+    and not private.is_blocked_pair(requester, addressee)
+  );
+
+drop policy if exists contacts_remove on public.contacts;
+create policy contacts_remove on public.contacts
+  for delete to authenticated
+  using (
+    auth.uid() in (requester, addressee)
+    and status <> 'blocked'
+  );
+
+create or replace function private.are_contacts(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select auth.uid() is not null
+    and auth.uid() in (a, b)
+    and not private.is_blocked_pair(a, b)
+    and exists (
+      select 1 from public.contacts c
+      where c.status = 'accepted'
+        and ((c.requester = a and c.addressee = b)
+          or (c.requester = b and c.addressee = a))
+    );
+$$;
+
+create or replace function private.search_directory(q text)
+returns table (id uuid, display_name text, handle text, avatar_url text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.id, p.display_name, p.handle, p.avatar_url
+  from public.profiles p
+  where auth.uid() is not null
+    and p.discoverable is true
+    and p.private_profile is not true
+    and p.id <> auth.uid()
+    and length(trim(coalesce(q, ''))) >= 2
+    and (
+      p.display_name ilike '%' || trim(q) || '%'
+      or p.handle ilike '%' || trim(q) || '%'
+    )
+    and not private.is_blocked_pair(auth.uid(), p.id)
+  order by p.display_name
+  limit 20;
+$$;
+
+create or replace function private.contact_names(ids uuid[])
+returns table (id uuid, display_name text, handle text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.id, p.display_name, p.handle
+  from public.profiles p
+  where auth.uid() is not null
+    and p.id = any(coalesce(ids, '{}'::uuid[]))
+    and (
+      exists (
+        select 1 from public.contacts c
+        where ((c.requester = auth.uid() and c.addressee = p.id)
+            or (c.addressee = auth.uid() and c.requester = p.id))
+      )
+      or exists (
+        select 1 from public.call_invites ci
+        where auth.uid() in (ci.caller, ci.callee)
+          and p.id in (ci.caller, ci.callee)
+      )
+    );
+$$;
+
+create or replace function private.redeem_invite(code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  owner_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'sign in required';
+  end if;
+
+  if length(trim(coalesce(code, ''))) < 8 or length(trim(code)) > 64 then
+    raise exception 'invalid invite';
+  end if;
+
+  select p.id into owner_id
+  from public.profiles p
+  where p.invite_code = trim(code)
+  for update;
+
+  if owner_id is null or owner_id = auth.uid() then
+    raise exception 'invalid invite';
+  end if;
+
+  perform private.lock_contact_pair(owner_id, auth.uid());
+
+  if exists (
+    select 1 from public.contacts c
+    where c.status = 'blocked'
+      and ((c.requester = owner_id and c.addressee = auth.uid())
+        or (c.requester = auth.uid() and c.addressee = owner_id))
+  ) then
+    raise exception 'this contact is blocked';
+  end if;
+
+  -- An already accepted reverse-direction relationship is sufficient.
+  -- Do not create a duplicate row when the same invite is redeemed again.
+  if exists (
+    select 1 from public.contacts c
+    where c.status = 'accepted'
+      and ((c.requester = owner_id and c.addressee = auth.uid())
+        or (c.requester = auth.uid() and c.addressee = owner_id))
+  ) then
+    return owner_id;
+  end if;
+
+  delete from public.contacts
+  where requester = auth.uid()
+    and addressee = owner_id
+    and status in ('pending', 'declined');
+
+  insert into public.contacts as existing_contact (requester, addressee, status, blocked_by)
+  values (owner_id, auth.uid(), 'accepted', null)
+  on conflict (requester, addressee)
+  do update set status = 'accepted', blocked_by = null
+  where existing_contact.status in ('pending', 'declined');
+
+  if not exists (
+    select 1 from public.contacts c
+    where c.status = 'accepted'
+      and ((c.requester = owner_id and c.addressee = auth.uid())
+        or (c.requester = auth.uid() and c.addressee = owner_id))
+  ) then
+    raise exception 'this contact is blocked';
+  end if;
+
+  return owner_id;
+end;
+$$;
+
+create or replace function private.block_contact(p_other_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'sign in required';
+  end if;
+  if p_other_user_id is null or p_other_user_id = auth.uid() then
+    raise exception 'invalid contact';
+  end if;
+
+  perform private.lock_contact_pair(auth.uid(), p_other_user_id);
+
+  if exists (
+    select 1 from public.contacts c
+    where c.status = 'blocked'
+      and c.blocked_by <> auth.uid()
+      and ((c.requester = auth.uid() and c.addressee = p_other_user_id)
+        or (c.requester = p_other_user_id and c.addressee = auth.uid()))
+  ) then
+    return true;
+  end if;
+
+  delete from public.contacts
+  where (requester = auth.uid() and addressee = p_other_user_id)
+     or (requester = p_other_user_id and addressee = auth.uid());
+
+  insert into public.contacts (requester, addressee, status, blocked_by)
+  values (auth.uid(), p_other_user_id, 'blocked', auth.uid());
+
+  update public.call_invites
+  set status = 'ended', updated_at = now()
+  where status in ('ringing', 'accepted')
+    and ((caller = auth.uid() and callee = p_other_user_id)
+      or (caller = p_other_user_id and callee = auth.uid()));
+
+  return true;
+end;
+$$;
+
+create or replace function private.unblock_contact(p_other_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  removed_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'sign in required';
+  end if;
+  if p_other_user_id is null or p_other_user_id = auth.uid() then
+    raise exception 'invalid contact';
+  end if;
+
+  perform private.lock_contact_pair(auth.uid(), p_other_user_id);
+
+  delete from public.contacts
+  where status = 'blocked'
+    and blocked_by = auth.uid()
+    and ((requester = auth.uid() and addressee = p_other_user_id)
+      or (requester = p_other_user_id and addressee = auth.uid()));
+
+  get diagnostics removed_count = row_count;
+  return removed_count > 0;
+end;
+$$;
+
+create or replace function private.rotate_contact_invite()
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  new_code text;
+begin
+  if auth.uid() is null then
+    raise exception 'sign in required';
+  end if;
+
+  new_code := encode(extensions.gen_random_bytes(24), 'hex');
+  update public.profiles
+  set invite_code = new_code
+  where id = auth.uid();
+
+  if not found then
+    raise exception 'profile not found';
+  end if;
+
+  return new_code;
+end;
+$$;
+
+-- Keep PostgREST-facing RPCs as SECURITY INVOKER wrappers. The privileged
+-- implementations live in the non-exposed private schema.
+create or replace function public.are_contacts(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security invoker
+set search_path = ''
+as $rpc$ select private.are_contacts(a, b); $rpc$;
+
+create or replace function public.search_directory(q text)
+returns table (id uuid, display_name text, handle text, avatar_url text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $rpc$ select * from private.search_directory(q); $rpc$;
+
+create or replace function public.contact_names(ids uuid[])
+returns table (id uuid, display_name text, handle text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $rpc$ select * from private.contact_names(ids); $rpc$;
+
+create or replace function public.redeem_invite(code text)
+returns uuid
+language sql
+volatile
+security invoker
+set search_path = ''
+as $rpc$ select private.redeem_invite(code); $rpc$;
+
+create or replace function public.block_contact(p_other_user_id uuid)
+returns boolean
+language sql
+volatile
+security invoker
+set search_path = ''
+as $rpc$ select private.block_contact(p_other_user_id); $rpc$;
+
+create or replace function public.unblock_contact(p_other_user_id uuid)
+returns boolean
+language sql
+volatile
+security invoker
+set search_path = ''
+as $rpc$ select private.unblock_contact(p_other_user_id); $rpc$;
+
+create or replace function public.rotate_contact_invite()
+returns text
+language sql
+volatile
+security invoker
+set search_path = ''
+as $rpc$ select private.rotate_contact_invite(); $rpc$;
+
+create or replace function private.guard_profile_invite_code()
+returns trigger
+language plpgsql
+set search_path = ''
+as $guard$
+begin
+  if tg_op = 'INSERT' then
+    -- Ignore any client-supplied value and always issue a fresh secure token.
+    if current_user not in ('postgres', 'service_role') then
+      new.invite_code := encode(extensions.gen_random_bytes(24), 'hex');
+    end if;
+    return new;
+  end if;
+
+  if new.invite_code is distinct from old.invite_code
+    and current_user not in ('postgres', 'service_role') then
+    raise exception 'invite codes can only be changed through the secure rotation function';
+  end if;
+  return new;
+end;
+$guard$;
+
+drop trigger if exists profiles_invite_code_guard on public.profiles;
+create trigger profiles_invite_code_guard
+before insert or update of invite_code on public.profiles
+for each row execute function private.guard_profile_invite_code();
+
+revoke all on function private.guard_profile_invite_code() from public, anon, authenticated;
+
+create or replace function private.call_invite_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.id is distinct from old.id
+    or new.created_at is distinct from old.created_at
+    or new.caller is distinct from old.caller
+    or new.callee is distinct from old.callee
+    or new.kind is distinct from old.kind then
+    raise exception 'call identity, participants and kind are immutable';
+  end if;
+
+  if old.status not in ('ringing', 'accepted') then
+    raise exception 'call is closed';
+  end if;
+
+  if new.status is distinct from old.status then
+    if old.status = 'ringing' and new.status in ('accepted', 'declined') then
+      if auth.uid() <> old.callee then
+        raise exception 'only the recipient can accept or decline';
+      end if;
+    elsif old.status = 'ringing' and new.status = 'cancelled' then
+      if auth.uid() <> old.caller then
+        raise exception 'only the caller can cancel';
+      end if;
+    elsif new.status = 'ended' then
+      if auth.uid() not in (old.caller, old.callee) then
+        raise exception 'only a call participant can end the call';
+      end if;
+    else
+      raise exception 'invalid call status transition';
+    end if;
+  end if;
+
+  if new.status = 'accepted' then
+    if private.is_blocked_pair(old.caller, old.callee)
+      or not private.are_contacts(old.caller, old.callee) then
+      raise exception 'only accepted, unblocked contacts can accept calls';
+    end if;
+    if new.callee_peer_id is null or length(trim(new.callee_peer_id)) = 0
+      or length(new.callee_peer_id) > 255 then
+      raise exception 'accepted calls require a valid recipient media peer id';
+    end if;
+  end if;
+
+  if old.callee_peer_id is not null
+    and new.callee_peer_id is distinct from old.callee_peer_id then
+    raise exception 'recipient media peer id cannot be changed once set';
+  end if;
+
+  if new.callee_peer_id is distinct from old.callee_peer_id
+    and (auth.uid() <> old.callee or new.status <> 'accepted') then
+    raise exception 'only the recipient can set the media peer id after accepting';
+  end if;
+
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists call_invites_guard on public.call_invites;
+create trigger call_invites_guard
+before update on public.call_invites
+for each row execute function private.call_invite_guard();
+
+-- Remove the legacy public SECURITY DEFINER trigger function if the old
+-- Drizzle migration was applied in another environment.
+drop function if exists public.call_invite_guard();
+
+revoke all on function private.call_invite_guard() from public, anon, authenticated;
+
+drop policy if exists calls_read on public.call_invites;
+create policy calls_read on public.call_invites
+  for select to authenticated
+  using (auth.uid() in (caller, callee));
+
+drop policy if exists calls_create on public.call_invites;
+create policy calls_create on public.call_invites
+  for insert to authenticated
+  with check (
+    auth.uid() = caller
+    and caller <> callee
+    and status = 'ringing'
+    and callee_peer_id is null
+    and private.can_start_call(caller, callee)
+  );
+
+drop policy if exists calls_update on public.call_invites;
+create policy calls_update on public.call_invites
+  for update to authenticated
+  using (
+    auth.uid() in (caller, callee)
+    and status in ('ringing', 'accepted')
+  )
+  with check (
+    auth.uid() in (caller, callee)
+    and status in ('ringing', 'accepted', 'declined', 'cancelled', 'ended')
+  );
+
+revoke all on public.contacts, public.call_invites from public, anon;
+grant select, insert, update, delete on public.contacts to authenticated;
+grant select, insert, update on public.call_invites to authenticated;
+grant all on public.contacts, public.call_invites to service_role;
+
+revoke all on function private.are_contacts(uuid, uuid) from public, anon;
+revoke all on function private.search_directory(text) from public, anon;
+revoke all on function private.contact_names(uuid[]) from public, anon;
+revoke all on function private.redeem_invite(text) from public, anon;
+revoke all on function private.block_contact(uuid) from public, anon;
+revoke all on function private.unblock_contact(uuid) from public, anon;
+revoke all on function private.rotate_contact_invite() from public, anon;
+
+revoke all on function public.are_contacts(uuid, uuid) from public, anon;
+revoke all on function public.search_directory(text) from public, anon;
+revoke all on function public.contact_names(uuid[]) from public, anon;
+revoke all on function public.redeem_invite(text) from public, anon;
+revoke all on function public.block_contact(uuid) from public, anon;
+revoke all on function public.unblock_contact(uuid) from public, anon;
+revoke all on function public.rotate_contact_invite() from public, anon;
+
+grant execute on function private.are_contacts(uuid, uuid) to authenticated;
+grant execute on function private.search_directory(text) to authenticated;
+grant execute on function private.contact_names(uuid[]) to authenticated;
+grant execute on function private.redeem_invite(text) to authenticated;
+grant execute on function private.block_contact(uuid) to authenticated;
+grant execute on function private.unblock_contact(uuid) to authenticated;
+grant execute on function private.rotate_contact_invite() to authenticated;
+
+grant execute on function public.are_contacts(uuid, uuid) to authenticated;
+grant execute on function public.search_directory(text) to authenticated;
+grant execute on function public.contact_names(uuid[]) to authenticated;
+grant execute on function public.redeem_invite(text) to authenticated;
+grant execute on function public.block_contact(uuid) to authenticated;
+grant execute on function public.unblock_contact(uuid) to authenticated;
+grant execute on function public.rotate_contact_invite() to authenticated;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'call_invites'
+  ) then
+    alter publication supabase_realtime add table public.call_invites;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'contacts'
+  ) then
+    alter publication supabase_realtime add table public.contacts;
+  end if;
+end;
+$$;
