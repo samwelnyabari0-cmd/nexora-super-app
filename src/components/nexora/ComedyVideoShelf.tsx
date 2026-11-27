@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Laugh, Play, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,38 +26,37 @@ function youtubeId(value: string) {
 
 /** Loads the publisher feed only when the shelf approaches the viewport. */
 export function ComedyVideoShelf({ title = "Comedy Shorts", compact = false }: { title?: string; compact?: boolean }) {
-  const root = useRef<HTMLElement>(null);
   const [videos, setVideos] = useState<ComedyFeedVideo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const element = root.current;
-    if (!element || loaded) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return;
-      observer.disconnect();
+    let active = true;
+    const load = async () => {
       setLoading(true);
-      void (supabase as any).from("football_highlights")
+      const { data, error } = await (supabase as any).from("football_highlights")
         .select("provider_id,match_label,source_name,thumbnail_url,video_url,published_at")
         .eq("provider", "youtube-comedy")
         .eq("is_published", true)
         .order("published_at", { ascending: false })
-        .limit(compact ? 4 : 8)
-        .then(({ data, error }: { data: ComedyFeedVideo[] | null; error: { message: string } | null }) => {
-          if (error) console.warn("Comedy video shelf unavailable:", error.message);
-          else setVideos(data ?? []);
-          setLoaded(true);
-          setLoading(false);
-        });
-    }, { rootMargin: "500px 0px" });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [loaded, compact]);
+        .limit(compact ? 8 : 24);
+      if (!active) return;
+      if (error) {
+        console.error("Comedy video shelf unavailable:", error.message);
+        setErrorMessage(error.message);
+      } else {
+        setVideos((data ?? []) as ComedyFeedVideo[]);
+        setErrorMessage(null);
+      }
+      setLoading(false);
+    };
+    void load();
+    return () => { active = false; };
+  }, [compact]);
 
   return (
-    <section ref={root} aria-label={title} className="my-5 min-w-0 overflow-hidden rounded-2xl border bg-card p-3 sm:p-4">
+    <section aria-label={title} className="my-5 min-w-0 overflow-hidden rounded-2xl border bg-card p-3 sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fuchsia-500/10 text-fuchsia-600"><Laugh className="h-5 w-5" /></span>
@@ -66,7 +65,7 @@ export function ComedyVideoShelf({ title = "Comedy Shorts", compact = false }: {
         <Link to="/videos" search={{ post: undefined }} className="shrink-0 text-xs font-semibold text-primary">See all</Link>
       </div>
       {loading && <p className="py-5 text-center text-xs text-muted-foreground">Loading comedy videos…</p>}
-      {!loading && loaded && !videos.length && <p className="py-4 text-xs text-muted-foreground">New creator videos will appear here after the next feed sync.</p>}
+      {!loading && !videos.length && <p className="py-4 text-xs text-muted-foreground">{errorMessage ? "Comedy videos could not load. Please try again later." : "New creator videos will appear here after the next feed sync."}</p>}
       {videos.length > 0 && (
         <div className="no-scrollbar flex snap-x gap-3 overflow-x-auto pb-1">
           {videos.map((video) => {
