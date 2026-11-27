@@ -15,23 +15,23 @@ export type CallInvite = {
   callee_peer_id: string | null;
 };
 
-const turnUrls = String(import.meta.env.VITE_TURN_URL ?? "")
-  .split(",")
-  .map((url) => url.trim())
-  .filter(Boolean);
-
-const peerConfig = {
-  iceServers: [
-    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] },
-    ...(turnUrls.length
-      ? [{
-          urls: turnUrls,
-          username: import.meta.env.VITE_TURN_USERNAME,
-          credential: import.meta.env.VITE_TURN_CREDENTIAL,
-        }]
-      : []),
-  ],
-};
+async function getPeerConfig() {
+  const { data, error } = await supabase.functions.invoke("turn-credentials", {
+    method: "POST",
+  });
+  if (error) {
+    throw new Error("Could not load secure call relay credentials. Check the Nexora TURN setup and try again.");
+  }
+  if (!Array.isArray(data?.iceServers) || data.iceServers.length === 0) {
+    throw new Error(data?.error || "No call relay servers were returned. Please try again.");
+  }
+  return {
+    iceServers: [
+      { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+      ...data.iceServers,
+    ],
+  };
+}
 
 function peerErrorMessage(error: unknown, stage: "signalling" | "media" = "signalling") {
   const detail = error && typeof error === "object"
@@ -170,12 +170,13 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
       }
       stream.current = localStream;
       attach(localStream);
+      const config = await getPeerConfig();
       const { default: Peer } = await import("peerjs");
       if (!mounted.current) {
         localStream.getTracks().forEach((track) => track.stop());
         return;
       }
-      const activePeer = new Peer({ config: peerConfig });
+      const activePeer = new Peer({ config });
       peer.current = activePeer;
       activePeer.on("call", (incomingCall: any) => {
         if (!mounted.current) {
@@ -191,14 +192,14 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
         });
       });
       activePeer.on("error", (error: unknown) => fail(peerErrorMessage(error)));
-    } catch {
+    } catch (error) {
       cleanup();
       if (mounted.current) {
-        setErr(
-          invite.kind === "audio"
+        setErr(error instanceof Error
+          ? error.message
+          : invite.kind === "audio"
             ? "Microphone permission is needed to answer."
-            : "Camera and microphone permission are needed to answer.",
-        );
+            : "Camera and microphone permission are needed to answer.");
       }
     } finally {
       if (mounted.current) setAccepting(false);
@@ -217,12 +218,13 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
         }
         stream.current = localStream;
         attach(localStream);
-        const { default: Peer } = await import("peerjs");
+        const config = await getPeerConfig();
+      const { default: Peer } = await import("peerjs");
         if (cancelled || !mounted.current) {
           localStream.getTracks().forEach((track) => track.stop());
           return;
         }
-        const activePeer = new Peer({ config: peerConfig });
+        const activePeer = new Peer({ config });
         peer.current = activePeer;
         activePeer.on("open", () => {
           if (cancelled || !mounted.current) return;
@@ -230,11 +232,11 @@ export function CallSession({ invite, userId, other, onEnd }: { invite: CallInvi
           watchCall(outgoingCall, localStream);
         });
         activePeer.on("error", (error: unknown) => fail(peerErrorMessage(error)));
-      } catch {
+      } catch (error) {
         if (!cancelled && mounted.current) {
           endingRef.current = true;
           cleanup();
-          setErr("Permission to use your microphone/camera was denied.");
+          setErr(error instanceof Error ? error.message : "Permission to use your microphone/camera was denied.");
           void setStatus("ended");
         }
       }
