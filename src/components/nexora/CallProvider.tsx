@@ -51,9 +51,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
     // The caller may receive the accepted update before seeing the original
     // ringing row. Always surface an accepted call so signalling can complete.
 
-    // Expire unanswered invitations so stale rows cannot interrupt startup.
+    // Automatically close abandoned call records. Ringing invitations expire
+    // quickly; accepted calls older than 24 hours cannot be live sessions and
+    // must never trap the user in an old call screen after a later app launch.
     const createdAt = Date.parse((active as CallInvite & { created_at?: string }).created_at ?? "");
-    if (active.status === "ringing" && (!Number.isFinite(createdAt) || Date.now() - createdAt > 75_000)) {
+    const age = Number.isFinite(createdAt) ? Date.now() - createdAt : Number.POSITIVE_INFINITY;
+    const abandonedRinging = active.status === "ringing" && age > 75_000;
+    const abandonedAccepted = active.status === "accepted" && age > 24 * 60 * 60 * 1000;
+    if (abandonedRinging || abandonedAccepted) {
+      void supabase.from("call_invites").update({ status: "ended" }).eq("id", active.id);
       if (visibleInviteId.current === active.id) visibleInviteId.current = null;
       setInvite(null);
       setOther(undefined);
