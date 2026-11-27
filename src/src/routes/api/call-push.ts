@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "node:crypto";
-import postgres from "postgres";
 import * as webpush from "web-push";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -33,27 +32,17 @@ export const Route = createFileRoute("/api/call-push")({
           return new Response("Invalid call event", { status: 400 });
         }
 
-        const databaseUrl = process.env.POSTGRES_URL ?? process.env.POSTGRES_PRISMA_URL;
         const publicKey = process.env.VAPID_PUBLIC_KEY;
         const privateKey = process.env.VAPID_PRIVATE_KEY;
-        if (!databaseUrl || !publicKey || !privateKey) {
+        if (!publicKey || !privateKey) {
           return new Response("Call push delivery is not configured", { status: 503 });
         }
 
-        const sql = postgres(databaseUrl, { max: 1, prepare: false });
-        try {
-          const rows = await sql<{ decrypted_secret: string }[]>\`
-            select decrypted_secret from vault.decrypted_secrets
-            where name = 'nexora_call_push_webhook_secret'
-            limit 1
-          \`;
-          const expected = rows[0]?.decrypted_secret;
-          const received = request.headers.get("x-nexora-call-secret") ?? "";
-          if (!expected || !safeSecretEqual(expected, received)) {
-            return new Response("Unauthorized", { status: 401 });
-          }
-        } finally {
-          await sql.end({ timeout: 1 });
+        const { data: expected, error: secretError } = await (supabaseAdmin as any)
+          .rpc("get_nexora_call_push_secret");
+        const received = request.headers.get("x-nexora-call-secret") ?? "";
+        if (secretError || typeof expected !== "string" || !safeSecretEqual(expected, received)) {
+          return new Response("Unauthorized", { status: 401 });
         }
 
         const { data: call, error: callError } = await supabaseAdmin
