@@ -17,6 +17,7 @@ import { saveCommuteMedia } from "@/lib/offline-storage";
 import { WorldNewsPanel } from "@/components/nexora/WorldNewsPanel";
 import { MultiSportHub } from "@/components/nexora/MultiSportHub";
 import { ComedyHub } from "@/components/nexora/ComedyHub";
+import { ComedyVideoShelf } from "@/components/nexora/ComedyVideoShelf";
 import { EducationDiscovery } from "@/components/nexora/EducationDiscovery";
 
 const categories = [
@@ -267,6 +268,7 @@ function Videos() {
       {category === "Comedy" ? <ComedyHub /> : category === "Education" ? <EducationDiscovery variant="full" /> : category === "News" ? <WorldNewsPanel variant="full" /> : <>
       {category === "Sports" && <MultiSportHub />}
       {category === "Technology" && <TechnologyHub />}
+      {category !== "Comedy" && <ComedyVideoShelf title="Comedy creators" compact />}
       <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">{submittedSearch ? `Search results for “${submittedSearch}”` : category === "Home" ? "Recommended videos" : category}</h2><span className="text-xs text-muted-foreground">{filteredItems.length} videos</span></div>
       {filteredItems.length ? <div className="grid gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
         {filteredItems.map((item) => <button key={item.id} type="button" onClick={() => void openVideo(item.id)} className="group min-w-0 text-left">
